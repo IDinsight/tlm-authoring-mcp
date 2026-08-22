@@ -32,7 +32,7 @@ import { asJson, asMarkdown, guarded } from "./shared.js";
 import { getActiveAdapter } from "../adapters/index.js";
 import { activeWorkspace } from "../context/index.js";
 import { getKgStore, mintNodeId, runGraphMutation, kgNamespace, publishDraft, discardDraft, type MutationGraph, type MutationEdge, type MutationNode, type StoredEdge, type StoredNode } from "../kg-store/index.js";
-import { SHARED_CATALOG_NAMESPACE, catalogNamespace, cloneRoutineSubtree, relabelClonedFormatter, relabelClonedRubric, addCatalogEntry, listCatalogEntries, renderCatalogEntry, useRoutine, useFormatter, useRubric, type CatalogScope, type UseRoutineArgs, type UseFormatterArgs, type UseRubricArgs } from "../kg-recipes/index.js";
+import { SHARED_CATALOG_NAMESPACE, catalogNamespace, cloneRoutineSubtree, relabelClonedFormatter, relabelClonedRubric, relabelForCatalog, addCatalogEntry, listCatalogEntries, renderCatalogEntry, useRoutine, useFormatter, useRubric, type CatalogScope, type UseRoutineArgs, type UseFormatterArgs, type UseRubricArgs } from "../kg-recipes/index.js";
 import { parkWrapperContext, readWrapperContext, deleteWrapperContext } from "./wrapper-park.js";
 // Destination resolution moved to catalog-target.ts, which the generic write
 // verbs (edit_node / add_nodes / create_edges) share for their `catalog` redirect.
@@ -306,8 +306,12 @@ export async function runAddToCatalog(a: AddToCatalogArgs): Promise<Record<strin
   // Clone its subtree into the catalog with fresh ids (stable across dry-run/confirm
   // via the echoed id-map), exactly like use_routine's copy — but toward the library.
   const mint = a.confirm ? (oldId: string) => (a.mintedIdMap ?? {})[oldId] : () => mintNodeId();
-  const clone = cloneRoutineSubtree(source, a.entryId, catalogNs, mint);
-  if (!clone) return { error: `Entry '${a.entryId}' was not found in the active graph. Author it first (add_nodes: an InstructionalRoutine + its steps/materials), then add it to the catalog.` };
+  const cloned = cloneRoutineSubtree(source, a.entryId, catalogNs, mint);
+  if (!cloned) return { error: `Entry '${a.entryId}' was not found in the active graph. Author it first (add_nodes: an InstructionalRoutine + its steps/materials), then add it to the catalog.` };
+  // A source that is ALREADY a document-layer copy (a Formatter or Rubric applied by
+  // use_formatter / use_rubric) is relabelled back to catalog shape on the way in —
+  // otherwise list_catalog would skip it. A routine passes through untouched.
+  const clone = relabelForCatalog(cloned);
 
   const mutationArgs = { namespace: catalogNs, clonedNodes: clone.nodes, clonedEdges: clone.edges, newEntryId: clone.newEntryId };
 

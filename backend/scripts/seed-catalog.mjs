@@ -14,10 +14,16 @@
  * chapitre" entries), so that is what seeds; any subject that later gains routines is
  * picked up automatically.
  *
+ * SAFETY: seeding REWRITES a namespace — anything in the slot that is not in the batch
+ * is deleted. Since a workspace library also holds entries authored live through
+ * add_to_catalog, the script REFUSES to write a namespace whose live entries are not
+ * all present in the batch, naming what it would have destroyed. `--force` overrides.
+ *
  * Usage:
  *   npm run build                         # compile TS to dist/ first
  *   node scripts/seed-catalog.mjs         # seed the catalog (Firestore)
  *   node scripts/seed-catalog.mjs --dry-run   # in-memory store; no writes, prints a summary
+ *   node scripts/seed-catalog.mjs --force     # write even if live entries would be deleted
  *
  * Env: same Firebase auth as seed-kg-store (SERVICE_ACCOUNT_KEY_PATH / _JSON,
  * FIREBASE_STORAGE_BUCKET, TLM_SOURCES_DIR, TLM_BUCKET_PREFIX).
@@ -55,6 +61,9 @@ function fixtureGraphs() {
 const { assembleCatalog, catalogNamespace, SHARED_CATALOG_NAMESPACE, CATALOG_ROOT_ID } = await import(new URL("../dist/kg-recipes/index.js", import.meta.url));
 
 const dryRun = process.argv.slice(2).includes("--dry-run");
+// Override the destroys-live-entries guard below. Deleting entries that exist only in
+// the store is never accidental-safe, so it has to be asked for explicitly.
+const force = process.argv.slice(2).includes("--force");
 
 // ── Authored formatter entries ───────────────────────────────────────────────
 // Formatters are catalog entries (kind=formatter) whose Material holds a house-style
@@ -519,13 +528,12 @@ for (const bundlePath of fixtureGraphs()) {
   subjectSources.push({ nodes: parsed.nodes ?? [], relationships: parsed.relationships ?? parsed.edges ?? [] });
 }
 
-// DANGER — do NOT run this against the LIVE `senegal` catalog. store.writeSlot
-// rewrites the WHOLE slot: it upserts these ids and DELETES every node not in the
-// batch. The live senegal library holds ~18 entries authored through add_to_catalog
-// that exist nowhere in this file, so a seed run would erase them (and duplicate the
-// entries whose live ids were minted rather than slugged). Deliver a new senegal entry
-// with add_to_catalog through the curator loop; use this script for `_shared`, or only
-// after folding the live entries in. The `--dry-run` flag is safe.
+// Seeding a namespace REWRITES it — store.writeSlot upserts these ids and deletes
+// everything else in the slot. A workspace library normally holds entries authored
+// live through add_to_catalog that this file has never seen, so the guard below
+// (`entriesOnlyInStore`) refuses such a write rather than trusting the reader to
+// remember. Deliver a new workspace entry with add_to_catalog through the curator
+// loop; use this script for `_shared`, or fold the live entries into `authored` first.
 //
 // The catalog namespaces to seed. `sources` are subject graphs (scraped for their
 // ROUTINE subtrees only); `authored` are the formatter literals, added whole. Keeping
@@ -547,6 +555,36 @@ const catalogs = [
 const store = dryRun ? createMemoryKgStore() : createFirestoreKgStore();
 let failed = false;
 
+// The entry ids filed directly under the catalog root — what list_catalog would show.
+// Works on both shapes: an assembled MutationGraph (from/to) and stored edges (from/to).
+function entryIdsUnderRoot(edges) {
+  return new Set(edges.filter((e) => e.type === "hasPart" && e.from === CATALOG_ROOT_ID).map((e) => e.to));
+}
+
+// THE GUARD. store.writeSlot rewrites the WHOLE slot: it upserts the batch's ids and
+// DELETES every node not in it. A workspace library legitimately holds entries authored
+// live through add_to_catalog that this file has never seen, so seeding such a namespace
+// destroys them. This is not hypothetical — a run on 2026-08-22 deleted 19 entries from
+// senegal/_catalog/routines (13 reading routines + 6 formatters), recoverable only
+// because copies survived in the subject graph.
+//
+// So: refuse to write any namespace whose LIVE published slot holds an entry this batch
+// does not carry. Returns the ids that would be destroyed, empty when the write is safe.
+async function entriesOnlyInStore(namespace, batchEdges) {
+  const pointer = await store.readPointer(namespace);
+  if (!pointer) return [];   // never seeded — nothing to lose
+  const [liveNodes, liveEdges] = await Promise.all([
+    store.listNodes(namespace, pointer.publishedSlot),
+    store.listEdges(namespace, pointer.publishedSlot),
+  ]);
+  const describe = (id) => {
+    const raw = liveNodes.find((n) => n.id === id)?.properties?.raw ?? {};
+    return `${id}  ${raw.description ?? "(no description)"}`;
+  };
+  const batchIds = entryIdsUnderRoot(batchEdges);
+  return [...entryIdsUnderRoot(liveEdges)].filter((id) => !batchIds.has(id)).map(describe);
+}
+
 for (const { namespace, adapterId, sources, authored } of catalogs) {
   const { nodes, edges } = assembleCatalog(sources, namespace, CATALOG_ROOT_ID, authored);
   const routineCount = nodes.filter((n) => (n.labels ?? []).includes("InstructionalRoutine")).length;
@@ -557,6 +595,17 @@ for (const { namespace, adapterId, sources, authored } of catalogs) {
   const meta = { contentHash, seededAt: new Date().toISOString(), adapterId, nodeCount: nodes.length, edgeCount: edges.length };
 
   console.error(`seed-catalog: backend=${store.kind}, ns='${namespace}', ${entryCount} entries, ${nodes.length} nodes, ${edges.length} edges.`);
+
+  const wouldDestroy = await entriesOnlyInStore(namespace, edges);
+  if (wouldDestroy.length && !force) {
+    console.error(`seed-catalog: REFUSED '${namespace}' — ${wouldDestroy.length} live entr(y/ies) exist only in the store and would be DELETED:`);
+    for (const line of wouldDestroy) console.error(`    ${line}`);
+    console.error(`  These were authored through add_to_catalog and are not in this file. Add a new entry with add_to_catalog instead of seeding,`);
+    console.error(`  or fold these into \`authored\` first. Pass --force only if you genuinely intend to delete them.`);
+    failed = true;
+    continue;
+  }
+
   try {
     const existing = await store.readPointer(namespace);
     await store.writeSlot(namespace, "a", { nodes, edges, meta });

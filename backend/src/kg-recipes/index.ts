@@ -20,7 +20,8 @@ export { RECIPES, type RecipeDescriptor, type RecipeParam } from "./registry.js"
 export {
   catalogNamespace, SHARED_CATALOG_NAMESPACE, SHARED_CATALOG_WORKSPACE, CATALOG_ROOT_ID,
   listCatalogEntries, renderCatalogEntry, cloneRoutineSubtree, assembleCatalog, useRoutine,
-  relabelClonedFormatter, useFormatter, relabelClonedRubric, useRubric, addCatalogEntry, catalogRootId,
+  relabelClonedFormatter, useFormatter, relabelClonedRubric, useRubric, relabelForCatalog,
+  addCatalogEntry, catalogRootId,
   type CatalogEntry, type CatalogScope, type CatalogKind, type CatalogMaterial, type ClonedSubtree,
   type UseRoutineArgs, type UseFormatterArgs, type UseRubricArgs, type AddCatalogEntryArgs,
 } from "./catalog.js";
