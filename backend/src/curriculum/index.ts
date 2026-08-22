@@ -8,7 +8,7 @@
 export { buildModel, unit } from "./model.js";
 export { parseGraph, type GraphParseDescriptor } from "./parse-graph.js";
 export { searchTerminology, terminologySections, allTerminologyEntries } from "./terminology.js";
-export { serializeModel, deserializeToModel, toRawEnvelope, edgeId, PRELOADED_MODEL_KEY, PRELOADED_SLOT_KEY } from "./store-bridge.js";
+export { serializeModel, deserializeToModel, toRawEnvelope, fromRawEnvelope, edgeId, PRELOADED_MODEL_KEY, PRELOADED_SLOT_KEY } from "./store-bridge.js";
 export { resolvePrune, type PruneStrategySpec } from "./prunes.js";
 export { coursesOf, courseSubgraph, standardsFor } from "./courses.js";
 export { documentSubgraph, documentSectionSubgraph, type DocumentScope, type DocumentSectionOut, type DocumentSectionScope, type SectionRoutine } from "./documents.js";

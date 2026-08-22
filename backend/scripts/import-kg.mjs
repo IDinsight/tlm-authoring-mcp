@@ -26,8 +26,14 @@
  * slot and readers see nothing change. --replace-published avoids that by writing
  * the live slot directly (refused if a draft is open — publish/discard it first).
  *
+ * --raw restores a namespace that has NO subject adapter — the reserved `_catalog`
+ * and `_glossary` partitions. It skips steps 1 and 4 (no parse, no profile cell) and
+ * writes the envelope's nodes/edges verbatim, so an export-kg backup of those
+ * partitions is restorable. Without it they export but never come back.
+ *
  * Usage (after `npm run build`):
- *   node scripts/import-kg.mjs <workspace> <grade> <subject> <graph.json> [--profile p.json] [--replace-published] [--dry-run]
+ *   node scripts/import-kg.mjs <workspace> <grade> <subject> <graph.json> [--profile p.json] [--replace-published] [--raw] [--dry-run]
+ *   node scripts/import-kg.mjs senegal _catalog routines imports/senegal/_catalog/routines/knowledge_graph.json --raw --replace-published
  *
  * Env (same as the server): SERVICE_ACCOUNT_KEY_PATH (or SERVICE_ACCOUNT_KEY_JSON),
  * FIREBASE_STORAGE_BUCKET, TLM_BUCKET_PREFIX (match the runtime prefix so the
@@ -45,12 +51,14 @@ if (!existsSync(resolve(REPO, "dist"))) {
 }
 
 const { resolveAdapter, getRegisteredProfile, getRegisteredGuide } = await import(new URL("../dist/adapters/index.js", import.meta.url));
-const { serializeModel } = await import(new URL("../dist/curriculum/index.js", import.meta.url));
+const { serializeModel, fromRawEnvelope } = await import(new URL("../dist/curriculum/index.js", import.meta.url));
 const { kgNamespace, createMemoryKgStore, createFirestoreKgStore } = await import(new URL("../dist/kg-store/index.js", import.meta.url));
 
 const args = process.argv.slice(2);
 const dryRun = args.includes("--dry-run");
 const replacePublished = args.includes("--replace-published");
+// Restore a non-curriculum namespace verbatim: no adapter, no parse, no profile cell.
+const rawMode = args.includes("--raw");
 const profileIdx = args.indexOf("--profile");
 const profilePath = profileIdx >= 0 ? args[profileIdx + 1] : null;
 // Drop the value after --profile, but only when the flag is present (indexOf
@@ -102,23 +110,29 @@ function computeDelta(curNodes, curEdges, nextNodes, nextEdges) {
   };
 }
 
-const adapter = resolveAdapter(workspace, grade, subject);
-if (!adapter) {
+// --raw skips the adapter entirely; every other import needs one to parse with.
+const adapter = rawMode ? null : resolveAdapter(workspace, grade, subject);
+if (!rawMode && !adapter) {
   console.error(`import-kg: no subject adapter registered for '${workspace}/${grade}/${subject}'. Add its profile under src/adapters/profiles/ first.`);
+  console.error(`  If this is a non-curriculum namespace (_catalog / _glossary), pass --raw to restore it verbatim.`);
   process.exit(1);
 }
 
 const rawBytes = readFileSync(resolve(graphPath));
 const contentHash = createHash("sha256").update(rawBytes).digest("hex");
-const model = adapter.parse(JSON.parse(rawBytes.toString("utf8")));
+const envelope = JSON.parse(rawBytes.toString("utf8"));
 const namespace = kgNamespace(workspace, grade, subject);
-const { nodes, edges } = serializeModel(model, namespace);
-const meta = { contentHash, seededAt: new Date().toISOString(), adapterId: adapter.id, nodeCount: nodes.length, edgeCount: edges.length };
+const { nodes, edges } = rawMode
+  ? fromRawEnvelope(envelope, namespace)
+  : serializeModel(adapter.parse(envelope), namespace);
+const meta = { contentHash, seededAt: new Date().toISOString(), adapterId: adapter?.id ?? "raw-envelope", nodeCount: nodes.length, edgeCount: edges.length };
 
 // The profile config cell: an explicit --profile file wins; otherwise the
 // in-repo { core, guide } literal for this grade/subject.
 let config;
-if (profilePath) {
+if (rawMode) {
+  config = null;
+} else if (profilePath) {
   config = JSON.parse(readFileSync(resolve(profilePath), "utf8"));
 } else {
   const core = getRegisteredProfile(workspace, grade, subject);
@@ -127,7 +141,7 @@ if (profilePath) {
 }
 
 const store = dryRun ? createMemoryKgStore() : createFirestoreKgStore();
-console.error(`import-kg: backend=${store.kind}, ns='${namespace}', nodes=${nodes.length}, edges=${edges.length}, hash=${contentHash.slice(0, 12)}…`);
+console.error(`import-kg: backend=${store.kind}, ns='${namespace}'${rawMode ? " (raw)" : ""}, nodes=${nodes.length}, edges=${edges.length}, hash=${contentHash.slice(0, 12)}…`);
 
 try {
   const existing = await store.readPointer(namespace);

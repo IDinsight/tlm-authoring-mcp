@@ -21,3 +21,34 @@ Layout mirrors the namespace: `imports/<workspace>/<grade>/<subject>/knowledge_g
 
 Nigeria's corrected maths graph lives under `test/fixtures/nigeria/…` instead — it
 is a pre-existing test context whose data was replaced.
+
+## Catalog backups (`<ws>/_catalog/routines/`)
+
+`_catalog` namespaces are **backups**, not new imports. They hold the reusable-spec
+libraries — instructional routines, formatters and evaluation rubrics — whose entries
+are authored **live** through `add_to_catalog`, so unlike a subject graph they exist
+nowhere else in this repo. On 2026-08-22 a `seed:catalog` run deleted 19 senegal
+entries; they were only recoverable because copies happened to survive in the subject
+graph. A routine that is catalogued but attached to nothing would have been lost.
+
+| Namespace | Entries | Nodes / Edges |
+|-----------|---------|---------------|
+| `senegal/_catalog/routines` | 23 | 174 / 173 |
+| `_shared/_catalog/routines` | 5  | 58 / 57 |
+
+Refresh a snapshot after authoring catalog entries:
+
+```bash
+npm run export:kg-store -- senegal _catalog routines imports/senegal/_catalog/routines/knowledge_graph.json
+```
+
+Restore one with **`--raw`**. A catalog is not a curriculum: it has no subject adapter
+to parse it and no profile cell, so a normal import cannot read it. `--raw` writes the
+envelope's nodes and edges verbatim (`fromRawEnvelope`, the exact inverse of the
+`toRawEnvelope` that produced the file).
+
+```bash
+npm run import:kg-store -- senegal _catalog routines imports/senegal/_catalog/routines/knowledge_graph.json --raw --replace-published
+```
+
+The same applies to the `_glossary` partition, for the same reason.
