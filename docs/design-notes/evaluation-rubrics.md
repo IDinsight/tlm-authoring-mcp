@@ -160,14 +160,49 @@ l'enseignant.
 
 ## Rolling this out
 
-1. `seed:catalog` for `_shared` — this is how Annexe 7 lands. Safe.
-2. **Annexe 8 must go in via `add_to_catalog`.** `store.writeSlot` rewrites a whole
-   slot and deletes anything not in the batch, and the live `senegal` library holds
-   ~18 entries authored through the curator loop that exist nowhere in the repo. A
-   seed run against it would erase them.
-3. Redeploy (this is a code change — `use_rubric` and `evaluate_document` do not exist
-   on the running server until then).
+**Deploy BEFORE seeding.** The old code has no `rubric` case in `kindOf`, so a rubric
+seeded first lists as kind `routine` and renders with its criterion names stripped. It
+self-heals on deploy, but it is the silent-misread trap that code-vs-data ordering
+always sets: ship the code that can read the data, then write the data.
+
+1. Redeploy — `use_rubric` and `evaluate_document` do not exist on the running server
+   until then.
+2. `seed:catalog` for `_shared` — this is how Annexe 7 lands.
+3. **Annexe 8 goes in via `add_to_catalog`, never the seed script** (see the incident
+   below).
 4. `use_rubric` the Annexe 8 grid onto the reading Guide's TLM, then `publish_draft`.
+
+## Incident: the seed run that deleted 19 entries (2026-08-22)
+
+Worth recording, because the failure was in the *instructions*, not the code.
+
+`npm run seed:catalog` seeds **both** namespaces — `_shared` and the `senegal`
+workspace library. `store.writeSlot` rewrites a whole slot, deleting every node not in
+its batch. The senegal batch holds only the literals in `scripts/seed-catalog.mjs`, so
+a run intended to land Annexe 7 in `_shared` also deleted the 19 senegal entries that
+had been authored live through `add_to_catalog` and exist nowhere in the repo: 14
+reading routines and 5 formatters. The library went 20 entries → 4.
+
+Nothing was permanently lost — every deleted entry still existed as a **copy in
+`senegal/ce1/reading`**, since `use_routine` / `use_formatter` copy on use and the seed
+never touches a subject graph. But recovering them exposed a real gap, fixed here:
+
+- **`add_to_catalog` now relabels a document-layer copy back to catalog shape**
+  (`relabelForCatalog`) — the inverse of `relabelClonedFormatter` /
+  `relabelClonedRubric`, which only ever existed in the outbound direction. Without it,
+  re-filing a `Formatter` copy writes an entry that `listCatalogEntries` skips (it only
+  lists `InstructionalRoutine` entries), so the entry is stored but invisible. This is
+  what makes a lost master recoverable from its graph copy **without retyping any
+  content** — the spec text rides along in the clone.
+- **`seed-catalog.mjs` now refuses** to write a namespace whose live published slot
+  holds an entry the batch does not carry, naming what it would have destroyed.
+  `--force` overrides. A comment warning about exactly this already existed in that
+  file, written by the same person who then ran into it; a comment is not a guard.
+
+Two smaller consequences: the recovered masters are the *corrected* versions (the graph
+copies had been fixed while the masters drifted), so the rebuild also closed a pending
+correction; and a duplicate Annexe 8 entry appeared, because the seed re-created it
+under a slug id alongside the `add_to_catalog` one.
 
 ## Deliberately not built
 

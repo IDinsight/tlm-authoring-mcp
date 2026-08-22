@@ -17,7 +17,10 @@ import {
   edgeId as makeEdgeId, __resetMutationsForTest, __resetDraftTokensForTest,
 } from "../../kg-store/index.js";
 import type { MutationGraph, StoredMeta, KgNodeStore, StoredNode, StoredEdge } from "../../kg-store/index.js";
-import { SHARED_CATALOG_NAMESPACE, catalogNamespace, cloneRoutineSubtree, listCatalogEntries, renderCatalogEntry, useRoutine } from "../../kg-recipes/index.js";
+import {
+  SHARED_CATALOG_NAMESPACE, catalogNamespace, cloneRoutineSubtree, listCatalogEntries, renderCatalogEntry,
+  useRoutine, relabelClonedFormatter, relabelClonedRubric, relabelForCatalog,
+} from "../../kg-recipes/index.js";
 import { readCatalog } from "../catalog.js";
 import { __setStorageForTest } from "../../storage/index.js";
 import { __setActorForTest, type Actor } from "../../actor.js";
@@ -431,6 +434,70 @@ describe("use_rubric", () => {
       const res = jsonOf(await applyCatalogEntry({ entryId: "cat-rub", targetId: lessonId }, "rubric")) as { error?: string };
       expect(res.error).toMatch(/use_rubric targets a TeachingLearningMaterial/);
     });
+  });
+});
+
+// A copy applied to a document is relabelled to the document layer. Filing it BACK
+// has to undo that, or the entry lands in the library as a `Formatter`/`Rubric` —
+// which listCatalogEntries skips, so it is stored but invisible. This is the path
+// that makes a lost catalog master recoverable from its graph copy alone.
+describe("relabelForCatalog — the inverse of use_formatter / use_rubric", () => {
+  const cloneOf = (graph: MutationGraph, entryId: string) =>
+    cloneRoutineSubtree(graph, entryId, SHARED_CATALOG_NAMESPACE, (oldId) => `copy-${oldId}`)!;
+  const labelOf = (clone: { nodes: MutationGraph["nodes"] }, id: string) => clone.nodes.find((n) => n.id === id)!.labels;
+  const metaOf = (clone: { nodes: MutationGraph["nodes"] }, id: string) =>
+    (((clone.nodes.find((n) => n.id === id)!.properties!.raw as Record<string, unknown>).metadata ?? {}) as Record<string, unknown>);
+
+  it("round-trips a formatter: catalog → document → catalog", async () => {
+    const catalog = await readCatalog(SHARED_CATALOG_NAMESPACE);
+    const applied = relabelClonedFormatter(cloneOf(catalog, "cat-fmt"));
+    expect(labelOf(applied, "copy-cat-fmt")).toEqual(["Formatter"]);
+
+    // Now file that document-layer copy back, as add_to_catalog does.
+    const refiled = relabelForCatalog(applied);
+    expect(labelOf(refiled, "copy-cat-fmt")).toEqual(["InstructionalRoutine"]);
+    expect(labelOf(refiled, "copy-cat-fmt-spec")).toEqual(["Material"]);
+    // The kind tag must come back, or list_catalog reports it as a routine.
+    expect(metaOf(refiled, "copy-cat-fmt").catalogKind).toBe("formatter");
+    expect(metaOf(refiled, "copy-cat-fmt").role).toBe("instructional-routine");
+    expect(metaOf(refiled, "copy-cat-fmt-spec").role).toBe("instructional-routine-material");
+    // The spec text rode along in the clone — never retyped, so it is byte-identical.
+    const specContent = (refiled.nodes.find((n) => n.id === "copy-cat-fmt-spec")!.properties!.raw as Record<string, unknown>).content;
+    expect(specContent).toBe("palette + fonts + page setup");
+  });
+
+  it("round-trips a rubric across all three levels", async () => {
+    const catalog = await readCatalog(SHARED_CATALOG_NAMESPACE);
+    const refiled = relabelForCatalog(relabelClonedRubric(cloneOf(catalog, "cat-rub")));
+
+    expect(labelOf(refiled, "copy-cat-rub")).toEqual(["InstructionalRoutine"]);
+    expect(labelOf(refiled, "copy-cat-rub-a")).toEqual(["InstructionalRoutine"]);   // a section
+    expect(labelOf(refiled, "copy-cat-rub-a1")).toEqual(["Material"]);              // a criterion
+    expect(metaOf(refiled, "copy-cat-rub").catalogKind).toBe("rubric");
+    // Weight and scale are content, not kind tags — they must survive both directions.
+    expect(metaOf(refiled, "copy-cat-rub").scale).toBe("oui-non");
+    expect(metaOf(refiled, "copy-cat-rub-a").weight).toBe("20%");
+  });
+
+  it("leaves a routine alone — it is already in catalog shape", async () => {
+    const catalog = await readCatalog(SHARED_CATALOG_NAMESPACE);
+    const clone = cloneOf(catalog, "cat-entry");
+    expect(relabelForCatalog(clone)).toEqual(clone);
+  });
+
+  it("a re-filed formatter is visible to list_catalog (the whole point)", async () => {
+    const catalog = await readCatalog(SHARED_CATALOG_NAMESPACE);
+    const refiled = relabelForCatalog(relabelClonedFormatter(cloneOf(catalog, "cat-fmt")));
+
+    // Splice the re-filed subtree under the catalog root, as addCatalogEntry does.
+    const filed: MutationGraph = {
+      nodes: [...catalog.nodes, ...refiled.nodes],
+      edges: [...catalog.edges, ...refiled.edges, { id: makeEdgeId("hasPart", "cat-root", refiled.newEntryId), type: "hasPart", from: "cat-root", to: refiled.newEntryId, namespace: SHARED_CATALOG_NAMESPACE, properties: {} }],
+    };
+    const entry = listCatalogEntries(filed, "shared").find((e) => e.id === refiled.newEntryId);
+    expect(entry).toBeDefined();
+    expect(entry!.kind).toBe("formatter");
+    expect(entry!.materials).toEqual([{ id: "copy-cat-fmt-spec", name: "" }]);
   });
 });
 

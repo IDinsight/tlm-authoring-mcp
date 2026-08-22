@@ -49,6 +49,11 @@ const ROUTINE_LABEL = "InstructionalRoutine";
 const MATERIAL_LABEL = "Material";
 const CONTAINMENT = "hasPart";
 
+// The `metadata.role` tags a catalog entry's nodes carry. Stripped when a copy leaves
+// the library (withoutKindTags) and restored when one is filed back in.
+const ROUTINE_ROLE = "instructional-routine";
+const MATERIAL_ROLE = "instructional-routine-material";
+
 // The document-layer labels a formatter takes on when applied (Phase 4): the entry
 // becomes a `Formatter`, its rule-bearing Material children `FormatterSpec`, and it
 // hangs under a `TeachingLearningMaterial`. See docs/design-notes/teaching-learning-materials.md.
@@ -599,6 +604,65 @@ export const useRubric: GraphMutation<UseRubricArgs> = {
   validate: (base, _after, args) => ({ errors: validateDocumentAttachment(base, args, args.newRubricId, "use_rubric", "rubric"), warnings: [] }),
   apply: (base, args) => attachUnderDocument(base, args, args.newRubricId),
 };
+
+// ── Filing a copy BACK into a catalog ────────────────────────────────────────
+// The inverse of relabelClonedFormatter / relabelClonedRubric. A copy that was
+// relabelled to the document layer on its way OUT of the library has to be relabelled
+// on its way back IN — otherwise it lands in the catalog as a `Formatter`, and
+// listCatalogEntries skips it (that read only lists InstructionalRoutine entries), so
+// the entry is filed but invisible.
+//
+// This is what makes a catalog entry recoverable from the graph copy alone: the
+// content rides along in the clone, byte for byte, and is never retyped.
+
+// Each document-layer ENTRY label, and how its subtree maps back to catalog shape.
+// A routine has no entry here — it is stored as InstructionalRoutine either way.
+const CATALOG_SHAPE_BY_ENTRY_LABEL: Record<string, { kind: CatalogKind; childLabels: Record<string, string> }> = {
+  [FORMATTER_LABEL]: {
+    kind: "formatter",
+    childLabels: { [FORMATTER_SPEC_LABEL]: MATERIAL_LABEL },
+  },
+  [RUBRIC_LABEL]: {
+    kind: "rubric",
+    childLabels: { [RUBRIC_SECTION_LABEL]: ROUTINE_LABEL, [RUBRIC_CRITERION_LABEL]: MATERIAL_LABEL },
+  },
+};
+
+// Restore the metadata the catalog reads: every node gets its `role` back, and the
+// ENTRY also gets the `catalogKind` that tells list_catalog which kind it is. The
+// inverse of withoutKindTags, which strips both on the way out.
+function withCatalogKindTags(raw: Record<string, unknown>, role: string, catalogKind?: CatalogKind): Record<string, unknown> {
+  const metadata: Record<string, unknown> = { ...((raw.metadata as Record<string, unknown>) ?? {}), role };
+  if (catalogKind) { metadata.catalogKind = catalogKind; }
+  return { ...raw, metadata };
+}
+
+// Turn a cloned subtree into CATALOG shape, whatever shape it currently has:
+//   Formatter/FormatterSpec              → InstructionalRoutine + Material
+//   Rubric/RubricSection/RubricCriterion → InstructionalRoutine + InstructionalRoutine + Material
+//   InstructionalRoutine/Material        → unchanged (a routine is already catalog shape)
+// Content and every other raw prop are untouched; only labels and the kind tags move.
+export function relabelForCatalog(clone: ClonedSubtree): ClonedSubtree {
+  const entry = clone.nodes.find((node) => node.id === clone.newEntryId);
+  const entryLabel = labelsOf(entry)[0] ?? "";
+  const shape = CATALOG_SHAPE_BY_ENTRY_LABEL[entryLabel];
+  if (!shape) { return clone; }
+
+  const nodes = clone.nodes.map((node) => {
+    const isEntry = node.id === clone.newEntryId;
+    const label = isEntry ? ROUTINE_LABEL : shape.childLabels[labelsOf(node)[0] ?? ""];
+    if (!label) { return node; }
+
+    const role = label === MATERIAL_LABEL ? MATERIAL_ROLE : ROUTINE_ROLE;
+    return {
+      ...node,
+      type: label,
+      labels: [label],
+      properties: { ...(node.properties ?? {}), raw: withCatalogKindTags(rawOf(node), role, isEntry ? shape.kind : undefined) },
+    };
+  });
+  return { ...clone, nodes };
+}
 
 // ── add_to_catalog: publish an authored entry INTO a catalog ─────────────────
 // The inverse of useRoutine. useRoutine copies a library entry OUT onto a lesson;
