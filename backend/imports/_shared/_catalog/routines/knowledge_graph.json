@@ -1,0 +1,2078 @@
+{
+  "nodes": [
+    {
+      "id": "0567ec17-cecb-530c-9e2b-74296ede9cb2",
+      "labels": [
+        "InstructionalRoutine"
+      ],
+      "properties": {
+        "license": "https://creativecommons.org/licenses/by/4.0/",
+        "attributionStatement": "Node/edge types follow the Learning Commons ontology (CC BY-4.0). Structure d'un chapitre du Manuel de l'élève (titre / situation d'amorce / je retiens / consigne générale / activités / bilan) rédigée pour le Manuel de l'élève CI mathématiques, Sénégal (TLM).",
+        "provider": "Learning Commons ontology (generated)",
+        "author": "Manuel de l'élève CI mathématiques (TLM)",
+        "inLanguage": "fr-FR",
+        "jurisdiction": "Senegal",
+        "academicSubject": "Mathematics",
+        "gradeLevel": [
+          "CI"
+        ],
+        "description": "Manuel de l'élève — structure d'un chapitre",
+        "identifier": "0567ec17-cecb-530c-9e2b-74296ede9cb2",
+        "normalizedType": "Instructional Routine",
+        "position": 1,
+        "metadata": {
+          "role": "instructional-routine",
+          "order": 1,
+          "en": {
+            "description": "Pupil's manual — chapter structure"
+          },
+          "summary": "Structure fixe d'un chapitre du **Manuel de l'élève** (CI mathématiques). Le manuel est l'artefact destiné à l'élève ; un chapitre de manuel correspond à un chapitre du curriculum. Chaque chapitre enchaîne six sections : **Titre → Situation d'amorce → Je retiens → Consigne générale → Activités → Bilan**.\n\nRègles transversales : chapitres rédigés **en français uniquement** (jamais de wolof) ; **règle d'or — un enfant de 6 ans répond en REGARDANT, pas en se souvenant** (tout le nécessaire pour répondre est dessiné dans l'image de l'activité) ; **QCM à trois choix A / B / C**, les choix figurant **uniquement dans l'image** (jamais recopiés en texte) ; l'élève **écrit seulement la lettre** de la bonne réponse ; **manuel non consommable** (on n'écrit pas dans le manuel) ; **fidélité au vocabulaire du curriculum** (texte de l'OS et terminologie officielle, en français uniquement)."
+        }
+      }
+    },
+    {
+      "id": "067a73a5-931c-53bb-873b-421ed7b78207",
+      "labels": [
+        "InstructionalRoutine"
+      ],
+      "properties": {
+        "license": "https://creativecommons.org/licenses/by/4.0/",
+        "attributionStatement": "Node/edge types follow the Learning Commons ontology (CC BY-4.0). Structure d'un chapitre du Manuel de l'élève (titre / situation d'amorce / je retiens / consigne générale / activités / bilan) rédigée pour le Manuel de l'élève CI mathématiques, Sénégal (TLM).",
+        "provider": "Learning Commons ontology (generated)",
+        "author": "Manuel de l'élève CI mathématiques (TLM)",
+        "inLanguage": "fr-FR",
+        "jurisdiction": "Senegal",
+        "academicSubject": "Mathematics",
+        "gradeLevel": [
+          "CI"
+        ],
+        "description": "Situation d'amorce",
+        "identifier": "067a73a5-931c-53bb-873b-421ed7b78207",
+        "normalizedType": "Instructional Routine",
+        "position": 2,
+        "metadata": {
+          "role": "instructional-routine",
+          "order": 2,
+          "en": {
+            "description": "Opening situation"
+          }
+        }
+      }
+    },
+    {
+      "id": "071dbc73-913a-593e-a057-b8a3dc2c17a0",
+      "labels": [
+        "InstructionalRoutine"
+      ],
+      "properties": {
+        "license": "https://creativecommons.org/licenses/by/4.0/",
+        "attributionStatement": "Node/edge types follow the Learning Commons ontology (CC BY-4.0). Routine d'enseignement explicite (déclencheur / modelage / pratique guidée / pratique autonome / objectivation) rédigée pour le Guide de l'enseignant·e CI mathématiques, Sénégal (TLM).",
+        "provider": "Learning Commons ontology (generated)",
+        "author": "Guide de l'enseignant·e CI mathématiques (TLM)",
+        "inLanguage": "fr-FR",
+        "jurisdiction": "Senegal",
+        "academicSubject": "Mathematics",
+        "gradeLevel": [
+          "CI"
+        ],
+        "description": "NOUS FAISONS — Objectivation",
+        "identifier": "071dbc73-913a-593e-a057-b8a3dc2c17a0",
+        "normalizedType": "Instructional Routine",
+        "position": 5,
+        "metadata": {
+          "role": "instructional-routine",
+          "order": 5,
+          "en": {
+            "description": "WE DO — Consolidation"
+          }
+        },
+        "timeRequired": "PT5M"
+      }
+    },
+    {
+      "id": "2945fe6c-8e81-5a15-9e17-30b61ddbca32",
+      "labels": [
+        "InstructionalRoutine"
+      ],
+      "properties": {
+        "license": "https://creativecommons.org/licenses/by/4.0/",
+        "attributionStatement": "Node/edge types follow the Learning Commons ontology (CC BY-4.0). Structure d'un chapitre du Manuel de l'élève (titre / situation d'amorce / je retiens / consigne générale / activités / bilan) rédigée pour le Manuel de l'élève CI mathématiques, Sénégal (TLM).",
+        "provider": "Learning Commons ontology (generated)",
+        "author": "Manuel de l'élève CI mathématiques (TLM)",
+        "inLanguage": "fr-FR",
+        "jurisdiction": "Senegal",
+        "academicSubject": "Mathematics",
+        "gradeLevel": [
+          "CI"
+        ],
+        "description": "Titre du chapitre",
+        "identifier": "2945fe6c-8e81-5a15-9e17-30b61ddbca32",
+        "normalizedType": "Instructional Routine",
+        "position": 1,
+        "metadata": {
+          "role": "instructional-routine",
+          "order": 1,
+          "en": {
+            "description": "Chapter title"
+          }
+        }
+      }
+    },
+    {
+      "id": "2e539e2d-8a0c-55d5-acbf-f6fb5393131d",
+      "labels": [
+        "Material"
+      ],
+      "properties": {
+        "license": "https://creativecommons.org/licenses/by/4.0/",
+        "attributionStatement": "Node/edge types follow the Learning Commons ontology (CC BY-4.0). Structure d'un chapitre du Manuel de l'élève (titre / situation d'amorce / je retiens / consigne générale / activités / bilan) rédigée pour le Manuel de l'élève CI mathématiques, Sénégal (TLM).",
+        "provider": "Learning Commons ontology (generated)",
+        "author": "Manuel de l'élève CI mathématiques (TLM)",
+        "inLanguage": "fr-FR",
+        "jurisdiction": "Senegal",
+        "academicSubject": "Mathematics",
+        "gradeLevel": [
+          "CI"
+        ],
+        "description": "Bilan — spécification",
+        "identifier": "2e539e2d-8a0c-55d5-acbf-f6fb5393131d",
+        "normalizedType": "Material",
+        "position": 1,
+        "metadata": {
+          "role": "instructional-routine-material",
+          "order": 6,
+          "en": {
+            "description": "Chapter review"
+          }
+        },
+        "name": "Bilan — spécification",
+        "content": "### Bilan — retour à la situation d'amorce\n\nLa dernière leçon du chapitre est une **révision**. Le bilan est un QCM portant sur la **scène d'amorce**.\n\n- Les questions couvrent, ensemble, **tous les OS non-bilan** du chapitre (chaque OS exercé par au moins une question).\n- **Pas d'image propre** : le bilan renvoie en mots à l'image d'amorce déjà présente en tête de chapitre.\n- Chaque question doit être décidable à partir de la seule scène d'amorce et ne pas être auto-répondante.\n- Clé de réponses fournie pour l'enseignant.",
+        "materialType": "Reference",
+        "educationalUse": "Instruction",
+        "audience": [
+          "Teacher"
+        ],
+        "providerDateCreated": "2026-08-13T00:00:00.000Z",
+        "providerDateModified": "2026-08-13T00:00:00.000Z"
+      }
+    },
+    {
+      "id": "4b2e6ce9-d7ba-53cd-a6ac-37fb6004656a",
+      "labels": [
+        "Material"
+      ],
+      "properties": {
+        "license": "https://creativecommons.org/licenses/by/4.0/",
+        "attributionStatement": "Node/edge types follow the Learning Commons ontology (CC BY-4.0). Routine d'enseignement explicite (déclencheur / modelage / pratique guidée / pratique autonome / objectivation) rédigée pour le Guide de l'enseignant·e CI mathématiques, Sénégal (TLM).",
+        "provider": "Learning Commons ontology (generated)",
+        "author": "Guide de l'enseignant·e CI mathématiques (TLM)",
+        "inLanguage": "fr-FR",
+        "jurisdiction": "Senegal",
+        "academicSubject": "Mathematics",
+        "gradeLevel": [
+          "CI"
+        ],
+        "description": "JE FAIS — Déclencheur — consigne enseignant·e",
+        "identifier": "4b2e6ce9-d7ba-53cd-a6ac-37fb6004656a",
+        "normalizedType": "Material",
+        "position": 1,
+        "metadata": {
+          "role": "instructional-routine-material",
+          "order": 1,
+          "en": {
+            "description": "I DO — Trigger"
+          }
+        },
+        "name": "JE FAIS — Déclencheur — consigne enseignant·e",
+        "content": "### JE FAIS — Déclencheur (4 minutes)\n\n*But :* lancer la leçon et mobiliser les élèves. Le déclencheur s'adapte à la place de la leçon dans le chapitre.\n\n- **1re leçon du chapitre.** Le maître présente la situation d'amorce **avec des mots** (aucune image n'est reproduite dans la fiche) ; il fait observer l'image **dans le manuel de l'élève** — *E dit : « Regardez bien l'image de votre manuel… »* ; il pose quelques questions orales simples de mise en train ; il rappelle les prérequis ; il annonce l'objectif.\n- **Leçons intermédiaires.** Le maître part d'un exemple rapide **esquissé au tableau** à la craie ; il rappelle brièvement la leçon précédente ; il introduit la nouvelle notion.\n- **Dernière leçon (Bilan).** Le maître revient explicitement à la situation d'amorce (avec des mots / l'image du manuel) ; il annonce que la leçon est une **révision** des apprentissages du chapitre.\n\nTerminer par : *E dit : « Aujourd'hui, nous allons apprendre à… »*",
+        "materialType": "Reference",
+        "educationalUse": "Instruction",
+        "audience": [
+          "Teacher"
+        ],
+        "providerDateCreated": "2026-08-13T00:00:00.000Z",
+        "providerDateModified": "2026-08-13T00:00:00.000Z"
+      }
+    },
+    {
+      "id": "5e8f38c2-362c-53eb-8733-82948a82afef",
+      "labels": [
+        "Material"
+      ],
+      "properties": {
+        "license": "https://creativecommons.org/licenses/by/4.0/",
+        "attributionStatement": "Node/edge types follow the Learning Commons ontology (CC BY-4.0). Structure d'un chapitre du Manuel de l'élève (titre / situation d'amorce / je retiens / consigne générale / activités / bilan) rédigée pour le Manuel de l'élève CI mathématiques, Sénégal (TLM).",
+        "provider": "Learning Commons ontology (generated)",
+        "author": "Manuel de l'élève CI mathématiques (TLM)",
+        "inLanguage": "fr-FR",
+        "jurisdiction": "Senegal",
+        "academicSubject": "Mathematics",
+        "gradeLevel": [
+          "CI"
+        ],
+        "description": "Je retiens — spécification",
+        "identifier": "5e8f38c2-362c-53eb-8733-82948a82afef",
+        "normalizedType": "Material",
+        "position": 1,
+        "metadata": {
+          "role": "instructional-routine-material",
+          "order": 3,
+          "en": {
+            "description": "I remember (concept box)"
+          }
+        },
+        "name": "Je retiens — spécification",
+        "content": "### Je retiens\n\nEncadré-résumé de la notion, rédigé à la **première personne** (« Je… »), **3–5 puces**, termes-clés en gras. Il s'appuie sur le même univers d'objets et de personnages que la situation d'amorce.",
+        "materialType": "Reference",
+        "educationalUse": "Instruction",
+        "audience": [
+          "Teacher"
+        ],
+        "providerDateCreated": "2026-08-13T00:00:00.000Z",
+        "providerDateModified": "2026-08-13T00:00:00.000Z"
+      }
+    },
+    {
+      "id": "67830a70-7225-577d-9b26-b97fc9d97fc0",
+      "labels": [
+        "InstructionalRoutine"
+      ],
+      "properties": {
+        "license": "https://creativecommons.org/licenses/by/4.0/",
+        "attributionStatement": "Node/edge types follow the Learning Commons ontology (CC BY-4.0). Structure d'un chapitre du Manuel de l'élève (titre / situation d'amorce / je retiens / consigne générale / activités / bilan) rédigée pour le Manuel de l'élève CI mathématiques, Sénégal (TLM).",
+        "provider": "Learning Commons ontology (generated)",
+        "author": "Manuel de l'élève CI mathématiques (TLM)",
+        "inLanguage": "fr-FR",
+        "jurisdiction": "Senegal",
+        "academicSubject": "Mathematics",
+        "gradeLevel": [
+          "CI"
+        ],
+        "description": "Activités",
+        "identifier": "67830a70-7225-577d-9b26-b97fc9d97fc0",
+        "normalizedType": "Instructional Routine",
+        "position": 5,
+        "metadata": {
+          "role": "instructional-routine",
+          "order": 5,
+          "en": {
+            "description": "Activities"
+          }
+        }
+      }
+    },
+    {
+      "id": "78936410-3db6-5109-aa45-6dca53a4343c",
+      "labels": [
+        "InstructionalRoutine"
+      ],
+      "properties": {
+        "license": "https://creativecommons.org/licenses/by/4.0/",
+        "attributionStatement": "Node/edge types follow the Learning Commons ontology (CC BY-4.0). Routine d'enseignement explicite (déclencheur / modelage / pratique guidée / pratique autonome / objectivation) rédigée pour le Guide de l'enseignant·e CI mathématiques, Sénégal (TLM).",
+        "provider": "Learning Commons ontology (generated)",
+        "author": "Guide de l'enseignant·e CI mathématiques (TLM)",
+        "inLanguage": "fr-FR",
+        "jurisdiction": "Senegal",
+        "academicSubject": "Mathematics",
+        "gradeLevel": [
+          "CI"
+        ],
+        "description": "Fiche de leçon — enseignement explicite (30 min)",
+        "identifier": "78936410-3db6-5109-aa45-6dca53a4343c",
+        "normalizedType": "Instructional Routine",
+        "position": 1,
+        "metadata": {
+          "role": "instructional-routine",
+          "order": 1,
+          "en": {
+            "description": "Lesson sheet — explicit teaching (30 min)"
+          },
+          "summary": "Structure fixe d'une fiche de leçon en **enseignement explicite** pour le Guide de l'enseignant·e (CI mathématiques). Chaque leçon dure environ **30 minutes** et enchaîne cinq étapes : modelage → pratique guidée → pratique autonome → objectivation.\n\nRègles transversales : fiches rédigées en français ; **le maître lit toujours les consignes à voix haute** (les élèves ne lisent pas encore) ; les élèves **n'écrivent pas dans le manuel** (cahier ou ardoise) ; démonstration **d'abord au tableau**, du plus concret au moins concret, avec des supports **gratuits** uniquement (craie, tableau, ardoise, doigts, cailloux, cauris) ; aucun matériel acheté."
+        }
+      }
+    },
+    {
+      "id": "7923323a-fec0-57cf-838e-c92d75194d11",
+      "labels": [
+        "Material"
+      ],
+      "properties": {
+        "license": "https://creativecommons.org/licenses/by/4.0/",
+        "attributionStatement": "Node/edge types follow the Learning Commons ontology (CC BY-4.0). Routine d'enseignement explicite (déclencheur / modelage / pratique guidée / pratique autonome / objectivation) rédigée pour le Guide de l'enseignant·e CI mathématiques, Sénégal (TLM).",
+        "provider": "Learning Commons ontology (generated)",
+        "author": "Guide de l'enseignant·e CI mathématiques (TLM)",
+        "inLanguage": "fr-FR",
+        "jurisdiction": "Senegal",
+        "academicSubject": "Mathematics",
+        "gradeLevel": [
+          "CI"
+        ],
+        "description": "NOUS FAISONS — Objectivation — consigne enseignant·e",
+        "identifier": "7923323a-fec0-57cf-838e-c92d75194d11",
+        "normalizedType": "Material",
+        "position": 5,
+        "metadata": {
+          "role": "instructional-routine-material",
+          "order": 5,
+          "en": {
+            "description": "WE DO — Consolidation"
+          }
+        },
+        "name": "NOUS FAISONS — Objectivation — consigne enseignant·e",
+        "content": "### NOUS FAISONS — Objectivation (5 minutes)\n\n*But :* consolider les apprentissages.\n\n- Corriger rapidement.\n- Faire expliquer leurs réponses par un ou deux élèves.\n- Revenir sur la notion clé ; faire **reformuler la règle**.\n\nTerminer par : *E dit : « Aujourd'hui, nous avons appris que… »*\n\n**Bilan.** Mener une **objectivation globale** du chapitre : ce que les élèves savent désormais faire et pourquoi.",
+        "materialType": "Reference",
+        "educationalUse": "Instruction",
+        "audience": [
+          "Teacher"
+        ],
+        "providerDateCreated": "2026-08-13T00:00:00.000Z",
+        "providerDateModified": "2026-08-13T00:00:00.000Z"
+      }
+    },
+    {
+      "id": "7eded268-7d04-5183-9d71-7b3c2bfb45df",
+      "labels": [
+        "InstructionalRoutine"
+      ],
+      "properties": {
+        "license": "https://creativecommons.org/licenses/by/4.0/",
+        "attributionStatement": "Node/edge types follow the Learning Commons ontology (CC BY-4.0). Structure d'un chapitre du Manuel de l'élève (titre / situation d'amorce / je retiens / consigne générale / activités / bilan) rédigée pour le Manuel de l'élève CI mathématiques, Sénégal (TLM).",
+        "provider": "Learning Commons ontology (generated)",
+        "author": "Manuel de l'élève CI mathématiques (TLM)",
+        "inLanguage": "fr-FR",
+        "jurisdiction": "Senegal",
+        "academicSubject": "Mathematics",
+        "gradeLevel": [
+          "CI"
+        ],
+        "description": "Je retiens",
+        "identifier": "7eded268-7d04-5183-9d71-7b3c2bfb45df",
+        "normalizedType": "Instructional Routine",
+        "position": 3,
+        "metadata": {
+          "role": "instructional-routine",
+          "order": 3,
+          "en": {
+            "description": "I remember (concept box)"
+          }
+        }
+      }
+    },
+    {
+      "id": "7ef865a0-b3f7-5ac6-879f-0bb98d0dec19",
+      "labels": [
+        "Material"
+      ],
+      "properties": {
+        "license": "https://creativecommons.org/licenses/by/4.0/",
+        "attributionStatement": "Node/edge types follow the Learning Commons ontology (CC BY-4.0). Routine d'enseignement explicite (déclencheur / modelage / pratique guidée / pratique autonome / objectivation) rédigée pour le Guide de l'enseignant·e CI mathématiques, Sénégal (TLM).",
+        "provider": "Learning Commons ontology (generated)",
+        "author": "Guide de l'enseignant·e CI mathématiques (TLM)",
+        "inLanguage": "fr-FR",
+        "jurisdiction": "Senegal",
+        "academicSubject": "Mathematics",
+        "gradeLevel": [
+          "CI"
+        ],
+        "description": "TU FAIS — consigne enseignant·e",
+        "identifier": "7ef865a0-b3f7-5ac6-879f-0bb98d0dec19",
+        "normalizedType": "Material",
+        "position": 4,
+        "metadata": {
+          "role": "instructional-routine-material",
+          "order": 4,
+          "en": {
+            "description": "YOU DO"
+          }
+        },
+        "name": "TU FAIS — consigne enseignant·e",
+        "content": "### TU FAIS (10 minutes)\n\n*But :* pratique **autonome**.\n\n- Faire ouvrir le manuel à l'activité cible en précisant laquelle (par exemple « Activités 2 et 3 » ou « questions 4, 5 et 6 du bilan »).\n- Lire l'instruction à voix haute.\n- Rappeler d'écrire **seulement la lettre** de la bonne réponse (A, B ou C), dans le cahier ou sur l'ardoise — **pas dans le manuel**.\n- Laisser les élèves travailler seuls ; **circuler** pour aider **sans donner la réponse**.\n\nTerminer par : *Réponse attendue : …*\n\n**Bilan.** Laisser les **questions 4, 5 et 6** en travail autonome ; rappeler la réponse de la **question 1** (modélisée au Rappel / Modelage). Afficher : *Réponses attendues : 4 → … ; 5 → … ; 6 → …*",
+        "materialType": "Reference",
+        "educationalUse": "Instruction",
+        "audience": [
+          "Teacher"
+        ],
+        "providerDateCreated": "2026-08-13T00:00:00.000Z",
+        "providerDateModified": "2026-08-13T00:00:00.000Z"
+      }
+    },
+    {
+      "id": "8e84da63-f395-5603-844d-2e7f749fd897",
+      "labels": [
+        "InstructionalRoutine"
+      ],
+      "properties": {
+        "license": "https://creativecommons.org/licenses/by/4.0/",
+        "attributionStatement": "Node/edge types follow the Learning Commons ontology (CC BY-4.0). Routine d'enseignement explicite (déclencheur / modelage / pratique guidée / pratique autonome / objectivation) rédigée pour le Guide de l'enseignant·e CI mathématiques, Sénégal (TLM).",
+        "provider": "Learning Commons ontology (generated)",
+        "author": "Guide de l'enseignant·e CI mathématiques (TLM)",
+        "inLanguage": "fr-FR",
+        "jurisdiction": "Senegal",
+        "academicSubject": "Mathematics",
+        "gradeLevel": [
+          "CI"
+        ],
+        "description": "JE FAIS — Modelage",
+        "identifier": "8e84da63-f395-5603-844d-2e7f749fd897",
+        "normalizedType": "Instructional Routine",
+        "position": 2,
+        "metadata": {
+          "role": "instructional-routine",
+          "order": 2,
+          "en": {
+            "description": "I DO — Modelling"
+          }
+        },
+        "timeRequired": "PT8M"
+      }
+    },
+    {
+      "id": "95cfd258-1114-51f2-a3e5-7b9f9cfdde86",
+      "labels": [
+        "Material"
+      ],
+      "properties": {
+        "license": "https://creativecommons.org/licenses/by/4.0/",
+        "attributionStatement": "Node/edge types follow the Learning Commons ontology (CC BY-4.0). Structure d'un chapitre du Manuel de l'élève (titre / situation d'amorce / je retiens / consigne générale / activités / bilan) rédigée pour le Manuel de l'élève CI mathématiques, Sénégal (TLM).",
+        "provider": "Learning Commons ontology (generated)",
+        "author": "Manuel de l'élève CI mathématiques (TLM)",
+        "inLanguage": "fr-FR",
+        "jurisdiction": "Senegal",
+        "academicSubject": "Mathematics",
+        "gradeLevel": [
+          "CI"
+        ],
+        "description": "Activités — spécification",
+        "identifier": "95cfd258-1114-51f2-a3e5-7b9f9cfdde86",
+        "normalizedType": "Material",
+        "position": 1,
+        "metadata": {
+          "role": "instructional-routine-material",
+          "order": 5,
+          "en": {
+            "description": "Activities"
+          }
+        },
+        "name": "Activités — spécification",
+        "content": "### Activités\n\nChaque activité cible **une leçon (OS)** du chapitre à travers sa/ses **composante(s) d'apprentissage**.\n\n**Couverture obligatoire :** chaque leçon non-bilan est ciblée par **au moins une activité**. La couverture se juge **par leçon, pas par composante** (plusieurs leçons partagent souvent une même composante ; chacune garde son activité). Là où l'OS le permet, viser **deux activités** par leçon, réellement différentes (jamais des quasi-doublons).\n\n**Structure d'une activité :** Titre (« Activité N — … », peut porter le terme du curriculum) → **Consigne** courte (une phrase concrète, lue à voix haute par le maître, répondable en regardant) → **Image**.\n\n- **QCM A / B / C** uniquement ; les trois choix figurent **uniquement dans l'image** et ne sont jamais recopiés en texte.\n- Le **terme mathématique** paraît dans le titre, le « Je retiens » et les métadonnées enseignant ; la consigne destinée à l'enfant reste concrète.\n- Question **décidable et non auto-répondante**, une seule idée par question ; tout le nécessaire pour répondre est visible dans l'image de l'activité (règle d'or).\n- Non consommable : ni entourage, ni coloriage, ni écriture dans le manuel.\n- Métadonnées enseignant : composante ciblée, leçon, source, lettre de la réponse.",
+        "materialType": "Reference",
+        "educationalUse": "Instruction",
+        "audience": [
+          "Teacher"
+        ],
+        "providerDateCreated": "2026-08-13T00:00:00.000Z",
+        "providerDateModified": "2026-08-13T00:00:00.000Z"
+      }
+    },
+    {
+      "id": "9a3c9225-2e74-596c-b63d-806d5fb93e5d",
+      "labels": [
+        "InstructionalRoutine"
+      ],
+      "properties": {
+        "license": "https://creativecommons.org/licenses/by/4.0/",
+        "attributionStatement": "Node/edge types follow the Learning Commons ontology (CC BY-4.0). Routine d'enseignement explicite (déclencheur / modelage / pratique guidée / pratique autonome / objectivation) rédigée pour le Guide de l'enseignant·e CI mathématiques, Sénégal (TLM).",
+        "provider": "Learning Commons ontology (generated)",
+        "author": "Guide de l'enseignant·e CI mathématiques (TLM)",
+        "inLanguage": "fr-FR",
+        "jurisdiction": "Senegal",
+        "academicSubject": "Mathematics",
+        "gradeLevel": [
+          "CI"
+        ],
+        "description": "NOUS FAISONS",
+        "identifier": "9a3c9225-2e74-596c-b63d-806d5fb93e5d",
+        "normalizedType": "Instructional Routine",
+        "position": 3,
+        "metadata": {
+          "role": "instructional-routine",
+          "order": 3,
+          "en": {
+            "description": "WE DO"
+          }
+        },
+        "timeRequired": "PT8M"
+      }
+    },
+    {
+      "id": "a5bcd72c-e924-5334-952d-ba09d598e114",
+      "labels": [
+        "Material"
+      ],
+      "properties": {
+        "license": "https://creativecommons.org/licenses/by/4.0/",
+        "attributionStatement": "Node/edge types follow the Learning Commons ontology (CC BY-4.0). Structure d'un chapitre du Manuel de l'élève (titre / situation d'amorce / je retiens / consigne générale / activités / bilan) rédigée pour le Manuel de l'élève CI mathématiques, Sénégal (TLM).",
+        "provider": "Learning Commons ontology (generated)",
+        "author": "Manuel de l'élève CI mathématiques (TLM)",
+        "inLanguage": "fr-FR",
+        "jurisdiction": "Senegal",
+        "academicSubject": "Mathematics",
+        "gradeLevel": [
+          "CI"
+        ],
+        "description": "Situation d'amorce — spécification",
+        "identifier": "a5bcd72c-e924-5334-952d-ba09d598e114",
+        "normalizedType": "Material",
+        "position": 1,
+        "metadata": {
+          "role": "instructional-routine-material",
+          "order": 2,
+          "en": {
+            "description": "Opening situation"
+          }
+        },
+        "name": "Situation d'amorce — spécification",
+        "content": "### Situation d'amorce\n\n*Rôle :* scène **maîtresse** du chapitre. Elle fixe les personnages, le décor et le vocabulaire d'objets réutilisés dans tout le chapitre, et c'est la scène à laquelle le **Bilan** renvoie.\n\n- Ancrée dans la **vie quotidienne sénégalaise**.\n- Montre clairement les ensembles / quantités de référence, en **petites quantités dénombrables (≤ ~5)**.\n- Narration courte : 2–3 phrases, vocabulaire simple.\n- **3–4 questions orales** de mise en train qui, ensemble, couvrent l'éventail des objectifs du chapitre (pas une seule leçon). Chacune doit être décidable à partir de la scène dessinée, porter sur une seule idée, et ne jamais être auto-répondante.",
+        "materialType": "Reference",
+        "educationalUse": "Instruction",
+        "audience": [
+          "Teacher"
+        ],
+        "providerDateCreated": "2026-08-13T00:00:00.000Z",
+        "providerDateModified": "2026-08-13T00:00:00.000Z"
+      }
+    },
+    {
+      "id": "a726ae18-71fc-5292-b958-b33048010908",
+      "labels": [
+        "Material"
+      ],
+      "properties": {
+        "license": "https://creativecommons.org/licenses/by/4.0/",
+        "attributionStatement": "Node/edge types follow the Learning Commons ontology (CC BY-4.0). Structure d'un chapitre du Manuel de l'élève (titre / situation d'amorce / je retiens / consigne générale / activités / bilan) rédigée pour le Manuel de l'élève CI mathématiques, Sénégal (TLM).",
+        "provider": "Learning Commons ontology (generated)",
+        "author": "Manuel de l'élève CI mathématiques (TLM)",
+        "inLanguage": "fr-FR",
+        "jurisdiction": "Senegal",
+        "academicSubject": "Mathematics",
+        "gradeLevel": [
+          "CI"
+        ],
+        "description": "Titre du chapitre — spécification",
+        "identifier": "a726ae18-71fc-5292-b958-b33048010908",
+        "normalizedType": "Material",
+        "position": 1,
+        "metadata": {
+          "role": "instructional-routine-material",
+          "order": 1,
+          "en": {
+            "description": "Chapter title"
+          }
+        },
+        "name": "Titre du chapitre — spécification",
+        "content": "### Titre du chapitre\n\nTitre en français, adapté aux enfants. Un sous-titre de domaine est possible mais optionnel.",
+        "materialType": "Reference",
+        "educationalUse": "Instruction",
+        "audience": [
+          "Teacher"
+        ],
+        "providerDateCreated": "2026-08-13T00:00:00.000Z",
+        "providerDateModified": "2026-08-13T00:00:00.000Z"
+      }
+    },
+    {
+      "id": "b1d24abc-ffd0-5617-a797-ca07af0c9bd8",
+      "labels": [
+        "Material"
+      ],
+      "properties": {
+        "license": "https://creativecommons.org/licenses/by/4.0/",
+        "attributionStatement": "Node/edge types follow the Learning Commons ontology (CC BY-4.0). Structure d'un chapitre du Manuel de l'élève (titre / situation d'amorce / je retiens / consigne générale / activités / bilan) rédigée pour le Manuel de l'élève CI mathématiques, Sénégal (TLM).",
+        "provider": "Learning Commons ontology (generated)",
+        "author": "Manuel de l'élève CI mathématiques (TLM)",
+        "inLanguage": "fr-FR",
+        "jurisdiction": "Senegal",
+        "academicSubject": "Mathematics",
+        "gradeLevel": [
+          "CI"
+        ],
+        "description": "Consigne générale — spécification",
+        "identifier": "b1d24abc-ffd0-5617-a797-ca07af0c9bd8",
+        "normalizedType": "Material",
+        "position": 1,
+        "metadata": {
+          "role": "instructional-routine-material",
+          "order": 4,
+          "en": {
+            "description": "General instruction"
+          }
+        },
+        "name": "Consigne générale — spécification",
+        "content": "### Consigne générale\n\nPhrase fixe, à reprendre **telle quelle** :\n\n> « Observe bien les images. Écris seulement la lettre de la bonne réponse dans ton cahier. »",
+        "materialType": "Reference",
+        "educationalUse": "Instruction",
+        "audience": [
+          "Teacher"
+        ],
+        "providerDateCreated": "2026-08-13T00:00:00.000Z",
+        "providerDateModified": "2026-08-13T00:00:00.000Z"
+      }
+    },
+    {
+      "id": "b8f686b8-dc54-5dd4-b53c-4f8dd06106cb",
+      "labels": [
+        "Material"
+      ],
+      "properties": {
+        "license": "https://creativecommons.org/licenses/by/4.0/",
+        "attributionStatement": "Node/edge types follow the Learning Commons ontology (CC BY-4.0). Routine d'enseignement explicite (déclencheur / modelage / pratique guidée / pratique autonome / objectivation) rédigée pour le Guide de l'enseignant·e CI mathématiques, Sénégal (TLM).",
+        "provider": "Learning Commons ontology (generated)",
+        "author": "Guide de l'enseignant·e CI mathématiques (TLM)",
+        "inLanguage": "fr-FR",
+        "jurisdiction": "Senegal",
+        "academicSubject": "Mathematics",
+        "gradeLevel": [
+          "CI"
+        ],
+        "description": "JE FAIS — Modelage — consigne enseignant·e",
+        "identifier": "b8f686b8-dc54-5dd4-b53c-4f8dd06106cb",
+        "normalizedType": "Material",
+        "position": 2,
+        "metadata": {
+          "role": "instructional-routine-material",
+          "order": 2,
+          "en": {
+            "description": "I DO — Modelling"
+          }
+        },
+        "name": "JE FAIS — Modelage — consigne enseignant·e",
+        "content": "### JE FAIS — Modelage (8 minutes)\n\n*But :* le maître montre clairement comment faire **au tableau**. Il dessine la situation à la craie (boucles fermées / « patates » pour les ensembles, points ou marques pour les objets, flèches ou liens un-à-un selon le besoin) ; il **pense à voix haute** ; il montre comment choisir la bonne réponse ; il emploie les mots mathématiques clés ; il donne un exemple **et** un contre-exemple.\n\nSeuls des supports **gratuits** peuvent compléter le tableau (ardoises, doigts, ou cailloux / cauris que les élèves possèdent déjà). **Aucun matériel acheté** — pas de vrais légumes ni de vrais paniers ; ces objets sont évoqués comme **dessins au tableau**.\n\nInsérer des prises de parole du type : *E dit : « Je dessine d'abord au tableau… »* / *E dit : « Je choisis cette réponse parce que… »* / *E dit : « La bonne réponse est… »*\n\nPlacer ici le repère **Je retiens** (étiquette orange en gras, en ligne) : présenter le « Je retiens » de l'outil de l'élève, le lire à voix haute et le faire répéter par les élèves.\n\n**Bilan (Rappel / Modelage).** Modéliser à voix haute la **question 1** : relire les options, écarter les mauvaises en justifiant, puis choisir. Montrer la réponse attendue de la question 1.",
+        "materialType": "Reference",
+        "educationalUse": "Instruction",
+        "audience": [
+          "Teacher"
+        ],
+        "providerDateCreated": "2026-08-13T00:00:00.000Z",
+        "providerDateModified": "2026-08-13T00:00:00.000Z"
+      }
+    },
+    {
+      "id": "c13d9e3a-c260-57c1-a1ed-9fdeffbe7384",
+      "labels": [
+        "InstructionalRoutine"
+      ],
+      "properties": {
+        "license": "https://creativecommons.org/licenses/by/4.0/",
+        "attributionStatement": "Node/edge types follow the Learning Commons ontology (CC BY-4.0). Structure d'un chapitre du Manuel de l'élève (titre / situation d'amorce / je retiens / consigne générale / activités / bilan) rédigée pour le Manuel de l'élève CI mathématiques, Sénégal (TLM).",
+        "provider": "Learning Commons ontology (generated)",
+        "author": "Manuel de l'élève CI mathématiques (TLM)",
+        "inLanguage": "fr-FR",
+        "jurisdiction": "Senegal",
+        "academicSubject": "Mathematics",
+        "gradeLevel": [
+          "CI"
+        ],
+        "description": "Bilan",
+        "identifier": "c13d9e3a-c260-57c1-a1ed-9fdeffbe7384",
+        "normalizedType": "Instructional Routine",
+        "position": 6,
+        "metadata": {
+          "role": "instructional-routine",
+          "order": 6,
+          "en": {
+            "description": "Chapter review"
+          }
+        }
+      }
+    },
+    {
+      "id": "catalog-root",
+      "labels": [
+        "InstructionalRoutine"
+      ],
+      "properties": {
+        "description": "Routine library",
+        "metadata": {
+          "role": "instructional-routine"
+        }
+      }
+    },
+    {
+      "id": "cec1ef8e-aa60-5783-adce-2c51d183e8ce",
+      "labels": [
+        "InstructionalRoutine"
+      ],
+      "properties": {
+        "license": "https://creativecommons.org/licenses/by/4.0/",
+        "attributionStatement": "Node/edge types follow the Learning Commons ontology (CC BY-4.0). Routine d'enseignement explicite (déclencheur / modelage / pratique guidée / pratique autonome / objectivation) rédigée pour le Guide de l'enseignant·e CI mathématiques, Sénégal (TLM).",
+        "provider": "Learning Commons ontology (generated)",
+        "author": "Guide de l'enseignant·e CI mathématiques (TLM)",
+        "inLanguage": "fr-FR",
+        "jurisdiction": "Senegal",
+        "academicSubject": "Mathematics",
+        "gradeLevel": [
+          "CI"
+        ],
+        "description": "TU FAIS",
+        "identifier": "cec1ef8e-aa60-5783-adce-2c51d183e8ce",
+        "normalizedType": "Instructional Routine",
+        "position": 4,
+        "metadata": {
+          "role": "instructional-routine",
+          "order": 4,
+          "en": {
+            "description": "YOU DO"
+          }
+        },
+        "timeRequired": "PT10M"
+      }
+    },
+    {
+      "id": "d25a101c-594a-58fc-a6f4-70423c3cb439",
+      "labels": [
+        "Material"
+      ],
+      "properties": {
+        "license": "https://creativecommons.org/licenses/by/4.0/",
+        "attributionStatement": "Node/edge types follow the Learning Commons ontology (CC BY-4.0). Routine d'enseignement explicite (déclencheur / modelage / pratique guidée / pratique autonome / objectivation) rédigée pour le Guide de l'enseignant·e CI mathématiques, Sénégal (TLM).",
+        "provider": "Learning Commons ontology (generated)",
+        "author": "Guide de l'enseignant·e CI mathématiques (TLM)",
+        "inLanguage": "fr-FR",
+        "jurisdiction": "Senegal",
+        "academicSubject": "Mathematics",
+        "gradeLevel": [
+          "CI"
+        ],
+        "description": "NOUS FAISONS — consigne enseignant·e",
+        "identifier": "d25a101c-594a-58fc-a6f4-70423c3cb439",
+        "normalizedType": "Material",
+        "position": 3,
+        "metadata": {
+          "role": "instructional-routine-material",
+          "order": 3,
+          "en": {
+            "description": "WE DO"
+          }
+        },
+        "name": "NOUS FAISONS — consigne enseignant·e",
+        "content": "### NOUS FAISONS (8 minutes)\n\n*But :* pratique **guidée et collective**.\n\n- Nommer **une activité précise du manuel** (par exemple « Activité 1 »).\n- Lire l'instruction à voix haute (les élèves ne savent pas encore lire).\n- Faire réfléchir les élèves **en binômes / sur l'ardoise**.\n- Appeler un élève au tableau ; corriger ensemble ; faire **justifier** la réponse.\n\nTerminer par : *Réponse attendue : …*\n\n**Bilan.** Traiter ici les **questions 2 et 3**. Afficher les réponses attendues : *Réponses attendues : 2 → … ; 3 → …*",
+        "materialType": "Reference",
+        "educationalUse": "Instruction",
+        "audience": [
+          "Teacher"
+        ],
+        "providerDateCreated": "2026-08-13T00:00:00.000Z",
+        "providerDateModified": "2026-08-13T00:00:00.000Z"
+      }
+    },
+    {
+      "id": "e5eaa82b-ae41-5d3c-b57f-aa60caaba68a",
+      "labels": [
+        "InstructionalRoutine"
+      ],
+      "properties": {
+        "license": "https://creativecommons.org/licenses/by/4.0/",
+        "attributionStatement": "Node/edge types follow the Learning Commons ontology (CC BY-4.0). Routine d'enseignement explicite (déclencheur / modelage / pratique guidée / pratique autonome / objectivation) rédigée pour le Guide de l'enseignant·e CI mathématiques, Sénégal (TLM).",
+        "provider": "Learning Commons ontology (generated)",
+        "author": "Guide de l'enseignant·e CI mathématiques (TLM)",
+        "inLanguage": "fr-FR",
+        "jurisdiction": "Senegal",
+        "academicSubject": "Mathematics",
+        "gradeLevel": [
+          "CI"
+        ],
+        "description": "JE FAIS — Déclencheur",
+        "identifier": "e5eaa82b-ae41-5d3c-b57f-aa60caaba68a",
+        "normalizedType": "Instructional Routine",
+        "position": 1,
+        "metadata": {
+          "role": "instructional-routine",
+          "order": 1,
+          "en": {
+            "description": "I DO — Trigger"
+          }
+        },
+        "timeRequired": "PT4M"
+      }
+    },
+    {
+      "id": "fe5922f5-ac8d-57b6-823c-93441aad9512",
+      "labels": [
+        "InstructionalRoutine"
+      ],
+      "properties": {
+        "license": "https://creativecommons.org/licenses/by/4.0/",
+        "attributionStatement": "Node/edge types follow the Learning Commons ontology (CC BY-4.0). Structure d'un chapitre du Manuel de l'élève (titre / situation d'amorce / je retiens / consigne générale / activités / bilan) rédigée pour le Manuel de l'élève CI mathématiques, Sénégal (TLM).",
+        "provider": "Learning Commons ontology (generated)",
+        "author": "Manuel de l'élève CI mathématiques (TLM)",
+        "inLanguage": "fr-FR",
+        "jurisdiction": "Senegal",
+        "academicSubject": "Mathematics",
+        "gradeLevel": [
+          "CI"
+        ],
+        "description": "Consigne générale",
+        "identifier": "fe5922f5-ac8d-57b6-823c-93441aad9512",
+        "normalizedType": "Instructional Routine",
+        "position": 4,
+        "metadata": {
+          "role": "instructional-routine",
+          "order": 4,
+          "en": {
+            "description": "General instruction"
+          }
+        }
+      }
+    },
+    {
+      "id": "formatter-art-style",
+      "labels": [
+        "InstructionalRoutine"
+      ],
+      "properties": {
+        "description": "Style graphique de manuel scolaire sénégalais (images)",
+        "metadata": {
+          "role": "instructional-routine",
+          "catalogKind": "formatter",
+          "summary": "À placer en tête de chaque prompt d'image généré, pour que toutes les illustrations partagent un même style maison."
+        }
+      }
+    },
+    {
+      "id": "formatter-art-style-spec",
+      "labels": [
+        "Material"
+      ],
+      "properties": {
+        "description": "Spécification du style graphique",
+        "materialType": "Reference",
+        "metadata": {
+          "role": "instructional-routine-material"
+        },
+        "content": "Style graphique maison de toute illustration générée — à appliquer de façon cohérente au sein d'un ouvrage et d'une matière à l'autre.\n\nPLACER CE BLOC TEL QUEL au DÉBUT de chaque prompt generate_image / edit_image, puis ajouter ensuite la description propre à la scène ou à l'activité. Ne pas le paraphraser — c'est la reprise mot pour mot qui empêche le générateur de dériver (par ex. vers l'aquarelle). Si le style maison change un jour, ne modifier que ce bloc.\n\n```\nSTYLE GRAPHIQUE : illustration vectorielle 2-D à plat, façon dessin animé, pour\nun manuel scolaire pour enfants. Contours brun foncé, nets et d'épaisseur\nrégulière autour de chaque personnage et objet ; aplats de couleurs vives et\nsaturées avec un ombrage cel simple à deux tons (une couleur de base plus une\nombre légèrement plus foncée, à bord net) ; formes nettes et épurées ; palette\ngaie et lumineuse. Décor sénégalais — sol sableux et chaud, ciel bleu clair,\nvêtements colorés en wax ; personnages aux proportions rondes et amicales, aux\nvisages simples et expressifs ; personnages sénégalais à la peau foncée. Le\nrendu doit évoquer un manuel de lecture / une planche de bande dessinée\nd'Afrique de l'Ouest.\nÀ éviter explicitement : texture aquarelle ou peinture au pinceau, dégradés\ndoux, traits esquissés ou irréguliers, texture crayon ou pastel, réalisme\nphotographique, rendu 3-D, couleurs ternes ou désaturées.\n```\n\nCohérence de la scène maîtresse : la scène d'ouverture/maîtresse du document est dessinée en premier et fixe la distribution des personnages et la palette précise ; toute autre image est une composition INDÉPENDANTE dans le même univers (mêmes personnages, objets, décor, style graphique) — et NON un recadrage, un zoom ou un détourage littéral de la scène d'ouverture. Une référence/un stimulus dont une image a besoin est une nouvelle représentation dans ce style, pas une portion d'une autre image."
+      }
+    },
+    {
+      "id": "formatter-house-style",
+      "labels": [
+        "InstructionalRoutine"
+      ],
+      "properties": {
+        "description": "Style maison MOHEBS (docx)",
+        "metadata": {
+          "role": "instructional-routine",
+          "catalogKind": "formatter",
+          "summary": "À appliquer à chaque .docx généré, pour une présentation cohérente d'une matière à l'autre."
+        }
+      }
+    },
+    {
+      "id": "formatter-house-style-spec",
+      "labels": [
+        "Material"
+      ],
+      "properties": {
+        "description": "Spécification du style maison",
+        "materialType": "Reference",
+        "metadata": {
+          "role": "instructional-routine-material"
+        },
+        "content": "Style maison de tout .docx généré — à appliquer de façon cohérente d'une matière à l'autre.\n\nPalette : vert principal #2E7D5E (titres, en-têtes, étiquettes clés) ; vert clair #E8F3EE (fonds des lignes d'en-tête de section/étape) ; gris #666666 (sous-titres, lignes de méta) ; orange #D4812A (étiquettes d'encadré/de repère) ; texte blanc #FFFFFF sur les fonds verts.\n\nTypographie : Calibri partout ; corps de texte 11–12 pt ; en-têtes en gras (titre du document ~17–20 pt, section ~13–14 pt).\n\nPage : A4 portrait ; marges ≈1,7 cm haut/bas, 2,0 cm gauche/droite (≈17 cm de largeur utile) ; interligne compact (interligne simple, espacement après minimal, aucun paragraphe d'espacement vide).\n\nImages : insérer un JPEG réduit — redimensionner à ~1600 px sur le grand côté, qualité ~82 ; viser quelques Mo par document, jamais un PNG en pleine résolution.\n\nLa mise en page propre à une matière (tableaux à boîtes d'étapes, colonnes bilingues, ratios des images d'activité) ne fait PAS partie de ce style partagé — elle reste dans le prompt de la matière ou dans un formatter d'espace de travail."
+      }
+    },
+    {
+      "id": "rubric-annexe-7-materiels",
+      "labels": [
+        "InstructionalRoutine"
+      ],
+      "properties": {
+        "description": "Annexe 7 — Grille d'évaluation des matériels (sections A–F)",
+        "metadata": {
+          "role": "instructional-routine",
+          "catalogKind": "rubric",
+          "summary": "Grille NOTÉE de la qualité didactique d'un matériel produit. Échelle 0 à 4 : 0 = inexistant ou incorrect, 1 = très insuffisant, 2 = acceptable (minimum), 3 = bon, 4 = excellent. Le score global est la moyenne pondérée des sections.\n\nNe couvre que les sections A à F de l'Annexe 7 — celles qui portent sur le MATÉRIEL. Les sections G à L de la grille d'origine (contrôlabilité, cohérence pédagogique du dispositif, adaptation contextuelle, efficience, fiabilité, éthique et biais) évaluent l'outil de production et son usage : elles se jugent avec des personnes, pas sur un document, et ne figurent donc pas ici.\n\nLes poids retenus sont ceux de la grille d'origine et totalisent 80 % ; renormaliser sur les seules sections évaluées.\n\nCertains indicateurs supposent un test de terrain (taux de compréhension par les élèves, temps de résolution). Ils ne se déduisent pas d'une lecture du document : le déclarer explicitement plutôt que d'inventer une note.",
+          "scale": "0-4"
+        }
+      }
+    },
+    {
+      "id": "rubric-annexe-7-materiels-a-pertinence-didactique",
+      "labels": [
+        "InstructionalRoutine"
+      ],
+      "properties": {
+        "description": "A. Pertinence didactique",
+        "position": 1,
+        "metadata": {
+          "role": "instructional-routine",
+          "weight": "20%"
+        }
+      }
+    },
+    {
+      "id": "rubric-annexe-7-materiels-a-pertinence-didactique-alignement",
+      "labels": [
+        "Material"
+      ],
+      "properties": {
+        "description": "Alignement aux objectifs",
+        "materialType": "Reference",
+        "position": 1,
+        "metadata": {
+          "role": "instructional-routine-material"
+        },
+        "content": "Part des contenus alignés sur les objectifs définis. Vérifier que chaque section du document se rattache à un objectif du programme, et signaler tout contenu orphelin."
+      }
+    },
+    {
+      "id": "rubric-annexe-7-materiels-a-pertinence-didactique-erreurs",
+      "labels": [
+        "Material"
+      ],
+      "properties": {
+        "description": "Anticipation des erreurs",
+        "materialType": "Reference",
+        "position": 5,
+        "metadata": {
+          "role": "instructional-routine-material"
+        },
+        "content": "Les erreurs typiques des élèves sont nommées et traitées, pas seulement la démarche correcte."
+      }
+    },
+    {
+      "id": "rubric-annexe-7-materiels-a-pertinence-didactique-exemples",
+      "labels": [
+        "Material"
+      ],
+      "properties": {
+        "description": "Pertinence des exemples",
+        "materialType": "Reference",
+        "position": 4,
+        "metadata": {
+          "role": "instructional-routine-material"
+        },
+        "content": "Exemples en lien direct avec la notion enseignée, et non décoratifs ou hors sujet."
+      }
+    },
+    {
+      "id": "rubric-annexe-7-materiels-a-pertinence-didactique-explications",
+      "labels": [
+        "Material"
+      ],
+      "properties": {
+        "description": "Qualité des explications",
+        "materialType": "Reference",
+        "position": 3,
+        "metadata": {
+          "role": "instructional-routine-material"
+        },
+        "content": "Explications structurées, en étapes explicites — et non un résultat donné sans cheminement."
+      }
+    },
+    {
+      "id": "rubric-annexe-7-materiels-a-pertinence-didactique-progression",
+      "labels": [
+        "Material"
+      ],
+      "properties": {
+        "description": "Progression pédagogique",
+        "materialType": "Reference",
+        "position": 2,
+        "metadata": {
+          "role": "instructional-routine-material"
+        },
+        "content": "Présence d'une gradation claire du simple vers le complexe, observable d'une séance à la suivante."
+      }
+    },
+    {
+      "id": "rubric-annexe-7-materiels-b-exactitude",
+      "labels": [
+        "InstructionalRoutine"
+      ],
+      "properties": {
+        "description": "B. Exactitude disciplinaire",
+        "position": 2,
+        "metadata": {
+          "role": "instructional-routine",
+          "weight": "15%"
+        }
+      }
+    },
+    {
+      "id": "rubric-annexe-7-materiels-b-exactitude-coherence",
+      "labels": [
+        "Material"
+      ],
+      "properties": {
+        "description": "Cohérence interne",
+        "materialType": "Reference",
+        "position": 3,
+        "metadata": {
+          "role": "instructional-routine-material"
+        },
+        "content": "Absence de contradictions entre deux passages du même document (terminologie, valeurs, consignes)."
+      }
+    },
+    {
+      "id": "rubric-annexe-7-materiels-b-exactitude-contenus",
+      "labels": [
+        "Material"
+      ],
+      "properties": {
+        "description": "Exactitude des contenus",
+        "materialType": "Reference",
+        "position": 1,
+        "metadata": {
+          "role": "instructional-routine-material"
+        },
+        "content": "Part d'erreurs détectées ; l'objectif est zéro. Citer chaque erreur relevée avec sa localisation."
+      }
+    },
+    {
+      "id": "rubric-annexe-7-materiels-b-exactitude-solutions",
+      "labels": [
+        "Material"
+      ],
+      "properties": {
+        "description": "Rigueur des solutions",
+        "materialType": "Reference",
+        "position": 2,
+        "metadata": {
+          "role": "instructional-routine-material"
+        },
+        "content": "Les solutions proposées sont complètes et justifiées, non tronquées."
+      }
+    },
+    {
+      "id": "rubric-annexe-7-materiels-c-adaptation-niveau",
+      "labels": [
+        "InstructionalRoutine"
+      ],
+      "properties": {
+        "description": "C. Adaptation au niveau",
+        "position": 3,
+        "metadata": {
+          "role": "instructional-routine",
+          "weight": "10%"
+        }
+      }
+    },
+    {
+      "id": "rubric-annexe-7-materiels-c-adaptation-niveau-complexite",
+      "labels": [
+        "Material"
+      ],
+      "properties": {
+        "description": "Complexité des tâches",
+        "materialType": "Reference",
+        "position": 2,
+        "metadata": {
+          "role": "instructional-routine-material"
+        },
+        "content": "Progressivité observable de la difficulté des tâches au fil du document."
+      }
+    },
+    {
+      "id": "rubric-annexe-7-materiels-c-adaptation-niveau-differenciation",
+      "labels": [
+        "Material"
+      ],
+      "properties": {
+        "description": "Différenciation",
+        "materialType": "Reference",
+        "position": 3,
+        "metadata": {
+          "role": "instructional-routine-material"
+        },
+        "content": "Des variantes sont proposées (facile / moyen / difficile), ou une remédiation est prévue pour les élèves en difficulté."
+      }
+    },
+    {
+      "id": "rubric-annexe-7-materiels-c-adaptation-niveau-niveau-cognitif",
+      "labels": [
+        "Material"
+      ],
+      "properties": {
+        "description": "Niveau cognitif",
+        "materialType": "Reference",
+        "position": 1,
+        "metadata": {
+          "role": "instructional-routine-material"
+        },
+        "content": "Adéquation avec le niveau cible (par exemple CE1) : ni au-dessous, ni hors de portée."
+      }
+    },
+    {
+      "id": "rubric-annexe-7-materiels-d-gestion-langage",
+      "labels": [
+        "InstructionalRoutine"
+      ],
+      "properties": {
+        "description": "D. Gestion du langage",
+        "position": 4,
+        "metadata": {
+          "role": "instructional-routine",
+          "weight": "15%"
+        }
+      }
+    },
+    {
+      "id": "rubric-annexe-7-materiels-d-gestion-langage-consignes",
+      "labels": [
+        "Material"
+      ],
+      "properties": {
+        "description": "Clarté des consignes",
+        "materialType": "Reference",
+        "position": 1,
+        "metadata": {
+          "role": "instructional-routine-material"
+        },
+        "content": "Taux de compréhension par les élèves (test terrain). Non déductible du seul document : le signaler si aucun test n'est disponible, et juger à défaut la lisibilité des consignes pour l'enseignant."
+      }
+    },
+    {
+      "id": "rubric-annexe-7-materiels-d-gestion-langage-multilinguisme",
+      "labels": [
+        "Material"
+      ],
+      "properties": {
+        "description": "Multilinguisme",
+        "materialType": "Reference",
+        "position": 4,
+        "metadata": {
+          "role": "instructional-routine-material"
+        },
+        "content": "Possibilité L1/L2 (par exemple wolof / français) prise en charge là où le dispositif le prévoit."
+      }
+    },
+    {
+      "id": "rubric-annexe-7-materiels-d-gestion-langage-simplicite",
+      "labels": [
+        "Material"
+      ],
+      "properties": {
+        "description": "Simplicité linguistique",
+        "materialType": "Reference",
+        "position": 2,
+        "metadata": {
+          "role": "instructional-routine-material"
+        },
+        "content": "Longueur moyenne des phrases et vocabulaire contrôlé, adaptés au niveau."
+      }
+    },
+    {
+      "id": "rubric-annexe-7-materiels-d-gestion-langage-terminologie",
+      "labels": [
+        "Material"
+      ],
+      "properties": {
+        "description": "Cohérence terminologique",
+        "materialType": "Reference",
+        "position": 5,
+        "metadata": {
+          "role": "instructional-routine-material"
+        },
+        "content": "Un même objet porte un même nom d'un bout à l'autre : absence de variations confuses."
+      }
+    },
+    {
+      "id": "rubric-annexe-7-materiels-d-gestion-langage-vocabulaire",
+      "labels": [
+        "Material"
+      ],
+      "properties": {
+        "description": "Explicitation du vocabulaire",
+        "materialType": "Reference",
+        "position": 3,
+        "metadata": {
+          "role": "instructional-routine-material"
+        },
+        "content": "Les termes techniques de la discipline sont définis (Annexe 7 : « termes mathématiques »)."
+      }
+    },
+    {
+      "id": "rubric-annexe-7-materiels-e-qualite-taches",
+      "labels": [
+        "InstructionalRoutine"
+      ],
+      "properties": {
+        "description": "E. Qualité des tâches",
+        "position": 5,
+        "metadata": {
+          "role": "instructional-routine",
+          "weight": "10%"
+        }
+      }
+    },
+    {
+      "id": "rubric-annexe-7-materiels-e-qualite-taches-ancrage",
+      "labels": [
+        "Material"
+      ],
+      "properties": {
+        "description": "Ancrage réel",
+        "materialType": "Reference",
+        "position": 3,
+        "metadata": {
+          "role": "instructional-routine-material"
+        },
+        "content": "Présence de contextes réels et familiers aux élèves, plutôt que d'énoncés abstraits."
+      }
+    },
+    {
+      "id": "rubric-annexe-7-materiels-e-qualite-taches-niveau-taches",
+      "labels": [
+        "Material"
+      ],
+      "properties": {
+        "description": "Niveau cognitif des tâches",
+        "materialType": "Reference",
+        "position": 2,
+        "metadata": {
+          "role": "instructional-routine-material"
+        },
+        "content": "Part de tâches de réflexion par rapport aux tâches de répétition."
+      }
+    },
+    {
+      "id": "rubric-annexe-7-materiels-e-qualite-taches-variete",
+      "labels": [
+        "Material"
+      ],
+      "properties": {
+        "description": "Variété des exercices",
+        "materialType": "Reference",
+        "position": 1,
+        "metadata": {
+          "role": "instructional-routine-material"
+        },
+        "content": "Nombre de types d'activités différents proposés ; compter les types, pas les exercices."
+      }
+    },
+    {
+      "id": "rubric-annexe-7-materiels-f-explication-feedback",
+      "labels": [
+        "InstructionalRoutine"
+      ],
+      "properties": {
+        "description": "F. Explication & feedback",
+        "position": 6,
+        "metadata": {
+          "role": "instructional-routine",
+          "weight": "10%"
+        }
+      }
+    },
+    {
+      "id": "rubric-annexe-7-materiels-f-explication-feedback-feedback",
+      "labels": [
+        "Material"
+      ],
+      "properties": {
+        "description": "Feedback sur les erreurs",
+        "materialType": "Reference",
+        "position": 2,
+        "metadata": {
+          "role": "instructional-routine-material"
+        },
+        "content": "Les retours sur erreur sont explicatifs : ils disent pourquoi, pas seulement que c'est faux."
+      }
+    },
+    {
+      "id": "rubric-annexe-7-materiels-f-explication-feedback-pas-a-pas",
+      "labels": [
+        "Material"
+      ],
+      "properties": {
+        "description": "Explication pas à pas",
+        "materialType": "Reference",
+        "position": 1,
+        "metadata": {
+          "role": "instructional-routine-material"
+        },
+        "content": "Les étapes détaillées sont présentes, y compris pour l'enseignant qui remédie."
+      }
+    },
+    {
+      "id": "rubric-annexe-7-materiels-f-explication-feedback-reformulation",
+      "labels": [
+        "Material"
+      ],
+      "properties": {
+        "description": "Reformulation",
+        "materialType": "Reference",
+        "position": 3,
+        "metadata": {
+          "role": "instructional-routine-material"
+        },
+        "content": "Des explications alternatives sont proposées pour l'élève qui n'a pas compris la première."
+      }
+    }
+  ],
+  "relationships": [
+    {
+      "id": "9fd98c78-40c9-5069-84a9-4da2b2982cef",
+      "type": "hasPart",
+      "start": "0567ec17-cecb-530c-9e2b-74296ede9cb2",
+      "end": "067a73a5-931c-53bb-873b-421ed7b78207",
+      "properties": {
+        "license": "https://creativecommons.org/licenses/by/4.0/",
+        "attributionStatement": "Node/edge types follow the Learning Commons ontology (CC BY-4.0). Structure d'un chapitre du Manuel de l'élève (titre / situation d'amorce / je retiens / consigne générale / activités / bilan) rédigée pour le Manuel de l'élève CI mathématiques, Sénégal (TLM).",
+        "identifier": "9fd98c78-40c9-5069-84a9-4da2b2982cef",
+        "provider": "Learning Commons ontology (generated)",
+        "sourceEntity": "InstructionalRoutine",
+        "sourceEntityKey": "identifier",
+        "targetEntity": "InstructionalRoutine",
+        "targetEntityKey": "identifier",
+        "relationshipType": "hasPart",
+        "sourceLabels": [
+          "InstructionalRoutine"
+        ],
+        "targetLabels": [
+          "InstructionalRoutine"
+        ],
+        "orderIndex": 2
+      }
+    },
+    {
+      "id": "eb026c1a-a541-569c-af5b-a867bae5da37",
+      "type": "hasPart",
+      "start": "0567ec17-cecb-530c-9e2b-74296ede9cb2",
+      "end": "2945fe6c-8e81-5a15-9e17-30b61ddbca32",
+      "properties": {
+        "license": "https://creativecommons.org/licenses/by/4.0/",
+        "attributionStatement": "Node/edge types follow the Learning Commons ontology (CC BY-4.0). Structure d'un chapitre du Manuel de l'élève (titre / situation d'amorce / je retiens / consigne générale / activités / bilan) rédigée pour le Manuel de l'élève CI mathématiques, Sénégal (TLM).",
+        "identifier": "eb026c1a-a541-569c-af5b-a867bae5da37",
+        "provider": "Learning Commons ontology (generated)",
+        "sourceEntity": "InstructionalRoutine",
+        "sourceEntityKey": "identifier",
+        "targetEntity": "InstructionalRoutine",
+        "targetEntityKey": "identifier",
+        "relationshipType": "hasPart",
+        "sourceLabels": [
+          "InstructionalRoutine"
+        ],
+        "targetLabels": [
+          "InstructionalRoutine"
+        ],
+        "orderIndex": 1
+      }
+    },
+    {
+      "id": "bebe8779-9a75-56eb-8c21-dee4dd5762f7",
+      "type": "hasPart",
+      "start": "0567ec17-cecb-530c-9e2b-74296ede9cb2",
+      "end": "67830a70-7225-577d-9b26-b97fc9d97fc0",
+      "properties": {
+        "license": "https://creativecommons.org/licenses/by/4.0/",
+        "attributionStatement": "Node/edge types follow the Learning Commons ontology (CC BY-4.0). Structure d'un chapitre du Manuel de l'élève (titre / situation d'amorce / je retiens / consigne générale / activités / bilan) rédigée pour le Manuel de l'élève CI mathématiques, Sénégal (TLM).",
+        "identifier": "bebe8779-9a75-56eb-8c21-dee4dd5762f7",
+        "provider": "Learning Commons ontology (generated)",
+        "sourceEntity": "InstructionalRoutine",
+        "sourceEntityKey": "identifier",
+        "targetEntity": "InstructionalRoutine",
+        "targetEntityKey": "identifier",
+        "relationshipType": "hasPart",
+        "sourceLabels": [
+          "InstructionalRoutine"
+        ],
+        "targetLabels": [
+          "InstructionalRoutine"
+        ],
+        "orderIndex": 5
+      }
+    },
+    {
+      "id": "ea81ea62-05c9-567c-be84-ddc0394c313a",
+      "type": "hasPart",
+      "start": "0567ec17-cecb-530c-9e2b-74296ede9cb2",
+      "end": "7eded268-7d04-5183-9d71-7b3c2bfb45df",
+      "properties": {
+        "license": "https://creativecommons.org/licenses/by/4.0/",
+        "attributionStatement": "Node/edge types follow the Learning Commons ontology (CC BY-4.0). Structure d'un chapitre du Manuel de l'élève (titre / situation d'amorce / je retiens / consigne générale / activités / bilan) rédigée pour le Manuel de l'élève CI mathématiques, Sénégal (TLM).",
+        "identifier": "ea81ea62-05c9-567c-be84-ddc0394c313a",
+        "provider": "Learning Commons ontology (generated)",
+        "sourceEntity": "InstructionalRoutine",
+        "sourceEntityKey": "identifier",
+        "targetEntity": "InstructionalRoutine",
+        "targetEntityKey": "identifier",
+        "relationshipType": "hasPart",
+        "sourceLabels": [
+          "InstructionalRoutine"
+        ],
+        "targetLabels": [
+          "InstructionalRoutine"
+        ],
+        "orderIndex": 3
+      }
+    },
+    {
+      "id": "843a7e2c-c51d-50ca-9832-246bdff86b01",
+      "type": "hasPart",
+      "start": "0567ec17-cecb-530c-9e2b-74296ede9cb2",
+      "end": "c13d9e3a-c260-57c1-a1ed-9fdeffbe7384",
+      "properties": {
+        "license": "https://creativecommons.org/licenses/by/4.0/",
+        "attributionStatement": "Node/edge types follow the Learning Commons ontology (CC BY-4.0). Structure d'un chapitre du Manuel de l'élève (titre / situation d'amorce / je retiens / consigne générale / activités / bilan) rédigée pour le Manuel de l'élève CI mathématiques, Sénégal (TLM).",
+        "identifier": "843a7e2c-c51d-50ca-9832-246bdff86b01",
+        "provider": "Learning Commons ontology (generated)",
+        "sourceEntity": "InstructionalRoutine",
+        "sourceEntityKey": "identifier",
+        "targetEntity": "InstructionalRoutine",
+        "targetEntityKey": "identifier",
+        "relationshipType": "hasPart",
+        "sourceLabels": [
+          "InstructionalRoutine"
+        ],
+        "targetLabels": [
+          "InstructionalRoutine"
+        ],
+        "orderIndex": 6
+      }
+    },
+    {
+      "id": "a5ed595a-edeb-5195-b55f-d59f45280107",
+      "type": "hasPart",
+      "start": "0567ec17-cecb-530c-9e2b-74296ede9cb2",
+      "end": "fe5922f5-ac8d-57b6-823c-93441aad9512",
+      "properties": {
+        "license": "https://creativecommons.org/licenses/by/4.0/",
+        "attributionStatement": "Node/edge types follow the Learning Commons ontology (CC BY-4.0). Structure d'un chapitre du Manuel de l'élève (titre / situation d'amorce / je retiens / consigne générale / activités / bilan) rédigée pour le Manuel de l'élève CI mathématiques, Sénégal (TLM).",
+        "identifier": "a5ed595a-edeb-5195-b55f-d59f45280107",
+        "provider": "Learning Commons ontology (generated)",
+        "sourceEntity": "InstructionalRoutine",
+        "sourceEntityKey": "identifier",
+        "targetEntity": "InstructionalRoutine",
+        "targetEntityKey": "identifier",
+        "relationshipType": "hasPart",
+        "sourceLabels": [
+          "InstructionalRoutine"
+        ],
+        "targetLabels": [
+          "InstructionalRoutine"
+        ],
+        "orderIndex": 4
+      }
+    },
+    {
+      "id": "abeb5d04-9cea-55e7-9faf-5c36751dc9a1",
+      "type": "hasPart",
+      "start": "067a73a5-931c-53bb-873b-421ed7b78207",
+      "end": "a5bcd72c-e924-5334-952d-ba09d598e114",
+      "properties": {
+        "license": "https://creativecommons.org/licenses/by/4.0/",
+        "attributionStatement": "Node/edge types follow the Learning Commons ontology (CC BY-4.0). Structure d'un chapitre du Manuel de l'élève (titre / situation d'amorce / je retiens / consigne générale / activités / bilan) rédigée pour le Manuel de l'élève CI mathématiques, Sénégal (TLM).",
+        "identifier": "abeb5d04-9cea-55e7-9faf-5c36751dc9a1",
+        "provider": "Learning Commons ontology (generated)",
+        "sourceEntity": "InstructionalRoutine",
+        "sourceEntityKey": "identifier",
+        "targetEntity": "Material",
+        "targetEntityKey": "identifier",
+        "relationshipType": "hasPart",
+        "sourceLabels": [
+          "InstructionalRoutine"
+        ],
+        "targetLabels": [
+          "Material"
+        ],
+        "orderIndex": 1
+      }
+    },
+    {
+      "id": "95368116-d36c-562d-b1ab-49e26d5298af",
+      "type": "hasPart",
+      "start": "071dbc73-913a-593e-a057-b8a3dc2c17a0",
+      "end": "7923323a-fec0-57cf-838e-c92d75194d11",
+      "properties": {
+        "license": "https://creativecommons.org/licenses/by/4.0/",
+        "attributionStatement": "Node/edge types follow the Learning Commons ontology (CC BY-4.0). Routine d'enseignement explicite (déclencheur / modelage / pratique guidée / pratique autonome / objectivation) rédigée pour le Guide de l'enseignant·e CI mathématiques, Sénégal (TLM).",
+        "identifier": "95368116-d36c-562d-b1ab-49e26d5298af",
+        "provider": "Learning Commons ontology (generated)",
+        "sourceEntity": "InstructionalRoutine",
+        "sourceEntityKey": "identifier",
+        "targetEntity": "Material",
+        "targetEntityKey": "identifier",
+        "relationshipType": "hasPart",
+        "sourceLabels": [
+          "InstructionalRoutine"
+        ],
+        "targetLabels": [
+          "Material"
+        ],
+        "orderIndex": 1
+      }
+    },
+    {
+      "id": "e4eedcd1-d099-59c7-97d7-60ee7abee735",
+      "type": "hasPart",
+      "start": "2945fe6c-8e81-5a15-9e17-30b61ddbca32",
+      "end": "a726ae18-71fc-5292-b958-b33048010908",
+      "properties": {
+        "license": "https://creativecommons.org/licenses/by/4.0/",
+        "attributionStatement": "Node/edge types follow the Learning Commons ontology (CC BY-4.0). Structure d'un chapitre du Manuel de l'élève (titre / situation d'amorce / je retiens / consigne générale / activités / bilan) rédigée pour le Manuel de l'élève CI mathématiques, Sénégal (TLM).",
+        "identifier": "e4eedcd1-d099-59c7-97d7-60ee7abee735",
+        "provider": "Learning Commons ontology (generated)",
+        "sourceEntity": "InstructionalRoutine",
+        "sourceEntityKey": "identifier",
+        "targetEntity": "Material",
+        "targetEntityKey": "identifier",
+        "relationshipType": "hasPart",
+        "sourceLabels": [
+          "InstructionalRoutine"
+        ],
+        "targetLabels": [
+          "Material"
+        ],
+        "orderIndex": 1
+      }
+    },
+    {
+      "id": "a85aa832-8d4c-5af9-b08d-3d868484a8f4",
+      "type": "hasPart",
+      "start": "67830a70-7225-577d-9b26-b97fc9d97fc0",
+      "end": "95cfd258-1114-51f2-a3e5-7b9f9cfdde86",
+      "properties": {
+        "license": "https://creativecommons.org/licenses/by/4.0/",
+        "attributionStatement": "Node/edge types follow the Learning Commons ontology (CC BY-4.0). Structure d'un chapitre du Manuel de l'élève (titre / situation d'amorce / je retiens / consigne générale / activités / bilan) rédigée pour le Manuel de l'élève CI mathématiques, Sénégal (TLM).",
+        "identifier": "a85aa832-8d4c-5af9-b08d-3d868484a8f4",
+        "provider": "Learning Commons ontology (generated)",
+        "sourceEntity": "InstructionalRoutine",
+        "sourceEntityKey": "identifier",
+        "targetEntity": "Material",
+        "targetEntityKey": "identifier",
+        "relationshipType": "hasPart",
+        "sourceLabels": [
+          "InstructionalRoutine"
+        ],
+        "targetLabels": [
+          "Material"
+        ],
+        "orderIndex": 1
+      }
+    },
+    {
+      "id": "f5e58e96-4b9f-5fd7-90f3-b87fdd516d48",
+      "type": "hasPart",
+      "start": "78936410-3db6-5109-aa45-6dca53a4343c",
+      "end": "071dbc73-913a-593e-a057-b8a3dc2c17a0",
+      "properties": {
+        "license": "https://creativecommons.org/licenses/by/4.0/",
+        "attributionStatement": "Node/edge types follow the Learning Commons ontology (CC BY-4.0). Routine d'enseignement explicite (déclencheur / modelage / pratique guidée / pratique autonome / objectivation) rédigée pour le Guide de l'enseignant·e CI mathématiques, Sénégal (TLM).",
+        "identifier": "f5e58e96-4b9f-5fd7-90f3-b87fdd516d48",
+        "provider": "Learning Commons ontology (generated)",
+        "sourceEntity": "InstructionalRoutine",
+        "sourceEntityKey": "identifier",
+        "targetEntity": "InstructionalRoutine",
+        "targetEntityKey": "identifier",
+        "relationshipType": "hasPart",
+        "sourceLabels": [
+          "InstructionalRoutine"
+        ],
+        "targetLabels": [
+          "InstructionalRoutine"
+        ],
+        "orderIndex": 5
+      }
+    },
+    {
+      "id": "dcd4db7d-58c7-577d-9080-cf930af60418",
+      "type": "hasPart",
+      "start": "78936410-3db6-5109-aa45-6dca53a4343c",
+      "end": "8e84da63-f395-5603-844d-2e7f749fd897",
+      "properties": {
+        "license": "https://creativecommons.org/licenses/by/4.0/",
+        "attributionStatement": "Node/edge types follow the Learning Commons ontology (CC BY-4.0). Routine d'enseignement explicite (déclencheur / modelage / pratique guidée / pratique autonome / objectivation) rédigée pour le Guide de l'enseignant·e CI mathématiques, Sénégal (TLM).",
+        "identifier": "dcd4db7d-58c7-577d-9080-cf930af60418",
+        "provider": "Learning Commons ontology (generated)",
+        "sourceEntity": "InstructionalRoutine",
+        "sourceEntityKey": "identifier",
+        "targetEntity": "InstructionalRoutine",
+        "targetEntityKey": "identifier",
+        "relationshipType": "hasPart",
+        "sourceLabels": [
+          "InstructionalRoutine"
+        ],
+        "targetLabels": [
+          "InstructionalRoutine"
+        ],
+        "orderIndex": 2
+      }
+    },
+    {
+      "id": "5c6280be-36f1-5677-bdd4-eea812b45c1d",
+      "type": "hasPart",
+      "start": "78936410-3db6-5109-aa45-6dca53a4343c",
+      "end": "9a3c9225-2e74-596c-b63d-806d5fb93e5d",
+      "properties": {
+        "license": "https://creativecommons.org/licenses/by/4.0/",
+        "attributionStatement": "Node/edge types follow the Learning Commons ontology (CC BY-4.0). Routine d'enseignement explicite (déclencheur / modelage / pratique guidée / pratique autonome / objectivation) rédigée pour le Guide de l'enseignant·e CI mathématiques, Sénégal (TLM).",
+        "identifier": "5c6280be-36f1-5677-bdd4-eea812b45c1d",
+        "provider": "Learning Commons ontology (generated)",
+        "sourceEntity": "InstructionalRoutine",
+        "sourceEntityKey": "identifier",
+        "targetEntity": "InstructionalRoutine",
+        "targetEntityKey": "identifier",
+        "relationshipType": "hasPart",
+        "sourceLabels": [
+          "InstructionalRoutine"
+        ],
+        "targetLabels": [
+          "InstructionalRoutine"
+        ],
+        "orderIndex": 3
+      }
+    },
+    {
+      "id": "e33b0025-4b8a-5626-a14c-c45c0e86f452",
+      "type": "hasPart",
+      "start": "78936410-3db6-5109-aa45-6dca53a4343c",
+      "end": "cec1ef8e-aa60-5783-adce-2c51d183e8ce",
+      "properties": {
+        "license": "https://creativecommons.org/licenses/by/4.0/",
+        "attributionStatement": "Node/edge types follow the Learning Commons ontology (CC BY-4.0). Routine d'enseignement explicite (déclencheur / modelage / pratique guidée / pratique autonome / objectivation) rédigée pour le Guide de l'enseignant·e CI mathématiques, Sénégal (TLM).",
+        "identifier": "e33b0025-4b8a-5626-a14c-c45c0e86f452",
+        "provider": "Learning Commons ontology (generated)",
+        "sourceEntity": "InstructionalRoutine",
+        "sourceEntityKey": "identifier",
+        "targetEntity": "InstructionalRoutine",
+        "targetEntityKey": "identifier",
+        "relationshipType": "hasPart",
+        "sourceLabels": [
+          "InstructionalRoutine"
+        ],
+        "targetLabels": [
+          "InstructionalRoutine"
+        ],
+        "orderIndex": 4
+      }
+    },
+    {
+      "id": "b2e95a74-cc19-55aa-864a-f76d12f26cb5",
+      "type": "hasPart",
+      "start": "78936410-3db6-5109-aa45-6dca53a4343c",
+      "end": "e5eaa82b-ae41-5d3c-b57f-aa60caaba68a",
+      "properties": {
+        "license": "https://creativecommons.org/licenses/by/4.0/",
+        "attributionStatement": "Node/edge types follow the Learning Commons ontology (CC BY-4.0). Routine d'enseignement explicite (déclencheur / modelage / pratique guidée / pratique autonome / objectivation) rédigée pour le Guide de l'enseignant·e CI mathématiques, Sénégal (TLM).",
+        "identifier": "b2e95a74-cc19-55aa-864a-f76d12f26cb5",
+        "provider": "Learning Commons ontology (generated)",
+        "sourceEntity": "InstructionalRoutine",
+        "sourceEntityKey": "identifier",
+        "targetEntity": "InstructionalRoutine",
+        "targetEntityKey": "identifier",
+        "relationshipType": "hasPart",
+        "sourceLabels": [
+          "InstructionalRoutine"
+        ],
+        "targetLabels": [
+          "InstructionalRoutine"
+        ],
+        "orderIndex": 1
+      }
+    },
+    {
+      "id": "54feb924-0509-5456-9015-0556bc0f166d",
+      "type": "hasPart",
+      "start": "7eded268-7d04-5183-9d71-7b3c2bfb45df",
+      "end": "5e8f38c2-362c-53eb-8733-82948a82afef",
+      "properties": {
+        "license": "https://creativecommons.org/licenses/by/4.0/",
+        "attributionStatement": "Node/edge types follow the Learning Commons ontology (CC BY-4.0). Structure d'un chapitre du Manuel de l'élève (titre / situation d'amorce / je retiens / consigne générale / activités / bilan) rédigée pour le Manuel de l'élève CI mathématiques, Sénégal (TLM).",
+        "identifier": "54feb924-0509-5456-9015-0556bc0f166d",
+        "provider": "Learning Commons ontology (generated)",
+        "sourceEntity": "InstructionalRoutine",
+        "sourceEntityKey": "identifier",
+        "targetEntity": "Material",
+        "targetEntityKey": "identifier",
+        "relationshipType": "hasPart",
+        "sourceLabels": [
+          "InstructionalRoutine"
+        ],
+        "targetLabels": [
+          "Material"
+        ],
+        "orderIndex": 1
+      }
+    },
+    {
+      "id": "c33e0aa0-0c4d-51bd-a33a-64d176d264b6",
+      "type": "hasPart",
+      "start": "8e84da63-f395-5603-844d-2e7f749fd897",
+      "end": "b8f686b8-dc54-5dd4-b53c-4f8dd06106cb",
+      "properties": {
+        "license": "https://creativecommons.org/licenses/by/4.0/",
+        "attributionStatement": "Node/edge types follow the Learning Commons ontology (CC BY-4.0). Routine d'enseignement explicite (déclencheur / modelage / pratique guidée / pratique autonome / objectivation) rédigée pour le Guide de l'enseignant·e CI mathématiques, Sénégal (TLM).",
+        "identifier": "c33e0aa0-0c4d-51bd-a33a-64d176d264b6",
+        "provider": "Learning Commons ontology (generated)",
+        "sourceEntity": "InstructionalRoutine",
+        "sourceEntityKey": "identifier",
+        "targetEntity": "Material",
+        "targetEntityKey": "identifier",
+        "relationshipType": "hasPart",
+        "sourceLabels": [
+          "InstructionalRoutine"
+        ],
+        "targetLabels": [
+          "Material"
+        ],
+        "orderIndex": 1
+      }
+    },
+    {
+      "id": "aca437cc-7870-59fd-8618-694d13225c80",
+      "type": "hasPart",
+      "start": "9a3c9225-2e74-596c-b63d-806d5fb93e5d",
+      "end": "d25a101c-594a-58fc-a6f4-70423c3cb439",
+      "properties": {
+        "license": "https://creativecommons.org/licenses/by/4.0/",
+        "attributionStatement": "Node/edge types follow the Learning Commons ontology (CC BY-4.0). Routine d'enseignement explicite (déclencheur / modelage / pratique guidée / pratique autonome / objectivation) rédigée pour le Guide de l'enseignant·e CI mathématiques, Sénégal (TLM).",
+        "identifier": "aca437cc-7870-59fd-8618-694d13225c80",
+        "provider": "Learning Commons ontology (generated)",
+        "sourceEntity": "InstructionalRoutine",
+        "sourceEntityKey": "identifier",
+        "targetEntity": "Material",
+        "targetEntityKey": "identifier",
+        "relationshipType": "hasPart",
+        "sourceLabels": [
+          "InstructionalRoutine"
+        ],
+        "targetLabels": [
+          "Material"
+        ],
+        "orderIndex": 1
+      }
+    },
+    {
+      "id": "9bc204e0-5cb3-5970-9488-f6b311bce6a3",
+      "type": "hasPart",
+      "start": "c13d9e3a-c260-57c1-a1ed-9fdeffbe7384",
+      "end": "2e539e2d-8a0c-55d5-acbf-f6fb5393131d",
+      "properties": {
+        "license": "https://creativecommons.org/licenses/by/4.0/",
+        "attributionStatement": "Node/edge types follow the Learning Commons ontology (CC BY-4.0). Structure d'un chapitre du Manuel de l'élève (titre / situation d'amorce / je retiens / consigne générale / activités / bilan) rédigée pour le Manuel de l'élève CI mathématiques, Sénégal (TLM).",
+        "identifier": "9bc204e0-5cb3-5970-9488-f6b311bce6a3",
+        "provider": "Learning Commons ontology (generated)",
+        "sourceEntity": "InstructionalRoutine",
+        "sourceEntityKey": "identifier",
+        "targetEntity": "Material",
+        "targetEntityKey": "identifier",
+        "relationshipType": "hasPart",
+        "sourceLabels": [
+          "InstructionalRoutine"
+        ],
+        "targetLabels": [
+          "Material"
+        ],
+        "orderIndex": 1
+      }
+    },
+    {
+      "id": "hasPart:catalog-root->0567ec17-cecb-530c-9e2b-74296ede9cb2",
+      "type": "hasPart",
+      "start": "catalog-root",
+      "end": "0567ec17-cecb-530c-9e2b-74296ede9cb2",
+      "properties": {}
+    },
+    {
+      "id": "hasPart:catalog-root->78936410-3db6-5109-aa45-6dca53a4343c",
+      "type": "hasPart",
+      "start": "catalog-root",
+      "end": "78936410-3db6-5109-aa45-6dca53a4343c",
+      "properties": {}
+    },
+    {
+      "id": "hasPart:catalog-root->formatter-art-style",
+      "type": "hasPart",
+      "start": "catalog-root",
+      "end": "formatter-art-style",
+      "properties": {}
+    },
+    {
+      "id": "hasPart:catalog-root->formatter-house-style",
+      "type": "hasPart",
+      "start": "catalog-root",
+      "end": "formatter-house-style",
+      "properties": {}
+    },
+    {
+      "id": "hasPart:catalog-root->rubric-annexe-7-materiels",
+      "type": "hasPart",
+      "start": "catalog-root",
+      "end": "rubric-annexe-7-materiels",
+      "properties": {}
+    },
+    {
+      "id": "8ca51132-5335-5362-a5ae-bd0e1f53c01a",
+      "type": "hasPart",
+      "start": "cec1ef8e-aa60-5783-adce-2c51d183e8ce",
+      "end": "7ef865a0-b3f7-5ac6-879f-0bb98d0dec19",
+      "properties": {
+        "license": "https://creativecommons.org/licenses/by/4.0/",
+        "attributionStatement": "Node/edge types follow the Learning Commons ontology (CC BY-4.0). Routine d'enseignement explicite (déclencheur / modelage / pratique guidée / pratique autonome / objectivation) rédigée pour le Guide de l'enseignant·e CI mathématiques, Sénégal (TLM).",
+        "identifier": "8ca51132-5335-5362-a5ae-bd0e1f53c01a",
+        "provider": "Learning Commons ontology (generated)",
+        "sourceEntity": "InstructionalRoutine",
+        "sourceEntityKey": "identifier",
+        "targetEntity": "Material",
+        "targetEntityKey": "identifier",
+        "relationshipType": "hasPart",
+        "sourceLabels": [
+          "InstructionalRoutine"
+        ],
+        "targetLabels": [
+          "Material"
+        ],
+        "orderIndex": 1
+      }
+    },
+    {
+      "id": "90fd148d-b233-5618-a262-cd3e957ba502",
+      "type": "hasPart",
+      "start": "e5eaa82b-ae41-5d3c-b57f-aa60caaba68a",
+      "end": "4b2e6ce9-d7ba-53cd-a6ac-37fb6004656a",
+      "properties": {
+        "license": "https://creativecommons.org/licenses/by/4.0/",
+        "attributionStatement": "Node/edge types follow the Learning Commons ontology (CC BY-4.0). Routine d'enseignement explicite (déclencheur / modelage / pratique guidée / pratique autonome / objectivation) rédigée pour le Guide de l'enseignant·e CI mathématiques, Sénégal (TLM).",
+        "identifier": "90fd148d-b233-5618-a262-cd3e957ba502",
+        "provider": "Learning Commons ontology (generated)",
+        "sourceEntity": "InstructionalRoutine",
+        "sourceEntityKey": "identifier",
+        "targetEntity": "Material",
+        "targetEntityKey": "identifier",
+        "relationshipType": "hasPart",
+        "sourceLabels": [
+          "InstructionalRoutine"
+        ],
+        "targetLabels": [
+          "Material"
+        ],
+        "orderIndex": 1
+      }
+    },
+    {
+      "id": "5ea27aa3-ed3a-5435-b513-5b43ca63ad53",
+      "type": "hasPart",
+      "start": "fe5922f5-ac8d-57b6-823c-93441aad9512",
+      "end": "b1d24abc-ffd0-5617-a797-ca07af0c9bd8",
+      "properties": {
+        "license": "https://creativecommons.org/licenses/by/4.0/",
+        "attributionStatement": "Node/edge types follow the Learning Commons ontology (CC BY-4.0). Structure d'un chapitre du Manuel de l'élève (titre / situation d'amorce / je retiens / consigne générale / activités / bilan) rédigée pour le Manuel de l'élève CI mathématiques, Sénégal (TLM).",
+        "identifier": "5ea27aa3-ed3a-5435-b513-5b43ca63ad53",
+        "provider": "Learning Commons ontology (generated)",
+        "sourceEntity": "InstructionalRoutine",
+        "sourceEntityKey": "identifier",
+        "targetEntity": "Material",
+        "targetEntityKey": "identifier",
+        "relationshipType": "hasPart",
+        "sourceLabels": [
+          "InstructionalRoutine"
+        ],
+        "targetLabels": [
+          "Material"
+        ],
+        "orderIndex": 1
+      }
+    },
+    {
+      "id": "hasPart:formatter-art-style->formatter-art-style-spec",
+      "type": "hasPart",
+      "start": "formatter-art-style",
+      "end": "formatter-art-style-spec",
+      "properties": {}
+    },
+    {
+      "id": "hasPart:formatter-house-style->formatter-house-style-spec",
+      "type": "hasPart",
+      "start": "formatter-house-style",
+      "end": "formatter-house-style-spec",
+      "properties": {}
+    },
+    {
+      "id": "hasPart:rubric-annexe-7-materiels->rubric-annexe-7-materiels-a-pertinence-didactique",
+      "type": "hasPart",
+      "start": "rubric-annexe-7-materiels",
+      "end": "rubric-annexe-7-materiels-a-pertinence-didactique",
+      "properties": {}
+    },
+    {
+      "id": "hasPart:rubric-annexe-7-materiels->rubric-annexe-7-materiels-b-exactitude",
+      "type": "hasPart",
+      "start": "rubric-annexe-7-materiels",
+      "end": "rubric-annexe-7-materiels-b-exactitude",
+      "properties": {}
+    },
+    {
+      "id": "hasPart:rubric-annexe-7-materiels->rubric-annexe-7-materiels-c-adaptation-niveau",
+      "type": "hasPart",
+      "start": "rubric-annexe-7-materiels",
+      "end": "rubric-annexe-7-materiels-c-adaptation-niveau",
+      "properties": {}
+    },
+    {
+      "id": "hasPart:rubric-annexe-7-materiels->rubric-annexe-7-materiels-d-gestion-langage",
+      "type": "hasPart",
+      "start": "rubric-annexe-7-materiels",
+      "end": "rubric-annexe-7-materiels-d-gestion-langage",
+      "properties": {}
+    },
+    {
+      "id": "hasPart:rubric-annexe-7-materiels->rubric-annexe-7-materiels-e-qualite-taches",
+      "type": "hasPart",
+      "start": "rubric-annexe-7-materiels",
+      "end": "rubric-annexe-7-materiels-e-qualite-taches",
+      "properties": {}
+    },
+    {
+      "id": "hasPart:rubric-annexe-7-materiels->rubric-annexe-7-materiels-f-explication-feedback",
+      "type": "hasPart",
+      "start": "rubric-annexe-7-materiels",
+      "end": "rubric-annexe-7-materiels-f-explication-feedback",
+      "properties": {}
+    },
+    {
+      "id": "hasPart:rubric-annexe-7-materiels-a-pertinence-didactique->rubric-annexe-7-materiels-a-pertinence-didactique-alignement",
+      "type": "hasPart",
+      "start": "rubric-annexe-7-materiels-a-pertinence-didactique",
+      "end": "rubric-annexe-7-materiels-a-pertinence-didactique-alignement",
+      "properties": {}
+    },
+    {
+      "id": "hasPart:rubric-annexe-7-materiels-a-pertinence-didactique->rubric-annexe-7-materiels-a-pertinence-didactique-erreurs",
+      "type": "hasPart",
+      "start": "rubric-annexe-7-materiels-a-pertinence-didactique",
+      "end": "rubric-annexe-7-materiels-a-pertinence-didactique-erreurs",
+      "properties": {}
+    },
+    {
+      "id": "hasPart:rubric-annexe-7-materiels-a-pertinence-didactique->rubric-annexe-7-materiels-a-pertinence-didactique-exemples",
+      "type": "hasPart",
+      "start": "rubric-annexe-7-materiels-a-pertinence-didactique",
+      "end": "rubric-annexe-7-materiels-a-pertinence-didactique-exemples",
+      "properties": {}
+    },
+    {
+      "id": "hasPart:rubric-annexe-7-materiels-a-pertinence-didactique->rubric-annexe-7-materiels-a-pertinence-didactique-explications",
+      "type": "hasPart",
+      "start": "rubric-annexe-7-materiels-a-pertinence-didactique",
+      "end": "rubric-annexe-7-materiels-a-pertinence-didactique-explications",
+      "properties": {}
+    },
+    {
+      "id": "hasPart:rubric-annexe-7-materiels-a-pertinence-didactique->rubric-annexe-7-materiels-a-pertinence-didactique-progression",
+      "type": "hasPart",
+      "start": "rubric-annexe-7-materiels-a-pertinence-didactique",
+      "end": "rubric-annexe-7-materiels-a-pertinence-didactique-progression",
+      "properties": {}
+    },
+    {
+      "id": "hasPart:rubric-annexe-7-materiels-b-exactitude->rubric-annexe-7-materiels-b-exactitude-coherence",
+      "type": "hasPart",
+      "start": "rubric-annexe-7-materiels-b-exactitude",
+      "end": "rubric-annexe-7-materiels-b-exactitude-coherence",
+      "properties": {}
+    },
+    {
+      "id": "hasPart:rubric-annexe-7-materiels-b-exactitude->rubric-annexe-7-materiels-b-exactitude-contenus",
+      "type": "hasPart",
+      "start": "rubric-annexe-7-materiels-b-exactitude",
+      "end": "rubric-annexe-7-materiels-b-exactitude-contenus",
+      "properties": {}
+    },
+    {
+      "id": "hasPart:rubric-annexe-7-materiels-b-exactitude->rubric-annexe-7-materiels-b-exactitude-solutions",
+      "type": "hasPart",
+      "start": "rubric-annexe-7-materiels-b-exactitude",
+      "end": "rubric-annexe-7-materiels-b-exactitude-solutions",
+      "properties": {}
+    },
+    {
+      "id": "hasPart:rubric-annexe-7-materiels-c-adaptation-niveau->rubric-annexe-7-materiels-c-adaptation-niveau-complexite",
+      "type": "hasPart",
+      "start": "rubric-annexe-7-materiels-c-adaptation-niveau",
+      "end": "rubric-annexe-7-materiels-c-adaptation-niveau-complexite",
+      "properties": {}
+    },
+    {
+      "id": "hasPart:rubric-annexe-7-materiels-c-adaptation-niveau->rubric-annexe-7-materiels-c-adaptation-niveau-differenciation",
+      "type": "hasPart",
+      "start": "rubric-annexe-7-materiels-c-adaptation-niveau",
+      "end": "rubric-annexe-7-materiels-c-adaptation-niveau-differenciation",
+      "properties": {}
+    },
+    {
+      "id": "hasPart:rubric-annexe-7-materiels-c-adaptation-niveau->rubric-annexe-7-materiels-c-adaptation-niveau-niveau-cognitif",
+      "type": "hasPart",
+      "start": "rubric-annexe-7-materiels-c-adaptation-niveau",
+      "end": "rubric-annexe-7-materiels-c-adaptation-niveau-niveau-cognitif",
+      "properties": {}
+    },
+    {
+      "id": "hasPart:rubric-annexe-7-materiels-d-gestion-langage->rubric-annexe-7-materiels-d-gestion-langage-consignes",
+      "type": "hasPart",
+      "start": "rubric-annexe-7-materiels-d-gestion-langage",
+      "end": "rubric-annexe-7-materiels-d-gestion-langage-consignes",
+      "properties": {}
+    },
+    {
+      "id": "hasPart:rubric-annexe-7-materiels-d-gestion-langage->rubric-annexe-7-materiels-d-gestion-langage-multilinguisme",
+      "type": "hasPart",
+      "start": "rubric-annexe-7-materiels-d-gestion-langage",
+      "end": "rubric-annexe-7-materiels-d-gestion-langage-multilinguisme",
+      "properties": {}
+    },
+    {
+      "id": "hasPart:rubric-annexe-7-materiels-d-gestion-langage->rubric-annexe-7-materiels-d-gestion-langage-simplicite",
+      "type": "hasPart",
+      "start": "rubric-annexe-7-materiels-d-gestion-langage",
+      "end": "rubric-annexe-7-materiels-d-gestion-langage-simplicite",
+      "properties": {}
+    },
+    {
+      "id": "hasPart:rubric-annexe-7-materiels-d-gestion-langage->rubric-annexe-7-materiels-d-gestion-langage-terminologie",
+      "type": "hasPart",
+      "start": "rubric-annexe-7-materiels-d-gestion-langage",
+      "end": "rubric-annexe-7-materiels-d-gestion-langage-terminologie",
+      "properties": {}
+    },
+    {
+      "id": "hasPart:rubric-annexe-7-materiels-d-gestion-langage->rubric-annexe-7-materiels-d-gestion-langage-vocabulaire",
+      "type": "hasPart",
+      "start": "rubric-annexe-7-materiels-d-gestion-langage",
+      "end": "rubric-annexe-7-materiels-d-gestion-langage-vocabulaire",
+      "properties": {}
+    },
+    {
+      "id": "hasPart:rubric-annexe-7-materiels-e-qualite-taches->rubric-annexe-7-materiels-e-qualite-taches-ancrage",
+      "type": "hasPart",
+      "start": "rubric-annexe-7-materiels-e-qualite-taches",
+      "end": "rubric-annexe-7-materiels-e-qualite-taches-ancrage",
+      "properties": {}
+    },
+    {
+      "id": "hasPart:rubric-annexe-7-materiels-e-qualite-taches->rubric-annexe-7-materiels-e-qualite-taches-niveau-taches",
+      "type": "hasPart",
+      "start": "rubric-annexe-7-materiels-e-qualite-taches",
+      "end": "rubric-annexe-7-materiels-e-qualite-taches-niveau-taches",
+      "properties": {}
+    },
+    {
+      "id": "hasPart:rubric-annexe-7-materiels-e-qualite-taches->rubric-annexe-7-materiels-e-qualite-taches-variete",
+      "type": "hasPart",
+      "start": "rubric-annexe-7-materiels-e-qualite-taches",
+      "end": "rubric-annexe-7-materiels-e-qualite-taches-variete",
+      "properties": {}
+    },
+    {
+      "id": "hasPart:rubric-annexe-7-materiels-f-explication-feedback->rubric-annexe-7-materiels-f-explication-feedback-feedback",
+      "type": "hasPart",
+      "start": "rubric-annexe-7-materiels-f-explication-feedback",
+      "end": "rubric-annexe-7-materiels-f-explication-feedback-feedback",
+      "properties": {}
+    },
+    {
+      "id": "hasPart:rubric-annexe-7-materiels-f-explication-feedback->rubric-annexe-7-materiels-f-explication-feedback-pas-a-pas",
+      "type": "hasPart",
+      "start": "rubric-annexe-7-materiels-f-explication-feedback",
+      "end": "rubric-annexe-7-materiels-f-explication-feedback-pas-a-pas",
+      "properties": {}
+    },
+    {
+      "id": "hasPart:rubric-annexe-7-materiels-f-explication-feedback->rubric-annexe-7-materiels-f-explication-feedback-reformulation",
+      "type": "hasPart",
+      "start": "rubric-annexe-7-materiels-f-explication-feedback",
+      "end": "rubric-annexe-7-materiels-f-explication-feedback-reformulation",
+      "properties": {}
+    }
+  ]
+}

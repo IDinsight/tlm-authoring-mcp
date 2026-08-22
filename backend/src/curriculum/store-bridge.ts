@@ -79,10 +79,16 @@ function serializeFullGraph(model: CurriculumModel, raw: RawGraphSnapshot, names
     };
   });
 
-  // Every raw edge, verbatim type. The stored id stays deterministic
-  // (edgeId(type,from,to)) so the structural mutations can find/dedup it; the
-  // original LC edge id survives inside `properties.identifier` for re-export.
-  // `seq` preserves raw order — hydration sorts by it before re-parsing.
+  const edges = toStoredEdges(raw, namespace);
+  nodes.sort(byId);
+  return { nodes, edges };
+}
+
+// Every raw edge, verbatim type. The stored id stays deterministic
+// (edgeId(type,from,to)) so the structural mutations can find/dedup it; the
+// original LC edge id survives inside `properties.identifier` for re-export.
+// `seq` preserves raw order — hydration sorts by it before re-parsing.
+function toStoredEdges(raw: RawGraphSnapshot, namespace: string): LogicalEdge[] {
   const edges: LogicalEdge[] = [];
   const seen = new Set<string>();
   raw.relationships.forEach((r, i) => {
@@ -91,11 +97,10 @@ function serializeFullGraph(model: CurriculumModel, raw: RawGraphSnapshot, names
     seen.add(id);
     edges.push({ id, type: r.type, from: r.start, to: r.end, namespace, properties: r.properties ?? {}, seq: i });
   });
-
-  nodes.sort((a, b) => a.id.localeCompare(b.id));
-  edges.sort((a, b) => a.id.localeCompare(b.id));
-  return { nodes, edges };
+  return edges.sort(byId);
 }
+
+const byId = (a: { id: string }, b: { id: string }) => a.id.localeCompare(b.id);
 
 function serializeSpineOnly(model: CurriculumModel, namespace: string): SerializedGraph {
   const nodes: LogicalNode[] = [];
@@ -166,6 +171,28 @@ export function toRawEnvelope(input: { nodes: LogicalNode[]; edges: LogicalEdge[
       properties: e.properties ?? {},
     }));
   return { nodes, relationships };
+}
+
+// Rebuild stored nodes + edges straight from a raw Learning-Commons envelope —
+// the inverse of toRawEnvelope, and the ONE restore path for a namespace that has
+// no subject adapter to parse it: the reserved `_catalog` / `_glossary` partitions
+// (import-kg --raw). Those hold real graphs we can export but not re-derive, so
+// without this an export is a diagnostic rather than a backup.
+//
+// Every node lands non-spine: there is no parse to say what the spine is, and
+// `spine` only ever gates the curriculum read path, which these partitions are not
+// on. Nodes and edges otherwise match serializeFullGraph's non-spine branch, so a
+// restored namespace is byte-identical to the one that was exported.
+export function fromRawEnvelope(raw: RawGraphSnapshot, namespace: string): SerializedGraph {
+  const nodes: LogicalNode[] = raw.nodes.map((n) => ({
+    id: n.id,
+    type: n.labels?.[0] ?? "lc-node",
+    namespace,
+    labels: n.labels ?? [],
+    spine: false,
+    properties: { raw: n.properties ?? {} },
+  }));
+  return { nodes: nodes.sort(byId), edges: toStoredEdges(raw, namespace) };
 }
 
 // Rebuild a CurriculumModel from stored nodes + edges. Fields in
