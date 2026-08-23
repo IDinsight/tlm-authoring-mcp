@@ -41,6 +41,8 @@ const fakeStorage: StorageAdapter = {
 const SUPER: Actor = { id: "super-uid", email: "super@test", superAdmin: true, unknown: false };
 const APPROVER: Actor = { id: "appr-uid", email: "appr@test", role: "approver", unknown: false };
 const CURATOR: Actor = { id: "cur-uid", email: "cur@test", role: "curator", unknown: false };
+// `admin` is a WORKSPACE membership role, not the legacy Supabase app_role.
+const ADMIN: Actor = { id: "admin-uid", email: "admin@test", unknown: false, memberships: { senegal: "admin" } };
 
 const priorEnv = process.env.KG_SOURCE;
 let store: KgNodeStore;
@@ -253,6 +255,75 @@ describe("delete_nodes / delete_edges with `catalog` — retiring an entry", () 
 
   it("refuses a non-super-admin who targets the shared library", async () => {
     await inCtx(APPROVER, async () => {
+      const res = await runDeleteNodes({ nodeIds: [SHARED_ENTRY], catalog: "shared" });
+      expect(String(res.error)).toMatch(/super admin/i);
+    });
+    expect(await sharedEntryName()).toBe("Entrée existante");
+  });
+});
+
+// A catalog write publishes on confirm, so a DELETE here is live immediately:
+// no draft to review, no undo_last, and other workspaces may be using the entry.
+// A confirm cannot be made agent-proof (self-serve-authoring.md, risk 2), so the
+// guard that works is identity — deleting is held one tier above publishing.
+describe("retiring a catalog entry is held at `admin`", () => {
+  // The senegal library is seeded empty, so author something to retire. Done as
+  // SUPER: this is the setup, not the behaviour under test.
+  async function anEntryInTheWorkspaceLibrary(): Promise<string> {
+    let entryId = "";
+    await inCtx(SUPER, async () => {
+      const items = [{ kind: "Material", parentId: "senegal-root", description: "Entrée à retirer" }];
+      const dry = await runAddNodes({ items, catalog: "workspace" });
+      await runAddNodes({ items, catalog: "workspace", confirm: true, confirmationToken: dry.confirmationToken as string, mintedNodeIds: dry.mintedNodeIds as string[] });
+      entryId = (dry.mintedNodeIds as string[])[0];
+    });
+    return entryId;
+  }
+
+  it("refuses an APPROVER — who may publish an ordinary catalog write", async () => {
+    const entryId = await anEntryInTheWorkspaceLibrary();
+    await inCtx(APPROVER, async () => {
+      const res = await runDeleteNodes({ nodeIds: [entryId], catalog: "workspace" });
+      expect(res.phase).toBe("unauthorized");
+      expect(String(res.reason)).toMatch(/needs 'admin'/);
+      // Refused BEFORE the mutation ran, so no token was ever issued.
+      expect(res.confirmationToken).toBeUndefined();
+    });
+    const catalog = await readCatalog(wsCatalogNs);
+    expect(catalog.nodes.some((n) => n.id === entryId)).toBe(true);
+  });
+
+  it("lets an ADMIN through, and flags the dry-run as irreversible", async () => {
+    const entryId = await anEntryInTheWorkspaceLibrary();
+    await inCtx(ADMIN, async () => {
+      const res = await runDeleteNodes({ nodeIds: [entryId], catalog: "workspace" });
+      expect(res.phase, JSON.stringify(res)).toBe("preview");
+      expect(res.irreversible).toBe(true);
+      expect(String(res.warning)).toMatch(/no draft to review and no undo/);
+    });
+  });
+
+  it("tells the caller where a deleted entry went, so recovery is a lookup", async () => {
+    const entryId = await anEntryInTheWorkspaceLibrary();
+    let done: Record<string, unknown> = {};
+    await inCtx(ADMIN, async () => {
+      const dry = await runDeleteNodes({ nodeIds: [entryId], catalog: "workspace" });
+      done = await runDeleteNodes({ nodeIds: [entryId], catalog: "workspace", confirm: true, confirmationToken: dry.confirmationToken as string });
+    });
+    expect(done.published, JSON.stringify(done)).toBe(true);
+    const recovery = done.recovery as { auditId: string; how: string };
+    expect(recovery.auditId).toBe(done.auditId);
+    expect(recovery.how).toMatch(/read_audit/);
+
+    // The claim that pointer makes has to be true: the record really holds the
+    // removed nodes in full, so the entry is restorable from the trail alone.
+    const record = (await store.listAudit({ namespace: wsCatalogNs })).find((r) => r.id === recovery.auditId)!;
+    expect(record.diff!.nodes.removed.some((entry) => entry.id === entryId)).toBe(true);
+    expect(record.diff!.nodes.removed[0].before).toBeTruthy();
+  });
+
+  it("still refuses a non-super-admin crossing into the shared library, admin or not", async () => {
+    await inCtx(ADMIN, async () => {
       const res = await runDeleteNodes({ nodeIds: [SHARED_ENTRY], catalog: "shared" });
       expect(String(res.error)).toMatch(/super admin/i);
     });

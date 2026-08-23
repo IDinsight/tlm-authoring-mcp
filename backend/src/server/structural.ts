@@ -99,7 +99,9 @@ type DeleteEdgesArgs = {
 export async function runDeleteEdges(a: DeleteEdgesArgs): Promise<Record<string, unknown>> {
   const deleteInNamespace = (namespace: string) => deleteEdgesInNamespace(namespace, a);
   if (a.catalog) {
-    return runCatalogWrite(a.catalog, a.confirm, deleteInNamespace);
+    // Destructive: a catalog write publishes on confirm, so this is live with no
+    // draft and no undo — held at `admin` in the destination (catalog-target.ts).
+    return runCatalogWrite(a.catalog, a.confirm, deleteInNamespace, { destructive: true });
   }
   return deleteInNamespace(activeNamespace());
 }
@@ -135,7 +137,10 @@ type DeleteNodesArgs = {
 export async function runDeleteNodes(a: DeleteNodesArgs): Promise<Record<string, unknown>> {
   const deleteInNamespace = (namespace: string) => deleteNodesInNamespace(namespace, a);
   if (a.catalog) {
-    return runCatalogWrite(a.catalog, a.confirm, deleteInNamespace);
+    // Retiring a catalog entry — the only write with no draft, no undo, and
+    // copies possibly live in other workspaces. Held at `admin` in the
+    // destination workspace (catalog-target.ts / authz retireCatalogEntry).
+    return runCatalogWrite(a.catalog, a.confirm, deleteInNamespace, { destructive: true });
   }
   return deleteInNamespace(activeNamespace());
 }
@@ -218,7 +223,7 @@ export function registerStructuralTools(server: McpServer) {
         "Remove ONE node or MANY by id in one atomic draft edit — each together with its dependent subtree (its hasChild/hasPart descendants) and every edge touching any removed node. The cascade is computed over ALL the ids at once, so a child shared by two nodes you delete together also vanishes. The dry-run diff shows the FULL set that will vanish and emits a WARNING listing it; nothing is deleted until you confirm, so seeing the cascade before confirming IS the safety (there is no separate force flag). ALL-OR-NOTHING: any missing id (or an id listed twice) blocks the whole batch. The result is re-checked for referential integrity. " +
         "`returnMode` (default 'summary') controls the response: 'summary' returns `counts` {nodesAdded,edgesAdded,nodesChanged,nodesRemoved,edgesRemoved} instead of the full diff (a big cascade's full diff can be large); 'full' also attaches the whole `diff`. " +
         "`idempotencyKey` (optional): a unique key (a UUID) makes a RETRIED confirm safe — same key + same payload replays the first apply's summary with `replayed:true` instead of REPLAY; same key + different payload is rejected as IDEMPOTENCY_KEY_MISMATCH. Namespace-scoped, 24h TTL. DRAFT edit — publish_draft to make it live. " +
-         "`catalog` (optional) targets a CATALOG LIBRARY instead of the active subject graph — pass 'workspace' (your own library), 'shared', or a workspace id; crossing libraries needs super_admin. Confirming PUBLISHES the library live in one step (catalogs are not enterable, so no publish_draft), and `catalog` must be RE-SENT on the confirm." + " Retiring a catalog entry is this call with `catalog` set: name the ENTRY id and its steps/Materials come along in the cascade.",
+         "`catalog` (optional) targets a CATALOG LIBRARY instead of the active subject graph — pass 'workspace' (your own library), 'shared', or a workspace id; crossing libraries needs super_admin. Confirming PUBLISHES the library live in one step (catalogs are not enterable, so no publish_draft), and `catalog` must be RE-SENT on the confirm." + " Retiring a catalog entry is this call with `catalog` set: name the ENTRY id and its steps/Materials come along in the cascade. Deleting from a catalog needs ADMIN in the destination workspace (above the approver an ordinary catalog write needs), because it publishes immediately — no draft to review, no undo_last, and other workspaces may be using the entry. The dry-run is flagged `irreversible:true`: read the cascade to the user and get an explicit yes before confirming. The confirmed response carries `recovery` naming the audit record that holds the deleted subtree in full.",
       inputSchema: {
         nodeIds: z.array(z.string()),
         returnMode: z.enum(["summary", "full"]).optional(),
