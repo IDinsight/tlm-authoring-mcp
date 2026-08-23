@@ -10,7 +10,7 @@ Adding a subject takes its **sources** (data) and an **adapter** (code). If the 
 
 2. **Reuse or write an adapter** (`src/adapters/`):
    - *Same graph shape as an existing subject* → register the new `(grade, subject)` key against that subject's builder in `src/adapters/index.ts`. That's the many-to-one case.
-   - *Different shape* → author a new `SubjectProfile` literal under `src/adapters/profiles/` (the generic `build.ts` factory turns it into a `SubjectAdapter`). A profile carries the parse descriptor (`numberFrom`, the containment/support edges, an optional named `prune` strategy) and the `capabilities` flags (`exampleDomainRotation`). It no longer carries a `deliverables` list — a document's identity is the graph node it covers. Optional CI maths-style helpers (`suggestFreshDomain`, `domainUsage`) are only wired when the subject enables the matching capability.
+   - *Different shape* → author a new `SubjectProfile` literal under `src/adapters/profiles/` (the generic `build.ts` factory turns it into a `SubjectAdapter`). A profile carries an `id` and the parse descriptor (`numberFrom`, the containment/support edges, an optional named `prune` strategy) — that is all of it. It no longer carries a `deliverables` list (a document's identity is the graph node it covers) nor a `capabilities` block (retired with the CI-maths domain tools), so there are no subject-conditional adapter methods to wire.
 
 3. **Register it** in `src/adapters/index.ts` under the `"<grade>/<subject>"` key (in the `REGISTRY` object). Grade × subject: e.g. `"ci/maths"` and `"cp/maths"` may point at the same builder or different ones — that's a per-pair choice, not an assumption.
 

@@ -14,7 +14,6 @@ import type { SubjectProfile } from "../../profile.js";
 
 export const NIGERIA_MATHS_PROFILE: SubjectProfile = {
   id: "nigeria-maths/lc-graph-v2",
-  capabilities: { exampleDomainRotation: false },
 
   // Standards-only dialect: its whole hierarchy lives in `statementType`
   // (Grade/Theme/Sub-Theme/Topic/Performance Objective/Content) — which is exactly

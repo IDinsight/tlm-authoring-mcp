@@ -15,7 +15,6 @@ import type { SubjectProfile } from "../../profile.js";
 
 export const CBSE_SCIENCE_PROFILE: SubjectProfile = {
   id: "cbse-science/lc-graph-v1",
-  capabilities: { exampleDomainRotation: false },
 
   // Standards-only dialect: the hierarchy is carried by `statementType`, and the
   // LearningComponent layer is keyed by its label. No ordinal field.

@@ -31,7 +31,6 @@ export { getActiveContext, listAvailableContexts } from "./context/index.js";
 export { activateContext } from "./activate.js";
 export { getActiveAdapter, resolveAdapter } from "./adapters/index.js";
 export { reconcile, listEntries, recordContent, extractDocxText, __setStorageForTest } from "./storage/index.js";
-export { suggestFreshDomain } from "./generation/index.js";
 export { searchTerminology } from "./curriculum/index.js";
 export { buildServer } from "./server/index.js";
 export type { StorageAdapter, StoredObject, HistoryFile, SubjectAdapter } from "./types.js";

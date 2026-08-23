@@ -17,7 +17,6 @@ import type { SubjectProfile } from "../../profile.js";
 
 export const RWANDA_MATHS_PROFILE: SubjectProfile = {
   id: "rwanda-maths/lc-graph-v1",
-  capabilities: { exampleDomainRotation: false },
 
   // Standards-only dialect: hierarchy carried by `statementType`, LearningComponent
   // layer keyed by its label. No ordinal field.

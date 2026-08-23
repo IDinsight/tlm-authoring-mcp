@@ -97,8 +97,14 @@ export function pageDocuments(
 }
 
 // SUBJECT-SPECIFIC (CI-maths-leaning). The structured content recorded per
-// document. Fields follow the CI CI CI maths storybook model (characters, exampleDomains,
+// document. Fields follow the CI maths storybook model (characters, exampleDomains,
 // amorce/bilan wording); all optional, so subjects that don't use them omit them.
+//
+// Nothing in the SERVER reads these back — `characters` and `exampleDomains` are
+// recorded for the authoring LLM, which reads recent documents via list_documents /
+// get_document_text to keep the cast consistent and the object families varied. (That
+// used to be a pair of tools, `suggest_fresh_domain` / `domain_usage`; the heuristic
+// now lives in the maths guide's prose and reads these same fields.)
 const contentSchema = {
   summary: z.string().optional(),
   characters: z

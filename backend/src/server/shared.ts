@@ -51,9 +51,6 @@ export const guarded = <A>(fn: (a: A) => ToolResult | Promise<ToolResult>) => as
 // active subject's adapter doesn't enable the capability, else null so the
 // tool runs. Keeps capability-only tools from returning misleading empty data
 // for subjects they don't apply to.
-export const needsCapability = (enabled: boolean, cap: string): ToolResult | null =>
-  enabled ? null : asJson({ notApplicable: true, message: `Not applicable for the active subject: this tool requires the '${cap}' capability, which this subject's adapter does not enable.` });
-
 // Human confirmation for outward-facing / state-changing tools (file uploads,
 // history writes, and the graph-mutation framework). Returns a ToolResult (→
 // caller does NO side effect) unless the user has approved, in which case it

@@ -109,13 +109,6 @@ export interface CurriculumModel {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Capabilities — the subject-behaviour flags. §5.3.
-// ─────────────────────────────────────────────────────────────────────────────
-export type Capabilities = {
-  exampleDomainRotation: boolean;   // CI maths storybook variety; false for CE1 reading
-};
-
-// ─────────────────────────────────────────────────────────────────────────────
 // SubjectAdapter — the single per-(grade, subject) object the rest of the
 // server dispatches to. It is no longer hand-written per subject: a subject is a
 // declarative `SubjectProfile` (adapters/profile.ts), and one generic factory
@@ -132,13 +125,13 @@ export type Capabilities = {
 //   - `model()` — the parsed CurriculumModel (memoized). The cooked per-unit
 //     projection (slice/listUnits/…) and buildGenerationContext were removed once
 //     generation moved to the generic graph readers (walk_graph / get_standards);
-//   - `capabilities`, synthesized from the profile. (Deliverables were removed —
-//     a document's identity is now the graph node it covers; see
-//     docs/design-notes/graph-linked-documents.md.)
 //
-// Optional subject-specific functions (declared on the interface but not every
-// adapter implements them). Present only when the corresponding capability is
-// enabled; gated at the tool boundary in src/server/*.
+// Every field is now common: the last subject-CONDITIONAL surface (the
+// `capabilities` flags and the example-domain helpers they gated) was retired
+// with the CI-maths domain tools, so an adapter is the same shape for every
+// subject and differs only in the DATA its profile supplies. (Deliverables went
+// earlier — a document's identity is the graph node it covers; see
+// docs/design-notes/graph-linked-documents.md.)
 // ─────────────────────────────────────────────────────────────────────────────
 
 // Curriculum edits are the GENERIC verbs (add_node / move_node / reposition /
@@ -151,7 +144,6 @@ export interface SubjectAdapter {
   readonly grade: string;
   readonly subject: string;
   readonly id: string;                          // stable adapter id, e.g. "ci-maths/nodes-relationships-v1"
-  readonly capabilities: Capabilities;
 
   // The composite curriculum recipes are now GENERIC, graph-derived verbs in the
   // `kg-recipes` module (add_node / move_node / reposition / set_content),
@@ -169,16 +161,12 @@ export interface SubjectAdapter {
   // hydrated at activation.
   parse(raw: unknown): CurriculumModel;
 
-  // The active CurriculumModel (memoized; published slot in firestore mode, the
-  // on-disk bundle in dev). Generic — it carries the echoed `rawGraph`, so the
+  // The active CurriculumModel (memoized; hydrated from the namespace's
+  // published slot — Firestore is the only store). Generic — it carries the echoed `rawGraph`, so the
   // tool layer can read raw LC nodes/edges without a subject projection. This is
   // now the ONLY read surface the adapter exposes: the cooked per-unit projection
   // (slice/listUnits/progression/…) and buildGenerationContext were removed once
   // generation moved to the generic graph readers (walk_graph /
   // get_standards) — see docs/design-notes/logic-in-the-graph.md.
   model(): CurriculumModel;
-
-  // Optional, capability-gated at the tool boundary.
-  suggestFreshDomain?(): Promise<unknown>;
-  domainUsage?(): Promise<unknown>;
 }

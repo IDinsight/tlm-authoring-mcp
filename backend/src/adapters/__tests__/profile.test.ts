@@ -34,10 +34,31 @@ describe("SubjectProfile validation", () => {
 });
 
 describe("buildAdapterFromProfile — synthesized behavior", () => {
-  it("attaches the domain-rotation helpers only when the capability is on", () => {
+  it("builds the same adapter shape for every subject", () => {
+    // The last subject-CONDITIONAL surface (the capability-gated domain helpers)
+    // was retired with the CI-maths tools, so two unrelated subjects must now
+    // differ only in the data their profile supplies.
     const maths = buildAdapterFromProfile(CI_MATHS_PROFILE, "ci", "maths");
     const reading = buildAdapterFromProfile(CE1_READING_PROFILE, "ce1", "reading");
-    expect(typeof maths.suggestFreshDomain).toBe("function"); // exampleDomainRotation: true
-    expect(reading.suggestFreshDomain).toBeUndefined();       // exampleDomainRotation: false
+    expect(Object.keys(maths).sort()).toEqual(Object.keys(reading).sort());
+    expect(maths.id).not.toBe(reading.id);
+  });
+});
+
+describe("retired profile keys", () => {
+  // Every profile cell published before this change still carries `capabilities`
+  // (and the older ones `deliverables`). The schema is strict, so without the
+  // strip shim those cells would fail validation and their namespace would
+  // refuse to activate — a hard outage, not a degraded read.
+  it("a live cell carrying capabilities/deliverables still validates", () => {
+    const legacy = {
+      ...CI_MATHS_PROFILE,
+      capabilities: { exampleDomainRotation: true },
+      deliverables: ["chapter"],
+    };
+    const parsed = validateProfile(legacy);
+    expect(parsed.id).toBe(CI_MATHS_PROFILE.id);
+    expect(parsed).not.toHaveProperty("capabilities");
+    expect(parsed).not.toHaveProperty("deliverables");
   });
 });

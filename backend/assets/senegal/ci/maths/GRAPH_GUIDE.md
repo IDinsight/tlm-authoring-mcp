@@ -161,9 +161,10 @@ else must finish first.
   genuinely needs one (a board or ten-frame demo) with no everyday alternative. Use
   Senegalese names (Awa, Moussa, Binta, Samba, Fatou, Ibrahima…) and objects (mangues,
   oranges, paniers, calebasses, cauris, tam-tams, pirogues). Reuse the **characters
-  already established** across the book (read a recent document with `list_documents` /
-  `get_document_text`) and adopt a **fresh example domain** each chapter
-  (`suggest_fresh_domain` / `domain_usage`), so successive chapters vary their objects.
+  already established** across the book, and adopt a **fresh example domain** each
+  chapter, so successive chapters vary their objects. Both come from the same place:
+  read a few recent chapters with `list_documents` / `get_document_text` and see which
+  characters and object families they already used.
 - **Pedagogy (APC + enseignement explicite).** The teacher models, then guides, then
   pupils practise; skills are set in realistic situations; move concrete → abstract;
   treat errors as learning (distractors are real misconceptions); keep text minimal.

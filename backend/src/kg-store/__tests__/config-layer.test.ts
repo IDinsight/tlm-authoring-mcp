@@ -79,12 +79,13 @@ afterAll(() => {
   __setKgStoreForTest(null);
 });
 
-// A record that differs from the seeded one so a diff is observable — flip a
-// capability inside the core. Still schema-valid.
+// A record that differs from the seeded one so a diff is observable — retitle
+// the core's adapter id. Still schema-valid, and `id` is what the built adapter
+// surfaces, so an activation can check the edit actually took.
+const EDITED_ID = "ci-maths/edited-v2";
 function editedRecord(): StoredConfig {
   const rec = structuredClone(baseRecord()) as Record<string, unknown>;
-  const caps = (rec.core as Record<string, unknown>).capabilities as Record<string, unknown>;
-  caps.exampleDomainRotation = !caps.exampleDomainRotation;
+  (rec.core as Record<string, unknown>).id = EDITED_ID;
   return rec as StoredConfig;
 }
 
@@ -143,13 +144,13 @@ describe("editProfileWithConfirm — two-phase", () => {
       expect(pointer?.draftSlot).toBe("b");
       expect(await store.readConfig(ns, "b")).toMatchObject(proposed as Record<string, unknown>);
       const publishedCore = (await store.readConfig(ns, "a") as { core: Record<string, unknown> }).core;
-      expect(publishedCore.capabilities).not.toMatchObject((proposed as { core: { capabilities: Record<string, unknown> } }).core.capabilities);
+      expect(publishedCore.id).not.toBe(EDITED_ID);
     });
   });
 
   it("blocks a malformed core at dry-run with no token", async () => {
     await runAsActor(CURATOR, async () => {
-      const bad = { core: { ...(baseCore()), capabilities: "not-an-object" } } as StoredConfig;
+      const bad = { core: { ...(baseCore()), parse: "not-an-object" } } as StoredConfig;
       const res = await editProfileWithConfirm(ns, bad, { validate });
       expect(res.phase).toBe("blocked");
       if (res.phase !== "blocked") throw new Error("expected blocked");
@@ -240,7 +241,7 @@ describe("token-only confirm — large payloads are parked, not re-sent", () => 
   it("edit_profile: a large record is parked; confirm needs ONLY the token (no re-send)", async () => {
     await runAsActor(CURATOR, async () => {
       const proposed = editedRecord();  // carries the big guide → over the store threshold
-      const flag = (r: StoredConfig) => ((r.core as Record<string, unknown>).capabilities as Record<string, unknown>).exampleDomainRotation;
+      const coreId = (r: StoredConfig) => (r.core as Record<string, unknown>).id;
       const preview = await editProfileWithConfirm(ns, proposed, { validate });
       if (preview.phase !== "preview") throw new Error("expected preview");
       expect(preview.payloadStored).toBe(true);
@@ -250,7 +251,7 @@ describe("token-only confirm — large payloads are parked, not re-sent", () => 
       // The edited record (not the seeded one) reached the draft cell.
       const pointer = await store.readPointer(ns);
       const draftCfg = await store.readConfig(ns, pointer!.draftSlot!) as StoredConfig;
-      expect(flag(draftCfg)).toBe(flag(proposed));
+      expect(coreId(draftCfg)).toBe(coreId(proposed));
     });
   });
 
@@ -399,8 +400,8 @@ describe("activateContext builds the adapter from the stored record (firestore m
     await runInSession(state, async () => {
       const res = await activateContext(ctx.workspace, ctx.grade, ctx.subject);
       expect(res.ok).toBe(true);
-      const adapter = getActiveAdapter();
-      expect(adapter.capabilities.exampleDomainRotation).toBe((edited as { core: { capabilities: { exampleDomainRotation: boolean } } }).core.capabilities.exampleDomainRotation);
+      // The adapter was built from the STORED cell, not the in-repo literal.
+      expect(getActiveAdapter().id).toBe(EDITED_ID);
     });
 
     // A malformed stored record is refused (would otherwise mis-parse a whole workspace).

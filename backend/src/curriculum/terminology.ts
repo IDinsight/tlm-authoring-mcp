@@ -17,7 +17,7 @@ function termLoad(): TermEntry[] {
   const entries: TermEntry[] = [];
   // A subject may not ship a terminology.json yet (e.g. CE1 reading leans on the
   // KG's own bilingual wording). Treat a missing file as an empty glossary so
-  // get_terminology / terminology_sections return [] instead of crashing.
+  // get_terminology returns [] instead of crashing.
   let raw: any;
   try {
     raw = JSON.parse(readFileSync(assetPath(CONFIG.terminologyFile), "utf8"));
@@ -43,10 +43,4 @@ export function searchTerminology(query: string, limit = 20) {
 // into the same shape a stored LexiconEntry produces.
 export function allTerminologyEntries() {
   return termEnsure();
-}
-
-export function terminologySections() {
-  const counts = new Map<string | null, number>();
-  for (const e of termEnsure()) counts.set(e.section, (counts.get(e.section) ?? 0) + 1);
-  return [...counts.entries()].map(([titre, count]) => ({ titre, count }));
 }
