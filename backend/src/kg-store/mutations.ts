@@ -288,6 +288,15 @@ function diffSide<T extends { id: string; slot?: Slot }>(before: T[], after: T[]
   for (const [id, next] of a) {
     const prev = b.get(id);
     if (!prev) { added.push({ id, after: stripSlot(next) }); continue; }
+    // Identical reference → identical content, so skip the compare. This is the
+    // common case, not a micro-optimisation: a diff always runs a graph against
+    // its OWN apply-result, and the recipes are copy-on-write (setPosition hands
+    // back untouched nodes as-is; writeAtPath clones rather than writes through).
+    // So a one-node edit leaves ~2000 of ci/maths' 2086 nodes+edges reference-
+    // equal, and serializing both sides of each was ~97% of a diff's cost.
+    // The invariant this leans on is the copy-on-write one — a recipe that ever
+    // edited a node IN PLACE would be silently dropped from the diff.
+    if (prev === next) continue;
     if (stableStringify(stripSlot(prev)) !== stableStringify(stripSlot(next))) {
       changed.push({ id, before: stripSlot(prev), after: stripSlot(next) });
     }

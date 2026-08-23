@@ -23,6 +23,8 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { describe, it, expect, beforeAll, afterAll, beforeEach } from "vitest";
 import { seedStore, seededContexts, fakeStorage, CI_MATHS } from "../../__tests__/index.js";
+import { reposition, setContent } from "../../kg-recipes/index.js";
+import { diffGraphs } from "../index.js";
 import { newSessionState, runInSession } from "../../context/index.js";
 import { subjectDir, KG_FIXTURE } from "../../__tests__/index.js";
 import { resolveAdapter } from "../../adapters/index.js";
@@ -525,5 +527,41 @@ describe("shared confirm envelope — two lifecycles, stakes-accurate messaging"
     // Stakes differ from document tools.
     expect(preview.action.toLowerCase()).not.toMatch(/writes? now/);
     expect(preview.action.toLowerCase()).toMatch(/stages a draft edit/);
+  });
+});
+
+// diffSide skips the content compare when before/after hold the SAME object,
+// which is only sound because every recipe is copy-on-write. Nothing else
+// enforces that, and a recipe that edited a node in place would vanish from the
+// diff rather than fail loudly — so pin both halves here.
+describe("diff relies on copy-on-write recipes", () => {
+  it("a recipe returns every untouched node by reference, and changes a fresh object", async () => {
+    const nodes = (await store.listNodes(ns, "a")).map(({ slot: _s, ...n }) => n);
+    const edges = (await store.listEdges(ns, "a")).map(({ slot: _s, ...e }) => e);
+    const before: MutationGraph = { nodes, edges };
+    const target = nodes[5];
+
+    const after = reposition.apply(before, { namespace: ns, nodeId: target.id, position: 99 });
+
+    const beforeById = new Map(before.nodes.map((n) => [n.id, n]));
+    const shared = after.nodes.filter((n) => beforeById.get(n.id) === n);
+    expect(shared.length, "untouched nodes must stay reference-equal").toBe(before.nodes.length - 1);
+    expect(after.nodes.find((n) => n.id === target.id)).not.toBe(target);
+  });
+
+  it("the diff still reports a real edit — the short-circuit skips only identical objects", async () => {
+    const nodes = (await store.listNodes(ns, "a")).map(({ slot: _s, ...n }) => n);
+    const edges = (await store.listEdges(ns, "a")).map(({ slot: _s, ...e }) => e);
+    const before: MutationGraph = { nodes, edges };
+
+    const material = nodes.find((n) => (n.labels ?? []).includes("Material"));
+    expect(material, "the CI-maths fixture should hold a Material").toBeTruthy();
+
+    const after = setContent.apply(before, { namespace: ns, nodeId: material!.id, content: "nouveau contenu" });
+    const diff = diffGraphs(before, after);
+
+    expect(diff.nodes.changed.map((c) => c.id)).toEqual([material!.id]);
+    expect(diff.nodes.added).toHaveLength(0);
+    expect(diff.nodes.removed).toHaveLength(0);
   });
 });
