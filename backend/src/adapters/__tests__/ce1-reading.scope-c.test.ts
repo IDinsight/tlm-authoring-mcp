@@ -161,8 +161,11 @@ describe("add_node — Material + set_content; the slice surfaces them", () => {
     // The Activity that Material hangs under is itself under the session Lesson —
     // the authored content is reachable in the draft content tree (the read is now
     // the generic course subtree via walk_graph / courseSubgraph, not a cooked slice).
-    expect(draft.edges.some((e) => e.id === makeEdgeId(HAS_PART, week1SessionLesson(draft), activityId))).toBe(true);
-  }, 15000); // two two-phase mutations over the ~2000-node reading graph — heavier than the 5s default
+    // Resolve the lesson ONCE: week1SessionLesson re-parses the whole ~2000-node
+    // graph, so calling it inside the predicate below made this O(edges x parse).
+    const draftLessonId = week1SessionLesson(draft);
+    expect(draft.edges.some((e) => e.id === makeEdgeId(HAS_PART, draftLessonId, activityId))).toBe(true);
+  });
 
   it("allows a Material directly on a week grouping and on a lesson (any container)", async () => {
     const published = await readPublished();
