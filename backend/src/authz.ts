@@ -33,6 +33,7 @@ import { DEFAULT_WORKSPACE, basePrefix } from "./config.js";
 
 export type AuthAction =
   | "apply" | "discard" | "publish" | "readDraft" | "readAudit"
+  | "retireCatalogEntry"
   | "manageMembers" | "manageWorkspace";
 
 export type AuthResult =
@@ -46,6 +47,14 @@ const RANK: Record<EffectiveRole, number> = { curator: 1, approver: 2, admin: 3,
 const REQUIRED: Record<AuthAction, number> = {
   apply: RANK.curator, discard: RANK.curator, readDraft: RANK.curator,
   publish: RANK.approver, readAudit: RANK.approver,
+  // Deleting from a CATALOG library is the one write with no draft and no undo:
+  // a catalog write applies AND publishes in one step, so a confirmed delete is
+  // immediately live, and other workspaces may be using the entry. Held one tier
+  // above publish — the person who manages a workspace's members is the
+  // proportionate owner of its shared assets. (Crossing into another workspace's
+  // library or the shared one still needs super_admin, on top of this.)
+  // See docs/design-notes/self-serve-authoring.md, risk 2.
+  retireCatalogEntry: RANK.admin,
   manageMembers: RANK.admin,
   manageWorkspace: RANK.super_admin,
 };
@@ -95,6 +104,8 @@ export function authorize(actor: Actor, action: AuthAction, namespace: string): 
       return { ok: false, reason: `role '${role}' cannot publish in '${workspace}' — needs 'approver' or higher` };
     case "readAudit":
       return { ok: false, reason: `role '${role}' cannot read the audit log in '${workspace}' — needs 'approver' or higher` };
+    case "retireCatalogEntry":
+      return { ok: false, reason: `role '${role}' cannot delete from the '${workspace}' catalog library — needs 'admin' or higher. A catalog write publishes immediately (no draft, no undo) and other workspaces may be using the entry, so retiring one is held above ordinary publishing.` };
     case "manageMembers":
       return { ok: false, reason: `role '${role}' cannot manage members in '${workspace}' — needs 'admin' or higher` };
     case "manageWorkspace":

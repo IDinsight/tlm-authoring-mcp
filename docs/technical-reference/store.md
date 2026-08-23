@@ -196,6 +196,28 @@ approver: publish_draft() → dry-run: diff + draft-level token
 approver: publish_draft(confirm:true, confirmationToken:…) → live; generation now reads the new graph
 ```
 
+### Deleting from a catalog library
+
+A catalog write applies **and publishes** in one step (catalogs are not enterable, so
+there is no `publish_draft` to run), which makes a confirmed catalog delete the only
+write in the system with **no draft to review, no `undo_last`, and no `discard_draft`** —
+on an entry other workspaces may be using. The hazard is not hypothetical: a seed script
+once removed 19 live entries.
+
+The confirm cannot be made agent-proof (see [self-serve-authoring.md](../design-notes/self-serve-authoring.md),
+risk 2), so the guard is **identity**:
+
+- deleting from a catalog requires **`admin`** in the destination workspace
+  (`authorize(actor, "retireCatalogEntry", ns)`) — one tier above the `approver` an
+  ordinary catalog write needs, and checked on BOTH phases so a caller never receives a
+  token they cannot confirm;
+- crossing into another workspace's library or the shared one still needs **super_admin**,
+  on top of that;
+- the dry-run carries `irreversible: true` and a warning written to be read to the user;
+- the confirmed response carries `recovery`: the audit record id whose diff holds the
+  removed subtree in full (a delete's `before` side **is** the deleted entry), so
+  restoring is `read_audit` + `add_nodes`/`create_edges`, not a re-authoring.
+
 ### The review handoff (`request_review`)
 
 `kg-store/review.ts`. A curator finishes a batch and needs whoever publishes to look at

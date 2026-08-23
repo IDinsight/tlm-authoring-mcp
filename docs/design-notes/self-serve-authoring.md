@@ -52,6 +52,12 @@
 >   unfinished-work view (named items, `draftActivity`). Notification stays unbuilt, by
 >   design.
 >
+> - **Risk 2 decided** (2026-08-23): a proof-of-human confirm is unbuildable on an
+>   agent-only channel, so it is accepted and stated honestly in `get_capabilities`, and
+>   the one irreversible path it could reach — deleting from a catalog library — is held
+>   at `admin` with a recovery pointer. Risks 5 and 6 were answered by work that landed
+>   elsewhere (D4; `returnMode` + `diff_draft`'s `limit`/`truncated`).
+>
 > Still open: **risk 7** — nobody has watched a real expert use any of this yet. Every
 > phase above is friction *inferred* from the tool surface, never observed.
 >
@@ -478,16 +484,50 @@ Building Phase 3 before Phase 1 produces better tools that nobody trusts yet.
    surface, invoke, and — when written in the user's voice — are acted on normally. Only
    text addressed to the assistant is refused. Rung 4 is worth building; completions are
    not available, so its arguments are free text resolved server-side.
-2. **The confirmation gate is weaker than the code claims.** *(Answered, and it is not
-   only a UX finding.)* `shared.ts` describes the elicitation branch as "the strong gate
-   — the agent cannot bypass it with `confirm:true`". With `supportsElicitation: false`,
-   that gate has never existed in production: **every** confirmed upload, history write
-   and graph mutation was approved by the agent choosing to send `confirm:true` after
-   asking in chat. That is still a real checkpoint — the agent is instructed to ask, and
-   a human does answer — but it rests on the agent's cooperation, not on a dialog the
-   model cannot forge. Worth deciding deliberately whether that is acceptable for the
-   destructive verbs (`delete_nodes`, `publish_draft`), and worth correcting the comment
-   either way.
+2. **~~The confirmation gate is weaker than the code claims.~~** *(Answered — decided
+   2026-08-23.)* With `supportsElicitation: false`, the "strong gate" has never existed:
+   every confirmed write was approved by the agent choosing to send `confirm:true` after
+   asking in chat.
+
+   **The decisive finding is that it cannot be fixed by a stronger confirm.** Any
+   challenge the server issues at dry-run — a token, a nonce, a phrase for the user to
+   repeat — travels *to the agent*, which can hand it straight back. Elicitation worked
+   precisely because it bypassed the agent, and it is not available. So a
+   proof-of-human is unbuildable on this channel, and the levers that remain are
+   **identity** (roles come from a signed token the agent cannot forge), **reversibility**,
+   and **visibility**.
+
+   That reframing corrects this note's own wording. `delete_nodes` on a subject graph is
+   not a dangerous verb: it stages to a draft, `undo_last` reverses it, `discard_draft`
+   drops it, and nothing reaches generation until an approver publishes. The exposed
+   writes are the ones with **no draft behind them** — `publish_draft`, the catalog
+   writes, the glossary writes, and the document/history writes.
+
+   **Decided, two parts:**
+
+   - **Accept the agent-mediated confirm, and stop implying otherwise.**
+     `rules.confirmation` in `get_capabilities` now says what the two-phase step is (no
+     state change until a second call quoting a token bound to the exact diff) and what
+     it is not (proof that a human agreed), names the cooperation it rests on, and names
+     the three things that do not depend on it. `shared.ts`'s comment was corrected in
+     #184.
+   - **Close the one place where an agent-mediated confirm reaches an irreversible
+     change: deleting from a catalog library.** A catalog write applies *and* publishes
+     in one step, so a confirmed delete is live immediately, with no draft to review, no
+     `undo_last`, and copies possibly in use by other workspaces — and the hazard has
+     fired here before, when a seed script removed 19 live entries. Since the confirm
+     cannot be hardened, the guard is identity: deleting from a catalog now requires
+     **`admin`** in the destination workspace (`retireCatalogEntry`), a tier above the
+     `approver` an ordinary catalog write needs, with super_admin still required to cross
+     libraries. The dry-run carries `irreversible: true` and a warning to read aloud, and
+     the confirmed response carries `recovery` — the audit record id whose diff holds the
+     deleted subtree in full, so recovery is a lookup rather than a re-authoring.
+
+   Deliberately **not** done: `TLM_ALLOW_SELF_APPROVE=0`. Strict separation of duties is
+   a real identity gate on the most irreversible operation, but it means no author can
+   publish their own work, which for a team of five is a policy call for the team, not a
+   default this note should set.
+
 3. **The `/kg` read ungate must not reach the draft.** `http.ts` has an env escape hatch
    that ungates the `/kg` read routes and reports `authRequired:false`. A draft slot is
    unpublished work in a multi-tenant store — scope the ungate explicitly to published
@@ -497,13 +537,15 @@ Building Phase 3 before Phase 1 produces better tools that nobody trusts yet.
    newest edit not yet undone, so undos peel in strict reverse order and every one lands
    on a draft still shaped the way its edit left it. The check stays as the guard that
    makes that property checked rather than assumed.
-5. **Does `check_draft` belong inside `review_draft`?** Both are "look at my draft and
-   tell me what's wrong". Recommend keeping them separate — one is mechanical and
-   server-decidable, the other a judgment the calling model makes from prose — but
-   presenting them to the expert as one moment, not two tools to remember.
-6. **Diff granularity for a large staged edit.** A batch touching 200 nodes is not
-   reviewable node-by-node; the diff view likely needs a summary tier before a detail
-   tier. Unresolved.
+5. **~~Does `check_draft` belong inside `review_draft`?~~** *(Answered — D4.)* They stay
+   separate: one is mechanical and server-decidable, the other a judgment the calling
+   model makes from prose. They are presented as one moment — `next-steps.ts` lists them
+   adjacently after every draft edit, and `start_here` points at both in one line.
+6. **~~Diff granularity for a large staged edit.~~** *(Answered by work that landed
+   elsewhere.)* The summary-tier-before-detail-tier it asked for is what
+   `returnMode: "summary"` (a five-field `counts` instead of a 200 KB diff) and
+   `diff_draft`'s `limit` + `truncated` now do: totals always ride, the arrays are capped,
+   and the response says when it cut one.
 7. **Who is the first expert?** Every item here is friction *inferred* from the tool
    surface, not watched. One recorded session of a real expert attempting one real
    document would re-rank this list, and costs less than any single item on it.
@@ -523,6 +565,7 @@ Building Phase 3 before Phase 1 produces better tools that nobody trusts yet.
 | D9 | How the expert supplies a node id | **Never by hand — resolved server-side.** Completions were measured and do not render, so tools accept a typed name and return candidates when ambiguous. A pasted UUID is still a bug in the flow, not user error |
 | D10 | Undo granularity | **One edit per call, peeling backwards.** `undo_last` inverts the newest apply record not yet undone (tracked by `undoOf`), scoped to the current draft; published work is out of reach, and a conflict is a refusal that names the node, never a merge |
 | D11 | Where the review handoff lives | **Derived from the audit trail, not stored.** The newest `review` event on the current draft chain; publish/discard clear it by being the chain's boundary, so a stale "waiting for review" is structurally impossible |
+| D12 | The agent-mediated confirm | **Accepted, and stated where it is read.** A proof-of-human is unbuildable when the only channel to the user runs through the agent, so safety rests on identity, reversibility and audit — and the one irreversible path an agent-mediated confirm could reach (deleting from a catalog) is held at `admin` with a recovery pointer |
 
 ## Related
 

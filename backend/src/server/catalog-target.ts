@@ -16,12 +16,22 @@
  *   • LIFECYCLE — a catalog has no publish_draft (you cannot enter it to run
  *     one), so a confirmed catalog write APPLIES AND PUBLISHES in a single step.
  *     That is the same bargain add_to_catalog already makes.
+ *   • DELETES ARE HELD HIGHER — that same bargain means a confirmed DELETE here
+ *     is live immediately, with no draft to review and no undo_last to take it
+ *     back, on an entry other workspaces may be using. It is the only write in
+ *     the system with none of those safety nets, and the hazard has fired here
+ *     before (a seed script once removed 19 live entries). Since a confirm is
+ *     agent-mediated and cannot be made agent-proof, the guard that works is
+ *     IDENTITY: deleting needs `admin` in the destination workspace, above the
+ *     `approver` an ordinary catalog write needs. See
+ *     docs/design-notes/self-serve-authoring.md, risk 2.
  *
  * See docs/design-notes/authorable-catalog.md.
  */
 
 import { activeWorkspace } from "../context/index.js";
 import { currentActor } from "../actor.js";
+import { authorize } from "../authz.js";
 import { getWorkspaceStore } from "../workspaces/index.js";
 import { getKgStore, publishDraft, discardDraft } from "../kg-store/index.js";
 import { SHARED_CATALOG_WORKSPACE, catalogNamespace, type CatalogScope } from "../kg-recipes/index.js";
@@ -123,7 +133,7 @@ async function resolveCatalogWrite(catalog: string): Promise<CatalogWrite | { er
 // review first), and `catalog` must be re-sent on the confirm to reach the same
 // namespace. Forgetting it is safe but wasteful — the confirm would hit the
 // subject graph and fail the token's args check.
-function withCatalogWriteNote(result: WriteOutcome, target: CatalogWrite): WriteOutcome {
+function withCatalogWriteNote(result: WriteOutcome, target: CatalogWrite, destructive: boolean): WriteOutcome {
   if (result.phase !== "preview") {
     return result;
   }
@@ -132,6 +142,14 @@ function withCatalogWriteNote(result: WriteOutcome, target: CatalogWrite): Write
     publishesOnConfirm: true,
     catalog: { scope: target.scope, workspace: target.workspace, namespace: target.namespace },
     note: `Confirming does NOT just stage a draft — it PUBLISHES this change live into the ${target.scope} catalog ('${target.namespace}') in one step, because catalogs are not enterable contexts (no publish_draft). Re-send \`catalog\` alongside confirm:true and the token.`,
+    // Said before the confirm, not after: this is the one write with no draft to
+    // review, no undo_last, and copies possibly in use elsewhere.
+    ...(destructive
+      ? {
+          irreversible: true,
+          warning: `This DELETES from a live catalog library. There is no draft to review and no undo — the entry goes the moment you confirm, and other workspaces may be using it. Copies already made from it are independent and are NOT affected. Read the cascade above to the user and get an explicit yes before confirming.`,
+        }
+      : {}),
   };
 }
 
@@ -139,7 +157,7 @@ function withCatalogWriteNote(result: WriteOutcome, target: CatalogWrite): Write
 // so publish it. Catalogs cannot be entered, so a draft left behind could never be
 // published or discarded by hand — on a refused publish we roll back rather than
 // strand it (the same rollback add_to_catalog does).
-async function publishCatalogWrite(target: CatalogWrite, applied: WriteOutcome): Promise<WriteOutcome> {
+async function publishCatalogWrite(target: CatalogWrite, applied: WriteOutcome, destructive: boolean): Promise<WriteOutcome> {
   const published = await publishDraft(target.namespace);
   if (!published.ok) {
     await discardDraft(target.namespace).catch(() => undefined);
@@ -150,6 +168,19 @@ async function publishCatalogWrite(target: CatalogWrite, applied: WriteOutcome):
     published: true,
     catalog: { scope: target.scope, workspace: target.workspace, namespace: target.namespace },
     publishAuditId: published.auditId,
+    // Where the deleted thing went. The apply record carries the mutation's full
+    // GraphDiff inline, and a delete's `before` side IS the removed subtree — so
+    // the entry is recoverable from the trail without a separate backup. Naming
+    // the record here turns recovery into a lookup rather than an excavation.
+    ...(destructive && applied.auditId
+      ? {
+          recovery: {
+            auditId: applied.auditId,
+            namespace: target.namespace,
+            how: `The deleted nodes and edges are preserved in full on audit record '${String(applied.auditId)}' (its diff's \`before\` side). To restore them, read that record with read_audit (mode 'detail') and re-create them with add_nodes + create_edges targeting catalog '${target.workspace}'.`,
+          },
+        }
+      : {}),
   };
 }
 
@@ -171,21 +202,32 @@ export async function runCatalogWrite(
   catalog: string,
   confirm: boolean | undefined,
   run: (namespace: string) => Promise<WriteOutcome>,
+  opts: { destructive?: boolean } = {},
 ): Promise<WriteOutcome> {
   const target = await resolveCatalogWrite(catalog);
   if ("error" in target) {
     return { error: target.error };
   }
 
+  // Checked on BOTH phases, before the mutation runs: a dry-run that hands back
+  // a token the caller can never confirm is worse than a clear refusal, and a
+  // denial this early cannot have touched any state.
+  if (opts.destructive) {
+    const authz = authorize(currentActor(), "retireCatalogEntry", target.namespace);
+    if (!authz.ok) {
+      return { phase: "unauthorized", action: "retireCatalogEntry", reason: authz.reason };
+    }
+  }
+
   const result = await run(target.namespace);
 
   if (!confirm) {
-    return withCatalogWriteNote(result, target);
+    return withCatalogWriteNote(result, target, opts.destructive === true);
   }
   // Blocked, unauthorized, or a failed apply — nothing reached the draft, so
   // there is nothing to publish. Hand the verb's own diagnosis back unchanged.
   if (!isSuccessfulApply(result)) {
     return result;
   }
-  return publishCatalogWrite(target, result);
+  return publishCatalogWrite(target, result, opts.destructive === true);
 }
