@@ -13,7 +13,7 @@
  * A curator stages one edit; an approver publishes — matching the real roles.
  */
 import { describe, it, expect, beforeAll, beforeEach, afterAll } from "vitest";
-import { seedStore, seededContexts, fakeStorage, CI_MATHS } from "../../__tests__/index.js";
+import { seedStore, seededContexts, fakeStorage, CI_MATHS , withActiveContext as inContext } from "../../__tests__/index.js";
 import { newSessionState, runInSession } from "../../context/index.js";
 import { subjectDir, KG_FIXTURE } from "../../__tests__/index.js";
 import {
@@ -46,15 +46,9 @@ async function seedFreshStore(): Promise<KgNodeStore> {
 
 // Run `fn` inside an active ci/maths session as `actor` — the cores read the
 // active namespace from the session bag, so every core call needs one.
-async function withActiveContextAs<T>(actor: Actor, fn: () => Promise<T>): Promise<T> {
-  const state = newSessionState();
-  return runInSession(state, async () => {
-    __setActorForTest(actor);
-    const activation = await activateContext(targetCtx.workspace, targetCtx.grade, targetCtx.subject);
-    if (!activation.ok) throw new Error(`activate: ${activation.error}`);
-    return fn();
-  });
-}
+// The harness session helper, with this suite's context bound in.
+const withActiveContextAs = <T>(actor: Actor, fn: () => Promise<T>): Promise<T> =>
+  inContext(targetCtx, actor, fn);
 
 // Stage exactly one edit (reposition the first chapter) onto the draft as the
 // curator — the minimal draft the publish/discard cores act on.

@@ -8,13 +8,13 @@
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { describe, it, expect, beforeAll, beforeEach, afterAll } from "vitest";
-import { fakeStorage } from "../../__tests__/index.js";
-import { listAvailableContexts, newSessionState, runInSession } from "../../context/index.js";
+import { seedStore, seededContexts, fakeStorage, CI_MATHS } from "../../__tests__/index.js";
+import { newSessionState, runInSession } from "../../context/index.js";
 import { subjectDir, KG_FIXTURE } from "../../__tests__/index.js";
 import { resolveAdapter } from "../../adapters/index.js";
 import { serializeModel } from "../../curriculum/index.js";
 import {
-  __setKgStoreForTest, createMemoryKgStore, kgNamespace,
+  __setKgStoreForTest, kgNamespace,
   edgeId as makeEdgeId, __resetMutationsForTest, __resetDraftTokensForTest,
 } from "../../kg-store/index.js";
 import { SHARED_CATALOG_NAMESPACE, catalogNamespace, listCatalogEntries } from "../../kg-recipes/index.js";
@@ -39,7 +39,10 @@ const CURATOR: Actor = { id: "cur-uid", email: "cur@test", role: "curator", unkn
 const ADMIN: Actor = { id: "admin-uid", email: "admin@test", unknown: false, memberships: { senegal: "admin" } };
 
 let store: KgNodeStore;
-const contexts = listAvailableContexts();
+// The fixture contexts this suite asserts against — seeding only these
+// keeps each beforeEach off the graphs it never reads.
+const SEED_CONTEXTS = [CI_MATHS];
+const contexts = seededContexts(SEED_CONTEXTS);
 const targetCtx = contexts.find((c) => c.grade === "ci" && c.subject === "maths")!;
 const subjectNs = kgNamespace(targetCtx.grade, targetCtx.subject);   // senegal/ci/maths
 const wsCatalogNs = catalogNamespace("senegal");
@@ -64,16 +67,7 @@ async function seedCatalog(s: KgNodeStore, namespace: string, rootId: string, wi
 }
 
 async function seedFreshStore(): Promise<KgNodeStore> {
-  const s = createMemoryKgStore();
-  for (const { workspace, grade, subject } of contexts) {
-    const raw = JSON.parse(readFileSync(resolve(subjectDir(workspace, grade, subject), KG_FIXTURE), "utf8"));
-    const adapter = resolveAdapter(workspace, grade, subject);
-    if (!adapter) continue;
-    const { nodes, edges } = serializeModel(adapter.parse(raw), kgNamespace(grade, subject));
-    const meta: StoredMeta = { contentHash: "test", seededAt: "1970-01-01T00:00:00Z", adapterId: adapter.id, nodeCount: nodes.length, edgeCount: edges.length };
-    await s.writeSlot(kgNamespace(grade, subject), "a", { nodes, edges, meta });
-    await s.ensurePointer(kgNamespace(grade, subject), "a");
-  }
+  const s = await seedStore({ only: SEED_CONTEXTS });
   await seedCatalog(s, SHARED_CATALOG_NAMESPACE, "shared-root", true);
   await seedCatalog(s, wsCatalogNs, "senegal-root", false);
   return s;

@@ -10,7 +10,7 @@
  *     orientation snapshot, and namespace scoping.
  */
 import { describe, it, expect, beforeAll, beforeEach, afterAll } from "vitest";
-import { seedStore, seededContexts, fakeStorage, CI_MATHS } from "../../__tests__/index.js";
+import { seedStore, seededContexts, fakeStorage, CI_MATHS , withActiveContext as inContext } from "../../__tests__/index.js";
 import { newSessionState, runInSession } from "../../context/index.js";
 import { subjectDir, KG_FIXTURE } from "../../__tests__/index.js";
 import { walkGraph } from "../../curriculum/index.js";
@@ -229,16 +229,9 @@ async function seedFreshStore(): Promise<KgNodeStore> {
   return seedStore({ only: SEED_CONTEXTS });
 }
 
-async function withActiveContext<T>(actor: Actor | null, fn: () => Promise<T>): Promise<T> {
-  const state = newSessionState();
-  return runInSession(state, async () => {
-    if (actor) __setActorForTest(actor);
-    else __setActorForTest(null);
-    const activation = await activateContext(targetCtx.workspace, targetCtx.grade, targetCtx.subject);
-    if (!activation.ok) throw new Error(`activate: ${activation.error}`);
-    return fn();
-  });
-}
+// The harness session helper, with this suite's context bound in.
+const withActiveContext = <T>(actor: Actor | null, fn: () => Promise<T>): Promise<T> =>
+  inContext(targetCtx, actor, fn);
 
 
 // Stage a real draft edit (a new Lesson under the first chapter) so draft-slot

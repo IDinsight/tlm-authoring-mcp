@@ -13,7 +13,7 @@
  * they meant.
  */
 import { describe, it, expect, beforeAll, beforeEach, afterAll } from "vitest";
-import { seedStore, seededContexts, fakeStorage, CI_MATHS } from "../../__tests__/index.js";
+import { seedStore, seededContexts, fakeStorage, CI_MATHS , withActiveContext as inContext } from "../../__tests__/index.js";
 import { newSessionState, runInSession } from "../../context/index.js";
 import { subjectDir, KG_FIXTURE } from "../../__tests__/index.js";
 import {
@@ -48,15 +48,9 @@ async function seedFreshStore(): Promise<KgNodeStore> {
   return seedStore({ only: SEED_CONTEXTS });
 }
 
-async function withActiveContext<T>(actor: Actor | null, fn: () => Promise<T>): Promise<T> {
-  const state = newSessionState();
-  return runInSession(state, async () => {
-    __setActorForTest(actor ?? null);
-    const activation = await activateContext(targetCtx.workspace, targetCtx.grade, targetCtx.subject);
-    if (!activation.ok) throw new Error(`activate: ${activation.error}`);
-    return fn();
-  });
-}
+// The harness session helper, with this suite's context bound in.
+const withActiveContext = <T>(actor: Actor | null, fn: () => Promise<T>): Promise<T> =>
+  inContext(targetCtx, actor, fn);
 
 // A session with an actor but NO active context — what a first call looks like.
 async function withoutContext<T>(actor: Actor, fn: () => Promise<T>): Promise<T> {

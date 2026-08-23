@@ -19,7 +19,7 @@
  * it via a McpServer connected to a memory transport.
  */
 import { describe, it, expect, beforeAll, afterAll, beforeEach } from "vitest";
-import { seedStore, seededContexts, fakeStorage, CI_MATHS } from "../../__tests__/index.js";
+import { seedStore, seededContexts, fakeStorage, CI_MATHS , withActiveContext as inContext } from "../../__tests__/index.js";
 import { newSessionState, runInSession } from "../../context/index.js";
 import { subjectDir, KG_FIXTURE } from "../../__tests__/index.js";
 import { __setKgStoreForTest, kgNamespace, runGraphMutation, STRUCTURAL_RULES, __resetMutationsForTest } from "../../kg-store/index.js";
@@ -59,18 +59,9 @@ async function callGetCapabilities(): Promise<any> {
 
 // A convenience: activate a context inside a session before running the
 // tool. Every test picks one context and runs from there.
-async function withActiveContext<T>(actor: Actor | null, fn: () => Promise<T>): Promise<T> {
-  const state = newSessionState();
-  return runInSession(state, async () => {
-    if (actor) __setActorForTest(actor);
-    else __setActorForTest(null);
-    const activation = await activateContext(targetCtx.workspace, targetCtx.grade, targetCtx.subject);
-    if (!activation.ok) {
-      throw new Error(`activate ${targetCtx.grade}/${targetCtx.subject}: ${activation.error}`);
-    }
-    return fn();
-  });
-}
+// The harness session helper, with this suite's context bound in.
+const withActiveContext = <T>(actor: Actor | null, fn: () => Promise<T>): Promise<T> =>
+  inContext(targetCtx, actor, fn);
 
 beforeAll(() => { __setStorageForTest(fakeStorage); });
 beforeEach(async () => {
