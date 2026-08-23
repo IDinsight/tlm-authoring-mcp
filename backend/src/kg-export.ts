@@ -697,7 +697,9 @@ export async function exportCatalogEntry(ns: string, id: string): Promise<string
   const scopes = catalogScopesFor(ns);
   if (!scopes) return null;
   for (const s of scopes) {
-    const markdown = renderCatalogEntry(await readCatalogGraph(s.namespace), id, s.scope);
+    // No edit hints: the explorer is a read-only viewer, and `edit_node nodeId:` is
+    // an instruction for an MCP caller, not for the person reading the spec.
+    const markdown = renderCatalogEntry(await readCatalogGraph(s.namespace), id, s.scope, { editHints: false });
     if (markdown) return markdown;
   }
   return null;

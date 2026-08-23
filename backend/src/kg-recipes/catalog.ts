@@ -226,7 +226,19 @@ function describeEntry(entry: MutationNode, byId: Map<string, MutationNode>, chi
 // this includes the load-bearing authored spec: a formatter's Material content, and
 // each routine step's Material content. Returns null when the id isn't a routine
 // entry in this graph.
-export function renderCatalogEntry(graph: MutationGraph, entryId: string, scope: CatalogScope): string | null {
+export type RenderCatalogEntryOptions = {
+  // Print `edit_node nodeId:` above each authored block. TRUE for the MCP surfaces,
+  // whose caller can act on it; FALSE for the explorer, a read-only human viewer
+  // where a tool-call instruction is noise that implies an edit it cannot make.
+  editHints?: boolean;
+};
+
+export function renderCatalogEntry(
+  graph: MutationGraph,
+  entryId: string,
+  scope: CatalogScope,
+  options: RenderCatalogEntryOptions = {},
+): string | null {
   const { byId, children } = indexContainment(graph);
   const entry = byId.get(entryId);
   if (!entry || !isRoutine(entry)) return null;
@@ -238,7 +250,8 @@ export function renderCatalogEntry(graph: MutationGraph, entryId: string, scope:
   // problem in the rendered spec has no way back to the node that holds it — a
   // catalog is not walkable, so this markdown is the only place the id appears
   // next to its content.
-  const editHint = (id: string) => `\`edit_node\` nodeId: \`${id}\``;
+  const showEditHints = options.editHints ?? true;
+  const editHint = (id: string) => (showEditHints ? [`\`edit_node\` nodeId: \`${id}\``, ""] : []);
   const lines: string[] = [`# ${str(rawOf(entry).description) || entryId}`, "", `*${kind} · ${scope} catalog*`, ""];
   const summary = str(metaOf(entry).summary);
   if (summary) lines.push(summary, "");
@@ -247,7 +260,7 @@ export function renderCatalogEntry(graph: MutationGraph, entryId: string, scope:
     // A formatter's spec sits in its direct Material children — rendered flat, no headings.
     for (const m of childrenOf(entry.id).filter(isMaterial)) {
       const content = str(rawOf(m).content);
-      if (content) lines.push(editHint(m.id), "", content, "");
+      if (content) lines.push(...editHint(m.id), content, "");
     }
   } else if (kind === "rubric") {
     // A grid: weighted sections of named criteria. Unlike a routine step (whose text
@@ -260,7 +273,7 @@ export function renderCatalogEntry(graph: MutationGraph, entryId: string, scope:
       const weight = str(metaOf(section).weight);
       lines.push(`## ${str(rawOf(section).description)}${weight ? `  (poids : ${weight})` : ""}`, "");
       for (const criterion of childrenOf(section.id).filter(isMaterial).sort((a, b) => orderOf(a) - orderOf(b))) {
-        lines.push(`### ${str(rawOf(criterion).description)}`, "", editHint(criterion.id), "");
+        lines.push(`### ${str(rawOf(criterion).description)}`, "", ...editHint(criterion.id));
         const indicator = str(rawOf(criterion).content);
         if (indicator) lines.push(indicator, "");
       }
@@ -279,7 +292,7 @@ export function renderCatalogEntry(graph: MutationGraph, entryId: string, scope:
         ? [{ id: step.id, content: str(rawOf(step).content) }]
         : childrenOf(step.id).filter(isMaterial).map((m) => ({ id: m.id, content: str(rawOf(m).content) }));
       for (const body of bodies) {
-        if (body.content) lines.push(editHint(body.id), "", body.content, "");
+        if (body.content) lines.push(...editHint(body.id), body.content, "");
       }
     }
   }
