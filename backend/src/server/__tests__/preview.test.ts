@@ -21,15 +21,14 @@
  *   7. PARITY: the published buildGenerationContext output is unchanged for
  *      existing callers.
  */
-import { readFileSync } from "node:fs";
-import { resolve } from "node:path";
 import { describe, it, expect, beforeAll, afterAll, beforeEach } from "vitest";
-import { listAvailableContexts, newSessionState, runInSession, docKey, previewKey } from "../../context/index.js";
+import { seedStore, seededContexts, CI_MATHS } from "../../__tests__/index.js";
+import { newSessionState, runInSession, docKey, previewKey } from "../../context/index.js";
 import { subjectDir, KG_FIXTURE } from "../../__tests__/index.js";
 import { resolveAdapter } from "../../adapters/index.js";
-import { serializeModel, courseSubgraph } from "../../curriculum/index.js";
+import { courseSubgraph } from "../../curriculum/index.js";
 import {
-  __setKgStoreForTest, createMemoryKgStore, kgNamespace,
+  __setKgStoreForTest, kgNamespace,
   runGraphMutation, __resetMutationsForTest,
 } from "../../kg-store/index.js";
 import { reposition } from "../../kg-recipes/index.js";
@@ -62,24 +61,16 @@ const CURATOR: Actor = { id: "curator-uid", email: "curator@test", role: "curato
 const APPROVER: Actor = { id: "approver-uid", email: "approver@test", role: "approver", unknown: false };
 const NO_ROLE: Actor = { id: "guest-uid", email: "guest@test", unknown: false };
 
-const priorEnv = process.env.KG_SOURCE;
 let store: KgNodeStore;
-const contexts = listAvailableContexts();
+// The fixture contexts this suite asserts against — seeding only these
+// keeps each beforeEach off the graphs it never reads.
+const SEED_CONTEXTS = [CI_MATHS];
+const contexts = seededContexts(SEED_CONTEXTS);
 const ctx = contexts.find((c) => c.grade === "ci" && c.subject === "maths")!;
 const ns = kgNamespace(ctx.grade, ctx.subject);
 
 async function seedFreshStore(): Promise<KgNodeStore> {
-  const freshStore = createMemoryKgStore();
-  for (const { workspace, grade, subject } of contexts) {
-    const raw = JSON.parse(readFileSync(resolve(subjectDir(workspace, grade, subject), KG_FIXTURE), "utf8"));
-    const adapter = resolveAdapter(workspace, grade, subject);
-    if (!adapter) continue;
-    const { nodes, edges } = serializeModel(adapter.parse(raw), kgNamespace(grade, subject));
-    const meta: StoredMeta = { contentHash: "test", seededAt: "1970-01-01T00:00:00Z", adapterId: adapter.id, nodeCount: nodes.length, edgeCount: edges.length };
-    await freshStore.writeSlot(kgNamespace(grade, subject), "a", { nodes, edges, meta });
-    await freshStore.ensurePointer(kgNamespace(grade, subject), "a");
-  }
-  return freshStore;
+  return seedStore({ only: SEED_CONTEXTS });
 }
 
 // Run fn inside a session with an active CI CI maths context and a chosen actor.
@@ -140,14 +131,8 @@ beforeEach(async () => {
   __resetMutationsForTest();
   canonicalUploadCalls = 0;
   historyWrites = 0;
-  process.env.KG_SOURCE = "firestore";
 });
 afterAll(() => {
-  if (priorEnv === undefined) {
-    delete process.env.KG_SOURCE;
-  } else {
-    process.env.KG_SOURCE = priorEnv;
-  }
   __setKgStoreForTest(null);
 });
 

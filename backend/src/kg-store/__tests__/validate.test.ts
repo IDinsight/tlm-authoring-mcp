@@ -14,12 +14,13 @@
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { describe, it, expect, beforeAll, afterAll, beforeEach } from "vitest";
-import { listAvailableContexts, newSessionState, runInSession } from "../../context/index.js";
+import { seedStore, seededContexts, fakeStorage, CI_MATHS } from "../../__tests__/index.js";
+import { newSessionState, runInSession } from "../../context/index.js";
 import { subjectDir, KG_FIXTURE } from "../../__tests__/index.js";
 import { resolveAdapter } from "../../adapters/index.js";
 import { serializeModel } from "../../curriculum/index.js";
 import {
-  __setKgStoreForTest, createMemoryKgStore, kgNamespace,
+  __setKgStoreForTest, kgNamespace,
   runGraphMutation, validateStructural, __resetMutationsForTest,
 } from "../index.js";
 import { __setStorageForTest } from "../../storage/index.js";
@@ -33,16 +34,6 @@ import { __setActorForTest, type Actor } from "../../actor.js";
 const TEST_CURATOR: Actor = { id: "test-curator-uid", email: "curator@test", role: "curator", unknown: false };
 
 // Storage stub — same shape the other kg-store tests use.
-const emptyHistory: HistoryFile = { version: 3, entries: [] };
-const fakeStorage: StorageAdapter = {
-  listDocuments: async () => [],
-  getObjectMd5: async () => null,
-  downloadDocx: async () => Buffer.from(""),
-  createUploadUrl: async () => ({ url: "", objectKey: "", contentType: "", expiresAt: "" }),
-  createDownloadUrl: async () => ({ url: "", objectKey: "", expiresAt: "", exists: false }),
-  readHistory: async () => emptyHistory,
-  writeHistory: async () => {},
-};
 
 // A tiny hand-authored graph — easier to reason about than the real KG when
 // crafting rename / dangling scenarios. Two chapters linked by a buildsTowards
@@ -169,9 +160,11 @@ describe("validateStructural — direct tests (Rule 2: no-orphan)", () => {
 // rules through runGraphMutation, so the "errors block confirmation" path in
 // #5 — previously unreachable because validate was empty — is exercised.
 
-const priorEnv = process.env.KG_SOURCE;
 let store: KgNodeStore;
-const contexts = listAvailableContexts();
+// The fixture contexts this suite asserts against — seeding only these
+// keeps each beforeEach off the graphs it never reads.
+const SEED_CONTEXTS = [CI_MATHS];
+const contexts = seededContexts(SEED_CONTEXTS);
 // Pinned to the senegal workspace: this harness's curator/approver actor
 // holds a role only there (legacy app_role bridge), and its mutations are
 // tuned to that graph. A second workspace (nigeria) must not hijack it.
@@ -179,21 +172,7 @@ const firstCtx = contexts.find((c) => c.workspace === "senegal")!;
 const ns = kgNamespace(firstCtx.workspace, firstCtx.grade, firstCtx.subject);
 
 async function seedFreshStore(): Promise<KgNodeStore> {
-  const freshStore = createMemoryKgStore();
-  for (const { workspace, grade, subject } of contexts) {
-    const raw = JSON.parse(readFileSync(resolve(subjectDir(workspace, grade, subject), KG_FIXTURE), "utf8"));
-    const adapter = resolveAdapter(workspace, grade, subject);
-    if (!adapter) continue;
-
-    const { nodes, edges } = serializeModel(adapter.parse(raw), kgNamespace(workspace, grade, subject));
-    const meta: StoredMeta = {
-      contentHash: "test", seededAt: "1970-01-01T00:00:00Z",
-      adapterId: adapter.id, nodeCount: nodes.length, edgeCount: edges.length,
-    };
-    await freshStore.writeSlot(kgNamespace(workspace, grade, subject), "a", { nodes, edges, meta });
-    await freshStore.ensurePointer(kgNamespace(workspace, grade, subject), "a");
-  }
-  return freshStore;
+  return seedStore({ only: SEED_CONTEXTS });
 }
 
 async function readPublishedGraph(namespace: string): Promise<MutationGraph> {
@@ -241,11 +220,8 @@ beforeEach(async () => {
   __setKgStoreForTest(store);
   __resetMutationsForTest();
   __setActorForTest(TEST_CURATOR);
-  process.env.KG_SOURCE = "firestore";
 });
 afterAll(() => {
-  if (priorEnv === undefined) delete process.env.KG_SOURCE;
-  else process.env.KG_SOURCE = priorEnv;
   __setKgStoreForTest(null);
 });
 

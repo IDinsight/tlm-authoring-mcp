@@ -12,15 +12,12 @@
  *
  * A curator stages one edit; an approver publishes — matching the real roles.
  */
-import { readFileSync } from "node:fs";
-import { resolve } from "node:path";
 import { describe, it, expect, beforeAll, beforeEach, afterAll } from "vitest";
-import { listAvailableContexts, newSessionState, runInSession } from "../../context/index.js";
+import { seedStore, seededContexts, fakeStorage, CI_MATHS , withActiveContext as inContext } from "../../__tests__/index.js";
+import { newSessionState, runInSession } from "../../context/index.js";
 import { subjectDir, KG_FIXTURE } from "../../__tests__/index.js";
-import { resolveAdapter } from "../../adapters/index.js";
-import { serializeModel } from "../../curriculum/index.js";
 import {
-  __setKgStoreForTest, createMemoryKgStore, kgNamespace,
+  __setKgStoreForTest, kgNamespace,
   runGraphMutation, __resetMutationsForTest, __resetDraftTokensForTest, deleteNodes,
 } from "../../kg-store/index.js";
 import { reposition } from "../../kg-recipes/index.js";
@@ -32,47 +29,26 @@ import { walkActiveGraph, namespaceStats } from "../graph.js";
 import type { KgNodeStore, StoredMeta } from "../../kg-store/index.js";
 import type { StorageAdapter, HistoryFile } from "../../types.js";
 
-const emptyHistory: HistoryFile = { version: 3, entries: [] };
-const fakeStorage: StorageAdapter = {
-  listDocuments: async () => [], getObjectMd5: async () => null, downloadDocx: async () => Buffer.from(""),
-  createUploadUrl: async () => ({ url: "", objectKey: "", contentType: "", expiresAt: "" }),
-  createDownloadUrl: async () => ({ url: "", objectKey: "", expiresAt: "", exists: false }),
-  readHistory: async () => emptyHistory, writeHistory: async () => {},
-};
 const CURATOR: Actor = { id: "curator-uid", email: "curator@test", role: "curator", unknown: false };
 const APPROVER: Actor = { id: "approver-uid", email: "approver@test", role: "approver", unknown: false };
 
-const priorEnv = process.env.KG_SOURCE;
 let store: KgNodeStore;
-const contexts = listAvailableContexts();
+// The fixture contexts this suite asserts against — seeding only these
+// keeps each beforeEach off the graphs it never reads.
+const SEED_CONTEXTS = [CI_MATHS];
+const contexts = seededContexts(SEED_CONTEXTS);
 const targetCtx = contexts.find((c) => c.grade === "ci" && c.subject === "maths")!;
 const ns = kgNamespace(targetCtx.grade, targetCtx.subject);
 
 async function seedFreshStore(): Promise<KgNodeStore> {
-  const freshStore = createMemoryKgStore();
-  for (const { workspace, grade, subject } of contexts) {
-    const raw = JSON.parse(readFileSync(resolve(subjectDir(workspace, grade, subject), KG_FIXTURE), "utf8"));
-    const adapter = resolveAdapter(workspace, grade, subject);
-    if (!adapter) continue;
-    const { nodes, edges } = serializeModel(adapter.parse(raw), kgNamespace(grade, subject));
-    const meta: StoredMeta = { contentHash: "test", seededAt: "1970-01-01T00:00:00Z", adapterId: adapter.id, nodeCount: nodes.length, edgeCount: edges.length };
-    await freshStore.writeSlot(kgNamespace(grade, subject), "a", { nodes, edges, meta });
-    await freshStore.ensurePointer(kgNamespace(grade, subject), "a");
-  }
-  return freshStore;
+  return seedStore({ only: SEED_CONTEXTS });
 }
 
 // Run `fn` inside an active ci/maths session as `actor` — the cores read the
 // active namespace from the session bag, so every core call needs one.
-async function withActiveContextAs<T>(actor: Actor, fn: () => Promise<T>): Promise<T> {
-  const state = newSessionState();
-  return runInSession(state, async () => {
-    __setActorForTest(actor);
-    const activation = await activateContext(targetCtx.workspace, targetCtx.grade, targetCtx.subject);
-    if (!activation.ok) throw new Error(`activate: ${activation.error}`);
-    return fn();
-  });
-}
+// The harness session helper, with this suite's context bound in.
+const withActiveContextAs = <T>(actor: Actor, fn: () => Promise<T>): Promise<T> =>
+  inContext(targetCtx, actor, fn);
 
 // Stage exactly one edit (reposition the first chapter) onto the draft as the
 // curator — the minimal draft the publish/discard cores act on.
@@ -93,10 +69,8 @@ beforeEach(async () => {
   __setKgStoreForTest(store);
   __resetMutationsForTest();
   __resetDraftTokensForTest();
-  process.env.KG_SOURCE = "firestore";
 });
 afterAll(() => {
-  if (priorEnv === undefined) delete process.env.KG_SOURCE; else process.env.KG_SOURCE = priorEnv;
   __setKgStoreForTest(null);
 });
 

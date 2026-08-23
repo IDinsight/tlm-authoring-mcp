@@ -11,21 +11,16 @@
  * createDraft / publish-with-self-authorship / discard / force-cascade delete /
  * recipe / blocked all present and correctly attributed).
  *
- * Setup mirrors capabilities.test.ts / audit.test.ts: a memory KG store seeded
- * from the real sources, KG_SOURCE=firestore to exercise the lifecycle path,
- * and the tool's exported core (`readAudit`) driven directly inside an active
- * context + actor.
+ * Setup mirrors capabilities.test.ts: a memory KG store seeded from the
+ * fixture graphs, and the tool's exported core (`readAudit`) driven directly
+ * inside an active context + actor.
  */
-import { readFileSync } from "node:fs";
-import { resolve } from "node:path";
-import { randomUUID } from "node:crypto";
 import { describe, it, expect, beforeAll, afterAll, beforeEach } from "vitest";
-import { listAvailableContexts, newSessionState, runInSession } from "../../context/index.js";
+import { seedStore, seededContexts, fakeStorage, CI_MATHS, CE1_READING } from "../../__tests__/index.js";
+import { newSessionState, runInSession } from "../../context/index.js";
 import { subjectDir, KG_FIXTURE } from "../../__tests__/index.js";
-import { resolveAdapter } from "../../adapters/index.js";
-import { serializeModel } from "../../curriculum/index.js";
 import {
-  __setKgStoreForTest, createMemoryKgStore, kgNamespace, toAuditActor,
+  __setKgStoreForTest, kgNamespace, toAuditActor,
   runGraphMutation, deleteNode, publishDraftWithConfirm, discardDraftWithConfirm,
   __resetMutationsForTest,
 } from "../../kg-store/index.js";
@@ -37,24 +32,16 @@ import { activateContext } from "../../activate.js";
 import { readAudit } from "../audit.js";
 import type { StorageAdapter, HistoryFile } from "../../types.js";
 
-const emptyHistory: HistoryFile = { version: 3, entries: [] };
-const fakeStorage: StorageAdapter = {
-  listDocuments: async () => [],
-  getObjectMd5: async () => null,
-  downloadDocx: async () => Buffer.from(""),
-  createUploadUrl: async () => ({ url: "", objectKey: "", contentType: "", expiresAt: "" }),
-  createDownloadUrl: async () => ({ url: "", objectKey: "", expiresAt: "", exists: false }),
-  readHistory: async () => emptyHistory,
-  writeHistory: async () => {},
-};
 
 const APPROVER: Actor = { id: "approver-uid", email: "approver@test", tokenIssuer: "iss", role: "approver", unknown: false };
 const CURATOR: Actor = { id: "curator-uid", email: "curator@test", tokenIssuer: "iss", role: "curator", unknown: false };
 const NO_ROLE: Actor = { id: "guest-uid", email: "guest@test", unknown: false };
 
-const priorEnv = process.env.KG_SOURCE;
 let store: KgNodeStore;
-const contexts = listAvailableContexts();
+// The fixture contexts this suite asserts against — seeding only these
+// keeps each beforeEach off the graphs it never reads.
+const SEED_CONTEXTS = [CI_MATHS, CE1_READING];
+const contexts = seededContexts(SEED_CONTEXTS);
 const targetCtx = contexts.find((c) => c.grade === "ci" && c.subject === "maths")!;
 // The "other" namespace stays within senegal: the APPROVER actor holds a role
 // only there (legacy app_role bridge), so a second workspace (nigeria) can't be
@@ -63,20 +50,7 @@ const otherCtx = contexts.find((c) => c.workspace === "senegal" && !(c.grade ===
 const ns = kgNamespace(targetCtx.workspace, targetCtx.grade, targetCtx.subject);
 
 async function seedFreshStore(): Promise<KgNodeStore> {
-  const freshStore = createMemoryKgStore();
-  for (const { workspace, grade, subject } of contexts) {
-    const raw = JSON.parse(readFileSync(resolve(subjectDir(workspace, grade, subject), KG_FIXTURE), "utf8"));
-    const adapter = resolveAdapter(workspace, grade, subject);
-    if (!adapter) continue;
-    const { nodes, edges } = serializeModel(adapter.parse(raw), kgNamespace(workspace, grade, subject));
-    const meta: StoredMeta = {
-      contentHash: "test", seededAt: "1970-01-01T00:00:00Z",
-      adapterId: adapter.id, nodeCount: nodes.length, edgeCount: edges.length,
-    };
-    await freshStore.writeSlot(kgNamespace(workspace, grade, subject), "a", { nodes, edges, meta });
-    await freshStore.ensurePointer(kgNamespace(workspace, grade, subject), "a");
-  }
-  return freshStore;
+  return seedStore({ only: SEED_CONTEXTS });
 }
 
 // Run inside an active context as a given actor — exactly what a real tool
@@ -110,14 +84,8 @@ beforeEach(async () => {
   store = await seedFreshStore();
   __setKgStoreForTest(store);
   __resetMutationsForTest();
-  process.env.KG_SOURCE = "firestore";
 });
 afterAll(() => {
-  if (priorEnv === undefined) {
-    delete process.env.KG_SOURCE;
-  } else {
-    process.env.KG_SOURCE = priorEnv;
-  }
   __setKgStoreForTest(null);
 });
 

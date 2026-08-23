@@ -5,15 +5,11 @@
 // ONE apply record for the whole batch, atomic rollback when any item is
 // invalid (no token, no partial apply), sequential auto-positioning, duplicate
 // detection across the batch AND the draft, and namespace isolation.
-import { readFileSync } from "node:fs";
-import { resolve } from "node:path";
 import { describe, it, expect, beforeAll, beforeEach, afterAll } from "vitest";
-import { listAvailableContexts } from "../../context/index.js";
+import { seedStore, fakeStorage, CI_MATHS, CE1_READING } from "../../__tests__/index.js";
 import { subjectDir, KG_FIXTURE } from "../../__tests__/index.js";
-import { resolveAdapter } from "../../adapters/index.js";
-import { serializeModel } from "../../curriculum/index.js";
 import {
-  __setKgStoreForTest, createMemoryKgStore, kgNamespace,
+  __setKgStoreForTest, kgNamespace,
   runGraphMutation, mintNodeId, edgeId as makeEdgeId,
   __resetMutationsForTest, __resetDraftTokensForTest,
 } from "../../kg-store/index.js";
@@ -25,34 +21,17 @@ import type { StorageAdapter, HistoryFile } from "../../types.js";
 
 const HAS_PART = "hasPart";
 
-const emptyHistory: HistoryFile = { version: 3, entries: [] };
-const fakeStorage: StorageAdapter = {
-  listDocuments: async () => [], getObjectMd5: async () => null, downloadDocx: async () => Buffer.from(""),
-  createUploadUrl: async () => ({ url: "", objectKey: "", contentType: "", expiresAt: "" }),
-  createDownloadUrl: async () => ({ url: "", objectKey: "", expiresAt: "", exists: false }),
-  readHistory: async () => emptyHistory, writeHistory: async () => {},
-};
 const CURATOR: Actor = { id: "curator-uid", email: "curator@test", role: "curator", unknown: false };
 
-const priorEnv = process.env.KG_SOURCE;
 let store: KgNodeStore;
-const contexts = listAvailableContexts();
+// The fixture contexts this suite asserts against — seeding only these
+// keeps each beforeEach off the graphs it never reads.
+const SEED_CONTEXTS = [CI_MATHS, CE1_READING];
 const ns = kgNamespace("ci", "maths");
 const readingNs = kgNamespace("ce1", "reading");
-const adapter = () => resolveAdapter("senegal", "ci", "maths")!;
 
 async function seedFreshStore(): Promise<KgNodeStore> {
-  const freshStore = createMemoryKgStore();
-  for (const { workspace, grade, subject } of contexts) {
-    const raw = JSON.parse(readFileSync(resolve(subjectDir(workspace, grade, subject), KG_FIXTURE), "utf8"));
-    const subjectAdapter = resolveAdapter(workspace, grade, subject);
-    if (!subjectAdapter) continue;
-    const { nodes, edges } = serializeModel(subjectAdapter.parse(raw), kgNamespace(grade, subject));
-    const meta: StoredMeta = { contentHash: "test", seededAt: "1970-01-01T00:00:00Z", adapterId: subjectAdapter.id, nodeCount: nodes.length, edgeCount: edges.length };
-    await freshStore.writeSlot(kgNamespace(grade, subject), "a", { nodes, edges, meta });
-    await freshStore.ensurePointer(kgNamespace(grade, subject), "a");
-  }
-  return freshStore;
+  return seedStore({ only: SEED_CONTEXTS });
 }
 
 const strip = <T extends { slot?: unknown }>(record: T) => {
@@ -109,10 +88,8 @@ beforeEach(async () => {
   __resetMutationsForTest();
   __resetDraftTokensForTest();
   __setActorForTest(CURATOR);
-  process.env.KG_SOURCE = "firestore";
 });
 afterAll(() => {
-  if (priorEnv === undefined) delete process.env.KG_SOURCE; else process.env.KG_SOURCE = priorEnv;
   __setKgStoreForTest(null);
 });
 

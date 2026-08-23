@@ -6,14 +6,15 @@
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { describe, it, expect, beforeAll, beforeEach, afterAll } from "vitest";
-import { listAvailableContexts, newSessionState, runInSession } from "../../context/index.js";
+
+import { newSessionState, runInSession } from "../../context/index.js";
 import { activateContext } from "../../activate.js";
 import { evaluateDocument } from "../evaluate.js";
-import { subjectDir, KG_FIXTURE } from "../../__tests__/index.js";
+import { seedStore, CI_MATHS } from "../../__tests__/index.js";
 import { resolveAdapter } from "../../adapters/index.js";
 import { serializeModel } from "../../curriculum/index.js";
 import {
-  __setKgStoreForTest, createMemoryKgStore, kgNamespace, edgeId as makeEdgeId, __resetMutationsForTest,
+  __setKgStoreForTest, kgNamespace, edgeId as makeEdgeId, __resetMutationsForTest,
 } from "../../kg-store/index.js";
 import type { StoredMeta, KgNodeStore, StoredNode, StoredEdge } from "../../kg-store/index.js";
 import { __setStorageForTest } from "../../storage/index.js";
@@ -21,7 +22,6 @@ import { __setActorForTest, type Actor } from "../../actor.js";
 import type { StorageAdapter, HistoryFile } from "../../types.js";
 
 const CURATOR: Actor = { id: "curator-uid", email: "curator@test", role: "curator", unknown: false };
-const priorEnv = process.env.KG_SOURCE;
 const ns = kgNamespace("ci", "maths");
 
 const TLM_ID = "tlm-doc";
@@ -48,16 +48,7 @@ const edge = (type: string, from: string, to: string): Omit<StoredEdge, "slot"> 
 // Seed CI maths, then hang a document off its Course with a rubric already applied —
 // the state use_rubric + publish_draft leaves behind.
 async function seedFreshStore(withRubric: boolean): Promise<KgNodeStore> {
-  const s = createMemoryKgStore();
-  for (const ctx of listAvailableContexts()) {
-    const raw = JSON.parse(readFileSync(resolve(subjectDir(ctx.workspace, ctx.grade, ctx.subject), KG_FIXTURE), "utf8"));
-    const adapter = resolveAdapter(ctx.workspace, ctx.grade, ctx.subject);
-    if (!adapter) continue;
-    const { nodes, edges } = serializeModel(adapter.parse(raw), kgNamespace(ctx.grade, ctx.subject));
-    const meta: StoredMeta = { contentHash: "test", seededAt: "1970-01-01T00:00:00Z", adapterId: adapter.id, nodeCount: nodes.length, edgeCount: edges.length };
-    await s.writeSlot(kgNamespace(ctx.grade, ctx.subject), "a", { nodes, edges, meta });
-    await s.ensurePointer(kgNamespace(ctx.grade, ctx.subject), "a");
-  }
+  const s = await seedStore({ only: [CI_MATHS] });
 
   const strip = <T extends { slot?: unknown }>(x: T) => { const { slot: _s, ...rest } = x; return rest; };
   const [nodes, edges] = await Promise.all([s.listNodes(ns, "a"), s.listEdges(ns, "a")]);
@@ -109,7 +100,6 @@ beforeEach(async () => {
   history = { version: 3, entries: [] };
   __resetMutationsForTest();
   __setActorForTest(CURATOR);
-  process.env.KG_SOURCE = "firestore";
   await useStore(true);
   history.entries.push({
     id: courseId, nodeId: courseId, relPath: "guide/Guide de l'enseignant.docx",
@@ -118,7 +108,6 @@ beforeEach(async () => {
   });
 });
 afterAll(() => {
-  if (priorEnv === undefined) delete process.env.KG_SOURCE; else process.env.KG_SOURCE = priorEnv;
   __setKgStoreForTest(null);
 });
 

@@ -1,19 +1,16 @@
 /*
  * Profile tools — get_profile / get_graph_guide / edit_profile (cores).
  *
- * Exercises the exported tool cores against a seeded memory store (firestore
- * mode) and against the on-disk bundle (bundle mode), the two KG_SOURCE paths
- * the tools branch on. Focus: the { core, guide } record surfaces correctly,
- * the LLM-facing guide read, the draft role gate, and the firestore-only edit.
+ * Exercises the exported tool cores against a seeded memory store. Focus: the
+ * { core, guide } record surfaces correctly, the LLM-facing guide read, the
+ * draft role gate, and the edit.
  */
-import { readFileSync } from "node:fs";
-import { resolve } from "node:path";
 import { describe, it, expect, beforeAll, afterAll, beforeEach } from "vitest";
-import { listAvailableContexts, newSessionState, runInSession } from "../../context/index.js";
+import { seedStore, seededContexts, fakeStorage, CI_MATHS, CE1_READING } from "../../__tests__/index.js";
+import { newSessionState, runInSession } from "../../context/index.js";
 import { subjectDir, KG_FIXTURE } from "../../__tests__/index.js";
-import { resolveAdapter, getRegisteredProfile, getRegisteredGuide } from "../../adapters/index.js";
-import { serializeModel } from "../../curriculum/index.js";
-import { __setKgStoreForTest, createMemoryKgStore, kgNamespace } from "../../kg-store/index.js";
+import { getRegisteredProfile } from "../../adapters/index.js";
+import { __setKgStoreForTest, kgNamespace } from "../../kg-store/index.js";
 import { __setStorageForTest } from "../../storage/index.js";
 import { activateContext } from "../../activate.js";
 import { runAsActor, __setActorForTest, type Actor } from "../../actor.js";
@@ -21,46 +18,21 @@ import { readProfile, readGraphGuide, runEditProfile, reviewDraft } from "../pro
 import type { KgNodeStore, StoredConfig, StoredMeta } from "../../kg-store/index.js";
 import type { StorageAdapter, HistoryFile } from "../../types.js";
 
-const emptyHistory: HistoryFile = { version: 3, entries: [] };
-const fakeStorage: StorageAdapter = {
-  listDocuments: async () => [],
-  getObjectMd5: async () => null,
-  downloadDocx: async () => Buffer.from(""),
-  createUploadUrl: async () => ({ url: "", objectKey: "", contentType: "", expiresAt: "" }),
-  createDownloadUrl: async () => ({ url: "", objectKey: "", expiresAt: "", exists: false }),
-  readHistory: async () => emptyHistory,
-  writeHistory: async () => {},
-};
 
 const CURATOR: Actor = { id: "curator-uid", email: "curator@test", role: "curator", unknown: false };
 const UNKNOWN: Actor = { id: "anon", unknown: true };
 
-const priorEnv = process.env.KG_SOURCE;
 let store: KgNodeStore;
-const contexts = listAvailableContexts();
+// The fixture contexts this suite asserts against — seeding only these
+// keeps each beforeEach off the graphs it never reads.
+const SEED_CONTEXTS = [CI_MATHS, CE1_READING];
+const contexts = seededContexts(SEED_CONTEXTS);
 const maths = contexts.find((c) => c.grade === "ci" && c.subject === "maths")!;
 const reading = contexts.find((c) => c.grade === "ce1" && c.subject === "reading")!;
 
-const recordOf = (workspace: string, grade: string, subject: string): StoredConfig => {
-  const core = getRegisteredProfile(workspace, grade, subject);
-  const guide = getRegisteredGuide(workspace, grade, subject);
-  return guide !== undefined ? { core, guide } : { core };
-};
 
 async function seedFreshStore(): Promise<KgNodeStore> {
-  const freshStore = createMemoryKgStore();
-  for (const c of contexts) {
-    const raw = JSON.parse(readFileSync(resolve(subjectDir(c.workspace, c.grade, c.subject), KG_FIXTURE), "utf8"));
-    const adapter = resolveAdapter(c.workspace, c.grade, c.subject);
-    if (!adapter) continue;
-    const nsC = kgNamespace(c.workspace, c.grade, c.subject);
-    const { nodes, edges } = serializeModel(adapter.parse(raw), nsC);
-    const meta: StoredMeta = { contentHash: "test", seededAt: "1970-01-01T00:00:00Z", adapterId: adapter.id, nodeCount: nodes.length, edgeCount: edges.length };
-    await freshStore.writeSlot(nsC, "a", { nodes, edges, meta });
-    if (getRegisteredProfile(c.workspace, c.grade, c.subject)) await freshStore.writeConfig(nsC, "a", recordOf(c.workspace, c.grade, c.subject));
-    await freshStore.ensurePointer(nsC, "a");
-  }
-  return freshStore;
+  return seedStore({ only: SEED_CONTEXTS, withProfiles: true });
 }
 
 beforeAll(() => { __setStorageForTest(fakeStorage); });
@@ -68,11 +40,8 @@ beforeEach(async () => {
   store = await seedFreshStore();
   __setKgStoreForTest(store);
   __setActorForTest(null);
-  process.env.KG_SOURCE = "firestore";
 });
 afterAll(() => {
-  if (priorEnv === undefined) delete process.env.KG_SOURCE;
-  else process.env.KG_SOURCE = priorEnv;
   __setKgStoreForTest(null);
 });
 

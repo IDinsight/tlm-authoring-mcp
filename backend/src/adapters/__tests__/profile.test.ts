@@ -9,7 +9,7 @@
  * capability-gated domain-rotation helpers.
  */
 import { describe, it, expect } from "vitest";
-import { validateProfile, type SubjectProfile } from "../profile.js";
+import { validateProfile } from "../profile.js";
 import { buildAdapterFromProfile } from "../build.js";
 import { CI_MATHS_PROFILE } from "../profiles/senegal/ci-maths.js";
 import { CE1_READING_PROFILE } from "../profiles/senegal/ce1-reading.js";

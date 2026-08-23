@@ -1,7 +1,7 @@
 /*
- * Module: server · tool group: CI-CI-maths-specific
+ * Module: server · tool group: CI-maths-specific
  *
- * Tools that only make sense for the CI-CI CI maths storybook model (example-domain
+ * Tools that only make sense for the CI maths storybook model (example-domain
  * rotation — keeping each chapter's object families fresh). MCP tools register
  * once at startup, before a context is chosen, so these are always registered
  * but gated at call time on capabilities.exampleDomainRotation: for a subject

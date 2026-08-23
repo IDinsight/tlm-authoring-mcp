@@ -22,12 +22,15 @@
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { describe, it, expect, beforeAll, afterAll, beforeEach } from "vitest";
-import { listAvailableContexts, newSessionState, runInSession } from "../../context/index.js";
+import { seedStore, seededContexts, fakeStorage, CI_MATHS } from "../../__tests__/index.js";
+import { reposition, setContent } from "../../kg-recipes/index.js";
+import { diffGraphs } from "../index.js";
+import { newSessionState, runInSession } from "../../context/index.js";
 import { subjectDir, KG_FIXTURE } from "../../__tests__/index.js";
 import { resolveAdapter } from "../../adapters/index.js";
 import { serializeModel } from "../../curriculum/index.js";
 import {
-  __setKgStoreForTest, createMemoryKgStore, kgNamespace,
+  __setKgStoreForTest, kgNamespace,
   runGraphMutation, __resetMutationsForTest,
 } from "../index.js";
 import { __setStorageForTest } from "../../storage/index.js";
@@ -43,16 +46,6 @@ import { __setActorForTest, type Actor } from "../../actor.js";
 // Tests that specifically care about the authz gate live in authz.test.ts.
 const TEST_CURATOR: Actor = { id: "test-curator-uid", email: "curator@test", role: "curator", unknown: false };
 
-const emptyHistory: HistoryFile = { version: 3, entries: [] };
-const fakeStorage: StorageAdapter = {
-  listDocuments: async () => [],
-  getObjectMd5: async () => null,
-  downloadDocx: async () => Buffer.from(""),
-  createUploadUrl: async () => ({ url: "", objectKey: "", contentType: "", expiresAt: "" }),
-  createDownloadUrl: async () => ({ url: "", objectKey: "", expiresAt: "", exists: false }),
-  readHistory: async () => emptyHistory,
-  writeHistory: async () => {},
-};
 
 // Internal test-only mutation. NOT exposed via registerTool anywhere — its
 // only purpose is to exercise the framework. Sets `properties.testFlag` on
@@ -94,9 +87,11 @@ const validatingMutation: GraphMutation<SetPropArgs> = {
   apply: setNodeProperty.apply,
 };
 
-const priorEnv = process.env.KG_SOURCE;
 let store: KgNodeStore;
-const contexts = listAvailableContexts();
+// The fixture contexts this suite asserts against — seeding only these
+// keeps each beforeEach off the graphs it never reads.
+const SEED_CONTEXTS = [CI_MATHS];
+const contexts = seededContexts(SEED_CONTEXTS);
 // Pinned to the senegal workspace: this harness's curator/approver actor
 // holds a role only there (legacy app_role bridge), and its mutations are
 // tuned to that graph. A second workspace (nigeria) must not hijack it.
@@ -104,21 +99,7 @@ const firstCtx = contexts.find((c) => c.workspace === "senegal")!;
 const ns = kgNamespace(firstCtx.workspace, firstCtx.grade, firstCtx.subject);
 
 async function seedFreshStore(): Promise<KgNodeStore> {
-  const freshStore = createMemoryKgStore();
-  for (const { workspace, grade, subject } of contexts) {
-    const raw = JSON.parse(readFileSync(resolve(subjectDir(workspace, grade, subject), KG_FIXTURE), "utf8"));
-    const adapter = resolveAdapter(workspace, grade, subject);
-    if (!adapter) continue;
-
-    const { nodes, edges } = serializeModel(adapter.parse(raw), kgNamespace(workspace, grade, subject));
-    const meta: StoredMeta = {
-      contentHash: "test", seededAt: "1970-01-01T00:00:00Z",
-      adapterId: adapter.id, nodeCount: nodes.length, edgeCount: edges.length,
-    };
-    await freshStore.writeSlot(kgNamespace(workspace, grade, subject), "a", { nodes, edges, meta });
-    await freshStore.ensurePointer(kgNamespace(workspace, grade, subject), "a");
-  }
-  return freshStore;
+  return seedStore({ only: SEED_CONTEXTS });
 }
 
 async function readPublishedGraph(namespace: string): Promise<MutationGraph> {
@@ -138,11 +119,8 @@ beforeEach(async () => {
   __setKgStoreForTest(store);
   __resetMutationsForTest();
   __setActorForTest(TEST_CURATOR);
-  process.env.KG_SOURCE = "firestore";
 });
 afterAll(() => {
-  if (priorEnv === undefined) delete process.env.KG_SOURCE;
-  else process.env.KG_SOURCE = priorEnv;
   __setKgStoreForTest(null);
 });
 
@@ -549,5 +527,41 @@ describe("shared confirm envelope — two lifecycles, stakes-accurate messaging"
     // Stakes differ from document tools.
     expect(preview.action.toLowerCase()).not.toMatch(/writes? now/);
     expect(preview.action.toLowerCase()).toMatch(/stages a draft edit/);
+  });
+});
+
+// diffSide skips the content compare when before/after hold the SAME object,
+// which is only sound because every recipe is copy-on-write. Nothing else
+// enforces that, and a recipe that edited a node in place would vanish from the
+// diff rather than fail loudly — so pin both halves here.
+describe("diff relies on copy-on-write recipes", () => {
+  it("a recipe returns every untouched node by reference, and changes a fresh object", async () => {
+    const nodes = (await store.listNodes(ns, "a")).map(({ slot: _s, ...n }) => n);
+    const edges = (await store.listEdges(ns, "a")).map(({ slot: _s, ...e }) => e);
+    const before: MutationGraph = { nodes, edges };
+    const target = nodes[5];
+
+    const after = reposition.apply(before, { namespace: ns, nodeId: target.id, position: 99 });
+
+    const beforeById = new Map(before.nodes.map((n) => [n.id, n]));
+    const shared = after.nodes.filter((n) => beforeById.get(n.id) === n);
+    expect(shared.length, "untouched nodes must stay reference-equal").toBe(before.nodes.length - 1);
+    expect(after.nodes.find((n) => n.id === target.id)).not.toBe(target);
+  });
+
+  it("the diff still reports a real edit — the short-circuit skips only identical objects", async () => {
+    const nodes = (await store.listNodes(ns, "a")).map(({ slot: _s, ...n }) => n);
+    const edges = (await store.listEdges(ns, "a")).map(({ slot: _s, ...e }) => e);
+    const before: MutationGraph = { nodes, edges };
+
+    const material = nodes.find((n) => (n.labels ?? []).includes("Material"));
+    expect(material, "the CI-maths fixture should hold a Material").toBeTruthy();
+
+    const after = setContent.apply(before, { namespace: ns, nodeId: material!.id, content: "nouveau contenu" });
+    const diff = diffGraphs(before, after);
+
+    expect(diff.nodes.changed.map((c) => c.id)).toEqual([material!.id]);
+    expect(diff.nodes.added).toHaveLength(0);
+    expect(diff.nodes.removed).toHaveLength(0);
   });
 });

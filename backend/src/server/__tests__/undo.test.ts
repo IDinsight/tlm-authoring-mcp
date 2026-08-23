@@ -15,68 +15,29 @@
  *   • SCOPE — published work is out of reach; undo only ever edits the draft.
  *   • GATES — the same two-phase confirm and the same role gate as any write.
  */
-import { readFileSync } from "node:fs";
-import { resolve } from "node:path";
 import { describe, it, expect, beforeAll, beforeEach, afterAll } from "vitest";
-import { listAvailableContexts, newSessionState, runInSession } from "../../context/index.js";
-import { subjectDir, KG_FIXTURE } from "../../__tests__/index.js";
-import { resolveAdapter } from "../../adapters/index.js";
-import { serializeModel } from "../../curriculum/index.js";
 import {
-  __setKgStoreForTest, createMemoryKgStore, kgNamespace, runGraphMutation,
+  seedStore, withActiveContext as inContext, fixtureContext, installFakeStorage,
+  CI_MATHS, CURATOR, APPROVER, SIGNED_IN_NO_ROLE as NO_ROLE,
+} from "../../__tests__/index.js";
+import {
+  __setKgStoreForTest, kgNamespace, runGraphMutation,
   __resetMutationsForTest, __resetDraftTokensForTest,
 } from "../../kg-store/index.js";
 import { editNode } from "../../kg-recipes/index.js";
-import { __setStorageForTest } from "../../storage/index.js";
-import { __setActorForTest, type Actor } from "../../actor.js";
-import { activateContext } from "../../activate.js";
+import { type Actor } from "../../actor.js";
 import { runUndoLast } from "../undo.js";
 import { undoConflicts } from "../../kg-store/index.js";
 import { runCreateDocument } from "../document-authoring.js";
 import { runPublishDraft } from "../lifecycle.js";
-import type { KgNodeStore, MutationEdge, MutationNode, Slot, StoredMeta } from "../../kg-store/index.js";
-import type { StorageAdapter, HistoryFile } from "../../types.js";
+import type { KgNodeStore, MutationEdge, MutationNode, Slot } from "../../kg-store/index.js";
 
-const emptyHistory: HistoryFile = { version: 3, entries: [] };
-const fakeStorage: StorageAdapter = {
-  listDocuments: async () => [], getObjectMd5: async () => null, downloadDocx: async () => Buffer.from(""),
-  createUploadUrl: async () => ({ url: "", objectKey: "", contentType: "", expiresAt: "" }),
-  createDownloadUrl: async () => ({ url: "", objectKey: "", expiresAt: "", exists: false }),
-  readHistory: async () => emptyHistory, writeHistory: async () => {},
-};
-
-const CURATOR: Actor = { id: "curator-uid", email: "curator@test", role: "curator", unknown: false };
-const APPROVER: Actor = { id: "approver-uid", email: "approver@test", role: "approver", unknown: false };
-const NO_ROLE: Actor = { id: "guest-uid", email: "guest@test", unknown: false };
-
-const priorEnv = process.env.KG_SOURCE;
 let store: KgNodeStore;
-const contexts = listAvailableContexts();
-const targetCtx = contexts.find((c) => c.grade === "ci" && c.subject === "maths")!;
-const ns = kgNamespace(targetCtx.grade, targetCtx.subject);
+const targetCtx = fixtureContext(CI_MATHS);
+const ns = kgNamespace(targetCtx.workspace, targetCtx.grade, targetCtx.subject);
 
-async function seedFreshStore(): Promise<KgNodeStore> {
-  const freshStore = createMemoryKgStore();
-  for (const { workspace, grade, subject } of contexts) {
-    const raw = JSON.parse(readFileSync(resolve(subjectDir(workspace, grade, subject), KG_FIXTURE), "utf8"));
-    const adapter = resolveAdapter(workspace, grade, subject);
-    if (!adapter) continue;
-    const { nodes, edges } = serializeModel(adapter.parse(raw), kgNamespace(grade, subject));
-    const meta: StoredMeta = { contentHash: "test", seededAt: "1970-01-01T00:00:00Z", adapterId: adapter.id, nodeCount: nodes.length, edgeCount: edges.length };
-    await freshStore.writeSlot(kgNamespace(grade, subject), "a", { nodes, edges, meta });
-    await freshStore.ensurePointer(kgNamespace(grade, subject), "a");
-  }
-  return freshStore;
-}
-
-async function withActiveContext<T>(actor: Actor | null, fn: () => Promise<T>): Promise<T> {
-  return runInSession(newSessionState(), async () => {
-    __setActorForTest(actor ?? null);
-    const activation = await activateContext(targetCtx.workspace, targetCtx.grade, targetCtx.subject);
-    if (!activation.ok) throw new Error(`activate: ${activation.error}`);
-    return fn();
-  });
-}
+const withActiveContext = <T>(actor: Actor | null, fn: () => Promise<T>): Promise<T> =>
+  inContext(targetCtx, actor, fn);
 
 // Order-agnostic dump of a slot, minus the storage tag — the reversal oracle.
 async function snapshot(slot: Slot) {
@@ -136,18 +97,14 @@ const titleOnDraft = async (nodeId: string): Promise<string> => {
   return String(nodes.find((n) => n.id === nodeId)!.properties?.title ?? "");
 };
 
-beforeAll(() => { __setStorageForTest(fakeStorage); });
+beforeAll(() => { installFakeStorage(); });
 beforeEach(async () => {
-  store = await seedFreshStore();
+  store = await seedStore({ only: [CI_MATHS] });
   __setKgStoreForTest(store);
   __resetMutationsForTest();
   __resetDraftTokensForTest();
-  process.env.KG_SOURCE = "firestore";
 });
-afterAll(() => {
-  if (priorEnv === undefined) delete process.env.KG_SOURCE; else process.env.KG_SOURCE = priorEnv;
-  __setKgStoreForTest(null);
-});
+afterAll(() => { __setKgStoreForTest(null); });
 
 describe("undo_last — the last edit goes back, the rest stay", () => {
   it("restores the draft to exactly what it was before the last edit", async () => {

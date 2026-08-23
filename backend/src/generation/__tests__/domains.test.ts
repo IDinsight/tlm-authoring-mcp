@@ -29,7 +29,7 @@ vi.mock("../../context/index.js", () => ({
 }));
 
 import { listEntries } from "../../storage/index.js";
-import { neighborhoodDomains, suggestFreshDomain, domainUsage } from "../domains.js";
+import { neighborhoodDomains, suggestFreshDomain } from "../domains.js";
 
 const mockListEntries = vi.mocked(listEntries);
 

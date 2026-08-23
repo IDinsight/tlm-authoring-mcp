@@ -16,13 +16,11 @@
  *      cell (backward compat with a pre-2c seed);
  *   5. the authored `guide` markdown round-trips through an edit.
  */
-import { readFileSync } from "node:fs";
-import { resolve } from "node:path";
 import { describe, it, expect, beforeAll, afterAll, beforeEach } from "vitest";
-import { listAvailableContexts, newSessionState, runInSession } from "../../context/index.js";
+import { seedStore, seededContexts, fakeStorage, CI_MATHS } from "../../__tests__/index.js";
+import { newSessionState, runInSession } from "../../context/index.js";
 import { subjectDir, KG_FIXTURE } from "../../__tests__/index.js";
-import { resolveAdapter, getRegisteredProfile, getRegisteredGuide, getActiveAdapter, validateProfileRecord } from "../../adapters/index.js";
-import { serializeModel } from "../../curriculum/index.js";
+import { getRegisteredProfile, getRegisteredGuide, getActiveAdapter, validateProfileRecord } from "../../adapters/index.js";
 import {
   __setKgStoreForTest, createMemoryKgStore, kgNamespace,
   editProfileWithConfirm, diffProfile, diffDraft, publishDraftWithConfirm,
@@ -35,24 +33,16 @@ import { runAsActor, __setActorForTest, type Actor } from "../../actor.js";
 import type { KgNodeStore, StoredConfig, StoredMeta } from "../types.js";
 import type { StorageAdapter, HistoryFile } from "../../types.js";
 
-const emptyHistory: HistoryFile = { version: 3, entries: [] };
-const fakeStorage: StorageAdapter = {
-  listDocuments: async () => [],
-  getObjectMd5: async () => null,
-  downloadDocx: async () => Buffer.from(""),
-  createUploadUrl: async () => ({ url: "", objectKey: "", contentType: "", expiresAt: "" }),
-  createDownloadUrl: async () => ({ url: "", objectKey: "", expiresAt: "", exists: false }),
-  readHistory: async () => emptyHistory,
-  writeHistory: async () => {},
-};
 
 const CURATOR: Actor = { id: "curator-uid", email: "curator@test", role: "curator", unknown: false };
 const APPROVER: Actor = { id: "approver-uid", email: "approver@test", role: "approver", unknown: false };
 const UNKNOWN: Actor = { id: "anon", unknown: true };
 
-const priorEnv = process.env.KG_SOURCE;
 let store: KgNodeStore;
-const contexts = listAvailableContexts();
+// The fixture contexts this suite asserts against — seeding only these
+// keeps each beforeEach off the graphs it never reads.
+const SEED_CONTEXTS = [CI_MATHS];
+const contexts = seededContexts(SEED_CONTEXTS);
 const ctx = contexts.find((c) => c.grade === "ci" && c.subject === "maths")!;
 const ns = kgNamespace(ctx.workspace, ctx.grade, ctx.subject);
 
@@ -73,19 +63,7 @@ const validate = (proposed: StoredConfig) => {
 // Seed the graph into slot "a" AND write the profile record cell there, so the
 // namespace looks exactly like a real phase-2b/2c seed.
 async function seedFreshStore(): Promise<KgNodeStore> {
-  const freshStore = createMemoryKgStore();
-  for (const c of contexts) {
-    const raw = JSON.parse(readFileSync(resolve(subjectDir(c.workspace, c.grade, c.subject), KG_FIXTURE), "utf8"));
-    const adapter = resolveAdapter(c.workspace, c.grade, c.subject);
-    if (!adapter) continue;
-    const nsC = kgNamespace(c.workspace, c.grade, c.subject);
-    const { nodes, edges } = serializeModel(adapter.parse(raw), nsC);
-    const meta: StoredMeta = { contentHash: "test", seededAt: "1970-01-01T00:00:00Z", adapterId: adapter.id, nodeCount: nodes.length, edgeCount: edges.length };
-    await freshStore.writeSlot(nsC, "a", { nodes, edges, meta });
-    if (getRegisteredProfile(c.workspace, c.grade, c.subject)) await freshStore.writeConfig(nsC, "a", recordOf(c.workspace, c.grade, c.subject));
-    await freshStore.ensurePointer(nsC, "a");
-  }
-  return freshStore;
+  return seedStore({ only: SEED_CONTEXTS, withProfiles: true });
 }
 
 beforeAll(() => { __setStorageForTest(fakeStorage); });
@@ -96,11 +74,8 @@ beforeEach(async () => {
   __resetDraftTokensForTest();
   __resetConfigTokensForTest();
   __setActorForTest(null);
-  process.env.KG_SOURCE = "firestore";
 });
 afterAll(() => {
-  if (priorEnv === undefined) delete process.env.KG_SOURCE;
-  else process.env.KG_SOURCE = priorEnv;
   __setKgStoreForTest(null);
 });
 

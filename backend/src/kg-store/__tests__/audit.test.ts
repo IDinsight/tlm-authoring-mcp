@@ -8,16 +8,14 @@
  * drive it through runGraphMutation, plus a few direct calls to prove the
  * #4 lifecycle ops accept and commit audit records too.
  */
-import { readFileSync } from "node:fs";
-import { resolve } from "node:path";
 import { describe, it, expect, beforeAll, afterAll, beforeEach } from "vitest";
+import { seedStore, seededContexts, fakeStorage, CI_MATHS } from "../../__tests__/index.js";
 import { randomUUID } from "node:crypto";
-import { listAvailableContexts, newSessionState, runInSession } from "../../context/index.js";
+import { newSessionState, runInSession } from "../../context/index.js";
 import { subjectDir, KG_FIXTURE } from "../../__tests__/index.js";
 import { resolveAdapter } from "../../adapters/index.js";
-import { serializeModel } from "../../curriculum/index.js";
 import {
-  __setKgStoreForTest, createMemoryKgStore, kgNamespace,
+  __setKgStoreForTest, kgNamespace,
   runGraphMutation, __resetMutationsForTest, sortAuditNewestFirst, nextAuditSeq,
 } from "../index.js";
 import { __setStorageForTest } from "../../storage/index.js";
@@ -30,16 +28,6 @@ import type { GraphMutation, MutationGraph, AuditRecord } from "../index.js";
 import type { KgNodeStore, StoredMeta } from "../types.js";
 import type { StorageAdapter, HistoryFile } from "../../types.js";
 
-const emptyHistory: HistoryFile = { version: 3, entries: [] };
-const fakeStorage: StorageAdapter = {
-  listDocuments: async () => [],
-  getObjectMd5: async () => null,
-  downloadDocx: async () => Buffer.from(""),
-  createUploadUrl: async () => ({ url: "", objectKey: "", contentType: "", expiresAt: "" }),
-  createDownloadUrl: async () => ({ url: "", objectKey: "", expiresAt: "", exists: false }),
-  readHistory: async () => emptyHistory,
-  writeHistory: async () => {},
-};
 
 // Same test-only mutations used across the framework tests, plus a stable
 // content-only edit for the happy path.
@@ -55,9 +43,11 @@ const setNodeProperty: GraphMutation<SetPropArgs> = {
   }),
 };
 
-const priorEnv = process.env.KG_SOURCE;
 let store: KgNodeStore;
-const contexts = listAvailableContexts();
+// The fixture contexts this suite asserts against — seeding only these
+// keeps each beforeEach off the graphs it never reads.
+const SEED_CONTEXTS = [CI_MATHS];
+const contexts = seededContexts(SEED_CONTEXTS);
 // Pinned to the senegal workspace: this harness's curator/approver actor
 // holds a role only there (legacy app_role bridge), and its mutations are
 // tuned to that graph. A second workspace (nigeria) must not hijack it.
@@ -65,23 +55,7 @@ const firstCtx = contexts.find((c) => c.workspace === "senegal")!;
 const ns = kgNamespace(firstCtx.workspace, firstCtx.grade, firstCtx.subject);
 
 async function seedFreshStore(): Promise<KgNodeStore> {
-  const freshStore = createMemoryKgStore();
-  for (const { workspace, grade, subject } of contexts) {
-    const raw = JSON.parse(readFileSync(resolve(subjectDir(workspace, grade, subject), KG_FIXTURE), "utf8"));
-    const adapter = resolveAdapter(workspace, grade, subject);
-    if (!adapter) continue;
-    const { nodes, edges } = serializeModel(adapter.parse(raw), kgNamespace(workspace, grade, subject));
-    const meta: StoredMeta = {
-      contentHash: "test", seededAt: "1970-01-01T00:00:00Z",
-      adapterId: adapter.id, nodeCount: nodes.length, edgeCount: edges.length,
-    };
-    // Seed does not carry an audit — the seed is out of scope for #7 (it's
-    // an operator step, not a runtime state change). writeSlot without an
-    // audit is legitimate here.
-    await freshStore.writeSlot(kgNamespace(workspace, grade, subject), "a", { nodes, edges, meta });
-    await freshStore.ensurePointer(kgNamespace(workspace, grade, subject), "a");
-  }
-  return freshStore;
+  return seedStore({ only: SEED_CONTEXTS });
 }
 
 async function readPublishedGraph(namespace: string): Promise<MutationGraph> {
@@ -98,11 +72,8 @@ beforeEach(async () => {
   __setKgStoreForTest(store);
   __resetMutationsForTest();
   __setActorForTest(TEST_CURATOR);
-  process.env.KG_SOURCE = "firestore";
 });
 afterAll(() => {
-  if (priorEnv === undefined) delete process.env.KG_SOURCE;
-  else process.env.KG_SOURCE = priorEnv;
   __setKgStoreForTest(null);
 });
 

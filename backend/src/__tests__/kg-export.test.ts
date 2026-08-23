@@ -8,18 +8,19 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import { listAvailableContexts } from "../context/index.js";
-import { subjectDir, KG_FIXTURE } from "./index.js";
+import { seedStore, CI_MATHS, CE1_READING } from "./index.js";
 import { resolveAdapter } from "../adapters/index.js";
 import { serializeModel } from "../curriculum/index.js";
-import { __setKgStoreForTest, createMemoryKgStore, getKgStore, kgNamespace, edgeId as makeEdgeId } from "../kg-store/index.js";
+import { __setKgStoreForTest, getKgStore, kgNamespace, edgeId as makeEdgeId } from "../kg-store/index.js";
 import { exportNamespace, exportCatalog, exportCatalogEntry, exportTerminology, listExportNamespaces } from "../kg-export.js";
 import { SHARED_CATALOG_NAMESPACE, catalogNamespace } from "../kg-recipes/index.js";
 import { glossaryNamespace, buildLexiconNode } from "../glossary/index.js";
 import { DEFAULT_WORKSPACE } from "../config.js";
 import type { KgNodeStore, StoredMeta, StoredNode, StoredEdge } from "../kg-store/index.js";
 
-const priorEnv = process.env.KG_SOURCE;
-const contexts = listAvailableContexts();
+// The fixture contexts this suite asserts against — seeding only these
+// keeps each beforeEach off the graphs it never reads.
+const SEED_CONTEXTS = [CI_MATHS, CE1_READING];
 
 // A small catalog fixture in store shape (non-spine; LC props under properties.raw)
 // for one catalog namespace: root ─hasPart→ {a routine entry with 2 steps, a formatter}.
@@ -80,17 +81,7 @@ async function seedDocumentLayer(store: KgNodeStore, namespace: string): Promise
 }
 
 async function seed(): Promise<KgNodeStore> {
-  const store = createMemoryKgStore();
-  for (const { workspace, grade, subject } of contexts) {
-    const raw = JSON.parse(readFileSync(resolve(subjectDir(workspace, grade, subject), KG_FIXTURE), "utf8"));
-    const adapter = resolveAdapter(workspace, grade, subject);
-    if (!adapter) continue;
-    const ns = kgNamespace(grade, subject);
-    const { nodes, edges } = serializeModel(adapter.parse(raw), ns);
-    const meta: StoredMeta = { contentHash: "t", seededAt: "1970-01-01T00:00:00Z", adapterId: adapter.id, nodeCount: nodes.length, edgeCount: edges.length };
-    await store.writeSlot(ns, "a", { nodes, edges, meta });
-    await store.ensurePointer(ns, "a");
-  }
+  const store = await seedStore({ only: SEED_CONTEXTS });
   // Both libraries the Catalog tab reads: the shared one and the default workspace's.
   await seedCatalog(store, SHARED_CATALOG_NAMESPACE);
   await seedCatalog(store, catalogNamespace(DEFAULT_WORKSPACE));
@@ -112,8 +103,8 @@ async function seedGlossary(store: KgNodeStore, workspace: string): Promise<void
   await store.ensurePointer(namespace, "a");
 }
 
-beforeAll(async () => { process.env.KG_SOURCE = "firestore"; __setKgStoreForTest(await seed()); });
-afterAll(() => { if (priorEnv === undefined) delete process.env.KG_SOURCE; else process.env.KG_SOURCE = priorEnv; __setKgStoreForTest(null); });
+beforeAll(async () => { __setKgStoreForTest(await seed()); });
+afterAll(() => { __setKgStoreForTest(null); });
 
 const mathsNs = kgNamespace("ci", "maths");
 const readingNs = kgNamespace("ce1", "reading");
