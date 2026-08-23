@@ -95,6 +95,27 @@ describe("lintGraph — the curriculum rules", () => {
     expect(rules(graph)).not.toContain("routine-unused");
   });
 
+  // Regression, found against live ci/maths: a routine's STEPS are themselves
+  // InstructionalRoutine nodes hung under the entry by hasPart. Only the ENTRY is
+  // ever attached to a lesson, so counting steps as unused fired eleven times on
+  // a perfectly healthy graph.
+  it("does not flag a routine's nested steps — only the entry can be unused", () => {
+    const graph = healthy();
+    graph.nodes.push(node("routine", "InstructionalRoutine", "Manuel — structure d'un chapitre"));
+    graph.nodes.push(node("step1", "InstructionalRoutine", "Titre du chapitre"));
+    graph.nodes.push(node("step2", "InstructionalRoutine", "Situation d'amorce"));
+    graph.edges.push(edge("hasPart", "routine", "step1"), edge("hasPart", "routine", "step2"));
+    graph.edges.push(edge("usesRoutine", "lesson", "routine"));
+
+    // The entry is used and the steps are parts of it: nothing to report.
+    expect(rules(graph)).not.toContain("routine-unused");
+
+    // Detach the entry and only IT is flagged — never its steps.
+    graph.edges = graph.edges.filter((e) => e.type !== "usesRoutine");
+    const flagged = lintGraph(graph).filter((f) => f.rule === "routine-unused");
+    expect(flagged.map((f) => f.nodeId)).toEqual(["routine"]);
+  });
+
   it("flags a node with no edge at all", () => {
     const graph = healthy();
     graph.nodes.push(node("orphan", "Lesson", "Leçon oubliée"));
