@@ -1,7 +1,36 @@
 # Self-serve authoring — the expert without a developer
 
-> **Status: Proposal (2026-08-23); the Phase-2 client questions are now measured.**
-> Nothing here is built. What has been **run to completion** is the client probe: a
+> **Status: Phases 1–3 BUILT (2026-08-23); phases 4–5 still proposed.**
+> What shipped, and where it lives:
+>
+> - **Phase 1** — `?slot=draft` on the `/kg` routes with a curator gate + per-node
+>   `chg` tags ([`kg-export.ts`](../../backend/src/kg-export.ts),
+>   [`http.ts`](../../backend/src/http.ts)), the explorer's slot switch + change
+>   badges ([`SlotSwitch.tsx`](../../frontend/explorer/src/components/SlotSwitch.tsx)),
+>   and **`check_draft`** — the wiring lint ([`kg-store/lint.ts`](../../backend/src/kg-store/lint.ts),
+>   [`server/check.ts`](../../backend/src/server/check.ts)), which also rides
+>   `publish_draft`'s dry-run as `checks`.
+> - **Phase 2** — Rung 1 as one shared French guide composed into every subject's
+>   ([`assets/AUTHORING_CONVERSATION.md`](../../backend/assets/AUTHORING_CONVERSATION.md));
+>   Rung 2 as **`start_here`**, **`find_node`** + server-side name resolution
+>   ([`curriculum/find.ts`](../../backend/src/curriculum/find.ts)), and `nextSteps`
+>   on every write ([`server/next-steps.ts`](../../backend/src/server/next-steps.ts));
+>   Rung 4 as four named French workflows ([`server/prompts.ts`](../../backend/src/server/prompts.ts)).
+>   Rung 3 stays struck.
+> - **Phase 3** — **`create_document`** / **`add_section`**
+>   ([`kg-recipes/document.ts`](../../backend/src/kg-recipes/document.ts)) and
+>   **`duplicate_entry`**; the build-then-clone catalog detour is retired in the tool
+>   descriptions and the user guide.
+> - **Risk 2** corrected in [`shared.ts`](../../backend/src/server/shared.ts) (the
+>   comment no longer claims a gate that has never run). **Risk 3** closed: the
+>   `KG_EXPLORER_PUBLIC` ungate is scoped to published reads and can never reach a draft.
+>
+> Still open: **phases 4 and 5** (`undo_last`, per-section `preview_generation`,
+> `request_review`, the unfinished-work view), and **risk 7** — nobody has watched a
+> real expert use any of this yet.
+>
+> The rest of this note is the original proposal, kept as the rationale. What has
+> been **run to completion** is the client probe: a
 > throwaway prompt, deployed in two versions and opened in the client the experts use,
 > plus a `ping` that now reports what that client advertises. Four results:
 >

@@ -27,5 +27,7 @@ export type {
   WholeDraftDiff, PublishConfirmResult, PublishConfirmPreview, DiscardConfirmResult, DiscardConfirmPreview,
 } from "./publish-flow.js";
 export { validateStructural, STRUCTURAL_RULES } from "./validate.js";
+export { lintGraph, lintWarnings } from "./lint.js";
+export type { LintFinding, LintSeverity, LintOptions } from "./lint.js";
 export { matchesAuditQuery, sortAuditNewestFirst, toAuditActor } from "./audit.js";
 export type { AuditRecord, AuditQuery, AuditActor, AuditEventType } from "./types.js";

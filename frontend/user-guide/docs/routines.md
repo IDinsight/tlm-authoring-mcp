@@ -50,6 +50,13 @@ Une routine se construit comme le reste du curriculum : **en discutant**, et par
 >
 > « Ajoute une règle transversale à cette routine : “en français uniquement”. »
 
+Si une routine proche existe déjà, **partez d'elle** plutôt que d'une page blanche :
+
+> « Duplique la routine “Fiche de leçon” sous le nom “Fiche de leçon — révision”. »
+
+!!! tip "Écrivez-la directement dans la bibliothèque"
+    Précisez « dans la bibliothèque » (ou « dans le catalogue ») dès la première phrase. Le détour qui consistait à construire l'entrée dans une matière puis à la recopier vers la bibliothèque n'est plus nécessaire — et il laissait une routine à moitié finie au milieu du curriculum si la conversation s'interrompait.
+
 Une routine se compose de :
 
 - des **étapes ordonnées** (le déroulé), chacune portant sa consigne ;

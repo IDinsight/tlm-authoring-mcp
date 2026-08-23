@@ -20,6 +20,13 @@
   --color-plan: #378add;
   --color-task: #c98a1a;
 
+  /* Draft-view change tags: what this draft ADDED, CHANGED, or REMOVED versus
+     the published graph. Deliberately outside the taxonomy hues (which mean "what
+     kind of node this is") so "what changed" reads as a separate dimension. */
+  --color-added: #4ea86f;
+  --color-changed: #c9a227;
+  --color-removed: #c9645a;
+
   --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica,
     Arial, sans-serif;
 }

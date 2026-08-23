@@ -17,6 +17,7 @@ import {
 } from "../kg-store/index.js";
 import { lookupIdempotent, recordIdempotent, type IdempotencySummary } from "./idempotency.js";
 import { parkWrapperContext, readWrapperContext } from "./wrapper-park.js";
+import { withNextSteps } from "./next-steps.js";
 
 export type ReturnMode = "summary" | "full";
 
@@ -150,7 +151,7 @@ export async function runBatchMutation<Args>(opts: RunBatchArgs<Args>): Promise<
     if (found.status === "replay") {
       // The stored summary IS the original success (minted ids included); mark it
       // replayed. No diff was stored, so a full-mode replay still returns summary.
-      return { ...found.summary, replayed: true };
+      return withNextSteps({ ...found.summary, replayed: true }, mutation.name);
     }
     if (found.status === "mismatch") {
       return {
@@ -183,7 +184,7 @@ export async function runBatchMutation<Args>(opts: RunBatchArgs<Args>): Promise<
     });
   }
 
-  const shaped = shapeResult(result, returnMode, effectiveExtra, parkedNow);
+  const shaped = withNextSteps(shapeResult(result, returnMode, effectiveExtra, parkedNow), mutation.name);
 
   if (confirm && idempotencyKey && result.phase === "apply" && result.ok) {
     // Store the SUMMARY shape (never the diff) so a replay stays small.

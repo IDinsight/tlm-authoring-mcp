@@ -58,10 +58,21 @@ export const needsCapability = (enabled: boolean, cap: string): ToolResult | nul
 // history writes, and the graph-mutation framework). Returns a ToolResult (→
 // caller does NO side effect) unless the user has approved, in which case it
 // returns null (→ proceed). "Best available" gate across clients:
-//   • Client supports MCP elicitation → ask the USER directly via a dialog. This
-//     is the strong gate — the agent cannot bypass it with confirm:true.
+//   • Client supports MCP elicitation → ask the USER directly via a dialog the
+//     agent cannot forge.
 //   • Otherwise → fall back to the agent-mediated two-step: no side effect until
 //     the tool is re-called with confirm:true (the agent is told to ask first).
+//
+// MEASURED 2026-08-23: the client our experts use (Anthropic/ClaudeAI 1.0.0)
+// reports `supportsElicitation: false` — visible on any `ping`. So the dialog
+// branch has NEVER run in production, and every confirmed upload, history write
+// and graph mutation to date was approved by the agent choosing to send
+// confirm:true after asking in chat. That is still a real checkpoint (the agent
+// is instructed to ask, and a human does answer), but it rests on the agent's
+// cooperation, not on a dialog it cannot fake. Do not describe the fallback as
+// equivalent, and weigh that honestly before relying on it for the destructive
+// verbs (delete_nodes, publish_draft). See docs/design-notes/self-serve-authoring.md,
+// risk 2.
 export async function requireConfirmation(server: McpServer, confirm: boolean | undefined, action: string): Promise<ToolResult | null> {
   const caps = server.server.getClientCapabilities();
   if (caps?.elicitation) {

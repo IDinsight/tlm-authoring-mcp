@@ -39,13 +39,26 @@ La génération de ce cours suivra alors la consigne de mise en forme. Comme pou
 
 ## Créer ou modifier un formatter
 
-On l'écrit et on le retouche **en discutant**, et tout part dans un **brouillon** :
+### Partir d'un formatter existant (le cas le plus fréquent)
 
-> « Crée un formatter “Style des fiches de révision” : … »
+Personne n'écrit un formatter sur une page blanche. On part de celui qui convient presque, on le **duplique**, et on change ce qui diffère :
+
+> « Duplique le formatter “Style maison” sous le nom “Style des fiches de révision”. »
 >
-> « Dans le style maison, passe la police du corps de texte à 12 pt. »
+> « Dans ma copie, passe la police du corps de texte à 12 pt. »
+
+La copie arrive dans **votre** étagère (celle de l'espace de travail), avec ses propres règles. C'est d'ailleurs la seule façon d'adapter un formatter **partagé** : on ne modifie pas la version commune à tous les programmes, on s'en fait une copie.
+
+### Créer un formatter de zéro
+
+Quand rien ne convient, on l'écrit **en discutant**, et tout part dans un **brouillon** :
+
+> « Crée un formatter “Style des affiches” dans la bibliothèque de mon espace de travail : … »
 
 Le contenu d'un formatter est du **texte de consignes** : décrivez précisément ce que la génération doit respecter (couleurs, polices, tailles, marges, style des images…). Plus la consigne est claire, plus le résultat est régulier.
+
+!!! tip "Écrivez-le directement dans la bibliothèque"
+    Dites « dans la bibliothèque » (ou « dans le catalogue ») dès le départ. On construisait autrefois l'entrée à l'intérieur d'une matière avant de la recopier vers la bibliothèque : ce détour n'est plus nécessaire, et il laissait un formatter à moitié fini au milieu du curriculum si la conversation s'arrêtait en route.
 
 !!! info "Qui peut modifier quoi"
     Un formatter de l'étagère **espace de travail** se modifie par un **curateur** de cet espace. Un formatter **partagé** est réservé au **super-administrateur**, car il sert à tous les programmes.

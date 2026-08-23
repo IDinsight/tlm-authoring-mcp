@@ -26,10 +26,15 @@ import { registerEvaluationTools } from "./evaluate.js";
 import { registerCapabilityTools } from "./capabilities.js";
 import { registerAuditTools } from "./audit.js";
 import { registerHealthTools } from "./health.js";
+import { registerStartHereTools } from "./start-here.js";
+import { registerCheckTools } from "./check.js";
+import { registerDocumentAuthoringTools } from "./document-authoring.js";
+import { registerAuthoringPrompts } from "./prompts.js";
 
 export function buildServer(): McpServer {
   const server = new McpServer({ name: "tlm-authoring-server", title: "Teaching & Learning Materials authoring", version: "0.4.0" });
   registerHealthTools(server);       // ping (no datastore — transport liveness probe)
+  registerStartHereTools(server);    // start_here (French orientation: where am I, what can I do, what is unfinished)
   registerContextTools(server);      // set_context, get_context
   registerWorkspaceTools(server);    // list_workspaces, create_workspace, add/remove/list_member (tenant admin)
   registerCurriculumTools(server);   // get_standards (generic node reader), terminology
@@ -40,14 +45,17 @@ export function buildServer(): McpServer {
   registerCiMathsTools(server);      // suggest_fresh_domain, domain_usage (CI maths-specific)
   registerDocumentTools(server);     // reconcile, upload/download, record/log
   registerLifecycleTools(server);    // diff_draft, publish_draft, discard_draft
+  registerCheckTools(server);        // check_draft (structural WIRING lint in French — review_draft's mechanical sibling)
   registerStructuralTools(server);   // create_edges, delete_edges, delete_nodes (edge + deletion verbs)
   registerRecipeTools(server);       // edit_node (content / position / title edits — replaced reposition + set_content)
   registerAuthoringTools(server);    // add_nodes (the single node-creation tool — one or many; replaced the per-label typed adds)
+  registerDocumentAuthoringTools(server); // create_document, add_section (task verbs that enforce a multi-element invariant a primitive can silently violate)
   registerProfileTools(server);      // get_profile, edit_profile (subject profile as authored config — phase 2b)
   registerCatalogTools(server);      // list_catalog, get_catalog_entry, use_routine, use_formatter, use_rubric (catalog — browse + copy a routine onto a Lesson / a formatter or evaluation rubric under a document TLM)
   registerEvaluationTools(server);   // evaluate_document (score a generated document against the rubrics attached to it — the document-side review_draft)
   registerCatalogResources(server);  // catalog://{scope}/{id} — browse entries as resources, each with its full authored spec (D5)
   registerCapabilityTools(server);   // get_capabilities (read-only mirror of what the caller can do)
   registerAuditTools(server);        // read_audit (approver-only, read-only reader over the append-only audit log)
+  registerAuthoringPrompts(server);  // the named French workflows a client surfaces as a menu (Rung 4)
   return server;
 }

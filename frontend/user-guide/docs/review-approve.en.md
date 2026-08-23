@@ -9,7 +9,16 @@ Once a curator has prepared changes, they wait in a **draft**. The **approver's*
 
 > "Show me the pending changes for this subject."
 
-Claude shows the full list of changes — everything that will become official on publish: edited titles, added or moved lessons, new chapters, and so on. Also note any **warnings** (for example a chapter with no assessment): they don't block, but the judgement is yours.
+Claude shows the full list of changes — everything that will become official on publish: edited titles, added or moved lessons, new chapters, and so on.
+
+Then ask for the two checks, which answer two different questions:
+
+> "Check the draft before I publish."
+
+- **The wiring** — what is connected to nothing: a document attached to no content (it would be produced **empty**), a section belonging to no document, a routine nobody uses, an isolated element. This is mechanical and the same for every subject; each point comes with what to do about it.
+- **The coverage** — does what has been written actually cover what the curriculum expects? That is a judgement, made against the expectations written in the subject's guide.
+
+Both are **warnings**, never blocks: the decision is yours. But a document "attached to nothing" almost always deserves a fix before publishing — it is the quietest failure in the system, since generation would simply produce an empty document with no error at all.
 
 <!-- SCREENSHOT: full draft view (diff) -->
 

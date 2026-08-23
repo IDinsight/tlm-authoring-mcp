@@ -179,6 +179,7 @@ The loop is a set of role-gated MCP tools over the draft:
 
 - **Authoring (curator+):** `add_nodes`, `create_edges`, `edit_node`, `move_node`, `delete_nodes`, `delete_edges` — see [Authoring verbs](#authoring-verbs) below. Each is two-phase (dry-run → token-only confirm) and audited on both writes and denials. Sequential edits accumulate on the SAME draft overlay and publish together atomically.
 - **`diff_draft`** (curator+) — read-only. The CUMULATIVE draft-vs-published diff: everything that goes live on publish.
+- **`check_draft`** (curator+ on an open draft) — read-only. The MECHANICAL wiring lint, reported in French: a document covering no curriculum (it would generate empty), a document with no formatter, a section outside any document, a routine nothing uses, a node connected to nothing. See [Structural lint](#structural-lint-check_draft) below.
 - **`review_draft`** (curator+) — read-only. The guide's coverage expectations + a structural snapshot, for the model to reason over before publishing.
 - **`publish_draft`** (approver only) — two-phase: dry-run shows the whole-draft diff + a draft-level token; confirm folds the overlay into canonical atomically. If the draft moved since dry-run, confirm is rejected (retry).
 - **`discard_draft`** (curator+) — two-phase: dry-run shows what will be thrown away; confirm drops the draft. Published is byte-untouched. Audited.
@@ -187,10 +188,44 @@ The loop is a set of role-gated MCP tools over the draft:
 curator:  add_nodes([...]) / edit_node(...) → dry-run: diff + token
 curator:  <same tool>(confirm:true, confirmationToken:…) → applied to the draft overlay
 approver: diff_draft()   → the whole-draft diff
+approver: check_draft()  → wiring problems (mechanical, French)
 approver: review_draft() → coverage expectations + structural snapshot
 approver: publish_draft() → dry-run: diff + draft-level token
 approver: publish_draft(confirm:true, confirmationToken:…) → live; generation now reads the new graph
 ```
+
+### Structural lint (`check_draft`)
+
+`kg-store/lint.ts` holds a handful of **wiring** rules — the failures that are otherwise silent.
+The motivating one is in our own tool description: mint a document, forget its `covers` edge, and
+nothing errors; generation reads an empty document and the expert finds out at the end.
+
+| Rule | Fires when | Severity |
+|---|---|---|
+| `document-sans-contenu` | a TLM covers no curriculum, directly or through its sections | warning |
+| `document-sans-mise-en-forme` | a TLM has no `Formatter` under it | warning |
+| `section-hors-document` | a `DocumentSection` hangs under no TLM | warning |
+| `section-sans-contenu` | a section `covers` nothing (legitimate front matter) | info |
+| `routine-inutilisee` | an `InstructionalRoutine` has no inbound `usesRoutine` | warning |
+| `noeud-isole` | a node with no incident edge at all | warning |
+
+Each finding carries a French `message` (what is wrong) and `fix` (what to do); `noeud-isole` is
+suppressed for a node a specific rule already explains, so one node never produces two near-identical
+lines. Warnings sort before info.
+
+**The line these must not cross** (self-serve-authoring.md, D4): they check **wiring, never
+pedagogy**. "This document has no formatter" is wiring — mechanical, true for every subject. "This
+chapter doesn't cover enough of the addition objective" is pedagogy: it lives as prose in the
+subject guide and is judged by `review_draft`. If a proposed rule would need to know what the
+subject *teaches*, it does not belong here — that is how the retired coded coverage rules stay
+retired.
+
+**Two surfaces, one rule set.** `check_draft` runs them over the whole draft (or published, when
+no draft is open), tagging each finding `inThisDraft`. `diffDraft` runs them scoped to the nodes
+the draft touched — added/changed nodes plus the endpoints of every edge it added or removed, since
+unwiring a document's `covers` edge breaks it without changing its node — and `publish_draft`'s
+dry-run surfaces those as `checks` plus a count in its confirmation message. They never block: a
+publish is always the human's call.
 
 ### Authoring verbs
 
@@ -204,6 +239,28 @@ The edit surface is **generic and subject-agnostic** — it speaks pure canonica
 - **`move_node(nodeId, toParentId, [via, position])`** — re-parent along one containment axis. A node's second axis (e.g. a maths lesson also scheduled under a week via `hasChild`) is left intact.
 - **`delete_nodes`** — remove one node or many; each together with its **dependent subtree** (children, their children, …) and every incident edge, in one atomic batch. The dry-run diff shows the full set that will vanish and WARNS with it; nothing is removed until you confirm — no `force` flag, because seeing the cascade IS the gate.
 - **`delete_edges`** — remove one edge or many by id, all-or-nothing.
+
+**Two task verbs sit above the primitives** (self-serve-authoring.md, phase 3 + D3). A task verb
+earns its place only when it enforces a **multi-element invariant a primitive call can silently
+violate** — the test that keeps them from being the retired typed adds a second time:
+
+- **`create_document(name, covers)`** — mints the `TeachingLearningMaterial` **and** its `covers`
+  edge in one atomic call. A TLM without that edge is a valid graph write and a broken document.
+- **`add_section(document, name, [position, covers])`** — the `hasPart` from the TLM **and** the
+  `covers` to the curriculum, together: two edges on two axes, both required. `covers` is omitted
+  only for front matter (a cover page, a table of contents), which the readers already treat as
+  "covers nothing".
+
+Both take **names, not ids** (D9): `covers: "Chapitre 5"` resolves server-side via
+`curriculum/find.ts`, and an ambiguous name returns `needsChoice` + `candidates` (each with its
+labels and containment `path`) instead of a guess — the caller answers by re-sending the chosen
+candidate's `id`. A hypothetical `create_lesson` FAILS the test: `add_nodes` with `alignTo` is
+already atomic and already carries the invariant, so it would be a pure facade.
+
+**`duplicate_entry(entryId, [name, targetWorkspace])`** clones a catalog entry with fresh ids into
+a library — copy-then-edit is the real mental model for a house style, and the only way a workspace
+curator can adapt a SHARED master they cannot edit in place. It shares `add_to_catalog`'s
+clone-and-publish path and its destination gate (approver+ there; super_admin to cross libraries).
 
 **Batch ergonomics.** Each batch is one atomic draft edit → one diff → one token → one audit
 record. The response is a compact `counts` summary by default (`returnMode:"full"` for the whole

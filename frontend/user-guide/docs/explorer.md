@@ -29,6 +29,21 @@ Chaque nœud a une **couleur** selon son **type Learning Commons** (cadre de ré
 
 Utilisez la barre de recherche pour retrouver un nœud par son intitulé.
 
+## Voir son brouillon avant de publier
+
+Quand un **brouillon** est ouvert sur un curriculum, deux boutons apparaissent au-dessus de l'arbre : **Publié** et **Brouillon**.
+
+- **Publié** — la version officielle, celle que lit la génération. C'est la vue par défaut.
+- **Brouillon** — le travail en cours, **non publié**. Chaque élément **ajouté** ou **modifié** porte une pastille dans l'arbre, et les éléments **supprimés** sont listés au-dessus (ils ne sont plus dans l'arbre : c'est le seul endroit où ils peuvent apparaître). Un compteur rappelle combien d'éléments ont été ajoutés, modifiés et supprimés.
+
+C'est la réponse à « qu'est-ce que je m'apprête à publier, exactement ? » : on regarde son propre travail dans la même arborescence que d'habitude, au lieu de lire un résumé.
+
+!!! info "Réservé aux curateurs"
+    Voir le brouillon demande un rôle de **curateur** (ou plus) dans l'espace de travail concerné : un brouillon est un travail en cours, pas une publication. Si votre rôle ne le permet pas, l'explorateur vous le dit et reste sur la version publiée.
+
+!!! warning "Un brouillon reste un brouillon"
+    Ce que vous voyez ici n'alimente **pas** la génération de documents tant qu'il n'est pas publié (voir [Relire, publier ou abandonner un brouillon](review-approve.md)). L'explorateur reste en lecture seule : on y regarde, on n'y modifie rien — les modifications se font en discutant avec Claude.
+
 ## Le catalogue
 
 L'onglet **Catalogue** ouvre les bibliothèques de gabarits réutilisables — celle de votre **espace de travail** et la bibliothèque **partagée** entre tous les programmes. Chaque entrée s'affiche en fiche : son titre, son type, son résumé, et de quoi elle est faite.

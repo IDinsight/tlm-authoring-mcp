@@ -20,6 +20,7 @@ import { activeWorkspace } from "../context/index.js";
 import { runGraphMutation, kgNamespace } from "../kg-store/index.js";
 import { editNode } from "../kg-recipes/index.js";
 import { runCatalogWrite, type WriteOutcome } from "./catalog-target.js";
+import { withNextSteps } from "./next-steps.js";
 import type { SubjectAdapter } from "../types.js";
 
 function bind(adapter: SubjectAdapter): { namespace: string } {
@@ -68,7 +69,8 @@ export function registerRecipeTools(server: McpServer) {
       if (a.catalog) {
         return asJson(await runCatalogWrite(a.catalog, a.confirm, editInNamespace));
       }
-      return asJson(await editInNamespace(bind(getActiveAdapter()).namespace));
+      const result = await editInNamespace(bind(getActiveAdapter()).namespace);
+      return asJson(withNextSteps(result as unknown as Record<string, unknown>, editNode.name));
     }),
   );
 }

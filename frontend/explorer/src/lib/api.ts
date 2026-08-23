@@ -2,7 +2,7 @@ import {
   createClient,
   type SupabaseClient,
 } from "@supabase/supabase-js";
-import type { CatalogExport, DisplayGraph, KgConfig, NamespaceEntry, TerminologyExport } from "../types";
+import type { CatalogExport, DisplayGraph, KgConfig, NamespaceEntry, Slot, TerminologyExport } from "../types";
 
 // API base. Empty = same-origin (Firebase Hosting rewrites /kg → Cloud Run).
 // Override with ?api=http://localhost:8791 for local/direct testing (CORS).
@@ -62,9 +62,17 @@ async function authHeaders(): Promise<Record<string, string>> {
   return session ? { Authorization: `Bearer ${session.access_token}` } : {};
 }
 
+// An HTTP failure the caller may want to distinguish — a draft read refused for
+// lack of a curator role (403) is a different message from "the server is down".
+export class ApiError extends Error {
+  constructor(readonly status: number) {
+    super(`HTTP ${status}`);
+  }
+}
+
 async function apiGet<T>(path: string): Promise<T> {
   const res = await fetch(`${API}${path}`, { headers: await authHeaders() });
-  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  if (!res.ok) throw new ApiError(res.status);
   return res.json() as Promise<T>;
 }
 
@@ -72,8 +80,11 @@ export function fetchNamespaces(): Promise<{ namespaces: NamespaceEntry[] }> {
   return apiGet("/kg/namespaces");
 }
 
-export function fetchGraph(ns: string): Promise<DisplayGraph> {
-  return apiGet(`/kg?ns=${encodeURIComponent(ns)}`);
+// `slot` reads the unpublished draft instead of the live graph. The server gates
+// it to curators of that namespace's workspace and answers 403 otherwise.
+export function fetchGraph(ns: string, slot: Slot = "published"): Promise<DisplayGraph> {
+  const draft = slot === "draft" ? "&slot=draft" : "";
+  return apiGet(`/kg?ns=${encodeURIComponent(ns)}${draft}`);
 }
 
 // The catalog libraries (shared + this namespace's workspace) for the Catalog tab.

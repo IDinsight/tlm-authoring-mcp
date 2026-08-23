@@ -24,7 +24,7 @@
  * nodes keep their category, non-spine nodes fall into the neutral `framework`
  * legend bucket, and every edge type renders.
  */
-import { getKgStore, kgNamespace, parseNamespace } from "./kg-store/index.js";
+import { getKgStore, kgNamespace, parseNamespace, diffGraphs } from "./kg-store/index.js";
 import type { StoredNode, StoredEdge, MutationGraph, MutationNode, MutationEdge } from "./kg-store/index.js";
 import {
   SHARED_CATALOG_NAMESPACE, catalogNamespace, listCatalogEntries, renderCatalogEntry,
@@ -49,6 +49,10 @@ export type DisplayNode = {
   st: string; st_en: string;     // LC statement_type (category detail), bilingual
   srcKey: string;                // provenance (source_key) → source-filter chips
   props: Record<string, unknown>;// the node's raw LC properties, for the detail panel
+  // Draft reads only: how this node differs from published ("added" / "changed").
+  // Absent on a published read, and on a draft node that is untouched — so the
+  // explorer can colour a curator's own work without a second request.
+  chg?: "added" | "changed";
 };
 
 // ── Legend taxonomy — by Learning-Commons LABEL ──────────────────────────────
@@ -135,6 +139,10 @@ export type DisplayGraph = {
     ns: string;
     label: { fr: string; en: string };
     publishedSlot: string;
+    /** Which slot this payload was read from — the explorer's slot switch. */
+    reading?: "published" | "draft";
+    /** Draft state, so the switch can be offered (or explained) without a second call. */
+    draft?: { open: boolean; note?: string; removed?: Array<{ id: string; label: string; desc: string }>; counts?: { added: number; changed: number; removed: number } };
     counts: { nodes: number; edges: number; byKind: Record<string, number> };
     sources: string[];           // distinct srcKeys present → source-filter chips
     taxonomy: TaxonomyEntry[];   // graph-agnostic legend categories present, in canonical order
@@ -160,16 +168,21 @@ function nsLabel(grade: string, subject: string): { fr: string; en: string } {
 }
 
 // ── Enumerate available namespaces (only those with a published pointer) ──────
-export async function listExportNamespaces(): Promise<
-  Array<{ ns: string; workspace: string; grade: string; subject: string; label: { fr: string; en: string } }>
-> {
+export type NamespaceEntry = {
+  ns: string; workspace: string; grade: string; subject: string;
+  label: { fr: string; en: string };
+  /** Whether an unpublished draft is open — the explorer offers its slot switch only then. */
+  hasDraft: boolean;
+};
+
+export async function listExportNamespaces(): Promise<NamespaceEntry[]> {
   const store = getKgStore();
-  const out: Array<{ ns: string; workspace: string; grade: string; subject: string; label: { fr: string; en: string } }> = [];
+  const out: NamespaceEntry[] = [];
   for (const { workspace, grade, subject } of listAvailableContexts()) {
     const ns = kgNamespace(workspace, grade, subject);
     const pointer = await store.readPointer(ns).catch(() => null);
     if (!pointer) continue; // never seeded → not selectable
-    out.push({ ns, workspace, grade, subject, label: nsLabel(grade, subject) });
+    out.push({ ns, workspace, grade, subject, label: nsLabel(grade, subject), hasDraft: Boolean(pointer.draftSlot) });
   }
   return out;
 }
@@ -463,13 +476,21 @@ function assembleDisplayGraph(
   };
 }
 
-// ── Export one namespace (published slot only) ───────────────────────────────
-export async function exportNamespace(ns: string): Promise<DisplayGraph | null> {
+// ── Export one namespace (published, or — role-gated by the caller — the draft) ─
+// Publish is an act of faith while the only view of a draft is a diff narrated
+// back in chat. Reading the DRAFT slot here is what lets an expert LOOK at their
+// own work before promoting it (self-serve-authoring.md, phase 1). The route in
+// http.ts is what gates `slot:"draft"` to a curator — this function only reads.
+export async function exportNamespace(
+  ns: string,
+  opts: { slot?: "published" | "draft" } = {},
+): Promise<DisplayGraph | null> {
   const store = getKgStore();
   const pointer = await store.readPointer(ns);
   if (!pointer) return null; // never seeded
 
-  const slot = pointer.publishedSlot;
+  const wantsDraft = opts.slot === "draft" && Boolean(pointer.draftSlot);
+  const slot = wantsDraft ? pointer.draftSlot! : pointer.publishedSlot;
   const [storedNodes, storedEdges] = await Promise.all([
     store.listNodes(ns, slot),
     store.listEdges(ns, slot),
@@ -481,13 +502,74 @@ export async function exportNamespace(ns: string): Promise<DisplayGraph | null> 
   // hierarchy walks hasChild, and the generic view exposes every node + edge.
   const nodes = storedNodes.map(toDisplayNode);
   const edges = projectDisplayEdges(nodes, storedEdges);
-  return assembleDisplayGraph(
+
+  const graph = assembleDisplayGraph(
     nodes,
     edges,
     ns,
-    slot,
-    "Read-only, published slot only (no draft). Full Learning-Commons graph — the curriculum spine plus framework/derived nodes and supports/relatesTo cross-links.",
+    pointer.publishedSlot,
+    wantsDraft
+      ? "Read-only view of the UNPUBLISHED draft. Nodes are tagged `chg` (added / changed) against the published version; nodes the draft removed are listed in meta.draft.removed."
+      : "Read-only, published slot only (no draft). Full Learning-Commons graph — the curriculum spine plus framework/derived nodes and supports/relatesTo cross-links.",
   );
+  graph.meta.reading = wantsDraft ? "draft" : "published";
+  graph.meta.draft = wantsDraft
+    ? await annotateDraftChanges(ns, pointer.publishedSlot, nodes, storedNodes, storedEdges)
+    : {
+        open: Boolean(pointer.draftSlot),
+        ...(opts.slot === "draft" && !pointer.draftSlot
+          ? { note: "Aucun brouillon en cours : c'est la version publiée qui est affichée." }
+          : {}),
+      };
+  return graph;
+}
+
+// Tag each draft node with how it differs from published, and report what the
+// draft REMOVED (those nodes are gone from the draft, so they cannot carry a tag
+// — they need their own list, or a deletion would be invisible).
+//
+// The comparison is diffGraphs — the very same one diff_draft and publish_draft
+// use — so the coloured tree and the textual diff can never disagree.
+async function annotateDraftChanges(
+  ns: string,
+  publishedSlot: string,
+  nodes: DisplayNode[],
+  draftNodes: StoredNode[],
+  draftEdges: StoredEdge[],
+): Promise<NonNullable<DisplayGraph["meta"]["draft"]>> {
+  const store = getKgStore();
+  const [publishedNodes, publishedEdges] = await Promise.all([
+    store.listNodes(ns, publishedSlot as StoredNode["slot"]),
+    store.listEdges(ns, publishedSlot as StoredEdge["slot"]),
+  ]);
+  const dropSlot = <T extends { slot: unknown }>(row: T): Omit<T, "slot"> => {
+    const { slot: _slot, ...rest } = row;
+    return rest;
+  };
+  const diff = diffGraphs(
+    { nodes: publishedNodes.map((n) => dropSlot(n) as MutationNode), edges: publishedEdges.map((e) => dropSlot(e) as MutationEdge) },
+    { nodes: draftNodes.map((n) => dropSlot(n) as MutationNode), edges: draftEdges.map((e) => dropSlot(e) as MutationEdge) },
+  );
+
+  const added = new Set(diff.nodes.added.map((entry) => entry.id));
+  const changed = new Set(diff.nodes.changed.map((entry) => entry.id));
+  for (const node of nodes) {
+    if (added.has(node.id)) node.chg = "added";
+    else if (changed.has(node.id)) node.chg = "changed";
+  }
+
+  const publishedById = new Map(publishedNodes.map((node) => [node.id, node]));
+  const removed = diff.nodes.removed
+    .map((entry) => publishedById.get(entry.id))
+    .filter((node): node is StoredNode => Boolean(node))
+    .map(toDisplayNode)
+    .map((node) => ({ id: node.id, label: node.label, desc: node.desc }));
+
+  return {
+    open: true,
+    counts: { added: added.size, changed: changed.size, removed: removed.length },
+    removed,
+  };
 }
 
 // ── Export a scoped subtree (for an in-chat visualization artifact) ───────────

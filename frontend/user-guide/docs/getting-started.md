@@ -67,6 +67,22 @@ Claude fixe le contexte. À partir de là, tout ce que vous demandez s'applique 
 !!! info "On vous refuse l'entrée d'un espace ?"
     On ne peut **entrer** que dans un espace de travail où l'on a un rôle. Si Claude vous répond que l'accès est refusé, demandez à l'administrateur de l'espace de vous ajouter (voir [Administration](admin-developer.md)).
 
+## 6. Demander par où commencer
+
+Une fois le contexte fixé, la question la plus utile est aussi la plus simple :
+
+> « Par où je commence ? »
+>
+> « Où j'en suis ? »
+
+Claude répond par un point de situation : sur quoi vous travaillez, ce que votre rôle vous permet de faire, s'il reste un **brouillon** en cours, ce qui est **inachevé** dans le graphe (un document rattaché à rien, une section orpheline, une routine que personne n'utilise), et deux ou trois choses à faire maintenant. Posez la question à chaque reprise de travail : c'est la façon la plus rapide de retrouver le fil.
+
+!!! tip "Vous n'avez jamais besoin d'un identifiant"
+    Ne cherchez pas les codes ou les identifiants des éléments : **donnez leur nom**. « le chapitre 5 », « le guide de l'enseignant », « la semaine 3 ». Claude retrouve l'élément lui-même. Si plusieurs éléments portent le même nom — un chapitre et la leçon qu'il contient s'appellent souvent pareil —, il vous demandera lequel, avec l'endroit où chacun se trouve. Répondez en désignant celui que vous voulez ; il ne choisira pas à votre place.
+
+!!! info "Un menu de démarrages tout prêts"
+    Selon votre client, le connecteur peut proposer une petite liste de **démarrages** — *Créer un nouveau document*, *Appliquer un style à un document*, *Créer une routine pédagogique*, *Préparer une relecture*. En choisir un ouvre la conversation avec les bonnes questions déjà posées. C'est facultatif : tout ce qu'ils font, vous pouvez le demander en écrivant.
+
 ## Et ensuite ?
 
 - Pour construire ou corriger le curriculum → [Créer un graphe de connaissances](create-graph.md), [Construire les standards et les composants](build-standards.md), [Ajouter et modifier un cours et ses leçons](courses-lessons.md).

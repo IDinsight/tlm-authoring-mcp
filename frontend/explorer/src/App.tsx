@@ -4,6 +4,7 @@ import { Banner } from "./components/Banner";
 import { LoginGate } from "./components/LoginGate";
 import { Legend } from "./components/Legend";
 import { ViewTabs, type TabSpec } from "./components/ViewTabs";
+import { SlotSwitch } from "./components/SlotSwitch";
 import { SourceFilters } from "./components/SourceFilters";
 import { Toolbar } from "./components/Toolbar";
 import { Tree } from "./components/Tree";
@@ -247,6 +248,14 @@ export default function App() {
 
       {ready && (
         <div>
+          <SlotSwitch
+            lang={lang}
+            slot={g.slot}
+            hasDraft={Boolean(g.namespaces.find((n) => n.ns === g.currentNs)?.hasDraft)}
+            meta={data.meta}
+            notice={g.slotNotice}
+            onSelect={g.selectSlot}
+          />
           <Legend lang={lang} taxonomy={data.meta.taxonomy || []} />
           <ViewTabs
             lang={lang}

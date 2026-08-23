@@ -50,6 +50,13 @@ A routine is built like the rest of the curriculum: **by chatting**, through suc
 >
 > "Add a cross-cutting rule to this routine: 'French only'."
 
+If a close-enough routine already exists, **start from it** rather than from a blank page:
+
+> "Duplicate the 'Lesson sheet' routine as 'Lesson sheet — revision'."
+
+!!! tip "Write it straight into the library"
+    Say "in the library" (or "in the catalog") in your first sentence. The detour of building the entry inside a subject and then copying it across is no longer needed — and it left a half-finished routine sitting in the curriculum whenever a session stopped part-way.
+
 A routine is made of:
 
 - **ordered steps** (the flow), each carrying its instruction;

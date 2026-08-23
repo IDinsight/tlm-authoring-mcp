@@ -39,13 +39,26 @@ Generation of that course will then follow the formatting instruction. As with a
 
 ## Create or edit a formatter
 
-You write and tweak it **by chatting**, and everything goes into a **draft**:
+### Start from an existing one (the usual case)
 
-> "Create a formatter 'Revision-sheet style': …"
+Nobody writes a formatter from a blank page. Start from the one that is nearly right, **duplicate** it, and change what differs:
+
+> "Duplicate the 'House style' formatter as 'Revision-sheet style'."
 >
-> "In the house style, set the body font to 12 pt."
+> "In my copy, set the body font to 12 pt."
+
+The copy lands on **your** shelf (the workspace library), with its own rules. It is also the only way to adapt a **shared** formatter: you don't edit the version every programme uses — you take a copy of it.
+
+### Create one from scratch
+
+When nothing fits, you write it **by chatting**, and everything goes into a **draft**:
+
+> "Create a formatter 'Poster style' in my workspace's library: …"
 
 A formatter's content is **instruction text**: describe precisely what generation must respect (colours, fonts, sizes, margins, image style…). The clearer the instruction, the more consistent the result.
+
+!!! tip "Write it straight into the library"
+    Say "in the library" (or "in the catalog") from the start. Entries used to be built inside a subject and then copied across to the library: that detour is no longer needed, and it left a half-finished formatter sitting in the curriculum whenever a session stopped part-way.
 
 !!! info "Who can edit what"
     A formatter on the **workspace** shelf is edited by a **curator** of that workspace. A **shared** formatter is reserved for the **super administrator**, since it serves all programmes.

@@ -84,12 +84,28 @@ export function getRegisteredProfile(workspace: string, grade: string, subject: 
 // LLM, never for reads — the live get_graph_guide reads the store cell, not this.
 // Read lazily (seed/test paths only), so a missing file is just "no guide"
 // (undefined), never a crash.
-export function getRegisteredGuide(workspace: string, grade: string, subject: string): string | undefined {
+//
+// Composed from TWO files: the shared conversation guidance (how to talk to a
+// subject expert — the vocabulary rule and the ask-before-writing sequence; see
+// docs/design-notes/self-serve-authoring.md, Rung 1) followed by the subject's
+// own guide. It is one shared file rather than a paragraph pasted into eight
+// guides, because it is the same advice everywhere and would otherwise drift
+// apart subject by subject. A subject with no guide of its own still gets it.
+const SHARED_CONVERSATION_GUIDE = "AUTHORING_CONVERSATION.md";
+
+const readAsset = (...segments: string[]): string | undefined => {
   try {
-    return readFileSync(resolve(CONFIG.assetsDir, workspace, grade, subject, "GRAPH_GUIDE.md"), "utf8");
+    return readFileSync(resolve(CONFIG.assetsDir, ...segments), "utf8");
   } catch {
     return undefined;
   }
+};
+
+export function getRegisteredGuide(workspace: string, grade: string, subject: string): string | undefined {
+  const shared = readAsset(SHARED_CONVERSATION_GUIDE);
+  const subjectGuide = readAsset(workspace, grade, subject, "GRAPH_GUIDE.md");
+  if (shared === undefined) return subjectGuide;
+  return subjectGuide === undefined ? shared : `${shared}\n${subjectGuide}`;
 }
 
 // Build an adapter from a profile record READ FROM THE STORE (phase 2b/2c)

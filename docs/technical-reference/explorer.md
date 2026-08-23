@@ -15,13 +15,15 @@ original single-file page: same look, interactions, and data contract.
 ### Endpoint contract
 
 All routes are additive; the MCP `/mcp` surface is unchanged. Reads resolve to the pointer's
-`publishedSlot` only (a curator's draft never leaks here until they publish).
+`publishedSlot` by default; `?slot=draft` on `/kg` reads the unpublished draft and is gated to a
+**curator of that namespace's workspace** (see *Draft slot* below).
 
 - `GET /kg/config` — **public**. `{ supabaseUrl, supabaseAnonKey, authRequired }` so the static
   page can drive its own Supabase login without baking deployment config into the HTML.
-- `GET /kg/namespaces` — **auth-gated**. `{ namespaces: [{ ns, grade, subject, label:{fr,en} }] }`.
+- `GET /kg/namespaces` — **auth-gated**. `{ namespaces: [{ ns, grade, subject, label:{fr,en}, hasDraft }] }`.
   Lists every installed context that has a published pointer, so a newly seeded KG appears in the
-  selector automatically.
+  selector automatically. `hasDraft` says whether an unpublished draft is open, so the UI offers its
+  slot switch only where there is something to switch to.
 - `GET /kg?ns=<namespace>` — **auth-gated**. The published **display-JSON** for one namespace:
 
   ```jsonc
@@ -52,6 +54,29 @@ All routes are additive; the MCP `/mcp` surface is unchanged. Reads resolve to t
   authored spec as markdown (`{ id, markdown }`) — the Catalog tab's click-through detail. Mirrors
   `get_catalog_entry`. `404` when the id isn't an entry in either library.
 
+### Draft slot (`?slot=draft`)
+
+Publish used to be an act of faith: the only view of a draft was a diff narrated back in chat, and
+one bad publish teaches an expert never to touch the system without a developer. `?slot=draft`
+reads the unpublished slot into the same display shape, so a curator looks at their own work in the
+tree they already know (docs/design-notes/self-serve-authoring.md, phase 1).
+
+- Each node carries `chg: "added" | "changed"` — absent when untouched, and absent entirely on a
+  published read. Computed with `diffGraphs`, the SAME comparison `diff_draft` and `publish_draft`
+  use, so the coloured tree and the textual diff cannot disagree.
+- `meta.reading` is `"published"` or `"draft"`; `meta.draft` carries `{ open, counts, removed }`.
+  Removed nodes are gone from the draft, so they can only be reported in `meta.draft.removed`
+  (id + label + description) — otherwise a deletion would be invisible.
+- With no draft open, `?slot=draft` returns **published** with `meta.reading:"published"` and a
+  `meta.draft.note` saying so — never a 404.
+
+**Gate.** `?slot=draft` needs a verified identity **and** `authorize(actor, "readDraft", ns)` —
+the same tier `diff_draft` and `walk_graph(slot:"draft")` enforce. Two refusals sit on top of the
+role check, deliberately: the `KG_EXPLORER_PUBLIC` ungate never applies to a draft, and
+`ALLOW_UNAUTHENTICATED` does not manufacture an identity (with no auth configured there is nobody
+to authorize, so a draft is simply not served over HTTP). A refusal is `403 draft_read_forbidden`
+with a reason; the explorer shows the reason and stays on published.
+
 **Auth** (decision: Supabase login). When `SUPABASE_URL` is set, `/kg/namespaces` and `/kg`
 require a valid Supabase Bearer JWT — the same trust channel as `/mcp`. The static page runs a
 small `supabase-js` email/password login (mirroring `/oauth/consent`) and sends the token. In
@@ -59,7 +84,9 @@ small `supabase-js` email/password login (mirroring `/oauth/consent`) and sends 
 
 **Public explorer** (`KG_EXPLORER_PUBLIC=1`). Opens the read-only explorer to anyone: the `/kg`
 read routes stop requiring a JWT and `/kg/config` reports `authRequired:false`, so the static
-page skips its login gate. Affects **only** the `/kg` read surface — `/mcp` stays JWT-gated. This
+page skips its login gate. Affects **only** the `/kg` read surface — `/mcp` stays JWT-gated, and
+**published reads only**: `?slot=draft` still requires a verified curator, since a draft is
+unpublished work in a multi-tenant store. This
 exposes every seeded namespace's published graph to anyone with the URL (CORS does not restrict
 non-browser clients), so set it only when public read access is intended. Unset (the default)
 keeps the explorer login-gated.

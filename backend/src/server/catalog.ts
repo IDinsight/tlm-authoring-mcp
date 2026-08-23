@@ -249,9 +249,73 @@ type ParkedAddToCatalogContext = {
   idMap: Record<string, string>;
 };
 
+// Where a catalog copy READS its entry from — the one thing add_to_catalog and
+// duplicate_entry disagree about. add_to_catalog sources the active subject graph
+// (an entry authored inline); duplicate_entry sources the libraries themselves.
+type CatalogCopySource = {
+  read: () => Promise<MutationGraph>;
+  missing: (entryId: string) => string;
+};
+
+// The active subject's graph, draft-first — where an inline-authored entry lives.
+const subjectSource = (): CatalogCopySource => ({
+  read: () => {
+    const adapter = getActiveAdapter();
+    return readActiveGraph(kgNamespace(activeWorkspace(), adapter.grade, adapter.subject));
+  },
+  missing: (entryId) => `Entry '${entryId}' was not found in the active graph. Author it first (add_nodes: an InstructionalRoutine + its steps/materials), then add it to the catalog.`,
+});
+
+// Both libraries at once — an entry id is unique across them, so duplicate_entry
+// can copy a shared master without the caller saying where it lives.
+const librarySource = (): CatalogCopySource => ({
+  read: async () => {
+    const graphs = await Promise.all(catalogScopes().map((scope) => readCatalog(scope.namespace)));
+    return { nodes: graphs.flatMap((g) => g.nodes), edges: graphs.flatMap((g) => g.edges) };
+  },
+  missing: (entryId) => `Catalog entry '${entryId}' was not found in the shared or workspace library. Call list_catalog for entry ids.`,
+});
+
+// The entry's display name — the field list_catalog reads (raw.description).
+const entryName = (node: MutationNode | undefined): string =>
+  typeof (node?.properties?.raw as Record<string, unknown> | undefined)?.description === "string"
+    ? String((node!.properties.raw as Record<string, unknown>).description)
+    : "";
+
+// Rename a cloned entry's ROOT node in place. Only the root is renamed: the steps
+// and specs under it keep their own names, which is what "copy and edit" means.
+function renameClonedEntry(nodes: MutationNode[], entryId: string, name: string): MutationNode[] {
+  return nodes.map((node) => {
+    if (node.id !== entryId) return node;
+    const raw = { ...((node.properties?.raw as Record<string, unknown>) ?? {}), description: name };
+    return { ...node, properties: { ...(node.properties ?? {}), raw } };
+  });
+}
+
+type CatalogCopyArgs = AddToCatalogArgs & {
+  source: CatalogCopySource;
+  /** Given the original's name, the name the copy should carry. Absent = keep it. */
+  rename?: (originalName: string) => string;
+};
+
 // Exported so tests drive the real logic (like runAddNodes / runPublishDraft).
 // Returns the raw result record; the tool registration wraps it in asJson.
 export async function runAddToCatalog(a: AddToCatalogArgs): Promise<Record<string, unknown>> {
+  return copyIntoCatalog({ ...a, source: subjectSource() });
+}
+
+// Duplicate a LIBRARY entry: the same clone-and-publish path, reading from the
+// libraries instead of the subject. Nobody authors a formatter from a blank page
+// — copy-then-edit is the real mental model (self-serve-authoring.md, phase 3).
+export async function runDuplicateEntry(a: AddToCatalogArgs & { name?: string }): Promise<Record<string, unknown>> {
+  return copyIntoCatalog({
+    ...a,
+    source: librarySource(),
+    rename: (original) => a.name ?? `${original} (copie)`,
+  });
+}
+
+async function copyIntoCatalog(a: CatalogCopyArgs): Promise<Record<string, unknown>> {
   // Token-only confirm shortcut: caller sends confirm+token with no entryId /
   // targetWorkspace / mintedIdMap. Read back the parked context and run the
   // apply-and-publish against the SAME catalog namespace it was previewed against.
@@ -266,7 +330,7 @@ export async function runAddToCatalog(a: AddToCatalogArgs): Promise<Record<strin
       parked = a.confirmationToken ? await readWrapperContext<ParkedAddToCatalogContext>(ns, a.confirmationToken) : null;
       if (parked) break;
     }
-    if (!parked) return { phase: "apply", ok: false, reason: "stale", message: "The previewed add_to_catalog has expired or was already used; re-run without confirm to preview again." };
+    if (!parked) return { phase: "apply", ok: false, reason: "stale", message: "The previewed catalog copy has expired or was already used; re-run without confirm to preview again." };
 
     const catalogNs = parked.target.namespace;
     const applied = await runGraphMutation({ namespace: catalogNs, mutation: addCatalogEntry, args: parked.mutationArgs, confirm: true, token: a.confirmationToken });
@@ -298,22 +362,22 @@ export async function runAddToCatalog(a: AddToCatalogArgs): Promise<Record<strin
 
   if (!a.entryId) return { error: "entryId is required on a dry-run." };
 
-  // Source: the entry authored in the ACTIVE subject graph (draft-preferred).
-  const adapter = getActiveAdapter();
-  const activeNs = kgNamespace(activeWorkspace(), adapter.grade, adapter.subject);
-  const source = await readActiveGraph(activeNs);
+  const source = await a.source.read();
 
   // Clone its subtree into the catalog with fresh ids (stable across dry-run/confirm
   // via the echoed id-map), exactly like use_routine's copy — but toward the library.
   const mint = a.confirm ? (oldId: string) => (a.mintedIdMap ?? {})[oldId] : () => mintNodeId();
   const cloned = cloneRoutineSubtree(source, a.entryId, catalogNs, mint);
-  if (!cloned) return { error: `Entry '${a.entryId}' was not found in the active graph. Author it first (add_nodes: an InstructionalRoutine + its steps/materials), then add it to the catalog.` };
+  if (!cloned) return { error: a.source.missing(a.entryId) };
   // A source that is ALREADY a document-layer copy (a Formatter or Rubric applied by
   // use_formatter / use_rubric) is relabelled back to catalog shape on the way in —
   // otherwise list_catalog would skip it. A routine passes through untouched.
   const clone = relabelForCatalog(cloned);
+  const nodes = a.rename
+    ? renameClonedEntry(clone.nodes, clone.newEntryId, a.rename(entryName(source.nodes.find((n) => n.id === a.entryId))))
+    : clone.nodes;
 
-  const mutationArgs = { namespace: catalogNs, clonedNodes: clone.nodes, clonedEdges: clone.edges, newEntryId: clone.newEntryId };
+  const mutationArgs = { namespace: catalogNs, clonedNodes: nodes, clonedEdges: clone.edges, newEntryId: clone.newEntryId };
 
   // Dry-run: stage nothing; return the diff + the id-map to echo back + the publish note.
   if (!a.confirm) {
@@ -399,7 +463,7 @@ export function registerCatalogTools(server: McpServer) {
     "use_formatter",
     {
       title: "Use a catalog formatter",
-      description: "Apply a catalog FORMATTER (a house-style spec) to a DOCUMENT by COPYING it. `targetId` is a TeachingLearningMaterial (the document node), OR a Course — in which case the TLM that `covers` that Course is resolved for you. The entry (from the shared OR the workspace library) is cloned with fresh ids into the active subject, RELABELLED to the document layer (Formatter + FormatterSpec), and hung under the TLM via `hasPart`, so generating that document applies the style. Formatting is a property of the document, not the curriculum — it never rides a Course's usesRoutine edge. (If a Course has no TLM yet, mint one first: add_nodes a TeachingLearningMaterial + create_edges a `covers` edge to the Course.) The copy is independent — later edits to the library formatter do not reach it. REQUIRES CONFIRMATION: dry-run returns diff + confirmationToken + mintedIdMap. When the dry-run reports `payloadStored:true` (a large clone held server-side), confirm with ONLY confirm:true + the token — do NOT re-send entryId/targetId/mintedIdMap; otherwise re-send confirm:true, the token, and the same mintedIdMap. DRAFT edit — publish_draft to make it live.",
+      description: "Apply a catalog FORMATTER (a house-style spec) to a DOCUMENT by COPYING it. `targetId` is a TeachingLearningMaterial (the document node), OR a Course — in which case the TLM that `covers` that Course is resolved for you. The entry (from the shared OR the workspace library) is cloned with fresh ids into the active subject, RELABELLED to the document layer (Formatter + FormatterSpec), and hung under the TLM via `hasPart`, so generating that document applies the style. Formatting is a property of the document, not the curriculum — it never rides a Course's usesRoutine edge. (If a Course has no document yet, create one with create_document — it mints the TeachingLearningMaterial AND its `covers` edge in one atomic call, so the document cannot end up covering nothing.) The copy is independent — later edits to the library formatter do not reach it. REQUIRES CONFIRMATION: dry-run returns diff + confirmationToken + mintedIdMap. When the dry-run reports `payloadStored:true` (a large clone held server-side), confirm with ONLY confirm:true + the token — do NOT re-send entryId/targetId/mintedIdMap; otherwise re-send confirm:true, the token, and the same mintedIdMap. DRAFT edit — publish_draft to make it live.",
       inputSchema: APPLY_INPUT,
     },
     guarded(async (a: ApplyArgs) => applyCatalogEntry(a, "formatter")),
@@ -409,7 +473,7 @@ export function registerCatalogTools(server: McpServer) {
     "use_rubric",
     {
       title: "Use a catalog rubric",
-      description: "Apply a catalog RUBRIC (an evaluation grid — e.g. Annexe 8's approval checklist, Annexe 7's scored grid) to a DOCUMENT by COPYING it, so `evaluate_document` knows which grid governs that document. `targetId` is a TeachingLearningMaterial (the document node), OR a Course — in which case the TLM that `covers` that Course is resolved for you. The entry (from the shared OR the workspace library) is cloned with fresh ids into the active subject, RELABELLED to the document layer (Rubric → RubricSection → RubricCriterion), and hung under the TLM via `hasPart`. A grid judges the DOCUMENT, so it attaches where a formatter does — not to the curriculum. A document may carry SEVERAL rubrics (a general quality grid plus an approval checklist); evaluate_document reports every one. (If a Course has no TLM yet, mint one first: add_nodes a TeachingLearningMaterial + create_edges a `covers` edge to the Course.) The copy is independent — later edits to the library rubric do not reach it. REQUIRES CONFIRMATION: dry-run returns diff + confirmationToken + mintedIdMap. When the dry-run reports `payloadStored:true` (a large clone held server-side), confirm with ONLY confirm:true + the token — do NOT re-send entryId/targetId/mintedIdMap; otherwise re-send confirm:true, the token, and the same mintedIdMap. DRAFT edit — publish_draft to make it live.",
+      description: "Apply a catalog RUBRIC (an evaluation grid — e.g. Annexe 8's approval checklist, Annexe 7's scored grid) to a DOCUMENT by COPYING it, so `evaluate_document` knows which grid governs that document. `targetId` is a TeachingLearningMaterial (the document node), OR a Course — in which case the TLM that `covers` that Course is resolved for you. The entry (from the shared OR the workspace library) is cloned with fresh ids into the active subject, RELABELLED to the document layer (Rubric → RubricSection → RubricCriterion), and hung under the TLM via `hasPart`. A grid judges the DOCUMENT, so it attaches where a formatter does — not to the curriculum. A document may carry SEVERAL rubrics (a general quality grid plus an approval checklist); evaluate_document reports every one. (If a Course has no document yet, create one with create_document — it mints the TeachingLearningMaterial AND its `covers` edge in one atomic call, so the document cannot end up covering nothing.) The copy is independent — later edits to the library rubric do not reach it. REQUIRES CONFIRMATION: dry-run returns diff + confirmationToken + mintedIdMap. When the dry-run reports `payloadStored:true` (a large clone held server-side), confirm with ONLY confirm:true + the token — do NOT re-send entryId/targetId/mintedIdMap; otherwise re-send confirm:true, the token, and the same mintedIdMap. DRAFT edit — publish_draft to make it live.",
       inputSchema: APPLY_INPUT,
     },
     guarded(async (a: ApplyArgs) => applyCatalogEntry(a, "rubric")),
@@ -419,7 +483,7 @@ export function registerCatalogTools(server: McpServer) {
     "add_to_catalog",
     {
       title: "Add a routine or formatter to the catalog",
-      description: "Publish a routine, formatter or rubric you AUTHORED (an InstructionalRoutine entry + its steps/materials, built in the active subject with add_nodes) INTO a catalog library, so list_catalog / use_routine / use_formatter / use_rubric can then reuse it. It clones the entry's whole subtree with fresh ids into the destination and files it under that library's root — the write inverse of use_routine. DESTINATION: a workspace curator adds to their OWN workspace's library (omit targetWorkspace). A super_admin may target the shared cross-tenant library OR any workspace — pass `targetWorkspace` ('_shared' for the shared library, or a workspace id); call WITHOUT it to get back the list of catalogs to choose from. GATED by the destination — because it PUBLISHES, it needs an APPROVER of that workspace (or super_admin for the shared library). TWO-PHASE, and confirming does BOTH in one step: the dry-run returns the diff + confirmationToken + mintedIdMap. When the dry-run reports `payloadStored:true` (a large clone held server-side), confirm with ONLY confirm:true + the token — do NOT re-send entryId/targetWorkspace/mintedIdMap; otherwise re-send confirm:true + the token + the same mintedIdMap. Catalogs aren't enterable contexts, so there is no separate publish_draft.",
+      description: "Publish a routine, formatter or rubric you AUTHORED (an InstructionalRoutine entry + its steps/materials, built in the active subject with add_nodes) INTO a catalog library, so list_catalog / use_routine / use_formatter / use_rubric can then reuse it. It clones the entry's whole subtree with fresh ids into the destination and files it under that library's root — the write inverse of use_routine. PREFER AUTHORING DIRECTLY INTO THE LIBRARY for a NEW entry: add_nodes with `catalog:'workspace'` writes there in one step, whereas building inside the subject and cloning here leaves a half-built entry stranded in the curriculum if the session is interrupted. Use add_to_catalog for an entry that already exists in a subject graph (it was authored inline, or applied there by use_routine and improved since). To start from an entry that already exists in a library, use duplicate_entry. DESTINATION: a workspace curator adds to their OWN workspace's library (omit targetWorkspace). A super_admin may target the shared cross-tenant library OR any workspace — pass `targetWorkspace` ('_shared' for the shared library, or a workspace id); call WITHOUT it to get back the list of catalogs to choose from. GATED by the destination — because it PUBLISHES, it needs an APPROVER of that workspace (or super_admin for the shared library). TWO-PHASE, and confirming does BOTH in one step: the dry-run returns the diff + confirmationToken + mintedIdMap. When the dry-run reports `payloadStored:true` (a large clone held server-side), confirm with ONLY confirm:true + the token — do NOT re-send entryId/targetWorkspace/mintedIdMap; otherwise re-send confirm:true + the token + the same mintedIdMap. Catalogs aren't enterable contexts, so there is no separate publish_draft.",
       inputSchema: {
         entryId: z.string().optional(),   // required on dry-run; omitted on token-only confirm
         targetWorkspace: z.string().optional(),
@@ -429,6 +493,26 @@ export function registerCatalogTools(server: McpServer) {
       },
     },
     guarded(async (a: AddToCatalogArgs) => asJson(await runAddToCatalog(a))),
+  );
+
+  server.registerTool(
+    "duplicate_entry",
+    {
+      title: "Duplicate a catalog entry",
+      description:
+        "COPY an existing catalog entry — a routine, a formatter (house style) or a rubric — into a library as a NEW entry with fresh ids, so it can be edited without touching the original. This is how a house style is adapted: nobody authors a formatter from a blank page; you start from the one that is nearly right and change what differs. " +
+        "`entryId` comes from list_catalog (both libraries are searched). `name` names the copy (default: the original's name + « (copie) ») — give it one, because two identically-named entries are impossible to tell apart later. DESTINATION works exactly like add_to_catalog: a workspace curator's copy lands in their OWN library (omit targetWorkspace) — which is what makes duplicating a SHARED master useful, since a shared entry cannot be edited in place by a workspace curator; a super_admin may pass `targetWorkspace` ('_shared' or a workspace id), or call without it to be offered the list. " +
+        "GATED by the destination, and because it PUBLISHES it needs an APPROVER there. TWO-PHASE: the dry-run returns the diff + confirmationToken + mintedIdMap; confirm with confirm:true + the token, RE-SENDING the same `entryId`, `name` and `mintedIdMap` (a different — or omitted — `name` on the confirm produces a different copy and the token is rejected). When the dry-run reports `payloadStored:true` the copy is held server-side: confirm with ONLY confirm:true + the token. Then edit the copy in place with edit_node(nodeId, content, catalog).",
+      inputSchema: {
+        entryId: z.string().optional(),   // required on dry-run; omitted on token-only confirm
+        name: z.string().optional(),
+        targetWorkspace: z.string().optional(),
+        mintedIdMap: z.record(z.string(), z.string()).optional(),   // required on re-send confirm
+        confirm: z.boolean().optional(),
+        confirmationToken: z.string().optional(),
+      },
+    },
+    guarded(async (a: AddToCatalogArgs & { name?: string }) => asJson(await runDuplicateEntry(a))),
   );
 }
 

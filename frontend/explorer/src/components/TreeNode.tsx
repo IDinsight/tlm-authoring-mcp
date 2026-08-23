@@ -107,6 +107,20 @@ export function TreeNode(props: Props) {
           </span>
         )}
 
+        {/* Draft view only: what this draft did to the node. Coloured outside the
+            taxonomy palette so "what changed" never reads as "what kind of node". */}
+        {!synthetic && node?.chg && (
+          <span
+            className="flex-shrink-0 rounded border px-1.5 py-px text-[10px] uppercase tracking-[0.04em]"
+            style={{
+              borderColor: node.chg === "added" ? "var(--color-added)" : "var(--color-changed)",
+              color: node.chg === "added" ? "var(--color-added)" : "var(--color-changed)",
+            }}
+          >
+            {node.chg === "added" ? t("chgAddedOne") : t("chgChangedOne")}
+          </span>
+        )}
+
         {!synthetic && node?.code && (
           <span className="flex-shrink-0 text-[11px] tabular-nums text-muted">
             {node.code}

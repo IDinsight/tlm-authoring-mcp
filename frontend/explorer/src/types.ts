@@ -19,7 +19,14 @@ export type DisplayNode = {
   st_en: string; // LC statement_type, bilingual
   srcKey: string; // provenance → source-filter chips
   props: Record<string, unknown>; // raw LC properties, for the detail panel
+  // Draft reads only: how this node differs from published. Absent on a published
+  // read and on an untouched draft node.
+  chg?: "added" | "changed";
 };
+
+// Which slot the explorer is showing. "draft" is unpublished work in progress and
+// is curator-gated server-side.
+export type Slot = "published" | "draft";
 
 // `r` is the traversal type (folded to "hasChild" for containment), `rel` is the
 // real LC edge type used for the badge.
@@ -89,6 +96,13 @@ export type GraphMeta = {
   ns: string;
   label: Bilingual;
   publishedSlot?: string;
+  reading?: Slot;
+  draft?: {
+    open: boolean;
+    note?: string;
+    removed?: Array<{ id: string; label: string; desc: string }>;
+    counts?: { added: number; changed: number; removed: number };
+  };
   counts?: { nodes: number; edges: number; byKind: Record<string, number> };
   sources: string[];
   taxonomy: TaxonomyEntry[];
@@ -110,6 +124,8 @@ export type NamespaceEntry = {
   grade: string;
   subject: string;
   label: Bilingual;
+  // Whether an unpublished draft exists — the slot switch appears only then.
+  hasDraft?: boolean;
 };
 
 // GET /kg/config

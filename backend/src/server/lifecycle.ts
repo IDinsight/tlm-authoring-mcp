@@ -110,6 +110,9 @@ function shapePublishDraft(result: PublishConfirmResult, returnMode: ReturnMode)
     publishedVersion: result.publishedVersion,
     draftVersion: result.draftVersion,
     counts: countsOf(result.diff!),
+    // Structural warnings survive `summary` mode: they are a handful of short
+    // lines, and they are the one thing an approver most needs before promoting.
+    checks: result.checks,
     confirmationToken: result.confirmationToken,
   };
   if (returnMode === "full") {

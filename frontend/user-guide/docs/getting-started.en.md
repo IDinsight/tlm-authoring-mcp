@@ -67,6 +67,26 @@ Claude sets the context. From then on, everything you ask applies to that scope.
 !!! info "Denied entry to a workspace?"
     You can only **enter** a workspace where you hold a role. If Claude tells you access is denied, ask the workspace administrator to add you (see [Administration](admin-developer.md)).
 
+## 6. Ask where to start
+
+Once the context is set, the most useful question is also the simplest:
+
+> "Where do I start?"
+>
+> "Where did I leave off?"
+
+Claude answers with a situation report: what you are working on, what your role
+lets you do, whether a **draft** is still open, what is **unfinished** in the
+graph (a document attached to nothing, an orphaned section, a routine nobody
+uses), and two or three things worth doing now. Ask it every time you pick the
+work back up — it is the fastest way to find the thread again.
+
+!!! tip "You never need an identifier"
+    Don't go looking for codes or ids: **give the name**. "chapter 5", "the teacher's guide", "week 3". Claude finds the element itself. When several elements share a name — a chapter and the lesson inside it are often called the same thing — it will ask you which, showing where each one sits. Answer by pointing at the one you mean; it will not pick for you.
+
+!!! info "A menu of ready-made starts"
+    Depending on your client, the connector may offer a short list of **starting points** — *Create a new document*, *Apply a style to a document*, *Create an instructional routine*, *Prepare a review*. Picking one opens the conversation with the right questions already asked. It is optional: anything they do, you can also just ask for in writing.
+
 ## What next?
 
 - To build or fix the curriculum → [Create a knowledge graph](create-graph.md), [Build standards and components](build-standards.md), [Add and edit a course and its lessons](courses-lessons.md).
