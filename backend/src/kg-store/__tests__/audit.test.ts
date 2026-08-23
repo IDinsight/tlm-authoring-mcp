@@ -18,7 +18,7 @@ import { resolveAdapter } from "../../adapters/index.js";
 import { serializeModel } from "../../curriculum/index.js";
 import {
   __setKgStoreForTest, createMemoryKgStore, kgNamespace,
-  runGraphMutation, __resetMutationsForTest,
+  runGraphMutation, __resetMutationsForTest, sortAuditNewestFirst, nextAuditSeq,
 } from "../index.js";
 import { __setStorageForTest } from "../../storage/index.js";
 import { runAsActor, __setActorForTest, type Actor } from "../../actor.js";
@@ -464,5 +464,35 @@ describe("parity oracle: published reads stay identical after audit-producing op
     expect(after).toEqual(before);
     // And audits exist for the sequence.
     expect((await store.listAudit({ namespace: ns })).length).toBeGreaterThanOrEqual(2);
+  });
+});
+
+// Ordering within one millisecond. `ts` cannot separate two records written in
+// the same millisecond, and until `seq` existed the tiebreak was a random UUID —
+// which is a wrong answer, not a cosmetic one, now that undo_last and the review
+// handoff both read "the newest record" off this log.
+describe("audit ordering is total, even inside one millisecond", () => {
+  const at = (ts: string, id: string, seq?: number): AuditRecord =>
+    ({ id, ts, ...(seq === undefined ? {} : { seq }), actor: { id: "a", email: null, tokenIssuer: null, role: null, superAdmin: false, unknown: false }, namespace: "ns", eventType: "apply" });
+
+  it("orders same-millisecond records by write order, newest first", () => {
+    const sameMs = "2026-08-23T10:00:00.000Z";
+    // Ids chosen so a plain id sort would put them in the WRONG order.
+    const first = at(sameMs, "zzz", nextAuditSeq());
+    const second = at(sameMs, "aaa", nextAuditSeq());
+    expect(sortAuditNewestFirst([first, second]).map((r) => r.id)).toEqual(["aaa", "zzz"]);
+  });
+
+  it("still puts a later millisecond ahead of an earlier one", () => {
+    const earlier = at("2026-08-23T10:00:00.000Z", "a", nextAuditSeq());
+    const later = at("2026-08-23T10:00:01.000Z", "b", nextAuditSeq());
+    expect(sortAuditNewestFirst([earlier, later])[0].id).toBe("b");
+  });
+
+  it("keeps a record written before `seq` existed behind one that has it", () => {
+    const sameMs = "2026-08-23T10:00:00.000Z";
+    const legacy = at(sameMs, "zzz");                  // no seq
+    const current = at(sameMs, "aaa", nextAuditSeq());
+    expect(sortAuditNewestFirst([legacy, current])[0].id).toBe("aaa");
   });
 });

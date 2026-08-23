@@ -37,7 +37,7 @@ import { asJson, guarded } from "./shared.js";
 import { timed, timedSync } from "../utils/index.js";
 import { getActiveAdapter } from "../adapters/index.js";
 import { activeWorkspace } from "../context/index.js";
-import { getKgStore, kgNamespace, toAuditActor } from "../kg-store/index.js";
+import { getKgStore, kgNamespace, toAuditActor, nextAuditSeq } from "../kg-store/index.js";
 import { toRawEnvelope, courseSubgraph, documentSubgraph, documentSectionSubgraph } from "../curriculum/index.js";
 import { getStorageAdapter } from "../storage/index.js";
 import { authorize } from "../authz.js";
@@ -82,7 +82,7 @@ async function denyIfNotDraftReader(ns: string): Promise<Record<string, unknown>
   if (authz.ok) return null;
   await getKgStore().appendAudit({
     id: randomUUID(),
-    ts: new Date().toISOString(),
+    ts: new Date().toISOString(), seq: nextAuditSeq(),
     actor: toAuditActor(actor),
     namespace: ns,
     eventType: "blocked",
@@ -150,7 +150,7 @@ export async function previewGeneration(nodeId: string): Promise<Record<string, 
   // to preview it, without masquerading as a real deliverable.
   await getKgStore().appendAudit({
     id: randomUUID(),
-    ts: new Date().toISOString(),
+    ts: new Date().toISOString(), seq: nextAuditSeq(),
     actor: toAuditActor(currentActor()),
     namespace: ns,
     eventType: "preview",

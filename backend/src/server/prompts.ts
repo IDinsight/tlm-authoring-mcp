@@ -124,7 +124,8 @@ export function registerAuthoringPrompts(server: McpServer) {
         "Je voudrais faire le point sur mon brouillon avant de le faire relire.\n\n" +
         "Dis-moi ce que j'ai changé depuis la dernière publication, ce qui n'est pas encore branché correctement (un document rattaché à rien, une section orpheline, une routine que personne n'utilise), " +
         "et si ce que j'ai fait couvre bien ce que le programme attend.\n\n" +
-        "Fais-moi un résumé que je puisse envoyer à la personne qui relit : ce qui a changé, ce qui reste à faire.\n\n" +
+        "Fais-moi un résumé de ce qui a changé et de ce qui reste à faire, puis marque le brouillon comme prêt à relire, avec ce résumé en note — " +
+        "comme ça la personne qui publie le verra en arrivant.\n\n" +
         HOW_I_WORK,
       ),
   );

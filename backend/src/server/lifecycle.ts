@@ -30,10 +30,10 @@ import {
   discardDraftWithConfirm,
   kgNamespace,
   getKgStore,
+  readDraftStanding,
   toAuditActor,
   type PublishConfirmResult,
-  type DiscardConfirmResult,
-} from "../kg-store/index.js";
+  type DiscardConfirmResult, nextAuditSeq,} from "../kg-store/index.js";
 import { authorize } from "../authz.js";
 import { currentActor } from "../actor.js";
 import { randomUUID } from "node:crypto";
@@ -194,7 +194,8 @@ export function registerLifecycleTools(server: McpServer) {
       title: "Diff draft vs published",
       description:
         "The whole-draft diff for the active grade/subject: every node/edge that has changed on the draft compared to the currently-published version. Read-only, no state change. Distinct from the per-mutation diff you see when you dry-run an edit — this is the cumulative view an approver reads before publish_draft. Only curators and approvers may call this (a draft is pre-publish work-in-progress). " +
-        "Each of the six diff arrays is capped at `limit` (default 200, max 1000) so a large draft never overflows; full per-kind totals are always in `counts`, and `truncated` names any array that was cut with its true size. Raise `limit` to see more, or read `counts` for the totals.",
+        "Each of the six diff arrays is capped at `limit` (default 200, max 1000) so a large draft never overflows; full per-kind totals are always in `counts`, and `truncated` names any array that was cut with its true size. Raise `limit` to see more, or read `counts` for the totals. " +
+        "`reviewRequested` is present when a curator has marked this draft ready (request_review) — it carries who asked, when, and their note. Say so to the user: they are the person being waited on.",
       inputSchema: { limit: z.number().int().optional() },
     },
     guarded(async (a: { limit?: number }) => {
@@ -206,7 +207,7 @@ export function registerLifecycleTools(server: McpServer) {
         // denial in the codebase (see #8's authz-enforcement.test.ts).
         await getKgStore().appendAudit({
           id: randomUUID(),
-          ts: new Date().toISOString(),
+          ts: new Date().toISOString(), seq: nextAuditSeq(),
           actor: toAuditActor(actor),
           namespace: ns,
           eventType: "blocked",
@@ -214,7 +215,14 @@ export function registerLifecycleTools(server: McpServer) {
         });
         return asJson({ phase: "unauthorized", action: "readDraft", reason: authz.reason });
       }
-      return asJson(capWholeDraftDiff(await diffDraft(ns), a.limit));
+      // The handoff rides along: an approver reading the diff is exactly the
+      // person a curator's request_review was addressed to, and they should not
+      // have to call a second tool to learn someone is waiting on them.
+      const [diff, standing] = await Promise.all([diffDraft(ns), readDraftStanding(ns)]);
+      return asJson({
+        ...capWholeDraftDiff(diff, a.limit),
+        ...(standing?.review ? { reviewRequested: standing.review } : {}),
+      });
     }),
   );
 

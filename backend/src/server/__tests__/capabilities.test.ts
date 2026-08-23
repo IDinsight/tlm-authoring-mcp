@@ -284,7 +284,7 @@ describe("editable and rules come from the real sources (no hand-copied literals
     const caps = await withActiveContext(CURATOR, callGetCapabilities);
     // undo_last sits here as the per-EDIT counterpart to discard_draft, even
     // though its role gate is canEditDraft rather than canDiscardDraft.
-    expect(caps.lifecycle.tools).toEqual(["publish_draft", "discard_draft", "undo_last"]);
+    expect(caps.lifecycle.tools).toEqual(["publish_draft", "discard_draft", "undo_last", "request_review"]);
     expect(caps.lifecycle.params).toEqual(["returnMode"]);
     expect(caps.lifecycle.defaultReturnMode).toBe("summary");
     expect(caps.lifecycle.returnModes).toEqual(["summary", "full"]);

@@ -381,6 +381,13 @@ describe("start_here — orientation for a person", () => {
 
     const result = await withActiveContext(CURATOR, startHere);
     expect(String(result.draft)).toMatch(/a draft is open/);
-    expect((result.unfinished as string[]).join(" ")).toMatch(/no layout rules/);
+    const unfinished = result.unfinished as Array<{ issue: string; count: number; examples: string[]; fix: string }>;
+    const formatterGroup = unfinished.find((group) => /no layout rules/.test(group.issue))!;
+    expect(formatterGroup).toBeTruthy();
+    // The group NAMES what it is talking about — a bare count would send the
+    // expert back for a second call to find out which document.
+    expect(formatterGroup.count).toBeGreaterThan(0);
+    expect(formatterGroup.examples.length).toBeGreaterThan(0);
+    expect(formatterGroup.fix).toBeTruthy();
   });
 });

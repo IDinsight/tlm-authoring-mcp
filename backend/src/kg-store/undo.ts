@@ -30,9 +30,9 @@
  * and lands on the one before.
  */
 
-import { getKgStore } from "./adapter.js";
+import { currentDraftEvents, standingEdits } from "./draft-chain.js";
 import { stableStringify, type GraphMutation } from "./mutations.js";
-import type { AuditEventType, AuditRecord, GraphDiff, MutationEdge, MutationGraph, MutationNode } from "./types.js";
+import type { AuditRecord, GraphDiff, MutationEdge, MutationGraph, MutationNode } from "./types.js";
 
 export type UndoLastArgs = {
   // The apply record to invert. Resolved by findUndoTarget on BOTH phases (the
@@ -43,25 +43,16 @@ export type UndoLastArgs = {
 
 // ── Which edit comes back ────────────────────────────────────────────────────
 
-// The events that open or close a draft. The newest one decides whether there is
-// an undoable chain at all: a createDraft means a draft is open, while a publish
-// or a discard means the edits before it are out of reach — published work is a
-// commitment, and taking it back is a fresh edit that says so.
-const DRAFT_BOUNDARY: ReadonlySet<AuditEventType> = new Set<AuditEventType>(["createDraft", "publish", "discard"]);
-
 /**
- * The edit `undo_last` would take back: the newest apply on the CURRENT draft
- * that is neither an undo itself nor already undone. Returns null when there is
- * nothing left to take back — no open draft, or every edit on it already undone.
+ * The edit `undo_last` would take back: the newest edit STANDING on the current
+ * draft — neither an undo itself nor already undone (see kg-store/draft-chain).
+ * Returns null when there is nothing left to take back: no open draft, or every
+ * edit on it already undone.
  */
 export async function findUndoTarget(namespace: string): Promise<AuditRecord | null> {
-  const events = await getKgStore().listAudit({ namespace });   // newest-first
-  const boundary = events.find((r) => DRAFT_BOUNDARY.has(r.eventType));
-  if (!boundary || boundary.eventType !== "createDraft") return null;
-
-  const applies = events.filter((r) => r.eventType === "apply" && r.ts >= boundary.ts);
-  const alreadyUndone = new Set(applies.map((r) => r.undoOf).filter((id): id is string => id != null));
-  return applies.find((r) => r.undoOf == null && !alreadyUndone.has(r.id)) ?? null;
+  const events = await currentDraftEvents(namespace);
+  if (!events) return null;
+  return standingEdits(events)[0] ?? null;
 }
 
 // ── Preconditions: does this edit still look the way it left the draft? ───────

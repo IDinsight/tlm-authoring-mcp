@@ -38,6 +38,23 @@ Publishing happens in **two steps**, like the other important actions:
 
 By default an approver **may** publish a draft they edited themselves. Depending on the project's configuration, a **second review** may be required. Either way, the publish record shows whether the person who made the changes is also the one who published — for transparency.
 
+## Say the draft is ready
+
+When you have finished a batch of changes, say so:
+
+> "Mark the draft ready for review. Note: chapters 1 to 3 are done, 4 still needs its assessment."
+
+The note is the message you would have sent by hand: what changed, what is left. Whoever publishes sees it when they arrive.
+
+!!! warning "Nobody is notified automatically"
+    No email, no notification. The request shows up when the approver asks "where are we?" or looks at the draft. **Tell them** if they are not already looking.
+
+If you want to keep working, take the request back:
+
+> "Actually I still have corrections — cancel the review request."
+
+The draft itself is untouched; only the request is withdrawn. And once the draft is published (or discarded) the request disappears on its own — it cannot be left standing on work that is already live.
+
 ## Take back a single change
 
 A mistake in the **last** change does not mean throwing everything away:

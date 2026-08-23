@@ -10,6 +10,9 @@ export { otherSlot, edgeId } from "./types.js";
 export { runGraphMutation, diffGraphs, __resetMutationsForTest, readTokenNonce, shouldStorePayload, pendingTtlMs } from "./mutations.js";
 export { publishDraft, discardDraft, diffDraft, publishDraftWithConfirm, discardDraftWithConfirm, __resetDraftTokensForTest } from "./publish-flow.js";
 export { findUndoTarget, undoApply, undoConflicts } from "./undo.js";
+export { currentDraftEvents, standingEdits } from "./draft-chain.js";
+export { readDraftStanding, reviewRequestIn, draftActivityIn } from "./review.js";
+export type { ReviewRequest, DraftActivity } from "./review.js";
 export type { UndoLastArgs } from "./undo.js";
 export { editProfileWithConfirm, diffProfile, hashConfig, __resetConfigTokensForTest } from "./config-flow.js";
 export type { EditProfileResult, EditProfileOpts, ConfigDiff, WholeDraftProfileDiff } from "./config-flow.js";
@@ -31,5 +34,5 @@ export type {
 export { validateStructural, STRUCTURAL_RULES } from "./validate.js";
 export { lintGraph, lintWarnings } from "./lint.js";
 export type { LintFinding, LintSeverity, LintOptions } from "./lint.js";
-export { matchesAuditQuery, sortAuditNewestFirst, toAuditActor } from "./audit.js";
+export { matchesAuditQuery, sortAuditNewestFirst, toAuditActor, nextAuditSeq, __resetAuditSeqForTest } from "./audit.js";
 export type { AuditRecord, AuditQuery, AuditActor, AuditEventType } from "./types.js";

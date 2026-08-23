@@ -26,7 +26,7 @@
 
 import { createHash, randomBytes } from "node:crypto";
 import { getKgStore } from "./adapter.js";
-import { toAuditActor } from "./audit.js";
+import { toAuditActor, nextAuditSeq } from "./audit.js";
 import { validateStructural } from "./validate.js";
 import type { AuditRecord, DiffEntry, GraphDiff, MutationEdge, MutationGraph, MutationNode, Slot, SlotDelta, StoredMeta, ValidationResult } from "./types.js";
 export type { DiffEntry, GraphDiff, MutationEdge, MutationGraph, MutationNode, ValidationResult } from "./types.js";
@@ -391,7 +391,7 @@ export async function runGraphMutation<Args>(
   const auditBlocked = async (reason: string): Promise<void> => {
     await store.appendAudit({
       id: randomUUID(),
-      ts: new Date().toISOString(),
+      ts: new Date().toISOString(), seq: nextAuditSeq(),
       actor: auditActor,
       namespace,
       eventType: "blocked",
@@ -483,7 +483,7 @@ export async function runGraphMutation<Args>(
     if (snap.kind === "onPublished") {
       const createRec: AuditRecord = {
         id: randomUUID(),
-        ts: new Date().toISOString(),
+        ts: new Date().toISOString(), seq: nextAuditSeq(),
         actor: auditActor,
         namespace,
         eventType: "createDraft",
@@ -534,7 +534,7 @@ export async function runGraphMutation<Args>(
     };
     const applyRec: AuditRecord = {
       id: randomUUID(),
-      ts: new Date().toISOString(),
+      ts: new Date().toISOString(), seq: nextAuditSeq(),
       actor: auditActor,
       namespace,
       eventType: "apply",
