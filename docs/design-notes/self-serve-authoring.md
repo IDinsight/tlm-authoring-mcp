@@ -1,7 +1,49 @@
 # Self-serve authoring — the expert without a developer
 
-> **Status: Proposal (2026-08-23); the Phase-2 client questions are now measured.**
-> Nothing here is built. What has been **run to completion** is the client probe: a
+> **Status: Phases 1–3 BUILT (2026-08-23); phases 4–5 still proposed.**
+> What shipped, and where it lives:
+>
+> - **Phase 1** — `?slot=draft` on the `/kg` routes with a curator gate + per-node
+>   `chg` tags ([`kg-export.ts`](../../backend/src/kg-export.ts),
+>   [`http.ts`](../../backend/src/http.ts)), the explorer's slot switch + change
+>   badges ([`SlotSwitch.tsx`](../../frontend/explorer/src/components/SlotSwitch.tsx)),
+>   and **`check_draft`** — the wiring lint ([`kg-store/lint.ts`](../../backend/src/kg-store/lint.ts),
+>   [`server/check.ts`](../../backend/src/server/check.ts)), which also rides
+>   `publish_draft`'s dry-run as `checks`.
+> - **Phase 2** — Rung 1 as one shared guide composed into every subject's
+>   ([`assets/AUTHORING_CONVERSATION.md`](../../backend/assets/AUTHORING_CONVERSATION.md));
+>   Rung 2 as **`start_here`**, **`find_node`** + server-side name resolution
+>   ([`curriculum/find.ts`](../../backend/src/curriculum/find.ts)), and `nextSteps`
+>   on every write ([`server/next-steps.ts`](../../backend/src/server/next-steps.ts));
+>   Rung 4 as four named French workflows ([`server/prompts.ts`](../../backend/src/server/prompts.ts)).
+>   Rung 3 stays struck.
+> - **Phase 3** — **`create_document`** / **`add_section`**
+>   ([`kg-recipes/document.ts`](../../backend/src/kg-recipes/document.ts)) and
+>   **`duplicate_entry`**; the build-then-clone catalog detour is retired in the tool
+>   descriptions and the user guide.
+> - **Risk 2** corrected in [`shared.ts`](../../backend/src/server/shared.ts) (the
+>   comment no longer claims a gate that has never run). **Risk 3** closed: the
+>   `KG_EXPLORER_PUBLIC` ungate is scoped to published reads and can never reach a draft.
+>
+> **One correction to the note itself.** It specifies French for `check_draft`,
+> `start_here` and the prompts, because it was written from the Senegal pilot.
+> But one deployment serves six workspaces and five of them (Nigeria, Ghana ×2,
+> CBSE, Madhi, Rwanda) work in English — as do all eight subject guides, which are
+> notes to the model. So every server-authored payload is **English**, and its
+> `instruction` tells the model to relay it in the expert's working language,
+> which the subject guide names. The exception is the Rung-4 **prompts**, which
+> stay French: prompt text is not read by the model, it IS the user's first turn,
+> and it cannot vary by tenant (prompts register before any workspace is known).
+> French is right there today because all four workflows are about authoring
+> documents and routines, and Senegal is the only workspace with a content layer
+> to author.
+>
+> Still open: **phases 4 and 5** (`undo_last`, per-section `preview_generation`,
+> `request_review`, the unfinished-work view), and **risk 7** — nobody has watched a
+> real expert use any of this yet.
+>
+> The rest of this note is the original proposal, kept as the rationale. What has
+> been **run to completion** is the client probe: a
 > throwaway prompt, deployed in two versions and opened in the client the experts use,
 > plus a `ping` that now reports what that client advertises. Four results:
 >

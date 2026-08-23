@@ -80,6 +80,18 @@ export const UI = {
     terminologyPrev: "Précédent",
     terminologyNext: "Suivant",
     terminologyPage: "Page",
+    slotPublished: "Publié",
+    slotDraft: "Brouillon",
+    draftHint:
+      "Vue du brouillon non publié : les éléments ajoutés et modifiés sont signalés dans l'arbre ; les éléments supprimés sont listés ci-dessous. Rien de tout cela n'est encore visible par la génération.",
+    draftForbidden:
+      "Vous n'avez pas les droits pour consulter le brouillon de ce graphe (rôle « curator » requis dans cet espace de travail). Affichage de la version publiée.",
+    chgAdded: "ajoutés",
+    chgChanged: "modifiés",
+    chgRemoved: "supprimés",
+    chgRemovedList: "Éléments supprimés par ce brouillon",
+    chgAddedOne: "ajouté",
+    chgChangedOne: "modifié",
   },
   en: {
     title: "Explorer — Knowledge graphs",
@@ -158,6 +170,18 @@ export const UI = {
     terminologyPrev: "Previous",
     terminologyNext: "Next",
     terminologyPage: "Page",
+    slotPublished: "Published",
+    slotDraft: "Draft",
+    draftHint:
+      "Viewing the unpublished draft: added and changed nodes are tagged in the tree; removed ones are listed below. None of it is visible to generation yet.",
+    draftForbidden:
+      "You are not allowed to view this graph's draft (a 'curator' role in this workspace is required). Showing the published version.",
+    chgAdded: "added",
+    chgChanged: "changed",
+    chgRemoved: "removed",
+    chgRemovedList: "Nodes this draft removed",
+    chgAddedOne: "added",
+    chgChangedOne: "changed",
   },
 } satisfies Record<Lang, Record<string, string>>;
 

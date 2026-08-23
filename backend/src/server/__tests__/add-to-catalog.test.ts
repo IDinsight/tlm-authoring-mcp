@@ -20,7 +20,7 @@ import {
   SHARED_CATALOG_NAMESPACE, catalogNamespace, cloneRoutineSubtree, addCatalogEntry,
   listCatalogEntries, addNode,
 } from "../../kg-recipes/index.js";
-import { runAddToCatalog, readCatalog } from "../catalog.js";
+import { runAddToCatalog, runDuplicateEntry, readCatalog } from "../catalog.js";
 import { __setStorageForTest } from "../../storage/index.js";
 import { __setActorForTest, type Actor } from "../../actor.js";
 import { __setWorkspaceStoreForTest, createMemoryWorkspaceStore } from "../../workspaces/index.js";
@@ -254,5 +254,58 @@ describe("token-only confirm — add_to_catalog wrapper parking", () => {
       expect(done.ok).toBe(false);
       expect(String((done as { reason?: unknown }).reason)).toBe("stale");
     });
+  });
+});
+
+// ── duplicate_entry — copy-then-edit, the real mental model ───────────────────
+// Nobody authors a formatter from a blank page: they start from the one that is
+// nearly right. Duplicating is also the ONLY way a workspace curator can adapt a
+// SHARED master, since they cannot edit the shared library in place.
+describe("duplicate_entry", () => {
+  it("copies a shared entry into the workspace library, with fresh ids and a new name", async () => {
+    await inCtx(SUPER, async () => {
+      const dry = await runDuplicateEntry({ entryId: "shared-root-e1", name: "Entrée adaptée", targetWorkspace: "senegal" });
+      expect(dry.confirmationToken).toBeTruthy();
+      const mintedIdMap = dry.mintedIdMap as Record<string, string>;
+      // Fresh ids: the copy is independent of the master it came from.
+      expect(mintedIdMap["shared-root-e1"]).toBeTruthy();
+      expect(mintedIdMap["shared-root-e1"]).not.toBe("shared-root-e1");
+
+      const done = await runDuplicateEntry({ entryId: "shared-root-e1", name: "Entrée adaptée", targetWorkspace: "senegal", confirm: true, confirmationToken: dry.confirmationToken as string, mintedIdMap });
+      expect(done).toMatchObject({ ok: true, published: true, scope: "workspace" });
+    });
+
+    const workspace = listCatalogEntries(await readCatalog(wsCatalogNs), "workspace");
+    expect(workspace.map((entry) => entry.name)).toContain("Entrée adaptée");
+    // The master is untouched — only its copy carries the new name.
+    const shared = listCatalogEntries(await readCatalog(SHARED_CATALOG_NAMESPACE), "shared");
+    expect(shared.map((entry) => entry.name)).toContain("Existing entry");
+    expect(shared.map((entry) => entry.name)).not.toContain("Entrée adaptée");
+  });
+
+  it("names the copy after the original when no name is given", async () => {
+    await inCtx(SUPER, async () => {
+      const dry = await runDuplicateEntry({ entryId: "shared-root-e1", targetWorkspace: "senegal" });
+      await runDuplicateEntry({ entryId: "shared-root-e1", targetWorkspace: "senegal", confirm: true, confirmationToken: dry.confirmationToken as string, mintedIdMap: dry.mintedIdMap as Record<string, string> });
+    });
+    expect(listCatalogEntries(await readCatalog(wsCatalogNs), "workspace").map((e) => e.name))
+      .toContain("Existing entry (copie)");
+  });
+
+  it("says so when the entry is in neither library", async () => {
+    await inCtx(SUPER, async () => {
+      const result = await runDuplicateEntry({ entryId: "no-such-entry", targetWorkspace: "senegal" });
+      expect(String(result.error)).toMatch(/not found in the shared or workspace library/);
+    });
+  });
+
+  it("refuses a CURATOR, because duplicating publishes", async () => {
+    await inCtx(CURATOR, async () => {
+      const dry = await runDuplicateEntry({ entryId: "shared-root-e1", name: "Copie interdite" });
+      const done = await runDuplicateEntry({ entryId: "shared-root-e1", name: "Copie interdite", confirm: true, confirmationToken: dry.confirmationToken as string, mintedIdMap: dry.mintedIdMap as Record<string, string> });
+      expect(String(JSON.stringify(done))).toMatch(/refused|unauthorized|publish/i);
+    });
+    // Nothing was left behind in the destination library.
+    expect(listCatalogEntries(await readCatalog(wsCatalogNs), "workspace").map((e) => e.name)).not.toContain("Copie interdite");
   });
 });

@@ -11,8 +11,8 @@ import { listAvailableContexts } from "../context/index.js";
 import { subjectDir, KG_FIXTURE } from "./index.js";
 import { resolveAdapter } from "../adapters/index.js";
 import { serializeModel } from "../curriculum/index.js";
-import { __setKgStoreForTest, createMemoryKgStore, kgNamespace, edgeId as makeEdgeId } from "../kg-store/index.js";
-import { exportNamespace, exportCatalog, exportCatalogEntry, exportTerminology } from "../kg-export.js";
+import { __setKgStoreForTest, createMemoryKgStore, getKgStore, kgNamespace, edgeId as makeEdgeId } from "../kg-store/index.js";
+import { exportNamespace, exportCatalog, exportCatalogEntry, exportTerminology, listExportNamespaces } from "../kg-export.js";
 import { SHARED_CATALOG_NAMESPACE, catalogNamespace } from "../kg-recipes/index.js";
 import { glossaryNamespace, buildLexiconNode } from "../glossary/index.js";
 import { DEFAULT_WORKSPACE } from "../config.js";
@@ -441,4 +441,74 @@ describe("kg-export — LC ontology (reading)", () => {
     expect(graph.meta.viewConfig.views.map((v) => v.id)).toEqual(["standards", "components", "curriculum", "generic"]);
     expect(graph.meta.taxonomy.map((x) => x.key)).toEqual(["StandardsFramework", "StandardsFrameworkItem", "LessonGrouping", "Lesson", "LearningComponent"]);
   });
+});
+
+// ── The draft slot (self-serve-authoring.md, phase 1) ────────────────────────
+// Publish is an act of faith while a draft can only be read as a diff narrated
+// back in chat. These assert what the explorer needs to SHOW one: which slot the
+// payload came from, what the draft added or changed, and — since a removed node
+// is not in the draft at all — what it deleted.
+describe("kg-export — the draft slot", () => {
+  // Open a draft on the document fixture and make one of each kind of change.
+  async function openDraftWithChanges(): Promise<void> {
+    const store = getKgStore();
+    await store.createDraft(docNs);
+    const draftSlot = (await store.readPointer(docNs))!.draftSlot!;
+
+    const node = (id: string, label: string, raw: Record<string, unknown>): Omit<StoredNode, "slot"> =>
+      ({ id, type: label, namespace: docNs, labels: [label], spine: false, properties: { raw } });
+
+    const meta: StoredMeta = { contentHash: "draft", seededAt: "1970-01-01T00:00:00Z", adapterId: "doc", nodeCount: 0, edgeCount: 0 };
+    await store.applyDelta(docNs, draftSlot, {
+      upsertNodes: [
+        node("sec2", "DocumentSection", { description: "Page 2", position: 2 }),           // added
+        node("sec", "DocumentSection", { description: "Page 1 (révisée)", position: 1 }),  // changed
+      ],
+      upsertEdges: [],
+      removeNodeIds: ["crit"],                                                             // removed
+      removeEdgeIds: [],
+    }, meta);
+  }
+
+  it("reads published by default, and says a draft exists without leaking it", async () => {
+    await openDraftWithChanges();
+    const published = (await exportNamespace(docNs))!;
+    expect(published.meta.reading).toBe("published");
+    expect(published.meta.draft?.open).toBe(true);
+    // Nothing of the draft has bled into the published payload.
+    expect(published.nodes.some((n) => n.id === "sec2")).toBe(false);
+    expect(published.nodes.every((n) => n.chg === undefined)).toBe(true);
+  });
+
+  it("tags what the draft added and changed, and lists what it removed", async () => {
+    await openDraftWithChanges();
+    const draft = (await exportNamespace(docNs, { slot: "draft" }))!;
+    expect(draft.meta.reading).toBe("draft");
+
+    const byId = new Map(draft.nodes.map((n) => [n.id, n]));
+    expect(byId.get("sec2")?.chg).toBe("added");
+    expect(byId.get("sec")?.chg).toBe("changed");
+    expect(byId.get("tlm")?.chg).toBeUndefined();   // untouched nodes carry no tag
+
+    // A removed node is gone from the draft, so it can only be reported here.
+    expect(draft.meta.draft?.removed?.map((n) => n.id)).toEqual(["crit"]);
+    expect(draft.meta.draft?.counts).toEqual({ added: 1, changed: 1, removed: 1 });
+  });
+
+  it("falls back to published, and says so, when no draft is open", async () => {
+    const graph = (await exportNamespace(mathsNs, { slot: "draft" }))!;
+    expect(graph.meta.reading).toBe("published");
+    expect(graph.meta.draft?.open).toBe(false);
+    expect(graph.meta.draft?.note).toMatch(/No draft in progress/);
+  });
+
+  it("reports hasDraft per namespace, so the switch appears only where there is one", async () => {
+    await openDraftWithChanges();
+    const namespaces = await listExportNamespaces();
+    expect(namespaces.every((entry) => typeof entry.hasDraft === "boolean")).toBe(true);
+    expect(namespaces.find((entry) => entry.ns === mathsNs)?.hasDraft).toBe(false);
+  });
+
+  // The fixture store is shared across this file; leave it as it was found.
+  afterAll(async () => { await getKgStore().discardDraft(docNs); });
 });

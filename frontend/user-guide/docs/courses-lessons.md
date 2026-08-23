@@ -63,6 +63,27 @@ Une **routine** est un gabarit d'enseignement réutilisable — par exemple les 
 
 Appliquer une routine en fait une **copie indépendante** attachée à votre leçon : les retouches ultérieures de la routine d'origine ne la modifient pas. Pour créer ou modifier les routines elles-mêmes, voir [Créer des routines pédagogiques](routines.md).
 
+## Créer un document (manuel, guide, fiche)
+
+Un **document** est ce qui sera réellement produit : un manuel de l'élève, un guide de l'enseignant, une fiche de révision. Il n'est pas le curriculum — il **rattache** une partie du curriculum à une forme.
+
+Un document se crée en une phrase, en disant **ce qu'il doit couvrir** :
+
+> « Crée une fiche de révision pour le chapitre 5. »
+>
+> « Crée un manuel de l'élève pour ce cours. »
+
+!!! warning "Un document doit toujours être rattaché à un contenu"
+    C'est la panne la plus discrète du système : un document qui ne couvre rien ne provoque **aucune erreur** — la génération produit simplement un document **vide**, et on s'en aperçoit à la fin. C'est pourquoi la création d'un document et son rattachement au programme se font **d'un seul geste** : l'un ne peut pas exister sans l'autre.
+
+Un document peut ensuite être **découpé en sections**, chacune rattachée à ce qu'elle présente :
+
+> « Ajoute une section “Chapitre 1” à ce document, pour le chapitre 1. »
+>
+> « Ajoute une page de garde au début. » *(une section qui ne couvre rien : c'est normal pour une couverture ou un sommaire)*
+
+Les sections sont l'unité réelle de travail : la génération produit un document **section par section**. Un document long gagne donc à être découpé.
+
 ## Appliquer un formatter à un cours
 
 Un **formatter** décrit la **mise en forme** du document produit — palette, typographie, mise en page, style des illustrations. On l'**applique au cours** (la racine du document), et la génération s'y conforme :

@@ -63,6 +63,27 @@ A **routine** is a reusable teaching template — for example the five steps of 
 
 Applying a routine makes an **independent copy** attached to your lesson: later tweaks to the original routine do not change it. To create or edit the routines themselves, see [Create instructional routines](routines.md).
 
+## Create a document (manual, guide, revision sheet)
+
+A **document** is what will actually be produced: a pupil's manual, a teacher's guide, a revision sheet. It is not the curriculum — it **binds** a piece of curriculum to a form.
+
+You create one in a sentence, by saying **what it must cover**:
+
+> "Create a revision sheet for chapter 5."
+>
+> "Create a pupil's manual for this course."
+
+!!! warning "A document must always be attached to some content"
+    This is the quietest failure in the system: a document that covers nothing raises **no error** — generation simply produces an **empty** document, and you find out at the end. That is why creating a document and attaching it to the curriculum happen **in a single step**: neither can exist without the other.
+
+A document can then be **split into sections**, each attached to what it presents:
+
+> "Add a 'Chapter 1' section to this document, for chapter 1."
+>
+> "Add a cover page at the start." *(a section that covers nothing — normal for a cover or a table of contents)*
+
+Sections are the real unit of work: generation produces a document **section by section**. A long document is therefore worth splitting up.
+
 ## Apply a formatter to a course
 
 A **formatter** describes the **layout** of the produced document — palette, typography, page setup, illustration style. You **apply it to the course** (the root of the document), and generation follows it:

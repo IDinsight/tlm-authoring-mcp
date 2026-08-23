@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
+  ApiError,
   apiOrigin,
   fetchConfig,
   fetchGraph,
@@ -11,7 +12,7 @@ import {
 import { createGraphModel, type GraphModel } from "../lib/graphModel";
 import { readUrlState } from "../lib/urlState";
 import { makeT } from "../i18n";
-import type { DisplayGraph, KgConfig, Lang, NamespaceEntry } from "../types";
+import type { DisplayGraph, KgConfig, Lang, NamespaceEntry, Slot } from "../types";
 
 // The async lifecycle of the explorer: reach the server, optionally sign in,
 // list the graphs, then load one. Mirrors the original page's boot() → ensureLogin
@@ -30,6 +31,11 @@ export type GraphData = {
   login: (email: string, password: string) => Promise<string | null>;
   selectNs: (ns: string) => void;
   refresh: () => void;
+  /** Which slot is on screen — published (live) or the unpublished draft. */
+  slot: Slot;
+  selectSlot: (slot: Slot) => void;
+  /** Set when a draft read was refused, so the UI can say why rather than just failing. */
+  slotNotice: string | null;
 };
 
 export function useGraphData(lang: Lang): GraphData {
@@ -47,6 +53,8 @@ export function useGraphData(lang: Lang): GraphData {
   const [namespaces, setNamespaces] = useState<NamespaceEntry[]>([]);
   const [currentNs, setCurrentNs] = useState<string | null>(null);
   const [data, setData] = useState<DisplayGraph | null>(null);
+  const [slot, setSlot] = useState<Slot>("published");
+  const [slotNotice, setSlotNotice] = useState<string | null>(null);
 
   const model = useMemo(() => (data ? createGraphModel(data) : null), [data]);
 
@@ -57,21 +65,30 @@ export function useGraphData(lang: Lang): GraphData {
   }, []);
 
   const loadGraph = useCallback(
-    async (ns: string, isRefresh = false) => {
+    async (ns: string, isRefresh = false, wanted: Slot = "published") => {
       setCurrentNs(ns);
       setPhase("loading");
       setLoadingText((isRefresh ? "↻ " : "") + tRef.current("loading"));
       try {
-        const g = await fetchGraph(ns);
+        const g = await fetchGraph(ns, wanted);
         setData(g);
+        setSlot(wanted);
+        setSlotNotice(null);
         if (!g.nodes.length) {
           setData(null);
           fail(tRef.current("empty"));
           return;
         }
         setPhase("ready");
-      } catch {
-        fail(tRef.current("errLoad"), () => void loadGraph(ns, true));
+      } catch (e) {
+        // A refused draft is not a broken explorer: say so, and stay on the
+        // published graph the reader can see.
+        if (wanted === "draft" && e instanceof ApiError && (e.status === 403 || e.status === 401)) {
+          setSlotNotice(tRef.current("draftForbidden"));
+          void loadGraph(ns, isRefresh, "published");
+          return;
+        }
+        fail(tRef.current("errLoad"), () => void loadGraph(ns, true, wanted));
       }
     },
     [fail],
@@ -136,10 +153,18 @@ export function useGraphData(lang: Lang): GraphData {
     [loadNamespaces],
   );
 
-  const selectNs = useCallback((ns: string) => void loadGraph(ns), [loadGraph]);
+  // Switching graphs always lands on published: the previous graph's draft state
+  // says nothing about the new one.
+  const selectNs = useCallback((ns: string) => void loadGraph(ns, false, "published"), [loadGraph]);
+  const selectSlot = useCallback(
+    (wanted: Slot) => {
+      if (currentNs) void loadGraph(currentNs, true, wanted);
+    },
+    [currentNs, loadGraph],
+  );
   const refresh = useCallback(() => {
-    if (currentNs) void loadGraph(currentNs, true);
-  }, [currentNs, loadGraph]);
+    if (currentNs) void loadGraph(currentNs, true, slot);
+  }, [currentNs, loadGraph, slot]);
 
   return {
     phase,
@@ -153,5 +178,8 @@ export function useGraphData(lang: Lang): GraphData {
     login,
     selectNs,
     refresh,
+    slot,
+    selectSlot,
+    slotNotice,
   };
 }

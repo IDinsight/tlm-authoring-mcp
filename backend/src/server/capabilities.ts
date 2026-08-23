@@ -119,6 +119,21 @@ export async function buildCapabilitiesReport(): Promise<Record<string, unknown>
         "To CREATE a node, use `add_nodes`, not create_edges.",
     },
     recipes,
+    // The two TASK verbs — the ONLY wrappers over the primitives, and each earns
+    // its place by enforcing a multi-element invariant a primitive can silently
+    // violate (self-serve-authoring.md, D3). They are not the retired typed adds:
+    // those were facades over one addNode call with no invariant of their own.
+    documents: {
+      tools: ["create_document", "add_section"],
+      // Both accept a NAME where an id would go, and return candidates on ambiguity.
+      resolvesNames: true,
+      invariants: {
+        create_document: "mints the TeachingLearningMaterial AND its `covers` edge together — a TLM without one is a valid write and a broken document that generates empty",
+        add_section: "wires BOTH of a section's axes together — `hasPart` from the document and `covers` to the curriculum (omit `covers` only for front matter)",
+      },
+      note:
+        "create_document / add_section replace the add_nodes + create_edges pair for authoring a document. Use them for anything document-shaped; add_nodes stays the tool for curriculum nodes, where `alignTo` already carries the equivalent invariant atomically.",
+    },
     // The batched writes and their response/idempotency controls, advertised so
     // callers can feature-detect returnMode + idempotencyKey and look up the
     // per-kind property vocabulary the retired typed adds used to document.
@@ -138,7 +153,10 @@ export async function buildCapabilitiesReport(): Promise<Record<string, unknown>
     coverage: {
       // Coverage is no longer coded rules on the adapter — it is the subject's
       // expectations authored as PROSE in the graph guide, reviewed on demand.
+      // check_draft is its MECHANICAL sibling and must never grow coverage rules
+      // (self-serve-authoring.md, D4) — it checks wiring, this checks pedagogy.
       tool: "review_draft",
+      structuralCheck: "check_draft",
       note:
         "Coverage/completeness is now authored as prose in the subject's graph guide (get_graph_guide) and checked on demand by review_draft — a read-only pre-publish pass that hands the guide's expectations + a structural snapshot to the model to reason over. The old deterministic coded coverage rules (empty chapter, one bilan, …) were retired; edits and diff_draft no longer emit automatic coverage warnings. Completeness is a review step, never a block.",
     },
@@ -202,7 +220,8 @@ export async function buildCapabilitiesReport(): Promise<Record<string, unknown>
     canEditEntries: actions.canPublish,
     editVerbs: ["edit_node", "add_nodes", "create_edges"],
     scopes: { shared: SHARED_CATALOG_NAMESPACE, workspace: catalogNamespace(activeWorkspace()) },
-    tools: ["list_catalog", "get_catalog_entry", "use_routine", "use_formatter", "use_rubric", "add_to_catalog"],
+    tools: ["list_catalog", "get_catalog_entry", "use_routine", "use_formatter", "use_rubric", "add_to_catalog", "duplicate_entry"],
+    canDuplicate: actions.canPublish,
     resources: ["catalog://{scope}/{id}"],
     // Where each kind of entry ATTACHES when applied — mirrors useRoutine / useFormatter / useRubric.
     applies: {
@@ -219,8 +238,18 @@ export async function buildCapabilitiesReport(): Promise<Record<string, unknown>
   // role, so `canWalkDraft` mirrors the SAME draft-read gate diff_draft enforces
   // (actions.canReadDraft) and cannot drift.
   const discovery = {
-    tools: ["walk_graph", "walk_document", "walk_document_section", "namespace_stats", "export_graph_view"],
+    tools: ["walk_graph", "walk_document", "walk_document_section", "find_node", "namespace_stats", "export_graph_view"],
     canWalkDraft: actions.canReadDraft,
+    // Name → id resolution. It exists because a human never has an id to give
+    // and this client renders no completion dropdown, so the SERVER resolves
+    // what the expert types (self-serve-authoring.md, D9).
+    findNode: {
+      params: ["query", "labels", "limit", "slot"],
+      defaults: { limit: 10 },
+      // Several equally-good matches is normal (two Courses each hold a
+      // "Chapitre 5"), so the answer is candidates, never a pick.
+      ambiguity: "returns `ambiguous:true` + every match with its containment `path` — ask the user which, do not guess",
+    },
     walkGraph: {
       params: ["fromId", "direction", "edgeTypes", "nodeTypes", "maxDepth", "includeEdges", "limit", "cursor", "slot"],
       defaults: { limit: 50, maxDepth: 3 },
@@ -251,7 +280,7 @@ export async function buildCapabilitiesReport(): Promise<Record<string, unknown>
       overflow: "self-bounded — oversized detailed slice auto-drops detail; a still-too-big slice returns { tooLarge, message }",
     },
     note:
-      "walk_graph is the single generic traversal: a directional (out/in/both), edge- and label-filtered, PAGINATED BFS from any node — use it to discover the framework root, a course subtree, a standards spine, anything. It replaced get_course. Page with limit (default 50, max 500) + nextCursor; do not raise the limit to fit a big result. truncatedByLimit means more nodes remain on further pages; truncated means the depth cap hid deeper nodes; truncatedBySize means a response BYTE budget trimmed the page below `limit` (raising limit won't help — set includeEdges:false and narrow nodeTypes, then page via cursor; the `hint` field says so). slot:'published' (default) reads live; slot:'draft' inspects UNPUBLISHED staged edits (curator/approver only). walk_document is the document-side counterpart: given a TeachingLearningMaterial (TLM) root it returns that document's assemblyGuide, its Formatter/FormatterSpec rendering stack, its DocumentSection spine, and the curriculum it renders (resolved by section spine or a TLM→covers→Course fallback — `scope` says which), so generation targets the document, not the raw curriculum. walk_document_section is the PER-PIECE generation entry, anchored on ONE DocumentSection — the node that already IS the document↔curriculum binding (it hangs under exactly one TLM and covers its curriculum), so it is the unit generation produces a document from, section by section: it returns the owning document, the curriculum the section renders, the routine that applies (nearest-wins, document-first — the section's own usesRoutine, else the owning TLM's, else the covered curriculum's ancestry, so a document-specific routine finally has a home), and the formatters (the TLM's doc-wide stack unioned with the section's own). namespace_stats is a cheap, argument-free orientation snapshot (node/edge counts, roots, draft state) — run it FIRST to see the shape of the graph before writing a walk; its `roots` (each with id + labels + description) surfaces the Course content roots AND the TLM document roots, so it replaced list_courses. export_graph_view returns a SELF-CONTAINED scoped slice (the containment subtree of a node) in the explorer's DisplayGraph shape — feed it to a self-contained HTML artifact to render the same interactive tree the live explorer shows; published slot only, self-bounded to the response cap.",
+      "walk_graph is the single generic traversal: a directional (out/in/both), edge- and label-filtered, PAGINATED BFS from any node — use it to discover the framework root, a course subtree, a standards spine, anything. It replaced get_course. Page with limit (default 50, max 500) + nextCursor; do not raise the limit to fit a big result. truncatedByLimit means more nodes remain on further pages; truncated means the depth cap hid deeper nodes; truncatedBySize means a response BYTE budget trimmed the page below `limit` (raising limit won't help — set includeEdges:false and narrow nodeTypes, then page via cursor; the `hint` field says so). slot:'published' (default) reads live; slot:'draft' inspects UNPUBLISHED staged edits (curator/approver only). walk_document is the document-side counterpart: given a TeachingLearningMaterial (TLM) root it returns that document's assemblyGuide, its Formatter/FormatterSpec rendering stack, its DocumentSection spine, and the curriculum it renders (resolved by section spine or a TLM→covers→Course fallback — `scope` says which), so generation targets the document, not the raw curriculum. walk_document_section is the PER-PIECE generation entry, anchored on ONE DocumentSection — the node that already IS the document↔curriculum binding (it hangs under exactly one TLM and covers its curriculum), so it is the unit generation produces a document from, section by section: it returns the owning document, the curriculum the section renders, the routine that applies (nearest-wins, document-first — the section's own usesRoutine, else the owning TLM's, else the covered curriculum's ancestry, so a document-specific routine finally has a home), and the formatters (the TLM's doc-wide stack unioned with the section's own). find_node turns a NAME into ids (« le chapitre 5 » → the matching nodes, accent- and case-insensitive, each with its containment path): it is how an id is obtained, so a user is never asked for one; when several match it says `ambiguous` and you ask which. namespace_stats is a cheap, argument-free orientation snapshot (node/edge counts, roots, draft state) — run it FIRST to see the shape of the graph before writing a walk; its `roots` (each with id + labels + description) surfaces the Course content roots AND the TLM document roots, so it replaced list_courses. export_graph_view returns a SELF-CONTAINED scoped slice (the containment subtree of a node) in the explorer's DisplayGraph shape — feed it to a self-contained HTML artifact to render the same interactive tree the live explorer shows; published slot only, self-bounded to the response cap.",
   };
 
   // ── profile: the subject profile as authored config (phase 2b). `canEdit`
@@ -264,6 +293,38 @@ export async function buildCapabilitiesReport(): Promise<Record<string, unknown>
     tools: ["get_profile", "get_graph_guide", "edit_profile", "review_draft"],
     note:
       "The subject profile is a { core, guide } record: the machine `core` (config that drives parsing) plus an authored `guide` markdown the authoring/generating LLM reads to interpret and modify the graph (phase 2c — reads consume only the core; the guide never sits on the read hot path). It is AUTHORED DATA in the store's config cell: get_profile reads the record, get_graph_guide reads just the guide markdown (call it before you walk/edit the graph), and edit_profile replaces the record through the two-phase draft/publish loop — the core validated against its schema and the guide length-checked at authoring time, so a change needs no redeploy. It rides the SAME draft as curriculum edits — diff_draft/publish_draft surface a staged profile change as `profileDiff`. review_draft is a read-only pre-publish check that bundles the guide's coverage expectations with a subject-agnostic structural snapshot for the model to reason over.",
+  };
+
+  // ── checks: the mechanical wiring lint. `available` mirrors the SAME draft-read
+  // gate check_draft enforces (actions.canReadDraft) when a draft is open; with no
+  // draft it reads published and is open to anyone who can read.
+  const checks = {
+    tool: "check_draft",
+    availableOnDraft: actions.canReadDraft,
+    // The rules, named so a caller can anticipate them. They are WIRING only —
+    // "is this connected?" — never a judgment about what the subject teaches.
+    rules: [
+      "document-covers-nothing", "document-has-no-formatter",
+      "section-covers-nothing", "section-outside-document",
+      "routine-unused", "isolated-node",
+    ],
+    // The payload is English; the model relays it in the expert's working language.
+    reportedIn: "the user's working language (payload is English)",
+    note:
+      "check_draft reports the MECHANICAL failures that are otherwise silent: a document covering no curriculum (it would generate empty), a document with no formatter, a section outside any document, a routine nothing uses, a node connected to nothing. Findings are French, each with a `fix`, and tagged `inThisDraft`. The same warnings ride publish_draft's dry-run as `checks`, scoped to the nodes the draft touched — they never block. Its sibling is review_draft, which judges COVERAGE from the guide's prose; the split is deliberate and check_draft must never grow a coverage rule.",
+  };
+
+  // ── guidance: the in-product help surface (self-serve-authoring.md, phase 2).
+  // All of it is authored TEXT — no gate to mirror — so this block advertises what
+  // exists rather than what the caller may do.
+  const guidance = {
+    tools: ["start_here", "get_graph_guide"],
+    prompts: ["creer-document", "appliquer-style", "creer-routine", "preparer-relecture"],
+    // Every write response carries the steps that usually follow it.
+    nextStepsOnWrites: true,
+    language: "French",
+    note:
+      "start_here answers 'where am I and what should I do next' for a PERSON (this tool answers 'what is possible' for a machine): active context or the list to choose from, the caller's role in plain terms, whether a draft is open, the unfinished work, and suggested next moves — and it works before set_context. The connector also publishes named workflow PROMPTS a client can surface as a menu (créer un document, appliquer un style, créer une routine, préparer une relecture). Every write response carries `nextSteps`, the sequence that usually follows. Language rule for all of it: these payloads are English, but they are for a PERSON — relay them in the expert's own working language, the one this subject's curriculum and guide are written in (French for Senegal, English for the EIDU frameworks). Vocabulary rule: speak the expert's words — document, section, chapter, objective — never TLM/SFI/hasPart, and never ask a user for a node id (use find_node).",
   };
 
   return {
@@ -286,7 +347,9 @@ export async function buildCapabilitiesReport(): Promise<Record<string, unknown>
       createdBy,
     },
     discovery,
+    guidance,
     editable,
+    checks,
     lifecycle,
     profile,
     preview,

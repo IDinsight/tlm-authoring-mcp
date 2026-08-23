@@ -35,6 +35,7 @@ import { readGlobalObject, writeGlobalObject } from "./storage/index.js";
 import { activateContext, refreshAvailableContexts } from "./activate.js";
 import { consentPage } from "./consent.js";
 import { resolveActor, withMemberships, runAsActor, type Actor } from "./actor.js";
+import { authorize } from "./authz.js";
 import { resolveMemberships } from "./workspaces/index.js";
 import { installProcessGuards } from "./utils/index.js";
 
@@ -80,6 +81,8 @@ function supabaseVerifier(): OAuthTokenVerifier {
 //                         without baking deployment config into the HTML.
 //   GET /kg/namespaces  — auth-gated. The selector list.
 //   GET /kg?ns=<ns>     — auth-gated. Published display-JSON for one namespace.
+//   GET /kg?ns=&slot=draft — CURATOR-gated. The unpublished draft, with each node
+//                       tagged added/changed and the removed ones listed.
 //   GET /kg/catalog?ns=<ns>            — auth-gated. The catalog libraries (shared +
 //                                        that workspace's) for the Catalog tab.
 //   GET /kg/catalog/entry?ns=&id=      — auth-gated. One entry's full spec (markdown).
@@ -95,6 +98,11 @@ function supabaseVerifier(): OAuthTokenVerifier {
 // explorer gated. NOTE: making it public exposes every seeded namespace's
 // published graph to anyone with the URL (CORS does not restrict non-browser
 // clients), so set it only when public read access is intended.
+//
+// The ungate is scoped to PUBLISHED reads and can never reach a draft
+// (self-serve-authoring.md, risk 3): a draft is unpublished work in a
+// multi-tenant store, so `?slot=draft` always requires a verified identity AND a
+// curator role in that namespace's workspace, whatever KG_EXPLORER_PUBLIC says.
 function registerKgRoutes(app: express.Express, authEnabled: boolean, verifier: OAuthTokenVerifier | null): void {
   const explorerPublic = process.env.KG_EXPLORER_PUBLIC === "1";
   const allowed = (process.env.KG_ALLOWED_ORIGINS
@@ -118,14 +126,54 @@ function registerKgRoutes(app: express.Express, authEnabled: boolean, verifier: 
 
   // Auth: require a verifiable Supabase Bearer JWT when auth is on. In
   // ALLOW_UNAUTHENTICATED mode (local only) or when the explorer is public it is
-  // a pass-through.
+  // a pass-through. A verified token is stashed on the request so a DRAFT read
+  // can be authorized properly below — identity still comes only from the
+  // signature-verified payload, never from a header or query parameter.
   const requireJwt: express.RequestHandler = async (req, res, next) => {
-    if (!authEnabled || explorerPublic) return next();
-    const m = /^Bearer (.+)$/.exec(req.headers.authorization ?? "");
-    if (!m) { res.status(401).json({ error: "missing_bearer_token" }); return; }
-    try { await verifier!.verifyAccessToken(m[1]); next(); }
+    const bearer = /^Bearer (.+)$/.exec(req.headers.authorization ?? "");
+    if (!authEnabled || explorerPublic) {
+      // Ungated, but a token that IS sent is still worth verifying: with the
+      // public explorer on, this is the only way a signed-in curator can reach
+      // their own draft below. A bad token is simply ignored here — it cannot
+      // grant anything, and refusing it would break the public read this mode
+      // exists for.
+      if (authEnabled && bearer) {
+        try { (req as { auth?: unknown }).auth = await verifier!.verifyAccessToken(bearer[1]); }
+        catch { /* unverifiable → anonymous; published reads still work */ }
+      }
+      return next();
+    }
+    if (!bearer) { res.status(401).json({ error: "missing_bearer_token" }); return; }
+    try {
+      (req as { auth?: unknown }).auth = await verifier!.verifyAccessToken(bearer[1]);
+      next();
+    }
     catch { res.status(401).json({ error: "invalid_token" }); }
   };
+
+  // A draft read needs MORE than a valid token: the curator role in that
+  // namespace's workspace, the same tier diff_draft and walk_graph(slot:'draft')
+  // require. Returns null when allowed, or the reason to refuse with.
+  //
+  // Two deliberate refusals on top of the role check: the explorer's public
+  // ungate grants nothing here (an anonymous public reader has no identity, so a
+  // draft is refused — though a curator who DOES send a valid token still gets
+  // theirs), and ALLOW_UNAUTHENTICATED (local dev) does not manufacture an
+  // identity — with no auth configured there is nobody to authorize, so a draft
+  // is simply not served over HTTP.
+  async function draftReadDenied(req: express.Request, ns: string): Promise<string | null> {
+    if (!authEnabled) return "draft reads require authentication to be configured";
+    const auth = (req as { auth?: Parameters<typeof resolveActor>[0] }).auth;
+    let actor = resolveActor(auth);
+    if (actor.unknown) return "no verified identity";
+    try {
+      actor = withMemberships(actor, await resolveMemberships(actor.id));
+    } catch (e) {
+      console.error(`${LOG} membership read failed for ${actor.id}:`, (e as Error).message);
+    }
+    const authz = authorize(actor, "readDraft", ns);
+    return authz.ok ? null : authz.reason;
+  }
 
   app.options(/^\/kg(\/.*)?$/, cors);
 
@@ -149,12 +197,17 @@ function registerKgRoutes(app: express.Express, authEnabled: boolean, verifier: 
   app.get("/kg", cors, requireJwt, async (req, res) => {
     const ns = String(req.query.ns ?? "").trim();
     if (!ns) { res.status(400).json({ error: "missing_ns" }); return; }
+    const slot = req.query.slot === "draft" ? "draft" : "published";
     try {
-      const graph = await exportNamespace(ns);
+      if (slot === "draft") {
+        const denied = await draftReadDenied(req, ns);
+        if (denied) { res.status(403).json({ error: "draft_read_forbidden", ns, reason: denied }); return; }
+      }
+      const graph = await exportNamespace(ns, { slot });
       if (!graph) { res.status(404).json({ error: "unknown_or_unseeded_namespace", ns }); return; }
       res.json(graph);
     } catch (e) {
-      console.error(`${LOG} /kg?ns=${ns} failed:`, (e as Error).message);
+      console.error(`${LOG} /kg?ns=${ns}&slot=${slot} failed:`, (e as Error).message);
       res.status(500).json({ error: "export_failed", message: (e as Error).message });
     }
   });

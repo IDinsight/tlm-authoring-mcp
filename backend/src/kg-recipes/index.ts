@@ -16,6 +16,7 @@ export { moveNode, type MoveNodeArgs } from "./move-node.js";
 export { reposition, type RepositionArgs } from "./reposition.js";
 export { setContent, type SetContentArgs } from "./set-content.js";
 export { editNode, type EditNodeArgs } from "./edit-node.js";
+export { createDocument, addSection, type CreateDocumentArgs, type AddSectionArgs } from "./document.js";
 export { RECIPES, type RecipeDescriptor, type RecipeParam } from "./registry.js";
 export {
   catalogNamespace, SHARED_CATALOG_NAMESPACE, SHARED_CATALOG_WORKSPACE, CATALOG_ROOT_ID,

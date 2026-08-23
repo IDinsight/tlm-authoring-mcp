@@ -9,7 +9,16 @@ Quand un curateur a préparé des modifications, elles attendent dans un **broui
 
 > « Montre-moi les modifications en attente pour cette matière. »
 
-Claude affiche la liste complète des changements — tout ce qui deviendra officiel à la publication : intitulés modifiés, leçons ajoutées ou déplacées, chapitres créés, etc. Prenez aussi note des éventuels **avertissements** (par exemple un chapitre sans bilan) : ils ne bloquent pas, mais c'est à vous de juger.
+Claude affiche la liste complète des changements — tout ce qui deviendra officiel à la publication : intitulés modifiés, leçons ajoutées ou déplacées, chapitres créés, etc.
+
+Demandez ensuite les deux vérifications, qui répondent à deux questions différentes :
+
+> « Vérifie le brouillon avant publication. »
+
+- **Le branchement** — ce qui n'est relié à rien : un document rattaché à aucun contenu (il serait produit **vide**), une section qui n'appartient à aucun document, une routine que personne n'utilise, un élément isolé. C'est mécanique et vrai pour toutes les matières ; chaque point est accompagné de ce qu'il faut faire.
+- **La couverture** — est-ce que ce qui a été écrit couvre bien ce que le programme attend ? C'est un jugement, appuyé sur les attentes rédigées dans le guide de la matière.
+
+Les deux sont des **avertissements**, jamais des blocages : c'est à vous de décider. Mais un document « rattaché à rien » mérite presque toujours une correction avant publication — c'est la panne la plus discrète du système, puisque la génération produirait simplement un document vide sans aucune erreur.
 
 <!-- SCREENSHOT : vue du brouillon complet (diff) -->
 

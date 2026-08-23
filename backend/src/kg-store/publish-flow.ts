@@ -24,6 +24,7 @@ import { getKgStore } from "./adapter.js";
 import { toAuditActor } from "./audit.js";
 import { diffGraphs, hashGraph, stripSlot } from "./mutations.js";
 import { diffProfile, hashConfig, type WholeDraftProfileDiff } from "./config-flow.js";
+import { lintGraph, type LintFinding } from "./lint.js";
 import type { AuditRecord, GraphDiff, MutationGraph, Slot } from "./types.js";
 import { currentActor, type Actor } from "../actor.js";
 import { authorize, selfApproveAllowed } from "../authz.js";
@@ -188,7 +189,29 @@ export type WholeDraftDiff = {
   // the publish/discard token so a profile edit that lands between dry-run and
   // confirm invalidates the token. Present whenever a draft exists.
   profileVersion?: string;
+  // Structural WIRING problems (kg-store/lint.ts) among the nodes THIS draft
+  // touched — a document with no covered content, a section outside its
+  // document, an isolated node. Scoped to the draft's own nodes so an approver
+  // is never shown a pre-existing issue they did not cause. Warnings only:
+  // nothing here ever blocks a publish (see self-serve-authoring.md, D4).
+  checks?: LintFinding[];
 };
+
+// The nodes this draft is responsible for — the scope the lint reports on, so an
+// approver never sees a pre-existing issue they did not cause. Added/changed
+// nodes, plus the ENDPOINTS of every edge the draft added or removed: unwiring a
+// document's `covers` edge breaks that document without changing its node, and
+// that is exactly the silent failure the lint exists to catch. Removed nodes are
+// excluded — they are gone, so no rule can say anything about them.
+function touchedNodeIds(diff: GraphDiff): Set<string> {
+  const touched = new Set([...diff.nodes.added, ...diff.nodes.changed].map((entry) => entry.id));
+  for (const entry of [...diff.edges.added, ...diff.edges.removed, ...diff.edges.changed]) {
+    const edge = (entry.after ?? entry.before) as { from?: string; to?: string } | undefined;
+    if (edge?.from) touched.add(edge.from);
+    if (edge?.to) touched.add(edge.to);
+  }
+  return touched;
+}
 
 export async function diffDraft(namespace: string): Promise<WholeDraftDiff> {
   const store = getKgStore();
@@ -204,13 +227,15 @@ export async function diffDraft(namespace: string): Promise<WholeDraftDiff> {
   ]);
   const published: MutationGraph = { nodes: pubN.map(stripSlot), edges: pubE.map(stripSlot) };
   const draft: MutationGraph = { nodes: drN.map(stripSlot), edges: drE.map(stripSlot) };
+  const diff = diffGraphs(published, draft);
   return {
     hasDraft: true,
     publishedVersion: hashGraph(published),
     draftVersion: hashGraph(draft),
-    diff: diffGraphs(published, draft),
+    diff,
     profileDiff,
     profileVersion: hashConfig(draftConfig),
+    checks: lintGraph(draft, { onlyNodes: touchedNodeIds(diff) }),
   };
 }
 
@@ -268,6 +293,10 @@ export type PublishConfirmPreview = {
   draftVersion?: string;
   diff?: GraphDiff;
   profileDiff?: WholeDraftProfileDiff; // staged subject-profile change (phase 2b), so the approver sees it
+  // The draft's structural wiring warnings (check_draft's rules, scoped to the
+  // nodes this draft touched). Shown at the dry-run so an approver reads them
+  // BEFORE promoting; they never block — publish is always the human's call.
+  checks?: LintFinding[];
   confirmationToken?: string;   // absent when there's nothing to publish
 };
 export type PublishConfirmResult =
@@ -330,15 +359,22 @@ export async function publishDraftWithConfirm(
   const token = encodeDraftToken({ op: "publish", ns: namespace, dv: draftFingerprint(snap), n: randomBytes(16).toString("base64url") });
   const changeCount = graphChangeCount(snap.diff!) + (snap.profileDiff?.changed ? 1 : 0);
   const profileNote = snap.profileDiff?.changed ? " (includes a subject-profile change)" : "";
+  // Wiring warnings ride the message too, not just the payload — an approver who
+  // reads only the confirmation sentence still learns the draft has loose ends.
+  const warningCount = (snap.checks ?? []).filter((check) => check.severity === "warning").length;
+  const checksNote = warningCount > 0
+    ? ` NOTE: ${warningCount} structural warning(s) on this draft (see \`checks\`) — they do not block the publish, but read them to the user first.`
+    : "";
   return {
     phase: "preview", kind: "publishDraft", needsConfirmation: true,
     action: `PROMOTE the draft on namespace '${namespace}' to LIVE (published) — ${changeCount} change(s)${profileNote} will be visible to generation immediately after this step`,
-    message: `Do NOT proceed yet. Ask the user to confirm — about to promote ${changeCount} draft change(s)${profileNote} to published on '${namespace}'. Once they explicitly agree, call this tool again with confirm: true AND the confirmationToken from this response.`,
+    message: `Do NOT proceed yet. Ask the user to confirm — about to promote ${changeCount} draft change(s)${profileNote} to published on '${namespace}'. Once they explicitly agree, call this tool again with confirm: true AND the confirmationToken from this response.${checksNote}`,
     hasDraft: true,
     publishedVersion: snap.publishedVersion,
     draftVersion: snap.draftVersion,
     diff: snap.diff,
     profileDiff: snap.profileDiff,
+    checks: snap.checks,
     confirmationToken: token,
   };
 }

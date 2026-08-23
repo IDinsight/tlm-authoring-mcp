@@ -22,7 +22,7 @@ import { getActiveAdapter } from "../adapters/index.js";
 import { activeWorkspace, sessionState } from "../context/index.js";
 import { getKgStore, kgNamespace, toAuditActor, diffGraphs, type GraphDiff } from "../kg-store/index.js";
 import { exportSubtree } from "../kg-export.js";
-import { walkGraph, computeGraphStats, documentSubgraph, documentSectionSubgraph, PRELOADED_SLOT_KEY, type WalkDirection } from "../curriculum/index.js";
+import { walkGraph, computeGraphStats, documentSubgraph, documentSectionSubgraph, findNodes, toFindable, PRELOADED_SLOT_KEY, type WalkDirection } from "../curriculum/index.js";
 import { resolveDraftModel } from "./preview.js";
 import { authorize } from "../authz.js";
 import { currentActor } from "../actor.js";
@@ -182,6 +182,37 @@ export async function walkDocumentSection(args: { sectionId: string; slot?: Walk
   return { slot, physicalSlot: resolved.physicalSlot, ...section };
 }
 
+// ── Core: find_node ───────────────────────────────────────────────────────────
+// Turn a name a person would type ("Chapitre 5") into node ids. The expert never
+// pastes a UUID: client-side completion was measured and does not render, so the
+// server does the resolution (self-serve-authoring.md, D9). Exported so tests
+// drive the real logic.
+export async function findActiveNodes(args: { query: string; labels?: string[]; limit?: number; slot?: WalkSlot }): Promise<Record<string, unknown>> {
+  const namespace = activeNamespace();
+  const slot = args.slot ?? "published";
+
+  const resolved = await resolveWalkModel(namespace, slot);
+  if ("notice" in resolved) {
+    return resolved.notice;
+  }
+
+  const matches = findNodes(toFindable(resolved.model), { query: args.query, labels: args.labels, limit: args.limit });
+  return {
+    slot,
+    physicalSlot: resolved.physicalSlot,
+    query: args.query,
+    matches,
+    // Several equally-good matches is the NORMAL case here (both Courses of a
+    // subject hold a "Chapitre 5"), so say out loud that guessing is wrong.
+    ...(matches.length > 1
+      ? { ambiguous: true, note: "Several elements carry this name. Ask the user which one — each candidate's `path` says which document or course it sits in — rather than picking one." }
+      : {}),
+    ...(matches.length === 0
+      ? { note: "Nothing carries this name. Try fewer words, or call namespace_stats to see the graph's roots." }
+      : {}),
+  };
+}
+
 // ── Core: namespace_stats ─────────────────────────────────────────────────────
 // Exported so tests drive the real logic directly (like buildCapabilitiesReport).
 export async function namespaceStats(): Promise<Record<string, unknown>> {
@@ -318,6 +349,24 @@ export function registerGraphTools(server: McpServer) {
       },
     },
     guarded(async (a: { sectionId: string; slot?: WalkSlot }) => asJson(await walkDocumentSection(a))),
+  );
+
+  server.registerTool(
+    "find_node",
+    {
+      title: "Find a node by name",
+      description:
+        "Turn a NAME into node ids — the way to get an id when the user says « chapter 5 » or « le guide de l'enseignant ». NEVER ask the user for a node id or a UUID: ask for the name, in their own language, and resolve it here. Matching ignores case and accents, so « chapitre 5 les nombres jusqu'a 20 » finds « Chapitre 5 : Les nombres jusqu'à 20 ». " +
+        "`query` is what the user typed; `labels` narrows to LC labels (e.g. ['LessonGrouping'] for a chapter/week, ['Course'], ['TeachingLearningMaterial'] for a document, ['Lesson']); `limit` caps the list (default 10). Each match carries `id`, `title`, `labels`, `path` (its containment ancestors — what tells two « Chapitre 5 » apart) and `match` (exact | prefix | contains | words). " +
+        "When several match, the response sets `ambiguous`: ASK the user which one, quoting the `path`, and do not guess — picking wrong silently writes against another document. `slot`: 'published' (default) or 'draft' (unpublished staged edits — curators/approvers only), so a chapter you just created is findable before publishing. Read-only.",
+      inputSchema: {
+        query: z.string(),
+        labels: z.array(z.string()).optional(),
+        limit: z.number().int().optional(),
+        slot: z.enum(["published", "draft"]).optional(),
+      },
+    },
+    guarded(async (a: { query: string; labels?: string[]; limit?: number; slot?: WalkSlot }) => asJson(await findActiveNodes(a))),
   );
 
   server.registerTool(
