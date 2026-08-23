@@ -126,11 +126,21 @@ export type GraphUnauthorizedResult = {
 
 // Exported so config-flow.ts can hash a profile record the same order-stable
 // way (Firestore doesn't guarantee object key order on read-back).
+// Follows JSON's treatment of `undefined` — an undefined-valued KEY is dropped, an
+// undefined ARRAY SLOT becomes null — so a value hashes the same before and after a
+// round-trip through the store. This is load-bearing, not cosmetic: a parked payload
+// comes back from Firestore with its undefined optionals stripped (stripUndefined),
+// and the confirm re-hashes what it read. Emitting "key":undefined for a key the
+// store cannot keep made every large batch fail its own token-only confirm with
+// ARGS_MISMATCH — add_nodes builds `title_en`/`position`/`via` on every item whether
+// the caller sent them or not.
 export const stableStringify = (v: unknown): string => {
+  if (v === undefined) return "null";
   if (v === null || typeof v !== "object") return JSON.stringify(v);
   if (Array.isArray(v)) return "[" + v.map(stableStringify).join(",") + "]";
-  const keys = Object.keys(v as Record<string, unknown>).sort();
-  return "{" + keys.map((k) => JSON.stringify(k) + ":" + stableStringify((v as Record<string, unknown>)[k])).join(",") + "}";
+  const bag = v as Record<string, unknown>;
+  const keys = Object.keys(bag).filter((k) => bag[k] !== undefined).sort();
+  return "{" + keys.map((k) => JSON.stringify(k) + ":" + stableStringify(bag[k])).join(",") + "}";
 };
 
 // Exported for the publish/discard lifecycle (publish-flow.ts), which needs the

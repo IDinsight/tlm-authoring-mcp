@@ -165,6 +165,12 @@ export async function runBatchMutation<Args>(opts: RunBatchArgs<Args>): Promise<
     // miss → apply below and record on success.
   }
 
+  // No storePayload here even when the wrapper parks below, so the token stays
+  // mode:"resend" while the response reports payloadStored:true. That pairing looks
+  // wrong and is deliberate: the wrapper park already holds the args (plus the
+  // minted-id extras the framework knows nothing about), so a second framework-side
+  // park would be a redundant write. Resend mode also keeps the args-hash check,
+  // which now verifies the PARKED payload still matches what was previewed.
   const result = await runGraphMutation({ namespace, mutation, args: effectiveArgs, confirm, token });
 
   // Dry-run park: keep the built context for a possible token-only confirm. The

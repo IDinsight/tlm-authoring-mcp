@@ -8,6 +8,8 @@
  *     different payload is a mismatch; no key keeps strict single-use; TTL evicts.
  *   • two-phase integrity — a no-confirm call stages NOTHING (the reported
  *     "dry-run applied anyway" bug, asserted via namespace_stats.draft).
+ *   • token-only confirm — a batch past the park threshold confirms with the token
+ *     alone, the way the dry-run's own instructions say to.
  */
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
@@ -333,5 +335,47 @@ describe("token-only confirm — batch wrapper parking", () => {
     expect(outcome.preview.payloadStored).toBe(true);
     expect(outcome.confirm.ok).toBe(true);
     expect((outcome.confirm.counts as { edgesAdded: number }).edgesAdded).toBe(outcome.edgeCount);
+  });
+});
+
+describe("token-only confirm on a parked batch", () => {
+  // A batch big enough to be parked server-side tells the caller to confirm with
+  // ONLY confirm + token. That instruction was unfollowable: the parked payload
+  // came back from the store with its undefined optionals stripped (add_nodes
+  // builds title_en/position/via on every item), so the confirm re-hashed a
+  // different value than the token carried and died ARGS_MISMATCH. Reproduced
+  // live on any batch over ~6 items.
+  it("applies when the caller re-sends nothing but the token", async () => {
+    await withActiveContext(async () => {
+      const items = lessonItems(await firstChapterId(), 40);
+      const preview = await runAddNodes({ items });
+      expect(preview.payloadStored).toBe(true);
+      expect(preview.confirmationToken).toBeTruthy();
+
+      const confirm = await runAddNodes({ confirm: true, confirmationToken: preview.confirmationToken as string });
+      expect(confirm).toMatchObject({ phase: "apply", ok: true });
+      expect(confirm.code).toBeUndefined();
+      expect((confirm.counts as { nodesAdded: number }).nodesAdded).toBe(40);
+    });
+  });
+
+  it("still accepts the re-send path for the same parked batch", async () => {
+    await withActiveContext(async () => {
+      const items = lessonItems(await firstChapterId(), 40);
+      const preview = await runAddNodes({ items });
+      const confirm = await runAddNodes({
+        items, confirm: true,
+        confirmationToken: preview.confirmationToken as string,
+        mintedNodeIds: preview.mintedNodeIds as string[],
+      });
+      expect(confirm).toMatchObject({ phase: "apply", ok: true });
+    });
+  });
+
+  it("leaves a small batch on the cheap re-send path (nothing parked)", async () => {
+    await withActiveContext(async () => {
+      const preview = await runAddNodes({ items: lessonItems(await firstChapterId(), 2) });
+      expect(preview.payloadStored).toBe(false);
+    });
   });
 });
