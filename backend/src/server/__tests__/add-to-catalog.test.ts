@@ -40,7 +40,6 @@ const SUPER: Actor = { id: "super-uid", email: "super@test", superAdmin: true, u
 const APPROVER: Actor = { id: "appr-uid", email: "appr@test", role: "approver", unknown: false };
 const CURATOR: Actor = { id: "cur-uid", email: "cur@test", role: "curator", unknown: false };
 
-const priorEnv = process.env.KG_SOURCE;
 let store: KgNodeStore;
 const contexts = listAvailableContexts();
 const targetCtx = contexts.find((c) => c.grade === "ci" && c.subject === "maths")!;
@@ -128,10 +127,8 @@ beforeEach(async () => {
   __resetMutationsForTest();
   __resetDraftTokensForTest();
   __setActorForTest(SUPER);
-  process.env.KG_SOURCE = "firestore";
 });
 afterAll(() => {
-  if (priorEnv === undefined) delete process.env.KG_SOURCE; else process.env.KG_SOURCE = priorEnv;
   __setKgStoreForTest(null);
   __setWorkspaceStoreForTest(null);
 });

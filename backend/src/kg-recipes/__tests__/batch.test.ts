@@ -34,7 +34,6 @@ const fakeStorage: StorageAdapter = {
 };
 const CURATOR: Actor = { id: "curator-uid", email: "curator@test", role: "curator", unknown: false };
 
-const priorEnv = process.env.KG_SOURCE;
 let store: KgNodeStore;
 const contexts = listAvailableContexts();
 const ns = kgNamespace("ci", "maths");
@@ -109,10 +108,8 @@ beforeEach(async () => {
   __resetMutationsForTest();
   __resetDraftTokensForTest();
   __setActorForTest(CURATOR);
-  process.env.KG_SOURCE = "firestore";
 });
 afterAll(() => {
-  if (priorEnv === undefined) delete process.env.KG_SOURCE; else process.env.KG_SOURCE = priorEnv;
   __setKgStoreForTest(null);
 });
 

@@ -21,7 +21,6 @@ import { __setActorForTest, type Actor } from "../../actor.js";
 import type { StorageAdapter, HistoryFile } from "../../types.js";
 
 const CURATOR: Actor = { id: "curator-uid", email: "curator@test", role: "curator", unknown: false };
-const priorEnv = process.env.KG_SOURCE;
 const ns = kgNamespace("ci", "maths");
 
 const TLM_ID = "tlm-doc";
@@ -109,7 +108,6 @@ beforeEach(async () => {
   history = { version: 3, entries: [] };
   __resetMutationsForTest();
   __setActorForTest(CURATOR);
-  process.env.KG_SOURCE = "firestore";
   await useStore(true);
   history.entries.push({
     id: courseId, nodeId: courseId, relPath: "guide/Guide de l'enseignant.docx",
@@ -118,7 +116,6 @@ beforeEach(async () => {
   });
 });
 afterAll(() => {
-  if (priorEnv === undefined) delete process.env.KG_SOURCE; else process.env.KG_SOURCE = priorEnv;
   __setKgStoreForTest(null);
 });
 

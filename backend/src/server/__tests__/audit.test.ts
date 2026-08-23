@@ -11,10 +11,9 @@
  * createDraft / publish-with-self-authorship / discard / force-cascade delete /
  * recipe / blocked all present and correctly attributed).
  *
- * Setup mirrors capabilities.test.ts / audit.test.ts: a memory KG store seeded
- * from the real sources, KG_SOURCE=firestore to exercise the lifecycle path,
- * and the tool's exported core (`readAudit`) driven directly inside an active
- * context + actor.
+ * Setup mirrors capabilities.test.ts: a memory KG store seeded from the
+ * fixture graphs, and the tool's exported core (`readAudit`) driven directly
+ * inside an active context + actor.
  */
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
@@ -52,7 +51,6 @@ const APPROVER: Actor = { id: "approver-uid", email: "approver@test", tokenIssue
 const CURATOR: Actor = { id: "curator-uid", email: "curator@test", tokenIssuer: "iss", role: "curator", unknown: false };
 const NO_ROLE: Actor = { id: "guest-uid", email: "guest@test", unknown: false };
 
-const priorEnv = process.env.KG_SOURCE;
 let store: KgNodeStore;
 const contexts = listAvailableContexts();
 const targetCtx = contexts.find((c) => c.grade === "ci" && c.subject === "maths")!;
@@ -110,14 +108,8 @@ beforeEach(async () => {
   store = await seedFreshStore();
   __setKgStoreForTest(store);
   __resetMutationsForTest();
-  process.env.KG_SOURCE = "firestore";
 });
 afterAll(() => {
-  if (priorEnv === undefined) {
-    delete process.env.KG_SOURCE;
-  } else {
-    process.env.KG_SOURCE = priorEnv;
-  }
   __setKgStoreForTest(null);
 });
 

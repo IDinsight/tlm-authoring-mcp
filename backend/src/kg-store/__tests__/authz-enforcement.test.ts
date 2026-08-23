@@ -57,7 +57,6 @@ const setNodeProperty: GraphMutation<SetPropArgs> = {
   }),
 };
 
-const priorEnv = process.env.KG_SOURCE;
 const priorSelfApprove = process.env.TLM_ALLOW_SELF_APPROVE;
 let store: KgNodeStore;
 const contexts = listAvailableContexts();
@@ -98,15 +97,12 @@ beforeEach(async () => {
   __setKgStoreForTest(store);
   __resetMutationsForTest();
   __setActorForTest(null); // each test installs its own actor explicitly
-  process.env.KG_SOURCE = "firestore";
 });
 afterEach(() => {
   if (priorSelfApprove === undefined) delete process.env.TLM_ALLOW_SELF_APPROVE;
   else process.env.TLM_ALLOW_SELF_APPROVE = priorSelfApprove;
 });
 afterAll(() => {
-  if (priorEnv === undefined) delete process.env.KG_SOURCE;
-  else process.env.KG_SOURCE = priorEnv;
   __setKgStoreForTest(null);
 });
 

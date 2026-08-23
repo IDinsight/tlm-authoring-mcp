@@ -94,7 +94,6 @@ const validatingMutation: GraphMutation<SetPropArgs> = {
   apply: setNodeProperty.apply,
 };
 
-const priorEnv = process.env.KG_SOURCE;
 let store: KgNodeStore;
 const contexts = listAvailableContexts();
 // Pinned to the senegal workspace: this harness's curator/approver actor
@@ -138,11 +137,8 @@ beforeEach(async () => {
   __setKgStoreForTest(store);
   __resetMutationsForTest();
   __setActorForTest(TEST_CURATOR);
-  process.env.KG_SOURCE = "firestore";
 });
 afterAll(() => {
-  if (priorEnv === undefined) delete process.env.KG_SOURCE;
-  else process.env.KG_SOURCE = priorEnv;
   __setKgStoreForTest(null);
 });
 

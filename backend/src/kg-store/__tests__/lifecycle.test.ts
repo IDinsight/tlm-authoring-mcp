@@ -44,7 +44,6 @@ const fakeStorage: StorageAdapter = {
   writeHistory: async () => {},
 };
 
-const priorEnv = process.env.KG_SOURCE;
 let store: KgNodeStore;
 const contexts = listAvailableContexts();
 
@@ -74,12 +73,9 @@ beforeAll(() => {
 beforeEach(async () => {
   store = await seedFreshStore();
   __setKgStoreForTest(store);
-  process.env.KG_SOURCE = "firestore"; // exercise the lifecycle-aware backend
 });
 
 afterAll(() => {
-  if (priorEnv === undefined) delete process.env.KG_SOURCE;
-  else process.env.KG_SOURCE = priorEnv;
   __setKgStoreForTest(null);
 });
 

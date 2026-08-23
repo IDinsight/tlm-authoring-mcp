@@ -169,7 +169,6 @@ describe("validateStructural — direct tests (Rule 2: no-orphan)", () => {
 // rules through runGraphMutation, so the "errors block confirmation" path in
 // #5 — previously unreachable because validate was empty — is exercised.
 
-const priorEnv = process.env.KG_SOURCE;
 let store: KgNodeStore;
 const contexts = listAvailableContexts();
 // Pinned to the senegal workspace: this harness's curator/approver actor
@@ -241,11 +240,8 @@ beforeEach(async () => {
   __setKgStoreForTest(store);
   __resetMutationsForTest();
   __setActorForTest(TEST_CURATOR);
-  process.env.KG_SOURCE = "firestore";
 });
 afterAll(() => {
-  if (priorEnv === undefined) delete process.env.KG_SOURCE;
-  else process.env.KG_SOURCE = priorEnv;
   __setKgStoreForTest(null);
 });
 

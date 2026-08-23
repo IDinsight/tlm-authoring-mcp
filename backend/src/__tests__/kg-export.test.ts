@@ -18,7 +18,6 @@ import { glossaryNamespace, buildLexiconNode } from "../glossary/index.js";
 import { DEFAULT_WORKSPACE } from "../config.js";
 import type { KgNodeStore, StoredMeta, StoredNode, StoredEdge } from "../kg-store/index.js";
 
-const priorEnv = process.env.KG_SOURCE;
 const contexts = listAvailableContexts();
 
 // A small catalog fixture in store shape (non-spine; LC props under properties.raw)
@@ -112,8 +111,8 @@ async function seedGlossary(store: KgNodeStore, workspace: string): Promise<void
   await store.ensurePointer(namespace, "a");
 }
 
-beforeAll(async () => { process.env.KG_SOURCE = "firestore"; __setKgStoreForTest(await seed()); });
-afterAll(() => { if (priorEnv === undefined) delete process.env.KG_SOURCE; else process.env.KG_SOURCE = priorEnv; __setKgStoreForTest(null); });
+beforeAll(async () => { __setKgStoreForTest(await seed()); });
+afterAll(() => { __setKgStoreForTest(null); });
 
 const mathsNs = kgNamespace("ci", "maths");
 const readingNs = kgNamespace("ce1", "reading");

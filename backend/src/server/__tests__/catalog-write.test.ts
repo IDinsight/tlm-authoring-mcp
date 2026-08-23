@@ -44,7 +44,6 @@ const CURATOR: Actor = { id: "cur-uid", email: "cur@test", role: "curator", unkn
 // `admin` is a WORKSPACE membership role, not the legacy Supabase app_role.
 const ADMIN: Actor = { id: "admin-uid", email: "admin@test", unknown: false, memberships: { senegal: "admin" } };
 
-const priorEnv = process.env.KG_SOURCE;
 let store: KgNodeStore;
 const contexts = listAvailableContexts();
 const targetCtx = contexts.find((c) => c.grade === "ci" && c.subject === "maths")!;
@@ -123,10 +122,8 @@ beforeEach(async () => {
   __resetMutationsForTest();
   __resetDraftTokensForTest();
   __setActorForTest(SUPER);
-  process.env.KG_SOURCE = "firestore";
 });
 afterAll(() => {
-  if (priorEnv === undefined) delete process.env.KG_SOURCE; else process.env.KG_SOURCE = priorEnv;
   __setKgStoreForTest(null);
   __setWorkspaceStoreForTest(null);
 });

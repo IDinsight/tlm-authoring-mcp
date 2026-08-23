@@ -62,7 +62,6 @@ const CURATOR: Actor = { id: "curator-uid", email: "curator@test", role: "curato
 const APPROVER: Actor = { id: "approver-uid", email: "approver@test", role: "approver", unknown: false };
 const NO_ROLE: Actor = { id: "guest-uid", email: "guest@test", unknown: false };
 
-const priorEnv = process.env.KG_SOURCE;
 let store: KgNodeStore;
 const contexts = listAvailableContexts();
 const ctx = contexts.find((c) => c.grade === "ci" && c.subject === "maths")!;
@@ -140,14 +139,8 @@ beforeEach(async () => {
   __resetMutationsForTest();
   canonicalUploadCalls = 0;
   historyWrites = 0;
-  process.env.KG_SOURCE = "firestore";
 });
 afterAll(() => {
-  if (priorEnv === undefined) {
-    delete process.env.KG_SOURCE;
-  } else {
-    process.env.KG_SOURCE = priorEnv;
-  }
   __setKgStoreForTest(null);
 });
 

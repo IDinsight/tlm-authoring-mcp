@@ -1,10 +1,9 @@
 /*
  * Profile tools — get_profile / get_graph_guide / edit_profile (cores).
  *
- * Exercises the exported tool cores against a seeded memory store (firestore
- * mode) and against the on-disk bundle (bundle mode), the two KG_SOURCE paths
- * the tools branch on. Focus: the { core, guide } record surfaces correctly,
- * the LLM-facing guide read, the draft role gate, and the firestore-only edit.
+ * Exercises the exported tool cores against a seeded memory store. Focus: the
+ * { core, guide } record surfaces correctly, the LLM-facing guide read, the
+ * draft role gate, and the edit.
  */
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
@@ -35,7 +34,6 @@ const fakeStorage: StorageAdapter = {
 const CURATOR: Actor = { id: "curator-uid", email: "curator@test", role: "curator", unknown: false };
 const UNKNOWN: Actor = { id: "anon", unknown: true };
 
-const priorEnv = process.env.KG_SOURCE;
 let store: KgNodeStore;
 const contexts = listAvailableContexts();
 const maths = contexts.find((c) => c.grade === "ci" && c.subject === "maths")!;
@@ -68,11 +66,8 @@ beforeEach(async () => {
   store = await seedFreshStore();
   __setKgStoreForTest(store);
   __setActorForTest(null);
-  process.env.KG_SOURCE = "firestore";
 });
 afterAll(() => {
-  if (priorEnv === undefined) delete process.env.KG_SOURCE;
-  else process.env.KG_SOURCE = priorEnv;
   __setKgStoreForTest(null);
 });
 
