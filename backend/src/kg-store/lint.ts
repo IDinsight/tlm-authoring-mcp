@@ -209,9 +209,22 @@ function sectionOutsideDocument(graph: MutationGraph, index: Index): LintFinding
 // A routine nothing uses is invisible to generation — the "routine attached to
 // no lesson" case.
 function routineUnused(graph: MutationGraph, index: Index): LintFinding[] {
+  const byId = index.byId;
+  // A routine's STEPS are themselves InstructionalRoutine nodes, hung under the
+  // entry by hasPart (that is the catalog's nested-step shape). A step is never
+  // the target of usesRoutine and never should be — only the ENTRY is attached
+  // to a lesson. Measured on live ci/maths: 13 routines, 11 of them steps, so
+  // without this the rule fires eleven times on a healthy graph.
+  const isStepOfAnotherRoutine = (routineId: string): boolean =>
+    graph.edges.some((edge) =>
+      edge.type === "hasPart" &&
+      edge.to === routineId &&
+      has(byId.get(edge.from) ?? ({} as MutationNode), ROUTINE_LABEL));
+
   return graph.nodes
     .filter((node) => has(node, ROUTINE_LABEL))
     .filter((routine) => !(index.inTypes.get(routine.id)?.has("usesRoutine") ?? false))
+    .filter((routine) => !isStepOfAnotherRoutine(routine.id))
     .map((routine) => ({
       rule: "routine-unused",
       severity: "warning" as const,
