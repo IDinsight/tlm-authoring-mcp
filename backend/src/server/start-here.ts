@@ -33,8 +33,8 @@ import type { EffectiveRole } from "../actor.js";
 
 // What each role may do, in the expert's terms — never the internal action names.
 const ROLE_POWERS: Record<EffectiveRole, string[]> = {
-  curator: ["change the content (changes stay in a draft)", "discard the draft"],
-  approver: ["change the content", "discard the draft", "publish (make changes visible)"],
+  curator: ["change the content (changes stay in a draft)", "take back the last change", "discard the draft"],
+  approver: ["change the content", "take back the last change", "discard the draft", "publish (make changes visible)"],
   admin: ["change and publish", "manage the workspace's members"],
   super_admin: ["do anything, in every workspace"],
 };
@@ -104,7 +104,10 @@ export async function startHere(): Promise<Record<string, unknown>> {
     "See what the curriculum is made of: namespace_stats.",
     "Find a chapter or a document by its NAME (never by identifier): find_node.",
     ...(draftOpen
-      ? ["A draft is open: see what it changes (diff_draft), check its wiring (check_draft), then publish (publish_draft)."]
+      ? [
+          "A draft is open: see what it changes (diff_draft), check its wiring (check_draft), then publish (publish_draft).",
+          "One edit went wrong? undo_last takes back just the last one; discard_draft throws the whole draft away.",
+        ]
       : []),
     ...(findings.length > 0 ? ["Pick up the unfinished work listed in `unfinished`."] : []),
   ];

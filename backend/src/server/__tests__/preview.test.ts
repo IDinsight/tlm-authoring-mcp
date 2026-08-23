@@ -14,8 +14,10 @@
  *      key under previews/, never the canonical documents/ keyspace.
  *   5. ROLE matrix: curator + approver may preview; signed-in-no-role and
  *      unknown are blocked (and the denial is audited).
- *   6. SCOPING: an unknown course is rejected; a preview is scoped to the
- *      one unit asked for (no implicit whole-curriculum path).
+ *   6. SCOPING: an unknown id is rejected; a preview is scoped to the
+ *      one unit asked for (no implicit whole-curriculum path), and that unit
+ *      may be a Course, a whole document (TLM), or ONE DocumentSection —
+ *      previewing at the size of the thing that changed (phase 4).
  *   7. PARITY: the published buildGenerationContext output is unchanged for
  *      existing callers.
  */
@@ -35,6 +37,7 @@ import { __setStorageForTest } from "../../storage/index.js";
 import { __setActorForTest, type Actor } from "../../actor.js";
 import { activateContext } from "../../activate.js";
 import { previewGeneration, createPreviewUploadUrl, PREVIEW_LABEL } from "../preview.js";
+import { runCreateDocument, runAddSection } from "../document-authoring.js";
 import type { KgNodeStore, Slot, StoredMeta } from "../../kg-store/index.js";
 import type { StorageAdapter, HistoryFile } from "../../types.js";
 
@@ -295,5 +298,72 @@ describe("preview is scoped — unknown course rejected, one course only", () =>
     await stageReposition(CURATOR, chapter.id, 99);
     const res = await withCtx(CURATOR, () => previewGeneration(course.id));
     expect(res.course).toBe(course.id);
+  });
+});
+
+// ── phase 4: a preview is taken at the size of the thing that changed ────────
+// The published readers already resolve all three scopes; what preview adds is
+// the draft slot, the label, and the audited event. So these tests prove the
+// ROUTING — that each kind of id lands on its own reader — not the readers.
+describe("preview scopes: a section, a document, or a course", () => {
+  // A minimal document staged on the draft: a TLM covering a chapter, plus one
+  // section covering the same chapter. Returns both ids.
+  async function stageADocumentWithASection(): Promise<{ tlmId: string; sectionId: string }> {
+    const chapter = await pickChapter();
+    return withCtx(CURATOR, async () => {
+      const docPreview = await runCreateDocument({ name: "Fiche de révision", covers: chapter.id });
+      const doc = await runCreateDocument({
+        ...{ name: "Fiche de révision", covers: chapter.id },
+        confirm: true, confirmationToken: docPreview.confirmationToken as string,
+        mintedNodeId: (docPreview.mintedNodeIds as string[])[0],
+      });
+      const tlmId = (doc.mintedNodeIds as string[])[0];
+
+      const sectionArgs = { document: tlmId, name: "Rappel de cours", covers: chapter.id, position: 1 };
+      const sectionPreview = await runAddSection(sectionArgs);
+      const section = await runAddSection({
+        ...sectionArgs,
+        confirm: true, confirmationToken: sectionPreview.confirmationToken as string,
+        mintedNodeId: (sectionPreview.mintedNodeIds as string[])[0],
+      });
+      return { tlmId, sectionId: (section.mintedNodeIds as string[])[0] };
+    });
+  }
+
+  it("previews ONE section — the slot a curator just edited, not its whole document", async () => {
+    const { sectionId } = await stageADocumentWithASection();
+    const res = await withCtx(CURATOR, () => previewGeneration(sectionId));
+
+    expect(res.previewOf).toBe("section");
+    expect(res.label).toBe(PREVIEW_LABEL);
+    expect((res.section as { id: string }).id).toBe(sectionId);
+    // The formatters + routine a per-section generation needs ride along.
+    expect(res.formatters).toBeDefined();
+    expect("routine" in res).toBe(true);
+  });
+
+  it("previews a whole document from its TLM id", async () => {
+    const { tlmId } = await stageADocumentWithASection();
+    const res = await withCtx(CURATOR, () => previewGeneration(tlmId));
+
+    expect(res.previewOf).toBe("document");
+    expect((res.sections as Array<{ id: string }>).length).toBe(1);
+  });
+
+  it("still previews a Course, and says so", async () => {
+    const chapter = await pickChapter();
+    const course = await pickCourse();
+    await stageReposition(CURATOR, chapter.id, 99);
+    const res = await withCtx(CURATOR, () => previewGeneration(course.id));
+    expect(res.previewOf).toBe("course");
+    expect(res.course).toBe(course.id);
+  });
+
+  it("names the three previewable things when the id is none of them", async () => {
+    const chapter = await pickChapter();
+    await stageReposition(CURATOR, chapter.id, 99);
+    const res = await withCtx(CURATOR, () => previewGeneration(chapter.id));
+    expect(String(res.error)).toMatch(/DocumentSection.*TeachingLearningMaterial.*Course/s);
+    expect(String(res.error)).toMatch(/find_node/);
   });
 });

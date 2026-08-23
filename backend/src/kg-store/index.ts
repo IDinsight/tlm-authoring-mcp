@@ -9,6 +9,8 @@ export type { KgNodeStore, Slot, StoredNode, StoredEdge, StoredMeta, StoredConfi
 export { otherSlot, edgeId } from "./types.js";
 export { runGraphMutation, diffGraphs, __resetMutationsForTest, readTokenNonce, shouldStorePayload, pendingTtlMs } from "./mutations.js";
 export { publishDraft, discardDraft, diffDraft, publishDraftWithConfirm, discardDraftWithConfirm, __resetDraftTokensForTest } from "./publish-flow.js";
+export { findUndoTarget, undoApply, undoConflicts } from "./undo.js";
+export type { UndoLastArgs } from "./undo.js";
 export { editProfileWithConfirm, diffProfile, hashConfig, __resetConfigTokensForTest } from "./config-flow.js";
 export type { EditProfileResult, EditProfileOpts, ConfigDiff, WholeDraftProfileDiff } from "./config-flow.js";
 export { readAtPath, writeAtPath } from "./paths.js";

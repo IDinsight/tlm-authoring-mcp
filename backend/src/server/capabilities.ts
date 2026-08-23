@@ -162,17 +162,17 @@ export async function buildCapabilitiesReport(): Promise<Record<string, unknown>
     },
   };
 
-  // ── lifecycle: the draft promotion / discard tools and their response
+  // ── lifecycle: the draft promotion / discard / undo tools and their response
   // controls, advertised so callers can feature-detect returnMode (mirrors
   // editable.batch). The role gates live in actions.canPublish /
   // actions.canDiscardDraft — this block is about response SHAPE, not authz.
   const lifecycle = {
-    tools: ["publish_draft", "discard_draft"],
+    tools: ["publish_draft", "discard_draft", "undo_last"],
     params: ["returnMode"],
     returnModes: ["summary", "full"],
     defaultReturnMode: "summary",
     note:
-      "publish_draft promotes the draft to live; discard_draft throws it away. Both are two-phase (dry-run → confirmationToken → confirm). returnMode defaults to 'summary' — a compact `counts` object (plus `warnings`, verbatim, on publish) instead of the whole-draft `diff`, which is 200+ KB on a large draft and can overflow the token cap and hide the confirmationToken; pass 'full' to also attach the diff (and any staged profileDiff). To inspect the full diff before promoting, call diff_draft — it is the diff endpoint; publish_draft/discard_draft return mutation summaries. Coverage warnings are preserved in BOTH modes: an approver must see them before publishing.",
+      "publish_draft promotes the draft to live; discard_draft throws it away. Both are two-phase (dry-run → confirmationToken → confirm). returnMode defaults to 'summary' — a compact `counts` object (plus `warnings`, verbatim, on publish) instead of the whole-draft `diff`, which is 200+ KB on a large draft and can overflow the token cap and hide the confirmationToken; pass 'full' to also attach the diff (and any staged profileDiff). To inspect the full diff before promoting, call diff_draft — it is the diff endpoint; publish_draft/discard_draft return mutation summaries. Coverage warnings are preserved in BOTH modes: an approver must see them before publishing. undo_last is the per-EDIT counterpart to discard_draft: it takes back only the most recent staged edit (replaying that edit's recorded diff backwards) and leaves the rest of the draft standing, peeling back one edit per call. It is an ordinary draft edit — gated by actions.canEditDraft, not canDiscardDraft — and it refuses rather than merges when a later edit touched the same node.",
   };
 
   // ── rules: structural rules and confirm expectation. structural
@@ -192,7 +192,7 @@ export async function buildCapabilitiesReport(): Promise<Record<string, unknown>
     hasDraft: draftExists,
     tools: ["preview_generation", "create_preview_upload_url"],
     note:
-      "preview_generation resolves the generation context from the UNPUBLISHED draft (not published) and is scoped to one Course (its containment subtree) — so you can generate a PREVIEW of the material a staged edit would produce before publishing. It closes the loop with the dry-run: dry-run shows the graph DIFF, preview shows the resulting MATERIAL. Read-only on the draft (no graph change), curator + approver only. Preview .docx output goes through create_preview_upload_url to a SEGREGATED previews/ prefix with short-lived, clearly-labelled URLs — it never touches the canonical documents bucket, list_documents, or log_generation. With no draft open, preview_generation returns a clear 'no draft to preview' notice. Draft-vs-published output comparison is a deferred follow-on.",
+      "preview_generation resolves the generation context from the UNPUBLISHED draft (not published), scoped to whichever piece you name — a DocumentSection (one slot of a document), a TeachingLearningMaterial (a whole document), or a Course (its containment subtree), reported back as `previewOf` — so you can generate a PREVIEW of the material a staged edit would produce before publishing, at the size of the thing that changed rather than a whole chapter. It closes the loop with the dry-run: dry-run shows the graph DIFF, preview shows the resulting MATERIAL. Read-only on the draft (no graph change), curator + approver only. Preview .docx output goes through create_preview_upload_url to a SEGREGATED previews/ prefix with short-lived, clearly-labelled URLs — it never touches the canonical documents bucket, list_documents, or log_generation. With no draft open, preview_generation returns a clear 'no draft to preview' notice. Draft-vs-published output comparison is a deferred follow-on.",
   };
 
   // ── audit: advertise the approver-only, read-only audit reader (#16), so

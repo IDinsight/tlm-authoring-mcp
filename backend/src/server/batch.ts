@@ -113,6 +113,9 @@ export type RunBatchArgs<Args> = {
   // hash are stashed against the token so a token-only confirm reconstructs them.
   // Only take-effect when the payload is large enough; small batches keep re-send.
   storePayload?: boolean;
+  // undo_last only: forwarded to the framework so the apply record it writes
+  // names the edit it inverts (see kg-store/undo.ts).
+  undoOf?: string;
 };
 
 // The wrapper's parked context for a batch — everything a stored confirm needs
@@ -172,7 +175,7 @@ export async function runBatchMutation<Args>(opts: RunBatchArgs<Args>): Promise<
   // minted-id extras the framework knows nothing about), so a second framework-side
   // park would be a redundant write. Resend mode also keeps the args-hash check,
   // which now verifies the PARKED payload still matches what was previewed.
-  const result = await runGraphMutation({ namespace, mutation, args: effectiveArgs, confirm, token });
+  const result = await runGraphMutation({ namespace, mutation, args: effectiveArgs, confirm, token, undoOf: opts.undoOf });
 
   // Dry-run park: keep the built context for a possible token-only confirm. The
   // helper decides whether to actually park based on payload size — small ones

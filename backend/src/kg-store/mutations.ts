@@ -354,6 +354,9 @@ export type RunGraphMutationArgs<Args> = {
   // — a safe no-op after a lost-response retry. Omit it and confirm keeps its
   // strict one-time-token behaviour (a replay is rejected).
   idempotencyKey?: string;
+  // Set by undo_last only: the apply record this mutation inverts, stamped onto
+  // the resulting apply record so the next undo peels back instead of toggling.
+  undoOf?: string;
   // Opt in to parking a LARGE payload server-side so the confirm need not re-send
   // it (token-only confirm). Only callers that pass their COMPLETE args straight
   // through — no wrapper that rebuilds args or mints ids per phase — should set
@@ -366,7 +369,7 @@ export type RunGraphMutationArgs<Args> = {
 export async function runGraphMutation<Args>(
   input: RunGraphMutationArgs<Args>,
 ): Promise<GraphPreviewResult | GraphBlockedResult | GraphApplyResult | GraphUnauthorizedResult> {
-  const { namespace, mutation, args, confirm, token, idempotencyKey, storePayload } = input;
+  const { namespace, mutation, args, confirm, token, idempotencyKey, storePayload, undoOf } = input;
   const store = getKgStore();
 
   // Compose the stakes-accurate action string exactly once. Every path that
@@ -539,6 +542,9 @@ export async function runGraphMutation<Args>(
       baseVersion: hashGraph(draftGraph),
       resultingVersion,
       diff,
+      // Only present on an undo: the store writes the record verbatim, and an
+      // explicit `undefined` field is not a value Firestore accepts.
+      ...(undoOf ? { undoOf } : {}),
     };
     // Turn the diff into a write delta: upsert the added + changed docs, delete
     // the removed ids. We pull the upsert payloads from `applied` (the diff

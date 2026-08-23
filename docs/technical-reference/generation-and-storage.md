@@ -34,7 +34,7 @@ Document identity is the **graph node the document covers** — its *scope node*
 
 An expert who has staged a draft edit can generate a **preview** of the teaching material that edit would produce — reading the **draft** instead of published — **without touching published, the canonical documents bucket, or the canonical generation history.** This closes the editing loop: the dry-run (per-mutation diff) and `diff_draft` show the **graph change**; preview shows the **result** — the material that change yields.
 
-- **`preview_generation(course)`** — the draft-resolved read. It resolves the curriculum from the **draft slot** (the same slot `diff_draft` reads) via the store-bridge and the subject adapter, then returns the containment subtree under that `course` — the same shape `walk_graph` exposes on published, but from the draft model. The result is **tagged `preview`** and carries the label *"PREVIEW — generated from an unpublished draft, not a published deliverable."* Read-only on the draft — it does **not** mutate the graph.
+- **`preview_generation(nodeId)`** — the draft-resolved read. It resolves the curriculum from the **draft slot** (the same slot `diff_draft` reads) via the store-bridge and the subject adapter, then returns whichever scope `nodeId` names — the same shape the published readers expose, but from the draft model. The result is **tagged `preview`** and carries the label *"PREVIEW — generated from an unpublished draft, not a published deliverable."* Read-only on the draft — it does **not** mutate the graph.
 - **`create_preview_upload_url(relPath)`** — the preview **output** path. Signs short-lived (10 min) write + read URLs for a throwaway `.docx` under the **segregated `previews/` prefix**. Never the canonical `documents/` bucket, never `log_generation`, never `list_documents`/`reconcile`. `PUT` the generated file to `uploadUrl`, hand the human `downloadUrl`.
 
 **Isolation guarantees** (all covered by `src/server/__tests__/preview.test.ts`):
@@ -46,7 +46,15 @@ An expert who has staged a draft edit can generate a **preview** of the teaching
 
 **Who?** Same trust tier as `diff_draft`: **curators and approvers** may preview; unknown / no-role callers are blocked (and the denial is audited). It is read-like, so there is no two-phase confirm and no token.
 
-**Scope.** A preview always targets **one Course** — there is no implicit whole-workspace preview (generation is LLM-driven and costly).
+**Scope.** A preview always targets **one named node** — there is no implicit whole-workspace preview (generation is LLM-driven and costly). Three kinds of node are previewable, resolved by the same readers the published path uses, and reported back as `previewOf`:
+
+| `nodeId` | `previewOf` | Reader | Preview this when |
+|---|---|---|---|
+| a `DocumentSection` | `section` | `documentSectionSubgraph` (as `walk_document_section`) | you edited one slot of a document — the cheapest useful preview |
+| a `TeachingLearningMaterial` | `document` | `documentSubgraph` (as `walk_document`) | you want the whole document as generation composes it |
+| a `Course` | `course` | `courseSubgraph` | you edited the curriculum itself |
+
+An id that is none of the three comes back with an error naming all three and pointing at `find_node` — a preview never guesses what you meant. The old `course` argument name is still accepted as an alias.
 
 **Deferred.** A draft-vs-published output *comparison* (previewing both for the same scope so the expert sees exactly what changes in the material) is a follow-on — it doubles LLM cost, and the graph-level change is already available via `diff_draft`.
 

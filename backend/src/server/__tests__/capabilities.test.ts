@@ -280,9 +280,11 @@ describe("editable and rules come from the real sources (no hand-copied literals
     expect(caps.editable.batch.kindProperties.StandardsFrameworkItem).toContain("statementType");
   });
 
-  it("lifecycle advertises publish_draft / discard_draft returnMode controls", async () => {
+  it("lifecycle advertises the draft tools + their returnMode controls", async () => {
     const caps = await withActiveContext(CURATOR, callGetCapabilities);
-    expect(caps.lifecycle.tools).toEqual(["publish_draft", "discard_draft"]);
+    // undo_last sits here as the per-EDIT counterpart to discard_draft, even
+    // though its role gate is canEditDraft rather than canDiscardDraft.
+    expect(caps.lifecycle.tools).toEqual(["publish_draft", "discard_draft", "undo_last"]);
     expect(caps.lifecycle.params).toEqual(["returnMode"]);
     expect(caps.lifecycle.defaultReturnMode).toBe("summary");
     expect(caps.lifecycle.returnModes).toEqual(["summary", "full"]);
