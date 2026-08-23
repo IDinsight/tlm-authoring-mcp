@@ -238,6 +238,21 @@ describe("list_catalog", () => {
     expect(flat).toContain("corps révision");
   });
 
+  it("omits the edit hints for a read-only audience, keeping the authored text", async () => {
+    // The explorer renders this markdown verbatim to a human who cannot act on a
+    // tool call — so its route asks for the spec without the `edit_node` lines.
+    const graph = await readCatalog(SHARED_CATALOG_NAMESPACE);
+    for (const id of ["cat-fmt", "cat-entry", "cat-flat"]) {
+      const plain = renderCatalogEntry(graph, id, "shared", { editHints: false })!;
+      expect(plain).not.toContain("edit_node");
+      expect(plain).not.toContain("nodeId");
+    }
+    // Only the hints go: the spec itself, its headings and its summary all remain.
+    const formatter = renderCatalogEntry(graph, "cat-fmt", "shared", { editHints: false })!;
+    expect(formatter).toContain("palette + fonts + page setup");
+    expect(renderCatalogEntry(graph, "cat-flat", "shared", { editHints: false })!).toContain("corps révision");
+  });
+
   it("reads a WORKSPACE-scoped catalog namespace independently, tagged workspace", async () => {
     // A second library living under a real workspace, separate from the shared one.
     const wsNs = catalogNamespace("senegal");
