@@ -204,6 +204,19 @@ copies had been fixed while the masters drifted), so the rebuild also closed a p
 correction; and a duplicate Annexe 8 entry appeared, because the seed re-created it
 under a slug id alongside the `add_to_catalog` one.
 
+**Resolved (2026-08-23).** The guard was a fix for the symptom; the cause was that the
+seed wrote a namespace whose contents it could not know. Three changes close it:
+
+- **The seed no longer writes workspace libraries at all** — `scripts/seed-catalog.mjs`
+  seeds `_shared` only, and the three senegal literals it carried are gone. A workspace
+  library is live-authored data now, full stop.
+- **Workspace libraries are backed up** as snapshots under
+  `imports/<ws>/_catalog/routines/` and restored with `import-kg --raw`, so recovery no
+  longer depends on a copy happening to survive in a subject graph.
+- **`delete_nodes` / `delete_edges` accept `catalog`**, so the duplicate entries the
+  incident left behind can be retired through the normal two-phase path rather than by
+  hand in Firestore.
+
 ## Deliberately not built
 
 - **`log_evaluation`** — persisting scores against a document version, so you could
