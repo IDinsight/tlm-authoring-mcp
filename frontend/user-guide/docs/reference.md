@@ -15,7 +15,7 @@ Les rôles sont attribués **par espace de travail** : vous pouvez être curateu
 | Créer / supprimer un espace de travail | — | — | — | — | ✅ |
 | Modifier une entrée **partagée** du catalogue | — | — | — | — | ✅ |
 
-Une entrée du catalogue propre à un espace (routine, formatter) se modifie par un **curateur** de cet espace ; une entrée **partagée** entre tous les programmes est réservée au **super-admin**.
+Une entrée du catalogue propre à un espace (routine, formatter, grille d'évaluation) se modifie par un **curateur** de cet espace ; une entrée **partagée** entre tous les programmes est réservée au **super-admin**.
 
 Pour connaître votre rôle : demandez à Claude « **Que puis-je faire ?** ».
 
@@ -45,7 +45,8 @@ Dans les deux cas, rien ne se produit sans votre confirmation.
 | **Leçon** | L'unité de travail : on l'aligne sur un objectif et on lui applique une routine. |
 | **Routine pédagogique** | Un gabarit de structure de leçon, réutilisable, rangé dans le catalogue. S'applique à une leçon. |
 | **Formatter** | Une consigne de mise en forme (palette, typo, mise en page, illustrations). S'applique à un cours. |
-| **Catalogue** | La bibliothèque des routines et des formatters, avec une étagère partagée et une par espace. |
+| **Grille d'évaluation** | Une liste de critères servant à juger un document produit. S'applique à un document. Voir [Évaluer un document produit](evaluate.md). |
+| **Catalogue** | La bibliothèque des routines, des formatters et des grilles d'évaluation, avec une étagère partagée et une par espace. |
 | **Manuel de l'élève** | Le document destiné à l'élève. |
 | **Fiches de leçons** | Le guide de l'enseignant. |
 | **Brouillon** | Un ensemble de modifications en attente, pas encore officielles. |

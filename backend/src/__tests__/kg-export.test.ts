@@ -63,12 +63,16 @@ async function seedDocumentLayer(store: KgNodeStore, namespace: string): Promise
     node("sec", "DocumentSection", { description: "Page 1", position: 1 }),
     node("fmt", "Formatter", { description: "Style" }),
     node("spec", "FormatterSpec", { description: "Palette", content: "warm palette", position: 1 }),
+    node("rub", "Rubric", { description: "Grille d'approbation", metadata: { scale: "oui-non" } }),
+    node("rsec", "RubricSection", { description: "A. Contenus", position: 1, metadata: { weight: "20%" } }),
+    node("crit", "RubricCriterion", { description: "Exactitude", content: "Aucune erreur factuelle.", position: 1 }),
   ];
   const edges = [
     link("hasPart", "course", "les"),
     link("covers", "tlm", "course"),
     link("hasPart", "tlm", "sec"), link("covers", "sec", "les"),
     link("hasPart", "tlm", "fmt"), link("hasPart", "fmt", "spec"),
+    link("hasPart", "tlm", "rub"), link("hasPart", "rub", "rsec"), link("hasPart", "rsec", "crit"),
   ];
   const meta: StoredMeta = { contentHash: "t", seededAt: "1970-01-01T00:00:00Z", adapterId: "doc", nodeCount: nodes.length, edgeCount: edges.length };
   await store.writeSlot(namespace, "a", { nodes, edges, meta });
@@ -343,9 +347,12 @@ describe("kg-export — terminology", () => {
 // FormatterSpec via hasPart (folded onto hasChild), with `covers` grafted as a
 // display-only link out to the curriculum. Emitted ONLY when a TLM is present.
 describe("kg-export — document / rendering layer", () => {
-  const DOC_LABELS = ["TeachingLearningMaterial", "DocumentSection", "Formatter", "FormatterSpec"];
+  const DOC_LABELS = [
+    "TeachingLearningMaterial", "DocumentSection", "Formatter", "FormatterSpec",
+    "Rubric", "RubricSection", "RubricCriterion",
+  ];
 
-  it("colours the four document labels and appends them to the taxonomy", async () => {
+  it("colours every document label and appends them to the taxonomy", async () => {
     const graph = (await exportNamespace(docNs))!;
     const keys = graph.meta.taxonomy.map((x) => x.key);
     for (const label of DOC_LABELS) {
@@ -367,6 +374,20 @@ describe("kg-export — document / rendering layer", () => {
       { from: "TeachingLearningMaterial", rel: "covers", dir: "out" },
       { from: "DocumentSection", rel: "covers", dir: "out" },
     ]);
+  });
+
+  it("nests an attached rubric under the TLM — grid, sections and criteria", async () => {
+    const graph = (await exportNamespace(docNs))!;
+    const view = graph.meta.viewConfig.views.find((v) => v.id === "documents") as any;
+    // Without the rubric labels here the grid is published but invisible in the explorer.
+    for (const label of ["Rubric", "RubricSection", "RubricCriterion"]) {
+      expect(view.params.includeLabels).toContain(label);
+    }
+    const nested = (from: string, to: string) =>
+      graph.edges.some((e) => e.s === from && e.t === to && e.r === "hasChild" && e.rel === "hasPart");
+    expect(nested("tlm", "rub")).toBe(true);     // the grid hangs off the document
+    expect(nested("rub", "rsec")).toBe(true);    // its weighted sections
+    expect(nested("rsec", "crit")).toBe(true);   // and their criteria
   });
 
   it("keeps `covers` on its own traversal axis (not folded into the hasChild tree)", async () => {
@@ -397,7 +418,7 @@ describe("kg-export — document / rendering layer", () => {
     }
     const roots = graph.nodes.filter((n) => inc.has(n.label) && !hasIncParent.has(n.id)).map((n) => n.id);
     expect(roots).toEqual(["tlm"]);
-    expect((childrenOf.get("tlm") ?? []).sort()).toEqual(["fmt", "sec"]);
+    expect((childrenOf.get("tlm") ?? []).sort()).toEqual(["fmt", "rub", "sec"]);
     expect(childrenOf.get("fmt")).toEqual(["spec"]);
 
     // The covers alignment tail grafts each covered curriculum node as a leaf.

@@ -29,5 +29,27 @@ Chaque nœud a une **couleur** selon son **type Learning Commons** (cadre de ré
 
 Utilisez la barre de recherche pour retrouver un nœud par son intitulé.
 
+## Le catalogue
+
+L'onglet **Catalogue** ouvre les bibliothèques de gabarits réutilisables — celle de votre **espace de travail** et la bibliothèque **partagée** entre tous les programmes. Chaque entrée s'affiche en fiche : son titre, son type, son résumé, et de quoi elle est faite.
+
+Trois types d'entrées, reconnaissables à leur pastille :
+
+| Type | Ce qu'il décrit | Ce que compte la fiche |
+|---|---|---|
+| **Routine** | La structure pédagogique d'une séance | Ses étapes et ses matériaux |
+| **Formatter** | L'apparence d'un document | Ses règles de mise en forme |
+| **Grille** | Les critères d'évaluation d'un document | Son échelle (par exemple 0-4 ou Oui/Non), ses sections et ses critères |
+
+Pour s'y retrouver quand la bibliothèque grossit :
+
+- les **onglets** (Tout · Routines · Formatters · Grilles) ne gardent qu'un type à la fois, avec son nombre entre parenthèses ;
+- la **recherche** filtre sur le titre et le résumé. Les accents sont ignorés : taper `recitation` trouve « poésie-récitation » ;
+- le **sélecteur de bibliothèque** limite l'affichage à l'espace de travail ou au partagé.
+
+Les trois se combinent, et un compteur rappelle combien d'entrées restent affichées sur le total. **Réinitialiser** les efface d'un coup.
+
+Cliquez sur une fiche pour lire la **spécification complète** de l'entrée — le texte de consignes que la génération lit réellement.
+
 !!! note "Ce que montre l'explorateur"
     L'explorateur affiche la **version publiée** uniquement. Un brouillon en cours d'édition n'y apparaît **pas** tant qu'il n'est pas publié — c'est voulu, pour ne montrer que l'officiel. Pour prévisualiser l'effet d'un brouillon, voir la prévisualisation côté outil.

@@ -122,14 +122,24 @@ export type KgConfig = {
 // ── Catalog (GET /kg/catalog?ns=) ────────────────────────────────────────────
 // Kept in lock-step with the server's CatalogEntry / CatalogExport (kg-recipes,
 // re-exported by kg-export.ts). The reusable-spec libraries a curator browses.
-export type CatalogKind = "routine" | "formatter";
+export type CatalogKind = "routine" | "formatter" | "rubric";
 export type CatalogScope = "shared" | "workspace";
 
+// A routine's STEP, and — same shape — a rubric's weighted SECTION: the server
+// reuses `steps` for both, carrying `weight` ("20%") where a step has `timeRequired`.
 export type CatalogStep = {
   id: string;
   name: string;
   order: number;
   timeRequired?: string;
+  weight?: string;
+  materials?: CatalogMaterial[];
+};
+
+export type CatalogMaterial = {
+  id: string;
+  name: string;
+  content?: string;
 };
 
 export type CatalogEntry = {
@@ -138,7 +148,9 @@ export type CatalogEntry = {
   scope: CatalogScope;
   name: string;
   summary: string;
+  scale?: string; // a RUBRIC's scoring scale, e.g. "0-4" or "oui-non"
   steps: CatalogStep[];
+  materials?: CatalogMaterial[];
   materialCount: number;
 };
 

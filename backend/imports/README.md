@@ -33,7 +33,7 @@ graph. A routine that is catalogued but attached to nothing would have been lost
 
 | Namespace | Entries | Nodes / Edges |
 |-----------|---------|---------------|
-| `senegal/_catalog/routines` | 23 | 174 / 173 |
+| `senegal/_catalog/routines` | 21 | 131 / 130 |
 | `_shared/_catalog/routines` | 5  | 58 / 57 |
 
 Refresh a snapshot after authoring catalog entries:

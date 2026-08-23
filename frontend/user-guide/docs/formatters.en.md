@@ -51,4 +51,4 @@ A formatter's content is **instruction text**: describe precisely what generatio
     A formatter on the **workspace** shelf is edited by a **curator** of that workspace. A **shared** formatter is reserved for the **super administrator**, since it serves all programmes.
 
 !!! note "A useful detail if you inspect the graph"
-    In the explorer, the link attaching a formatter — like the one attaching a routine — carries the same technical name (`usesRoutine`). That's expected: routines and formatters rest on the same mechanism. Only the use differs (one on a lesson, the other on a course).
+    A routine and a formatter do not attach in the same place. A routine sits on a **lesson** (`usesRoutine` link); a formatter sits under the **document** itself, with its rules as parts (`hasPart` link). That is deliberate: formatting is a property of the produced document, not of the curriculum being taught. [Evaluation rubrics](evaluate.md) attach exactly like formatters.

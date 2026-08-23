@@ -51,4 +51,4 @@ Le contenu d'un formatter est du **texte de consignes** : décrivez précisémen
     Un formatter de l'étagère **espace de travail** se modifie par un **curateur** de cet espace. Un formatter **partagé** est réservé au **super-administrateur**, car il sert à tous les programmes.
 
 !!! note "Un détail utile si vous inspectez le graphe"
-    Dans l'explorateur, le lien qui rattache un formatter — comme celui qui rattache une routine — porte le même nom technique (`usesRoutine`). C'est normal : routines et formatters reposent sur le même mécanisme. Seul l'usage change (l'un sur une leçon, l'autre sur un cours).
+    Une routine et un formatter ne se rattachent pas au même endroit. Une routine se pose sur une **leçon** (lien `usesRoutine`) ; un formatter se pose sous le **document** lui-même, avec ses règles en éléments (lien `hasPart`). C'est voulu : la mise en forme est une propriété du document produit, pas du curriculum enseigné. Les [grilles d'évaluation](evaluate.md) se rattachent exactement comme les formatters.
