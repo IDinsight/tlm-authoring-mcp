@@ -3,17 +3,14 @@
 // auto-publishes on confirm, and then grounds get_terminology + translate. Also
 // covers the auth-gated seed: an unauthorized caller neither mutates NOR creates
 // the namespace.
-import { readFileSync } from "node:fs";
-import { resolve } from "node:path";
 import { describe, it, expect, beforeAll, beforeEach, afterAll } from "vitest";
-import { listAvailableContexts, newSessionState, runInSession } from "../../context/index.js";
+import { seedStore, seededContexts, fakeStorage, CI_MATHS } from "../../__tests__/index.js";
+import { newSessionState, runInSession } from "../../context/index.js";
 import { subjectDir, KG_FIXTURE } from "../../__tests__/index.js";
-import { resolveAdapter } from "../../adapters/index.js";
-import { serializeModel } from "../../curriculum/index.js";
 import {
-  __setKgStoreForTest, createMemoryKgStore, kgNamespace,
+  __setKgStoreForTest, 
   __resetMutationsForTest, __resetDraftTokensForTest,
-  type KgNodeStore, type StoredMeta,
+  type KgNodeStore 
 } from "../../kg-store/index.js";
 import { __setStorageForTest } from "../../storage/index.js";
 import { __setActorForTest, type Actor } from "../../actor.js";
@@ -24,13 +21,6 @@ import { runAddTerms, runEditTerm, runRemoveTerms } from "../glossary.js";
 import { effectiveTerms, filterByQuery, filterByText } from "../glossary-read.js";
 import type { StorageAdapter, HistoryFile } from "../../types.js";
 
-const emptyHistory: HistoryFile = { version: 3, entries: [] };
-const fakeStorage: StorageAdapter = {
-  listDocuments: async () => [], getObjectMd5: async () => null, downloadDocx: async () => Buffer.from(""),
-  createUploadUrl: async () => ({ url: "", objectKey: "", contentType: "", expiresAt: "" }),
-  createDownloadUrl: async () => ({ url: "", objectKey: "", expiresAt: "", exists: false }),
-  readHistory: async () => emptyHistory, writeHistory: async () => {},
-};
 
 // The tools auto-publish, so they need an approver; a curator (apply-only) is
 // refused, which is what the unauthorized test checks.
@@ -38,22 +28,15 @@ const APPROVER: Actor = { id: "appr-uid", email: "appr@test", role: "approver", 
 const CURATOR: Actor = { id: "cur-uid", email: "cur@test", role: "curator", unknown: false };
 
 let store: KgNodeStore;
-const contexts = listAvailableContexts();
+// The fixture contexts this suite asserts against — seeding only these
+// keeps each beforeEach off the graphs it never reads.
+const SEED_CONTEXTS = [CI_MATHS];
+const contexts = seededContexts(SEED_CONTEXTS);
 const targetCtx = contexts.find((c) => c.grade === "ci" && c.subject === "maths")!;
 const glossaryNs = glossaryNamespace("senegal");
 
 async function seedFreshStore(): Promise<KgNodeStore> {
-  const s = createMemoryKgStore();
-  for (const { workspace, grade, subject } of contexts) {
-    const raw = JSON.parse(readFileSync(resolve(subjectDir(workspace, grade, subject), KG_FIXTURE), "utf8"));
-    const a = resolveAdapter(workspace, grade, subject);
-    if (!a) continue;
-    const { nodes, edges } = serializeModel(a.parse(raw), kgNamespace(grade, subject));
-    const meta: StoredMeta = { contentHash: "test", seededAt: "1970-01-01T00:00:00Z", adapterId: a.id, nodeCount: nodes.length, edgeCount: edges.length };
-    await s.writeSlot(kgNamespace(grade, subject), "a", { nodes, edges, meta });
-    await s.ensurePointer(kgNamespace(grade, subject), "a");
-  }
-  return s;
+  return seedStore({ only: SEED_CONTEXTS });
 }
 
 // Run `fn` in a session with `actor` active on CI-maths.

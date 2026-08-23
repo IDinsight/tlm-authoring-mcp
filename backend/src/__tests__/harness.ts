@@ -27,7 +27,7 @@ import { createMemoryKgStore, kgNamespace } from "../kg-store/index.js";
 import { __setStorageForTest } from "../storage/index.js";
 import { __setActorForTest, type Actor } from "../actor.js";
 import { activateContext } from "../activate.js";
-import { subjectDir, KG_FIXTURE } from "./index.js";
+import { subjectDir, KG_FIXTURE } from "./fixtures.js";
 import type { KgNodeStore, StoredConfig, StoredMeta } from "../kg-store/index.js";
 import type { StorageAdapter, HistoryFile } from "../types.js";
 

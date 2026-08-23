@@ -21,7 +21,7 @@ import { z } from "zod";
 import { asJson, guarded } from "./shared.js";
 import { getActiveAdapter } from "../adapters/index.js";
 import { activeWorkspace } from "../context/index.js";
-import { kgNamespace, mintNodeId, type MutationGraph } from "../kg-store/index.js";
+import { kgNamespace, mintNodeId } from "../kg-store/index.js";
 import { addNodes } from "../kg-recipes/index.js";
 import { runBatchMutation, type ReturnMode } from "./batch.js";
 import { idempotencyPayloadHash } from "./idempotency.js";

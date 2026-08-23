@@ -18,14 +18,12 @@
  *   7. publishDraft errors if no draft exists.
  *   8. Bundle mode is untouched by the lifecycle (no store calls involved).
  */
-import { readFileSync } from "node:fs";
-import { resolve } from "node:path";
 import { describe, it, expect, beforeAll, afterAll, beforeEach } from "vitest";
-import { listAvailableContexts, newSessionState, runInSession } from "../../context/index.js";
+import { seedStore, seededContexts, fakeStorage } from "../../__tests__/index.js";
+import { newSessionState, runInSession } from "../../context/index.js";
 import { subjectDir, KG_FIXTURE } from "../../__tests__/index.js";
 import { resolveAdapter } from "../../adapters/index.js";
-import { serializeModel } from "../../curriculum/index.js";
-import { __setKgStoreForTest, createMemoryKgStore, kgNamespace } from "../index.js";
+import { __setKgStoreForTest, kgNamespace } from "../index.js";
 import { __setStorageForTest } from "../../storage/index.js";
 import { activateContext } from "../../activate.js";
 import type { HistoryFile, StorageAdapter } from "../../types.js";
@@ -33,37 +31,19 @@ import type { KgNodeStore, StoredMeta } from "../types.js";
 
 // Same storage stub the parity harness uses — history + bucket are orthogonal
 // to the KG lifecycle, so we neutralise them.
-const emptyHistory: HistoryFile = { version: 3, entries: [] };
-const fakeStorage: StorageAdapter = {
-  listDocuments: async () => [],
-  getObjectMd5: async () => null,
-  downloadDocx: async () => Buffer.from(""),
-  createUploadUrl: async () => ({ url: "", objectKey: "", contentType: "", expiresAt: "" }),
-  createDownloadUrl: async () => ({ url: "", objectKey: "", expiresAt: "", exists: false }),
-  readHistory: async () => emptyHistory,
-  writeHistory: async () => {},
-};
 
 let store: KgNodeStore;
-const contexts = listAvailableContexts();
+// This suite runs its whole lifecycle block once PER context on purpose — the
+// store is subject-agnostic, and every fixture graph is evidence of that. So it
+// is one of the few that genuinely seeds them all; narrowing it would silently
+// delete tests rather than speed them up.
+const SEED_CONTEXTS = undefined;
+const contexts = seededContexts(SEED_CONTEXTS);
 
 // Seed both installed contexts before each test so lifecycle mutations don't
 // leak across tests. Recreating the store from scratch is the simplest reset.
 async function seedFreshStore(): Promise<KgNodeStore> {
-  const freshStore = createMemoryKgStore();
-  for (const { workspace, grade, subject } of contexts) {
-    const raw = JSON.parse(readFileSync(resolve(subjectDir(workspace, grade, subject), KG_FIXTURE), "utf8"));
-    const adapter = resolveAdapter(workspace, grade, subject);
-    if (!adapter) continue;
-    const { nodes, edges } = serializeModel(adapter.parse(raw), kgNamespace(workspace, grade, subject));
-    const meta: StoredMeta = {
-      contentHash: "test", seededAt: "1970-01-01T00:00:00Z",
-      adapterId: adapter.id, nodeCount: nodes.length, edgeCount: edges.length,
-    };
-    await freshStore.writeSlot(kgNamespace(workspace, grade, subject), "a", { nodes, edges, meta });
-    await freshStore.ensurePointer(kgNamespace(workspace, grade, subject), "a");
-  }
-  return freshStore;
+  return seedStore({ only: SEED_CONTEXTS });
 }
 
 beforeAll(() => {

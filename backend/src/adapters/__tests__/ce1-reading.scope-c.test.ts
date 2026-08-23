@@ -11,15 +11,13 @@
  * an Activity under a session Lesson (hasPart), its Material carrying the
  * scripted content (raw.content), and both reachable from the week's slice.
  */
-import { readFileSync } from "node:fs";
-import { resolve } from "node:path";
 import { describe, it, expect, beforeAll, beforeEach, afterAll } from "vitest";
-import { listAvailableContexts } from "../../context/index.js";
+import { seedStore, fakeStorage, CE1_READING } from "../../__tests__/index.js";
 import { subjectDir, KG_FIXTURE } from "../../__tests__/index.js";
 import { resolveAdapter } from "../index.js";
-import { serializeModel, toRawEnvelope } from "../../curriculum/index.js";
+import { toRawEnvelope } from "../../curriculum/index.js";
 import {
-  __setKgStoreForTest, createMemoryKgStore, kgNamespace,
+  __setKgStoreForTest, kgNamespace,
   runGraphMutation, mintNodeId, edgeId as makeEdgeId,
   __resetMutationsForTest, __resetDraftTokensForTest,
 } from "../../kg-store/index.js";
@@ -31,36 +29,18 @@ import type { StorageAdapter, HistoryFile, CurriculumModel } from "../../types.j
 
 const HAS_PART = "hasPart"; // canonical LC content containment
 
-const emptyHistory: HistoryFile = { version: 3, entries: [] };
-const fakeStorage: StorageAdapter = {
-  listDocuments: async () => [],
-  getObjectMd5: async () => null,
-  downloadDocx: async () => Buffer.from(""),
-  createUploadUrl: async () => ({ url: "", objectKey: "", contentType: "", expiresAt: "" }),
-  createDownloadUrl: async () => ({ url: "", objectKey: "", expiresAt: "", exists: false }),
-  readHistory: async () => emptyHistory,
-  writeHistory: async () => {},
-};
 
 const CURATOR: Actor = { id: "curator-uid", email: "curator@test", role: "curator", unknown: false };
 
 let store: KgNodeStore;
-const contexts = listAvailableContexts();
+// The fixture contexts this suite asserts against — seeding only these
+// keeps each beforeEach off the graphs it never reads.
+const SEED_CONTEXTS = [CE1_READING];
 const ns = kgNamespace("ce1", "reading");
 const adapter = () => resolveAdapter("senegal", "ce1", "reading")!;
 
 async function seedFreshStore(): Promise<KgNodeStore> {
-  const freshStore = createMemoryKgStore();
-  for (const { workspace, grade, subject } of contexts) {
-    const raw = JSON.parse(readFileSync(resolve(subjectDir(workspace, grade, subject), KG_FIXTURE), "utf8"));
-    const adapter = resolveAdapter(workspace, grade, subject);
-    if (!adapter) continue;
-    const { nodes, edges } = serializeModel(adapter.parse(raw), kgNamespace(grade, subject));
-    const meta: StoredMeta = { contentHash: "test", seededAt: "1970-01-01T00:00:00Z", adapterId: adapter.id, nodeCount: nodes.length, edgeCount: edges.length };
-    await freshStore.writeSlot(kgNamespace(grade, subject), "a", { nodes, edges, meta });
-    await freshStore.ensurePointer(kgNamespace(grade, subject), "a");
-  }
-  return freshStore;
+  return seedStore({ only: SEED_CONTEXTS });
 }
 
 const strip = <T extends { slot?: unknown }>(record: T) => { const { slot: _s, ...rest } = record; return rest; };

@@ -19,7 +19,7 @@ import { describe, it, expect, beforeAll, beforeEach, afterAll } from "vitest";
 import {
   seedStore, withActiveContext as inContext, fixtureContext, installFakeStorage,
   CI_MATHS, CURATOR, APPROVER, SIGNED_IN_NO_ROLE as NO_ROLE,
-} from "../../__tests__/harness.js";
+} from "../../__tests__/index.js";
 import {
   __setKgStoreForTest, kgNamespace, runGraphMutation,
   __resetMutationsForTest, __resetDraftTokensForTest,

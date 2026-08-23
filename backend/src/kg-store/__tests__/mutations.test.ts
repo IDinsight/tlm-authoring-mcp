@@ -22,6 +22,7 @@
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { describe, it, expect, beforeAll, afterAll, beforeEach } from "vitest";
+import { fakeStorage } from "../../__tests__/index.js";
 import { listAvailableContexts, newSessionState, runInSession } from "../../context/index.js";
 import { subjectDir, KG_FIXTURE } from "../../__tests__/index.js";
 import { resolveAdapter } from "../../adapters/index.js";
@@ -43,16 +44,6 @@ import { __setActorForTest, type Actor } from "../../actor.js";
 // Tests that specifically care about the authz gate live in authz.test.ts.
 const TEST_CURATOR: Actor = { id: "test-curator-uid", email: "curator@test", role: "curator", unknown: false };
 
-const emptyHistory: HistoryFile = { version: 3, entries: [] };
-const fakeStorage: StorageAdapter = {
-  listDocuments: async () => [],
-  getObjectMd5: async () => null,
-  downloadDocx: async () => Buffer.from(""),
-  createUploadUrl: async () => ({ url: "", objectKey: "", contentType: "", expiresAt: "" }),
-  createDownloadUrl: async () => ({ url: "", objectKey: "", expiresAt: "", exists: false }),
-  readHistory: async () => emptyHistory,
-  writeHistory: async () => {},
-};
 
 // Internal test-only mutation. NOT exposed via registerTool anywhere — its
 // only purpose is to exercise the framework. Sets `properties.testFlag` on

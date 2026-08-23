@@ -6,6 +6,7 @@
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { describe, it, expect, beforeAll, beforeEach, afterAll } from "vitest";
+
 import { listAvailableContexts, newSessionState, runInSession } from "../../context/index.js";
 import { activateContext } from "../../activate.js";
 import { evaluateDocument } from "../evaluate.js";

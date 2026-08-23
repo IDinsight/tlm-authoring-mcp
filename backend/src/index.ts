@@ -23,7 +23,6 @@ import { buildServer } from "./server/index.js";
 import { CONFIG, DEFAULT_WORKSPACE } from "./config.js";
 import { getActiveContext, listAvailableContexts } from "./context/index.js";
 import { activateContext, refreshAvailableContexts } from "./activate.js";
-import { getActiveAdapter } from "./adapters/index.js";
 import { reconcile } from "./storage/index.js";
 import { installProcessGuards } from "./utils/index.js";
 

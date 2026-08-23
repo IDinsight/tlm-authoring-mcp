@@ -25,7 +25,8 @@
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { describe, it, expect, beforeAll, afterAll, beforeEach } from "vitest";
-import { listAvailableContexts, newSessionState, runInSession } from "../../context/index.js";
+import { fakeStorage } from "../../__tests__/index.js";
+import { listAvailableContexts } from "../../context/index.js";
 import { subjectDir, KG_FIXTURE } from "../../__tests__/index.js";
 import { resolveAdapter } from "../../adapters/index.js";
 import { serializeModel } from "../../curriculum/index.js";
@@ -42,16 +43,6 @@ import type { MutationGraph } from "../index.js";
 import type { KgNodeStore, StoredMeta } from "../types.js";
 import type { StorageAdapter, HistoryFile } from "../../types.js";
 
-const emptyHistory: HistoryFile = { version: 3, entries: [] };
-const fakeStorage: StorageAdapter = {
-  listDocuments: async () => [],
-  getObjectMd5: async () => null,
-  downloadDocx: async () => Buffer.from(""),
-  createUploadUrl: async () => ({ url: "", objectKey: "", contentType: "", expiresAt: "" }),
-  createDownloadUrl: async () => ({ url: "", objectKey: "", expiresAt: "", exists: false }),
-  readHistory: async () => emptyHistory,
-  writeHistory: async () => {},
-};
 
 const CURATOR: Actor = { id: "curator-uid", email: "curator@test", role: "curator", unknown: false };
 const APPROVER: Actor = { id: "approver-uid", email: "approver@test", role: "approver", unknown: false };

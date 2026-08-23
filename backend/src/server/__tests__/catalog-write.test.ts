@@ -8,6 +8,7 @@
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { describe, it, expect, beforeAll, beforeEach, afterAll } from "vitest";
+import { fakeStorage } from "../../__tests__/index.js";
 import { listAvailableContexts, newSessionState, runInSession } from "../../context/index.js";
 import { subjectDir, KG_FIXTURE } from "../../__tests__/index.js";
 import { resolveAdapter } from "../../adapters/index.js";
@@ -30,13 +31,6 @@ import { runCatalogWrite, type WriteOutcome } from "../catalog-target.js";
 import type { StoredMeta, KgNodeStore, StoredNode, StoredEdge } from "../../kg-store/index.js";
 import type { StorageAdapter, HistoryFile } from "../../types.js";
 
-const emptyHistory: HistoryFile = { version: 3, entries: [] };
-const fakeStorage: StorageAdapter = {
-  listDocuments: async () => [], getObjectMd5: async () => null, downloadDocx: async () => Buffer.from(""),
-  createUploadUrl: async () => ({ url: "", objectKey: "", contentType: "", expiresAt: "" }),
-  createDownloadUrl: async () => ({ url: "", objectKey: "", expiresAt: "", exists: false }),
-  readHistory: async () => emptyHistory, writeHistory: async () => {},
-};
 
 const SUPER: Actor = { id: "super-uid", email: "super@test", superAdmin: true, unknown: false };
 const APPROVER: Actor = { id: "appr-uid", email: "appr@test", role: "approver", unknown: false };
