@@ -105,7 +105,13 @@ export type GraphApplyFailCode =
   | "STALE_TOKEN" | "TOKEN_EXPIRED" | "REPLAY" | "INVALID_TOKEN" | "ARGS_MISMATCH" | "MUTATION_MISMATCH" | "UNSEEDED";
 export type GraphApplyResult =
   | { phase: "apply"; ok: true; kind: "graphMutation"; applied: string; draftSlot: Slot; diff: GraphDiff; auditId: string; idempotent?: boolean }
-  | { phase: "apply"; ok: false; kind: "graphMutation"; reason: "stale" | "expired" | "replay" | "invalidToken" | "argsMismatch" | "mutationMismatch" | "unseeded"; code: GraphApplyFailCode; message: string };
+  | { phase: "apply"; ok: false; kind: "graphMutation"; reason: GraphApplyFailReason; code: GraphApplyFailCode; message: string };
+
+// The failure half of GraphApplyResult, named so the confirm-phase guards can
+// build one without restating the whole envelope shape.
+export type GraphApplyFailReason =
+  | "stale" | "expired" | "replay" | "invalidToken" | "argsMismatch" | "mutationMismatch" | "unseeded";
+type ConfirmFailure = Extract<GraphApplyResult, { ok: false }>;
 
 // A distinct result for role-denied calls. Kept separate from `blocked`
 // (which stays for validation errors from #6) and from `apply ok:false`
@@ -400,6 +406,22 @@ export async function runGraphMutation<Args>(
     });
   };
 
+  // Every confirm-phase guard below ends the same way: record ONE blocked audit
+  // record, then hand the caller the typed failure envelope. The two reasons are
+  // deliberately different audiences — `auditReason` is the trail's detail line
+  // (it says WHICH guard fired, e.g. "invalidToken: missing"), while
+  // `reason`/`code`/`message` are the caller-facing vocabulary. Folding both into
+  // one helper keeps each guard readable as the condition it enforces.
+  const blocked = async (
+    auditReason: string,
+    reason: ConfirmFailure["reason"],
+    code: GraphApplyFailCode,
+    message: string,
+  ): Promise<ConfirmFailure> => {
+    await auditBlocked(auditReason);
+    return { phase: "apply", ok: false, kind: "graphMutation", reason, code, message };
+  };
+
   // ── Authorization: must be a curator or approver to apply — for BOTH
   // dry-run and confirm. Reads/generation stay ungated elsewhere; this gate
   // is only for graph state changes. Enforced BEFORE any state read or
@@ -412,10 +434,19 @@ export async function runGraphMutation<Args>(
 
   // ── Confirm phase ────────────────────────────────────────────────────────
   if (confirm) {
-    if (!token) { await auditBlocked("invalidToken: missing"); return { phase: "apply", ok: false, kind: "graphMutation", reason: "invalidToken", code: "INVALID_TOKEN", message: "confirm=true was passed without a confirmationToken; re-run without confirm to get a fresh preview." }; }
+    if (!token) {
+      return blocked("invalidToken: missing", "invalidToken", "INVALID_TOKEN",
+        "confirm=true was passed without a confirmationToken; re-run without confirm to get a fresh preview.");
+    }
     const payload = decodeToken(token);
-    if (!payload) { await auditBlocked("invalidToken: malformed"); return { phase: "apply", ok: false, kind: "graphMutation", reason: "invalidToken", code: "INVALID_TOKEN", message: "confirmationToken is malformed; re-run without confirm to get a fresh preview." }; }
-    if (payload.m !== mutation.name) { await auditBlocked(`mutationMismatch: token was for '${payload.m}'`); return { phase: "apply", ok: false, kind: "graphMutation", reason: "mutationMismatch", code: "MUTATION_MISMATCH", message: `confirmationToken was issued for mutation '${payload.m}', not '${mutation.name}'.` }; }
+    if (!payload) {
+      return blocked("invalidToken: malformed", "invalidToken", "INVALID_TOKEN",
+        "confirmationToken is malformed; re-run without confirm to get a fresh preview.");
+    }
+    if (payload.m !== mutation.name) {
+      return blocked(`mutationMismatch: token was for '${payload.m}'`, "mutationMismatch", "MUTATION_MISMATCH",
+        `confirmationToken was issued for mutation '${payload.m}', not '${mutation.name}'.`);
+    }
 
     // In "resend" mode the caller's args must still hash to the previewed value.
     // Kept BEFORE idempotency (a key must never mask a mismatched retry) and
@@ -423,8 +454,8 @@ export async function runGraphMutation<Args>(
     // resolved AFTER the replay guard below (a replayed stored token whose parked
     // payload was already deleted must report the replay, not a "payload missing").
     if (payload.mode !== "stored" && payload.a !== hashArgs(args)) {
-      await auditBlocked("argsMismatch");
-      return { phase: "apply", ok: false, kind: "graphMutation", reason: "argsMismatch", code: "ARGS_MISMATCH", message: "args differ from the previewed values; re-run without confirm to preview the new args." };
+      return blocked("argsMismatch", "argsMismatch", "ARGS_MISMATCH",
+        "args differ from the previewed values; re-run without confirm to preview the new args.");
     }
 
     // Idempotency (issue #4): a retry carrying the SAME idempotencyKey returns
@@ -436,7 +467,10 @@ export async function runGraphMutation<Args>(
       return cached.ok ? { ...cached, idempotent: true } : cached;
     }
 
-    if (consumedNonces.has(payload.n)) { await auditBlocked("replay"); return { phase: "apply", ok: false, kind: "graphMutation", reason: "replay", code: "REPLAY", message: "This confirmation token has already been used; a mutation cannot be applied twice from one preview. (Pass an idempotencyKey on confirm to make a retried confirm a safe no-op instead.)" }; }
+    if (consumedNonces.has(payload.n)) {
+      return blocked("replay", "replay", "REPLAY",
+        "This confirmation token has already been used; a mutation cannot be applied twice from one preview. (Pass an idempotencyKey on confirm to make a retried confirm a safe no-op instead.)");
+    }
 
     // Resolve "stored"-mode args now that the replay guard has passed. The dry-run
     // parked them under the nonce; read them back (the caller re-sent nothing, so
@@ -446,13 +480,22 @@ export async function runGraphMutation<Args>(
     let effectiveArgs = args;
     if (payload.mode === "stored") {
       const parked = await store.readPending(namespace, payload.n);
-      if (!parked) { await auditBlocked("stale: parked payload missing"); return { phase: "apply", ok: false, kind: "graphMutation", reason: "stale", code: "STALE_TOKEN", message: "The previewed payload has expired or was already used; re-run without confirm to preview again." }; }
-      if (parked.proposedHash !== payload.a) { await auditBlocked("argsMismatch: parked payload"); return { phase: "apply", ok: false, kind: "graphMutation", reason: "argsMismatch", code: "ARGS_MISMATCH", message: "the parked payload does not match the token; re-run without confirm to preview again." }; }
+      if (!parked) {
+        return blocked("stale: parked payload missing", "stale", "STALE_TOKEN",
+          "The previewed payload has expired or was already used; re-run without confirm to preview again.");
+      }
+      if (parked.proposedHash !== payload.a) {
+        return blocked("argsMismatch: parked payload", "argsMismatch", "ARGS_MISMATCH",
+          "the parked payload does not match the token; re-run without confirm to preview again.");
+      }
       effectiveArgs = parked.payload as Args;
     }
 
     const snap = await timed("confirm.readBase", () => readBase(namespace));
-    if ("unseeded" in snap) { await auditBlocked("unseeded"); return { phase: "apply", ok: false, kind: "graphMutation", reason: "unseeded", code: "UNSEEDED", message: `Namespace '${namespace}' has no seed; run the seed before mutating.` }; }
+    if ("unseeded" in snap) {
+      return blocked("unseeded", "unseeded", "UNSEEDED",
+        `Namespace '${namespace}' has no seed; run the seed before mutating.`);
+    }
 
     // STALE takes priority over EXPIRED: a moved base means the approved diff no
     // longer applies (re-REVIEW), which is more important than "token aged out".
@@ -460,19 +503,19 @@ export async function runGraphMutation<Args>(
     // (b) published hasn't shifted. A preview against 'draft' expects the draft
     // hash still matches. Any mismatch → STALE_TOKEN, re-preview.
     if (snap.kind !== payload.k) {
-      await auditBlocked(`stale: base slot changed (was '${payload.k}', now '${snap.kind}')`);
-      return { phase: "apply", ok: false, kind: "graphMutation", reason: "stale", code: "STALE_TOKEN", message: `The base slot changed since preview (was '${payload.k}', now '${snap.kind}'); re-preview to review the new diff.` };
+      return blocked(`stale: base slot changed (was '${payload.k}', now '${snap.kind}')`, "stale", "STALE_TOKEN",
+        `The base slot changed since preview (was '${payload.k}', now '${snap.kind}'); re-preview to review the new diff.`);
     }
     if (hashGraph(snap.graph) !== payload.v) {
-      await auditBlocked("stale: base graph changed");
-      return { phase: "apply", ok: false, kind: "graphMutation", reason: "stale", code: "STALE_TOKEN", message: `The base graph changed since preview; re-preview to review the current diff.` };
+      return blocked("stale: base graph changed", "stale", "STALE_TOKEN",
+        `The base graph changed since preview; re-preview to review the current diff.`);
     }
     // Base is UNCHANGED — only now does TTL matter. Expiry with an unchanged
     // base is purely a timing signal: re-run the dry-run for a fresh token; the
     // diff you'd approve is identical.
     if (Date.now() > payload.exp) {
-      await auditBlocked("expired: token past TTL");
-      return { phase: "apply", ok: false, kind: "graphMutation", reason: "expired", code: "TOKEN_EXPIRED", message: "The confirmationToken has expired (base unchanged); re-run without confirm to get a fresh token — the diff will be the same." };
+      return blocked("expired: token past TTL", "expired", "TOKEN_EXPIRED",
+        "The confirmationToken has expired (base unchanged); re-run without confirm to get a fresh token — the diff will be the same.");
     }
 
     // Lazy draft creation. When the preview was against 'published' the draft
