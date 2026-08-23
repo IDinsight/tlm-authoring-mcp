@@ -518,7 +518,7 @@ export async function exportNamespace(
     : {
         open: Boolean(pointer.draftSlot),
         ...(opts.slot === "draft" && !pointer.draftSlot
-          ? { note: "Aucun brouillon en cours : c'est la version publiée qui est affichée." }
+          ? { note: "No draft in progress: the published version is shown." }
           : {}),
       };
   return graph;

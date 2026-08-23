@@ -44,15 +44,15 @@ function needsChoice(what: string, typed: string, candidates: FoundNode[]): Reco
   return {
     needsChoice: true,
     message:
-      `Plusieurs éléments correspondent à « ${typed} » (${what}). Demandez à l'utilisateur lequel : leur \`path\` dit à quel cours ou document chacun appartient, et leur \`labels\` en quoi ils diffèrent (un chapitre et la leçon qu'il contient portent souvent le même nom). ` +
-      `Rappelez ensuite l'outil en passant l'\`id\` du candidat retenu — le nom seul ne suffira pas à les départager. Ne choisissez pas à sa place.`,
+      `Several elements match « ${typed} » (${what}). Ask the user which one, in their own language: each candidate's \`path\` says which course or document it sits in, and its \`labels\` say how they differ (a chapter and the lesson inside it often carry the same name). ` +
+      `Then call this tool again passing the chosen candidate's \`id\` — the name alone cannot separate them. Do not choose on the user's behalf.`,
     candidates,
   };
 }
 
 function notFound(what: string, typed: string): Record<string, unknown> {
   return {
-    error: `Aucun élément ne correspond à « ${typed} » (${what}). Essayez find_node avec moins de mots pour voir ce qui existe, ou demandez à l'utilisateur de préciser.`,
+    error: `Nothing matches « ${typed} » (${what}). Try find_node with fewer words to see what exists, or ask the user to be more specific.`,
   };
 }
 
@@ -100,8 +100,8 @@ export async function runCreateDocument(a: CreateDocumentToolArgs): Promise<Reco
     });
   }
 
-  if (!a.name) return { error: "`name` est requis : donnez au document le nom que l'utilisateur emploierait." };
-  if (!a.covers) return { error: "`covers` est requis : dites quel contenu du programme ce document doit produire (le nom du cours, du chapitre ou de la semaine)." };
+  if (!a.name) return { error: "`name` is required: give the document the name the user would call it." };
+  if (!a.covers) return { error: "`covers` is required: say which curriculum content this document must produce (the name of the course, chapter or week)." };
 
   const target = await resolveOne(namespace, a.covers, CURRICULUM_LABELS, "le contenu à couvrir");
   if ("answer" in target) return target.answer;
@@ -149,8 +149,8 @@ export async function runAddSection(a: AddSectionToolArgs): Promise<Record<strin
     });
   }
 
-  if (!a.document) return { error: "`document` est requis : le nom du document auquel cette section appartient." };
-  if (!a.name) return { error: "`name` est requis : le titre de la section." };
+  if (!a.document) return { error: "`document` is required: the name of the document this section belongs to." };
+  if (!a.name) return { error: "`name` is required: the section's title." };
 
   const document = await resolveOne(namespace, a.document, ["TeachingLearningMaterial"], "le document");
   if ("answer" in document) return document.answer;
@@ -183,7 +183,7 @@ export function registerDocumentAuthoringTools(server: McpServer) {
       title: "Create a document and attach it to the curriculum",
       description:
         "Create a DOCUMENT (a manual, a teacher's guide, a revision sheet) AND attach it to the curriculum it renders — in ONE atomic step. Use this instead of add_nodes + create_edges for a new document: a TeachingLearningMaterial without its `covers` edge is a valid graph write and a BROKEN document (generation reads it as empty and nothing errors). " +
-        "`name` is what the user calls it. `covers` is the content it must produce, given BY NAME — « le chapitre 5 », « Guide de l'enseignant », « la semaine 3 »: the server resolves it, so never ask the user for an id. When several nodes share that name (a chapter and the lesson inside it commonly do) it returns `needsChoice` + `candidates`, each with its `labels` and containment `path`: ask the user which, then re-call passing that candidate's `id` as `covers` — an id always resolves to itself. Never pick for them. `properties` optionally carries audience / mediumType / 'metadata.assemblyGuide' (the document's own build instructions). " +
+        "`name` is what the user calls it. `covers` is the content it must produce, given BY NAME — « chapter 5 », « Guide de l'enseignant », « week 3 » (whatever the user calls it, in their language): the server resolves it, so never ask the user for an id. When several nodes share that name (a chapter and the lesson inside it commonly do) it returns `needsChoice` + `candidates`, each with its `labels` and containment `path`: ask the user which, then re-call passing that candidate's `id` as `covers` — an id always resolves to itself. Never pick for them. `properties` optionally carries audience / mediumType / 'metadata.assemblyGuide' (the document's own build instructions). " +
         "REQUIRES CONFIRMATION: the dry-run returns a summary + confirmationToken + the new document's id in `mintedNodeIds`; confirm with confirm:true + the token (re-send `name`, `covers` and `mintedNodeId` unless the response reported `payloadStored:true`). DRAFT edit — publish_draft to make it live. Next: add_section to give it a spine, use_formatter to give it a style.",
       inputSchema: {
         name: z.string().optional(),
@@ -205,7 +205,7 @@ export function registerDocumentAuthoringTools(server: McpServer) {
       title: "Add a section to a document",
       description:
         "Add a SECTION to a document AND bind it to the curriculum that section renders — in ONE atomic step. A section needs two links on two different axes (it belongs to the document, and it covers a piece of curriculum); wiring them separately lets either go missing silently. " +
-        "`document` and `covers` are given BY NAME (« Guide de l'enseignant », « chapitre 5 »); the server resolves them and returns `needsChoice` + `candidates` when a name is ambiguous — ask the user which, then re-call with that candidate's `id`. Don't guess. `position` orders the section within the document (defaults to appending). OMIT `covers` only for FRONT MATTER — a cover page, a table of contents, an introduction that renders no curriculum. " +
+        "`document` and `covers` are given BY NAME (« Guide de l'enseignant », « chapter 5 » — in the user's own words); the server resolves them and returns `needsChoice` + `candidates` when a name is ambiguous — ask the user which, then re-call with that candidate's `id`. Don't guess. `position` orders the section within the document (defaults to appending). OMIT `covers` only for FRONT MATTER — a cover page, a table of contents, an introduction that renders no curriculum. " +
         "REQUIRES CONFIRMATION: the dry-run returns a summary + confirmationToken + the section's id in `mintedNodeIds`; confirm with confirm:true + the token (re-send the same fields + `mintedNodeId` unless `payloadStored:true`). DRAFT edit — publish_draft to make it live. Generation reads one section at a time via walk_document_section, so a document's sections are the real unit of work.",
       inputSchema: {
         document: z.string().optional(),

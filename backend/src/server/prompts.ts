@@ -23,6 +23,16 @@
  * argument is a plain text field. So every argument here is free text a person
  * would actually type (a name, a description), never an id, and the server
  * resolves names through find_node.
+ *
+ * WHY THESE ARE IN FRENCH when every other server-authored string is English:
+ * prompt text is not read by the model, it IS the user's first turn, so it has
+ * to be in the reader's language — and prompts are registered once per server,
+ * before any workspace is known, so it cannot vary by tenant. French is the
+ * right single choice today because these four workflows are all about authoring
+ * documents, routines and styles, and Senegal is the only workspace with a
+ * content layer to author (the EIDU frameworks are standards-only). Revisit this
+ * the day a second authoring workspace appears — probably by registering one set
+ * per language and letting the client's menu show both.
  */
 
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";

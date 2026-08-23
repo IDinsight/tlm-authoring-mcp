@@ -499,7 +499,7 @@ describe("kg-export — the draft slot", () => {
     const graph = (await exportNamespace(mathsNs, { slot: "draft" }))!;
     expect(graph.meta.reading).toBe("published");
     expect(graph.meta.draft?.open).toBe(false);
-    expect(graph.meta.draft?.note).toMatch(/Aucun brouillon/);
+    expect(graph.meta.draft?.note).toMatch(/No draft in progress/);
   });
 
   it("reports hasDraft per namespace, so the switch appears only where there is one", async () => {

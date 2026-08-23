@@ -14,8 +14,12 @@
  * to know what the subject TEACHES, it does not belong here. That is why the
  * retired coded coverage rules are not coming back through this door.
  *
- * Findings are reported in French: the reader is a subject expert, not an
- * operator. They are warnings, never blocks — publish is never refused by a lint.
+ * Findings are written for a SUBJECT EXPERT, not an operator — but in English,
+ * like every other server-authored string here. One deployment serves six
+ * workspaces and only one of them works in French, so the payload cannot pick a
+ * language; the calling model relays each finding in the expert's own, which the
+ * subject guide names. They are warnings, never blocks — a lint never refuses a
+ * publish.
  *
  * It lives in kg-store (not a server tool) because the publish dry-run runs it
  * too, and kg-store may not import upward.
@@ -137,12 +141,12 @@ function documentCoversNothing(graph: MutationGraph, index: Index): LintFinding[
       return !ownCovers && !sectionCovers;
     })
     .map((tlm) => ({
-      rule: "document-sans-contenu",
+      rule: "document-covers-nothing",
       severity: "warning" as const,
       nodeId: tlm.id,
       title: titleOf(tlm),
-      message: "Ce document n'est rattaché à aucun contenu du programme : la génération produirait un document vide.",
-      fix: "Reliez le document au cours ou au chapitre qu'il doit produire (une relation « couvre »), ou donnez-lui des sections qui, elles, couvrent un contenu.",
+      message: "This document is attached to no curriculum content: generation would produce an empty document.",
+      fix: "Link the document to the course or chapter it should produce (a `covers` relationship), or give it sections that cover content themselves.",
     }));
 }
 
@@ -157,12 +161,12 @@ function documentHasNoFormatter(graph: MutationGraph, index: Index): LintFinding
       return node ? has(node, FORMATTER_LABEL) : false;
     }))
     .map((tlm) => ({
-      rule: "document-sans-mise-en-forme",
+      rule: "document-has-no-formatter",
       severity: "warning" as const,
       nodeId: tlm.id,
       title: titleOf(tlm),
-      message: "Ce document n'a aucune règle de mise en forme : il sera produit sans style maison.",
-      fix: "Appliquez un formateur du catalogue au document (use_formatter), ou créez-en un si aucun ne convient.",
+      message: "This document has no layout rules: it will be produced without a house style.",
+      fix: "Apply a formatter from the catalog to the document (use_formatter), or create one if none fits.",
     }));
 }
 
@@ -174,12 +178,12 @@ function sectionCoversNothing(graph: MutationGraph, index: Index): LintFinding[]
     .filter((node) => has(node, SECTION_LABEL))
     .filter((section) => !(index.outTypes.get(section.id)?.has("covers") ?? false))
     .map((section) => ({
-      rule: "section-sans-contenu",
+      rule: "section-covers-nothing",
       severity: "info" as const,
       nodeId: section.id,
       title: titleOf(section),
-      message: "Cette section ne couvre aucun contenu du programme.",
-      fix: "C'est normal pour une page de garde ou un sommaire. Sinon, reliez-la au contenu qu'elle doit présenter.",
+      message: "This section covers no curriculum content.",
+      fix: "That is normal for a cover page or a table of contents. Otherwise, link it to the content it should present.",
     }));
 }
 
@@ -193,12 +197,12 @@ function sectionOutsideDocument(graph: MutationGraph, index: Index): LintFinding
   return graph.nodes
     .filter((node) => has(node, SECTION_LABEL) && !insideDocument.has(node.id))
     .map((section) => ({
-      rule: "section-hors-document",
+      rule: "section-outside-document",
       severity: "warning" as const,
       nodeId: section.id,
       title: titleOf(section),
-      message: "Cette section n'appartient à aucun document : rien ne l'utilisera.",
-      fix: "Rattachez-la au document auquel elle appartient, ou supprimez-la.",
+      message: "This section belongs to no document: nothing will use it.",
+      fix: "Attach it to the document it belongs to, or delete it.",
     }));
 }
 
@@ -209,12 +213,12 @@ function routineUnused(graph: MutationGraph, index: Index): LintFinding[] {
     .filter((node) => has(node, ROUTINE_LABEL))
     .filter((routine) => !(index.inTypes.get(routine.id)?.has("usesRoutine") ?? false))
     .map((routine) => ({
-      rule: "routine-inutilisee",
+      rule: "routine-unused",
       severity: "warning" as const,
       nodeId: routine.id,
       title: titleOf(routine),
-      message: "Cette routine pédagogique n'est utilisée par aucune leçon ni aucun cours.",
-      fix: "Rattachez-la à la leçon ou au cours qui doit la suivre, ou supprimez-la.",
+      message: "This instructional routine is used by no lesson and no course.",
+      fix: "Attach it to the lesson or course that should follow it, or delete it.",
     }));
 }
 
@@ -224,12 +228,12 @@ function isolatedNode(graph: MutationGraph, index: Index): LintFinding[] {
   return graph.nodes
     .filter((node) => (index.inTypes.get(node.id)?.size ?? 0) === 0 && (index.outTypes.get(node.id)?.size ?? 0) === 0)
     .map((node) => ({
-      rule: "noeud-isole",
+      rule: "isolated-node",
       severity: "warning" as const,
       nodeId: node.id,
       title: titleOf(node),
-      message: "Cet élément n'est relié à rien : il n'apparaîtra dans aucune lecture du graphe.",
-      fix: "Rattachez-le à son parent (chapitre, leçon, document…), ou supprimez-le.",
+      message: "This element is connected to nothing: it will not appear in any read of the graph.",
+      fix: "Attach it to its parent (chapter, lesson, document…), or delete it.",
     }));
 }
 
@@ -254,8 +258,8 @@ export function lintGraph(graph: MutationGraph, options: LintOptions = {}): Lint
   // rules — an unused routine has no edges either. Report the specific finding
   // only: two lines about one node, saying nearly the same thing, is how a lint
   // trains its reader to skim past it.
-  const explained = new Set(all.filter((finding) => finding.rule !== "noeud-isole").map((finding) => finding.nodeId));
-  const findings = all.filter((finding) => finding.rule !== "noeud-isole" || !explained.has(finding.nodeId));
+  const explained = new Set(all.filter((finding) => finding.rule !== "isolated-node").map((finding) => finding.nodeId));
+  const findings = all.filter((finding) => finding.rule !== "isolated-node" || !explained.has(finding.nodeId));
 
   const scoped = options.onlyNodes
     ? findings.filter((finding) => options.onlyNodes!.has(finding.nodeId))

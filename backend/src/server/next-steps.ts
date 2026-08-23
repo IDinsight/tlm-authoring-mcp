@@ -9,8 +9,12 @@
  *
  * Written as a DESCRIPTION of the usual sequence, never as orders — server text
  * that reads as commands to the assistant is what the client's injection guard
- * catches (the probe in the design note found exactly that). "Étapes habituelles"
- * is a statement of fact about the workflow; "fais ceci" would not be.
+ * catches (the probe in the design note found exactly that). "What usually comes
+ * next" is a statement of fact about the workflow; "do this" would not be.
+ *
+ * English, like every other server-authored string here: one deployment serves
+ * six workspaces in two working languages, so the model relays these in the
+ * expert's own (the subject guide names it).
  *
  * Keyed by mutation name so it cannot drift from the tool that produced it: a
  * write whose sequence we have nothing specific to say about falls back to the
@@ -19,29 +23,29 @@
 
 // After a dry-run, the sequence is always the same and the caller is mid-gate.
 const AFTER_PREVIEW = [
-  "Résumer le changement à l'utilisateur en français, puis attendre son accord.",
-  "Une fois qu'il a accepté : rappeler le même outil avec confirm:true et le confirmationToken.",
+  "Summarise the change to the user in their own language, then wait for their agreement.",
+  "Once they have agreed: call the same tool again with confirm:true and the confirmationToken.",
 ];
 
 // After an applied DRAFT edit — the loop every curriculum write shares.
 const AFTER_DRAFT_EDIT = [
-  "Vérifier les branchements du brouillon : check_draft.",
-  "Vérifier la couverture du programme : review_draft.",
-  "Voir le rendu avant publication : preview_generation.",
-  "Publier quand tout est bon : publish_draft (le brouillon n'est visible par la génération qu'après).",
+  "Check the draft's wiring: check_draft.",
+  "Check curriculum coverage: review_draft.",
+  "See what it would produce before publishing: preview_generation.",
+  "Publish once it is right: publish_draft (generation only sees the draft after that).",
 ];
 
 // Sequences that differ from the shared loop, keyed by mutation name.
 const AFTER_APPLY: Record<string, string[]> = {
   createDocument: [
-    "Découper le document en sections : add_section (une par chapitre ou par partie).",
-    "Appliquer un style maison : use_formatter.",
-    "Vérifier les branchements : check_draft, puis publier : publish_draft.",
+    "Split the document into sections: add_section (one per chapter or per part).",
+    "Apply a house style: use_formatter.",
+    "Check the wiring: check_draft, then publish: publish_draft.",
   ],
   addSection: [
-    "Ajouter la section suivante : add_section.",
-    "Voir le rendu de cette seule section : preview_generation.",
-    "Vérifier les branchements : check_draft, puis publier : publish_draft.",
+    "Add the next section: add_section.",
+    "See what this one section would produce: preview_generation.",
+    "Check the wiring: check_draft, then publish: publish_draft.",
   ],
 };
 

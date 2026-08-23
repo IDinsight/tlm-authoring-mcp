@@ -205,10 +205,10 @@ export async function findActiveNodes(args: { query: string; labels?: string[]; 
     // Several equally-good matches is the NORMAL case here (both Courses of a
     // subject hold a "Chapitre 5"), so say out loud that guessing is wrong.
     ...(matches.length > 1
-      ? { ambiguous: true, note: "Plusieurs éléments portent ce nom. Demandez à l'utilisateur lequel — leur `path` indique à quel document ou cours chacun appartient — plutôt que d'en choisir un." }
+      ? { ambiguous: true, note: "Several elements carry this name. Ask the user which one — each candidate's `path` says which document or course it sits in — rather than picking one." }
       : {}),
     ...(matches.length === 0
-      ? { note: "Aucun élément ne porte ce nom. Essayez moins de mots, ou appelez namespace_stats pour voir les racines du graphe." }
+      ? { note: "Nothing carries this name. Try fewer words, or call namespace_stats to see the graph's roots." }
       : {}),
   };
 }
@@ -356,7 +356,7 @@ export function registerGraphTools(server: McpServer) {
     {
       title: "Find a node by name",
       description:
-        "Turn a NAME into node ids — the way to get an id when the user says « le chapitre 5 » or « le guide de l'enseignant ». NEVER ask the user for a node id or a UUID: ask for the name and resolve it here. Matching ignores case and accents, so « chapitre 5 les nombres jusqu'a 20 » finds « Chapitre 5 : Les nombres jusqu'à 20 ». " +
+        "Turn a NAME into node ids — the way to get an id when the user says « chapter 5 » or « le guide de l'enseignant ». NEVER ask the user for a node id or a UUID: ask for the name, in their own language, and resolve it here. Matching ignores case and accents, so « chapitre 5 les nombres jusqu'a 20 » finds « Chapitre 5 : Les nombres jusqu'à 20 ». " +
         "`query` is what the user typed; `labels` narrows to LC labels (e.g. ['LessonGrouping'] for a chapter/week, ['Course'], ['TeachingLearningMaterial'] for a document, ['Lesson']); `limit` caps the list (default 10). Each match carries `id`, `title`, `labels`, `path` (its containment ancestors — what tells two « Chapitre 5 » apart) and `match` (exact | prefix | contains | words). " +
         "When several match, the response sets `ambiguous`: ASK the user which one, quoting the `path`, and do not guess — picking wrong silently writes against another document. `slot`: 'published' (default) or 'draft' (unpublished staged edits — curators/approvers only), so a chapter you just created is findable before publishing. Read-only.",
       inputSchema: {

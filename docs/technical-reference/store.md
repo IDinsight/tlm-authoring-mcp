@@ -179,7 +179,7 @@ The loop is a set of role-gated MCP tools over the draft:
 
 - **Authoring (curator+):** `add_nodes`, `create_edges`, `edit_node`, `move_node`, `delete_nodes`, `delete_edges` — see [Authoring verbs](#authoring-verbs) below. Each is two-phase (dry-run → token-only confirm) and audited on both writes and denials. Sequential edits accumulate on the SAME draft overlay and publish together atomically.
 - **`diff_draft`** (curator+) — read-only. The CUMULATIVE draft-vs-published diff: everything that goes live on publish.
-- **`check_draft`** (curator+ on an open draft) — read-only. The MECHANICAL wiring lint, reported in French: a document covering no curriculum (it would generate empty), a document with no formatter, a section outside any document, a routine nothing uses, a node connected to nothing. See [Structural lint](#structural-lint-check_draft) below.
+- **`check_draft`** (curator+ on an open draft) — read-only. The MECHANICAL wiring lint: a document covering no curriculum (it would generate empty), a document with no formatter, a section outside any document, a routine nothing uses, a node connected to nothing. See [Structural lint](#structural-lint-check_draft) below.
 - **`review_draft`** (curator+) — read-only. The guide's coverage expectations + a structural snapshot, for the model to reason over before publishing.
 - **`publish_draft`** (approver only) — two-phase: dry-run shows the whole-draft diff + a draft-level token; confirm folds the overlay into canonical atomically. If the draft moved since dry-run, confirm is rejected (retry).
 - **`discard_draft`** (curator+) — two-phase: dry-run shows what will be thrown away; confirm drops the draft. Published is byte-untouched. Audited.
@@ -202,14 +202,14 @@ nothing errors; generation reads an empty document and the expert finds out at t
 
 | Rule | Fires when | Severity |
 |---|---|---|
-| `document-sans-contenu` | a TLM covers no curriculum, directly or through its sections | warning |
-| `document-sans-mise-en-forme` | a TLM has no `Formatter` under it | warning |
-| `section-hors-document` | a `DocumentSection` hangs under no TLM | warning |
-| `section-sans-contenu` | a section `covers` nothing (legitimate front matter) | info |
-| `routine-inutilisee` | an `InstructionalRoutine` has no inbound `usesRoutine` | warning |
-| `noeud-isole` | a node with no incident edge at all | warning |
+| `document-covers-nothing` | a TLM covers no curriculum, directly or through its sections | warning |
+| `document-has-no-formatter` | a TLM has no `Formatter` under it | warning |
+| `section-outside-document` | a `DocumentSection` hangs under no TLM | warning |
+| `section-covers-nothing` | a section `covers` nothing (legitimate front matter) | info |
+| `routine-unused` | an `InstructionalRoutine` has no inbound `usesRoutine` | warning |
+| `isolated-node` | a node with no incident edge at all | warning |
 
-Each finding carries a French `message` (what is wrong) and `fix` (what to do); `noeud-isole` is
+Each finding carries a French `message` (what is wrong) and `fix` (what to do); `isolated-node` is
 suppressed for a node a specific rule already explains, so one node never produces two near-identical
 lines. Warnings sort before info.
 

@@ -304,11 +304,12 @@ export async function buildCapabilitiesReport(): Promise<Record<string, unknown>
     // The rules, named so a caller can anticipate them. They are WIRING only —
     // "is this connected?" — never a judgment about what the subject teaches.
     rules: [
-      "document-sans-contenu", "document-sans-mise-en-forme",
-      "section-sans-contenu", "section-hors-document",
-      "routine-inutilisee", "noeud-isole",
+      "document-covers-nothing", "document-has-no-formatter",
+      "section-covers-nothing", "section-outside-document",
+      "routine-unused", "isolated-node",
     ],
-    reportedIn: "French",
+    // The payload is English; the model relays it in the expert's working language.
+    reportedIn: "the user's working language (payload is English)",
     note:
       "check_draft reports the MECHANICAL failures that are otherwise silent: a document covering no curriculum (it would generate empty), a document with no formatter, a section outside any document, a routine nothing uses, a node connected to nothing. Findings are French, each with a `fix`, and tagged `inThisDraft`. The same warnings ride publish_draft's dry-run as `checks`, scoped to the nodes the draft touched — they never block. Its sibling is review_draft, which judges COVERAGE from the guide's prose; the split is deliberate and check_draft must never grow a coverage rule.",
   };
@@ -323,7 +324,7 @@ export async function buildCapabilitiesReport(): Promise<Record<string, unknown>
     nextStepsOnWrites: true,
     language: "French",
     note:
-      "start_here answers 'where am I and what should I do next' for a PERSON (this tool answers 'what is possible' for a machine): active context or the list to choose from, the caller's role in plain terms, whether a draft is open, the unfinished work, and suggested next moves — all in French, and it works before set_context. The connector also publishes named workflow PROMPTS a client can surface as a menu (créer un document, appliquer un style, créer une routine, préparer une relecture). Every write response carries `nextSteps`, the sequence that usually follows. Vocabulary rule for all of it: speak the expert's words — document, section, chapitre, objectif — never TLM/SFI/hasPart, and never ask a user for a node id (use find_node).",
+      "start_here answers 'where am I and what should I do next' for a PERSON (this tool answers 'what is possible' for a machine): active context or the list to choose from, the caller's role in plain terms, whether a draft is open, the unfinished work, and suggested next moves — and it works before set_context. The connector also publishes named workflow PROMPTS a client can surface as a menu (créer un document, appliquer un style, créer une routine, préparer une relecture). Every write response carries `nextSteps`, the sequence that usually follows. Language rule for all of it: these payloads are English, but they are for a PERSON — relay them in the expert's own working language, the one this subject's curriculum and guide are written in (French for Senegal, English for the EIDU frameworks). Vocabulary rule: speak the expert's words — document, section, chapter, objective — never TLM/SFI/hasPart, and never ask a user for a node id (use find_node).",
   };
 
   return {

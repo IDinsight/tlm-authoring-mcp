@@ -52,14 +52,14 @@ describe("lintGraph — the document rules", () => {
     const graph = healthy();
     graph.edges = graph.edges.filter((e) => !(e.type === "covers" && e.from === "tlm"));
     // Its section still covers the lesson, so the document is NOT orphaned…
-    expect(rules(graph)).not.toContain("document-sans-contenu");
+    expect(rules(graph)).not.toContain("document-covers-nothing");
 
     // …but drop that too and the document renders empty with no error anywhere.
     graph.edges = graph.edges.filter((e) => e.type !== "covers");
-    const finding = lintGraph(graph).find((f) => f.rule === "document-sans-contenu");
+    const finding = lintGraph(graph).find((f) => f.rule === "document-covers-nothing");
     expect(finding?.nodeId).toBe("tlm");
     expect(finding?.severity).toBe("warning");
-    expect(finding?.message).toMatch(/vide/);
+    expect(finding?.message).toMatch(/empty document/);
     expect(finding?.fix).toBeTruthy();
   });
 
@@ -67,21 +67,21 @@ describe("lintGraph — the document rules", () => {
     const graph = healthy();
     graph.nodes = graph.nodes.filter((n) => n.id !== "formatter");
     graph.edges = graph.edges.filter((e) => e.to !== "formatter");
-    expect(rules(graph)).toContain("document-sans-mise-en-forme");
+    expect(rules(graph)).toContain("document-has-no-formatter");
   });
 
   it("flags a section outside any document, but treats a front-matter section as info", () => {
     const graph = healthy();
     graph.edges = graph.edges.filter((e) => !(e.type === "hasPart" && e.to === "section"));
-    expect(rules(graph)).toContain("section-hors-document");
+    expect(rules(graph)).toContain("section-outside-document");
 
     // A section that covers nothing is legitimate front matter — reported, but
     // as info with a fix that says so, never as a warning.
     const frontMatter = healthy();
     frontMatter.edges = frontMatter.edges.filter((e) => !(e.type === "covers" && e.from === "section"));
-    const finding = lintGraph(frontMatter).find((f) => f.rule === "section-sans-contenu");
+    const finding = lintGraph(frontMatter).find((f) => f.rule === "section-covers-nothing");
     expect(finding?.severity).toBe("info");
-    expect(finding?.fix).toMatch(/page de garde|sommaire/);
+    expect(finding?.fix).toMatch(/cover page|table of contents/);
   });
 });
 
@@ -89,16 +89,16 @@ describe("lintGraph — the curriculum rules", () => {
   it("flags a routine no lesson uses, and stays quiet once one does", () => {
     const graph = healthy();
     graph.nodes.push(node("routine", "InstructionalRoutine", "Déroulé de séance"));
-    expect(rules(graph)).toContain("routine-inutilisee");
+    expect(rules(graph)).toContain("routine-unused");
 
     graph.edges.push(edge("usesRoutine", "lesson", "routine"));
-    expect(rules(graph)).not.toContain("routine-inutilisee");
+    expect(rules(graph)).not.toContain("routine-unused");
   });
 
   it("flags a node with no edge at all", () => {
     const graph = healthy();
     graph.nodes.push(node("orphan", "Lesson", "Leçon oubliée"));
-    const finding = lintGraph(graph).find((f) => f.rule === "noeud-isole");
+    const finding = lintGraph(graph).find((f) => f.rule === "isolated-node");
     expect(finding?.nodeId).toBe("orphan");
   });
 });
@@ -118,7 +118,7 @@ describe("lintGraph — scoping and ordering", () => {
     graph.nodes.push(node("routine", "InstructionalRoutine", "Routine oubliée"));
 
     const forRoutine = lintGraph(graph).filter((finding) => finding.nodeId === "routine");
-    expect(forRoutine.map((finding) => finding.rule)).toEqual(["routine-inutilisee"]);
+    expect(forRoutine.map((finding) => finding.rule)).toEqual(["routine-unused"]);
   });
 
   it("puts warnings before info", () => {

@@ -3,13 +3,19 @@
  *
  * Rung 2 of the in-product guidance (docs/design-notes/self-serve-authoring.md).
  * get_capabilities answers "what is POSSIBLE" for a machine; nothing answered
- * "what should I do NEXT" for a person. This does, in French, in one
- * argument-free call: where you are, what you may do, what is half-finished, and
- * the two or three things worth doing now.
+ * "what should I do NEXT" for a person. This does, in one argument-free call:
+ * where you are, what you may do, what is half-finished, and the two or three
+ * things worth doing now.
  *
  * It is a READ over state we already keep — the context list, the caller's role,
  * the draft pointer, and the wiring lint. No new bookkeeping, so it cannot go
  * stale.
+ *
+ * LANGUAGE: the payload is English, like every other server-authored string
+ * here, and `instruction` tells the model to deliver it in the EXPERT'S
+ * language. One deployment serves six workspaces — Senegal works in French, the
+ * EIDU frameworks in English — so the server cannot pick; the subject guide
+ * names the working language, and the model relays.
  *
  * Everything it says is phrased as description, not as orders to the assistant:
  * `suggestions` are the moves available, for the model to offer the expert.
@@ -27,10 +33,10 @@ import type { EffectiveRole } from "../actor.js";
 
 // What each role may do, in the expert's terms — never the internal action names.
 const ROLE_POWERS: Record<EffectiveRole, string[]> = {
-  curator: ["modifier le contenu (les changements restent en brouillon)", "annuler le brouillon"],
-  approver: ["modifier le contenu", "annuler le brouillon", "publier (rendre les changements visibles)"],
-  admin: ["modifier et publier", "gérer les membres de l'espace de travail"],
-  super_admin: ["tout faire, dans tous les espaces de travail"],
+  curator: ["change the content (changes stay in a draft)", "discard the draft"],
+  approver: ["change the content", "discard the draft", "publish (make changes visible)"],
+  admin: ["change and publish", "manage the workspace's members"],
+  super_admin: ["do anything, in every workspace"],
 };
 
 const stripSlot = <T extends { slot: Slot }>(row: T): Omit<T, "slot"> => {
@@ -48,15 +54,15 @@ function unfinished(findings: LintFinding[]): string[] {
     byRule.set(finding.rule, [...(byRule.get(finding.rule) ?? []), finding]);
   }
   const phrasing: Record<string, (count: number) => string> = {
-    "document-sans-contenu": (n) => `${n} document(s) ne sont rattachés à aucun contenu du programme — ils seraient produits vides.`,
-    "document-sans-mise-en-forme": (n) => `${n} document(s) n'ont aucune règle de mise en forme.`,
-    "section-hors-document": (n) => `${n} section(s) n'appartiennent à aucun document.`,
-    "routine-inutilisee": (n) => `${n} routine(s) pédagogique(s) ne sont utilisées par aucune leçon.`,
-    "noeud-isole": (n) => `${n} élément(s) ne sont reliés à rien.`,
-    "section-sans-contenu": (n) => `${n} section(s) ne couvrent aucun contenu (normal pour une page de garde ou un sommaire).`,
+    "document-covers-nothing": (n) => `${n} document(s) are attached to no curriculum content — they would be produced empty.`,
+    "document-has-no-formatter": (n) => `${n} document(s) have no layout rules.`,
+    "section-outside-document": (n) => `${n} section(s) belong to no document.`,
+    "routine-unused": (n) => `${n} instructional routine(s) are used by no lesson.`,
+    "isolated-node": (n) => `${n} element(s) are connected to nothing.`,
+    "section-covers-nothing": (n) => `${n} section(s) cover no content (normal for a cover page or a table of contents).`,
   };
   return [...byRule.entries()]
-    .map(([rule, group]) => (phrasing[rule] ?? ((n: number) => `${n} point(s) à vérifier (${rule}).`))(group.length));
+    .map(([rule, group]) => (phrasing[rule] ?? ((n: number) => `${n} point(s) to check (${rule}).`))(group.length));
 }
 
 /**
@@ -72,10 +78,10 @@ export async function startHere(): Promise<Record<string, unknown>> {
 
   if (!active) {
     return {
-      etape: "choisir-le-sujet",
-      message: "Aucun programme n'est encore sélectionné. Demandez à l'utilisateur sur quel niveau et quelle matière il veut travailler, puis appelez set_context.",
-      disponibles: available,
-      suggestions: ["Choisir un programme parmi `disponibles` (set_context)."],
+      step: "choose-a-subject",
+      message: "No curriculum is selected yet. Ask the user which grade and subject they want to work on, then call set_context.",
+      available,
+      suggestions: ["Choose a curriculum from `available` (set_context)."],
     };
   }
 
@@ -94,28 +100,26 @@ export async function startHere(): Promise<Record<string, unknown>> {
 
   const draftOpen = Boolean(pointer?.draftSlot);
   const suggestions = [
-    "Lire le guide du sujet pour parler comme lui : get_graph_guide.",
-    "Voir de quoi le programme est fait : namespace_stats.",
-    "Retrouver un chapitre ou un document par son NOM (jamais par identifiant) : find_node.",
+    "Read the subject's guide so you speak its language: get_graph_guide.",
+    "See what the curriculum is made of: namespace_stats.",
+    "Find a chapter or a document by its NAME (never by identifier): find_node.",
     ...(draftOpen
-      ? [
-          "Un brouillon est ouvert : voir ce qu'il change (diff_draft), vérifier les branchements (check_draft), puis publier (publish_draft).",
-        ]
+      ? ["A draft is open: see what it changes (diff_draft), check its wiring (check_draft), then publish (publish_draft)."]
       : []),
-    ...(findings.length > 0 ? ["Reprendre le travail inachevé listé dans `inacheve`."] : []),
+    ...(findings.length > 0 ? ["Pick up the unfinished work listed in `unfinished`."] : []),
   ];
 
   return {
-    etape: "pret",
-    contexte: { espace: workspace, niveau: adapter.grade, matiere: adapter.subject },
+    step: "ready",
+    context: { workspace, grade: adapter.grade, subject: adapter.subject },
     role: role ?? null,
-    droits: role ? ROLE_POWERS[role] : ["lire et générer, mais pas modifier — demandez un rôle à un administrateur de l'espace"],
-    brouillon: draftOpen ? "un brouillon est ouvert (vos changements ne sont pas encore publiés)" : "aucun brouillon en cours",
-    inacheve: unfinished(findings),
+    allowedTo: role ? ROLE_POWERS[role] : ["read and generate, but not change anything — ask a workspace administrator for a role"],
+    draft: draftOpen ? "a draft is open (your changes are not published yet)" : "no draft in progress",
+    unfinished: unfinished(findings),
     suggestions,
     instruction:
-      "Présentez ceci à l'utilisateur en français simple, comme un point de situation : où il en est, ce qu'il peut faire, ce qui reste en suspens. " +
-      "Parlez son vocabulaire — « document », « section », « chapitre », « objectif » — jamais TLM, SFI, hasPart ou identifiant. Proposez ensuite une ou deux actions, et laissez-le choisir.",
+      "Deliver this to the user as a situation report — where they are, what they can do, what is still outstanding — IN THEIR OWN LANGUAGE: the one this subject's curriculum and guide are written in (French for Senegal, English for the EIDU frameworks), or whichever they are writing to you in. " +
+      "Use their words — document, section, chapter, objective — never TLM, SFI, hasPart, or an identifier. Then offer one or two actions and let them choose.",
   };
 }
 
@@ -125,8 +129,8 @@ export function registerStartHereTools(server: McpServer) {
     {
       title: "Where am I, and what should I do next?",
       description:
-        "Argument-free ORIENTATION for a human author, answered in French: the active workspace/grade/subject (or the list to choose from when none is set), the role the caller holds and what it lets them do, whether a draft is open, the UNFINISHED work in the graph (documents attached to nothing, sections outside a document, unused routines), and two or three suggested next moves. " +
-        "Call it at the start of a session, or whenever the user asks « qu'est-ce que je peux faire ? » / « où j'en suis ? ». Where get_capabilities answers what is POSSIBLE (for a machine), this answers what to do NEXT (for a person). Read-only, no context required, changes nothing.",
+        "Argument-free ORIENTATION for a human author: the active workspace/grade/subject (or the list to choose from when none is set), the role the caller holds and what it lets them do, whether a draft is open, the UNFINISHED work in the graph (documents attached to nothing, sections outside a document, unused routines), and two or three suggested next moves. " +
+        "Call it at the start of a session, or whenever the user asks \"what can I do?\" / \"where did I leave off?\" (in any language). Where get_capabilities answers what is POSSIBLE (for a machine), this answers what to do NEXT (for a person) — so relay it in the user's own language, which the subject's guide names. Read-only, no context required, changes nothing.",
       inputSchema: {},
     },
     // NOT wrapped in guarded(): answering with no active context is the point.

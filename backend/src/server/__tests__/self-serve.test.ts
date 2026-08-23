@@ -186,13 +186,13 @@ describe("find_node — the expert types a name, never an id", () => {
     const result = await withActiveContext(CURATOR, () => findActiveNodes({ query: shared }));
     expect((result.matches as unknown[]).length).toBeGreaterThan(1);
     expect(result.ambiguous).toBe(true);
-    expect(String(result.note)).toMatch(/Demandez à l'utilisateur/);
+    expect(String(result.note)).toMatch(/Ask the user which one/);
   });
 
   it("explains an empty result rather than returning a bare []", async () => {
     const result = await withActiveContext(CURATOR, () => findActiveNodes({ query: "zzz-nothing-like-this" }));
     expect(result.matches).toEqual([]);
-    expect(String(result.note)).toMatch(/Aucun élément/);
+    expect(String(result.note)).toMatch(/Nothing carries this name/);
   });
 });
 
@@ -236,7 +236,7 @@ describe("create_document — the TLM and its `covers` edge are one step", () =>
     // curriculum labels); by id, the recipe itself blocks it.
     const byName = await withActiveContext(CURATOR, () =>
       runCreateDocument({ name: "Autre", covers: "Manuel unique" }));
-    expect(String(byName.error)).toMatch(/Aucun élément/);
+    expect(String(byName.error)).toMatch(/Nothing matches/);
 
     const byId = await withActiveContext(CURATOR, () =>
       runCreateDocument({ name: "Autre", covers: documentId }));
@@ -313,16 +313,16 @@ describe("check_draft — mechanical wiring, in French", () => {
     const report = await withActiveContext(CURATOR, checkDraft);
     expect(report.checking).toBe("draft");
     const findings = report.findings as Array<{ rule: string; fix: string; inThisDraft: boolean }>;
-    const finding = findings.find((f) => f.rule === "document-sans-contenu")!;
+    const finding = findings.find((f) => f.rule === "document-covers-nothing")!;
     expect(finding.fix).toBeTruthy();
     expect(finding.inThisDraft).toBe(true);
-    expect(String(report.summary)).toMatch(/à corriger/);
+    expect(String(report.summary)).toMatch(/point\(s\) to fix/);
   });
 
   it("reads published, and says so, when no draft is open", async () => {
     const report = await withActiveContext(CURATOR, checkDraft);
     expect(report.checking).toBe("published");
-    expect(String(report.summary)).toMatch(/publiée/);
+    expect(String(report.summary)).toMatch(/The published version/);
   });
 
   it("refuses to show an open draft to a caller with no role", async () => {
@@ -344,7 +344,7 @@ describe("publish_draft — the wiring warnings ride the dry-run", () => {
     const preview = await withActiveContext(APPROVER, () => runPublishDraft({}));
     const checks = preview.checks as Array<{ rule: string }>;
     // The new document has no formatter yet — mechanical, and worth saying.
-    expect(checks.some((check) => check.rule === "document-sans-mise-en-forme")).toBe(true);
+    expect(checks.some((check) => check.rule === "document-has-no-formatter")).toBe(true);
     // A warning is not a block: the token is still issued.
     expect(preview.confirmationToken).toBeTruthy();
     expect(String(preview.message)).toMatch(/structural warning/);
@@ -354,16 +354,16 @@ describe("publish_draft — the wiring warnings ride the dry-run", () => {
 describe("start_here — orientation for a person", () => {
   it("answers with the choices when no subject is selected yet", async () => {
     const result = await withoutContext(CURATOR, startHere);
-    expect(result.etape).toBe("choisir-le-sujet");
-    expect((result.disponibles as unknown[]).length).toBeGreaterThan(0);
+    expect(result.step).toBe("choose-a-subject");
+    expect((result.available as unknown[]).length).toBeGreaterThan(0);
   });
 
   it("reports the context, the role's powers, and the draft state", async () => {
     const result = await withActiveContext(CURATOR, startHere);
-    expect(result.etape).toBe("pret");
+    expect(result.step).toBe("ready");
     expect(result.role).toBe("curator");
-    expect((result.droits as string[]).join(" ")).toMatch(/brouillon/);
-    expect(String(result.brouillon)).toMatch(/aucun brouillon/);
+    expect((result.allowedTo as string[]).join(" ")).toMatch(/draft/);
+    expect(String(result.draft)).toMatch(/no draft in progress/);
     expect((result.suggestions as string[]).join(" ")).toMatch(/find_node/);
   });
 
@@ -373,7 +373,7 @@ describe("start_here — orientation for a person", () => {
       confirmed(runCreateDocument as never, { name: "Manuel", covers: chapter.id }));
 
     const result = await withActiveContext(CURATOR, startHere);
-    expect(String(result.brouillon)).toMatch(/un brouillon est ouvert/);
-    expect((result.inacheve as string[]).join(" ")).toMatch(/mise en forme/);
+    expect(String(result.draft)).toMatch(/a draft is open/);
+    expect((result.unfinished as string[]).join(" ")).toMatch(/no layout rules/);
   });
 });

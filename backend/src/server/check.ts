@@ -1,8 +1,8 @@
 /*
  * Module: server · tool group: structural check (check_draft)
  *
- * The mechanical half of "is my draft ready?" — a WIRING lint reported in plain
- * French (docs/design-notes/self-serve-authoring.md, phase 1). Its sibling is
+ * The mechanical half of "is my draft ready?" — a WIRING lint
+ * (docs/design-notes/self-serve-authoring.md, phase 1). Its sibling is
  * review_draft, which hands the guide's PROSE expectations to the calling model
  * to judge. Two tools, deliberately:
  *
@@ -44,18 +44,18 @@ const asGraph = (nodes: StoredNode[], edges: StoredEdge[]): MutationGraph =>
 // response stays readable by showing the first slice and counting the rest.
 const MAX_FINDINGS = 50;
 
-// One French sentence summarising the result, so the model can read the verdict
-// aloud without composing it (and without inventing a number).
+// One sentence summarising the result, so the model can relay the verdict
+// without composing it (and without inventing a number).
 function summarise(findings: LintFinding[], checking: "draft" | "published"): string {
   const warnings = findings.filter((finding) => finding.severity === "warning").length;
   const infos = findings.length - warnings;
-  const what = checking === "draft" ? "Le brouillon" : "La version publiée";
-  if (findings.length === 0) return `${what} ne présente aucun problème de branchement : tout est relié.`;
+  const what = checking === "draft" ? "The draft" : "The published version";
+  if (findings.length === 0) return `${what} has no wiring problems: everything is connected.`;
   const parts = [
-    warnings > 0 ? `${warnings} point(s) à corriger` : null,
-    infos > 0 ? `${infos} point(s) à vérifier` : null,
-  ].filter(Boolean).join(" et ");
-  return `${what} présente ${parts}.`;
+    warnings > 0 ? `${warnings} point(s) to fix` : null,
+    infos > 0 ? `${infos} point(s) to check` : null,
+  ].filter(Boolean).join(" and ");
+  return `${what} has ${parts}.`;
 }
 
 /**
@@ -70,7 +70,7 @@ export async function checkDraft(): Promise<Record<string, unknown>> {
   const namespace = activeNamespace();
   const store = getKgStore();
   const pointer = await store.readPointer(namespace);
-  if (!pointer) return { error: `Aucun graphe en base pour '${namespace}'. Importez-le d'abord.` };
+  if (!pointer) return { error: `No graph in the store for '${namespace}'. Import it first.` };
 
   let target = pointer.publishedSlot;
   let checking: "draft" | "published" = "published";
@@ -111,12 +111,12 @@ export async function checkDraft(): Promise<Record<string, unknown>> {
       inThisDraft: findings.filter((finding) => ownIds.has(finding.nodeId)).length,
     },
     ...(findings.length > shown.length
-      ? { truncated: findings.length, truncatedNote: `${findings.length} points au total ; les ${MAX_FINDINGS} premiers sont listés (avertissements d'abord).` }
+      ? { truncated: findings.length, truncatedNote: `${findings.length} points in total; the first ${MAX_FINDINGS} are listed (warnings first).` }
       : {}),
     findings: shown.map((finding) => ({ ...finding, inThisDraft: ownIds.has(finding.nodeId) })),
     instruction:
-      "Rapportez ces points à l'utilisateur en français, dans ses mots (« document », « section », « objectif »), sans jargon technique ni identifiants. " +
-      "Chaque point porte un `fix` : proposez-le comme prochaine action. Ce sont des avertissements de BRANCHEMENT (ce qui est relié à quoi), jamais un jugement pédagogique — pour la couverture du programme, utilisez review_draft. Rien ici n'empêche de publier.",
+      "Report these points to the user IN THEIR OWN LANGUAGE — the one this subject's curriculum and guide are written in (French for Senegal, English for the EIDU frameworks) — and in their words (document, section, objective), with no technical jargon and no identifiers. " +
+      "Each point carries a `fix`: offer it as the next action. These are WIRING warnings (what is connected to what), never a pedagogical judgement — for curriculum coverage use review_draft. Nothing here prevents publishing.",
   };
 }
 
@@ -140,7 +140,7 @@ export function registerCheckTools(server: McpServer) {
       title: "Check the draft's wiring",
       description:
         "Structural check of the current DRAFT (or of published, when no draft is open) — the MECHANICAL problems that fail silently today: a document attached to no curriculum (it would generate empty), a document with no formatter, a section outside any document, a routine no lesson uses, a node connected to nothing. Read-only, changes nothing, blocks nothing. " +
-        "Findings come back in FRENCH, each with a `message` (what is wrong) and a `fix` (what to do), plus `inThisDraft` telling you whether the current draft caused it or it was already there. " +
+        "Each finding carries a `message` (what is wrong), a `fix` (what to do), and `inThisDraft` (whether the current draft caused it or it was already there). Relay them in the USER'S language — the one the subject's guide is written in — not verbatim. " +
         "This checks WIRING, never pedagogy: for whether the graph covers what the subject should teach, call review_draft, which reads the subject guide's expectations. Run both before publish_draft and present them to the user as one review, not two tools. The same wiring warnings also ride publish_draft's dry-run, scoped to what the draft touched. Reading an open draft is curator/approver-gated.",
       inputSchema: {},
     },
