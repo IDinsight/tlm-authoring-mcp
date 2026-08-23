@@ -21,7 +21,7 @@
 
 import { randomBytes, randomUUID } from "node:crypto";
 import { getKgStore } from "./adapter.js";
-import { toAuditActor } from "./audit.js";
+import { toAuditActor, nextAuditSeq } from "./audit.js";
 import { diffGraphs, hashGraph, stripSlot } from "./mutations.js";
 import { diffProfile, hashConfig, type WholeDraftProfileDiff } from "./config-flow.js";
 import { lintGraph, type LintFinding } from "./lint.js";
@@ -70,7 +70,7 @@ export async function publishDraft(namespace: string): Promise<PublishResult> {
   const authz = authorize(actor, "publish", namespace);
   if (!authz.ok) {
     await store.appendAudit({
-      id: randomUUID(), ts: new Date().toISOString(), actor: auditActor,
+      id: randomUUID(), ts: new Date().toISOString(), seq: nextAuditSeq(), actor: auditActor,
       namespace, eventType: "blocked", reason: `unauthorized: ${authz.reason}`,
     });
     return { ok: false, reason: authz.reason };
@@ -88,7 +88,7 @@ export async function publishDraft(namespace: string): Promise<PublishResult> {
   if (selfAuthored && !selfApproveAllowed()) {
     const reason = "separation-of-duties: approver cannot publish self-authored edits (TLM_ALLOW_SELF_APPROVE=0)";
     await store.appendAudit({
-      id: randomUUID(), ts: new Date().toISOString(), actor: auditActor,
+      id: randomUUID(), ts: new Date().toISOString(), seq: nextAuditSeq(), actor: auditActor,
       namespace, eventType: "blocked", reason: `unauthorized: ${reason}`,
     });
     return { ok: false, reason };
@@ -103,7 +103,7 @@ export async function publishDraft(namespace: string): Promise<PublishResult> {
     // surface it, but audit it as blocked for consistency.
     const reason = "no draft to publish";
     await store.appendAudit({
-      id: randomUUID(), ts: new Date().toISOString(), actor: auditActor,
+      id: randomUUID(), ts: new Date().toISOString(), seq: nextAuditSeq(), actor: auditActor,
       namespace, eventType: "blocked", reason,
     });
     return { ok: false, reason };
@@ -119,7 +119,7 @@ export async function publishDraft(namespace: string): Promise<PublishResult> {
 
   const auditId = randomUUID();
   const rec: AuditRecord = {
-    id: auditId, ts: new Date().toISOString(), actor: auditActor,
+    id: auditId, ts: new Date().toISOString(), seq: nextAuditSeq(), actor: auditActor,
     namespace, eventType: "publish",
     baseVersion, resultingVersion,
     promotedApplyIds: promotedIds,
@@ -137,7 +137,7 @@ export async function discardDraft(namespace: string): Promise<DiscardResult> {
   const authz = authorize(actor, "discard", namespace);
   if (!authz.ok) {
     await store.appendAudit({
-      id: randomUUID(), ts: new Date().toISOString(), actor: auditActor,
+      id: randomUUID(), ts: new Date().toISOString(), seq: nextAuditSeq(), actor: auditActor,
       namespace, eventType: "blocked", reason: `unauthorized: ${authz.reason}`,
     });
     return { ok: false, reason: authz.reason };
@@ -160,7 +160,7 @@ export async function discardDraft(namespace: string): Promise<DiscardResult> {
 
   const auditId = randomUUID();
   const rec: AuditRecord = {
-    id: auditId, ts: new Date().toISOString(), actor: auditActor,
+    id: auditId, ts: new Date().toISOString(), seq: nextAuditSeq(), actor: auditActor,
     namespace, eventType: "discard",
     baseVersion, discardedApplyIds,
   };
@@ -316,7 +316,7 @@ export async function publishDraftWithConfirm(
   const authz = authorize(actor, "publish", namespace);
   if (!authz.ok) {
     await store.appendAudit({
-      id: randomUUID(), ts: new Date().toISOString(), actor: auditActor,
+      id: randomUUID(), ts: new Date().toISOString(), seq: nextAuditSeq(), actor: auditActor,
       namespace, eventType: "blocked", reason: `unauthorized: ${authz.reason}`,
     });
     return { phase: "unauthorized", kind: "publishDraft", action: "publish", reason: authz.reason };
@@ -415,7 +415,7 @@ export async function discardDraftWithConfirm(
   const authz = authorize(actor, "discard", namespace);
   if (!authz.ok) {
     await store.appendAudit({
-      id: randomUUID(), ts: new Date().toISOString(), actor: auditActor,
+      id: randomUUID(), ts: new Date().toISOString(), seq: nextAuditSeq(), actor: auditActor,
       namespace, eventType: "blocked", reason: `unauthorized: ${authz.reason}`,
     });
     return { phase: "unauthorized", kind: "discardDraft", action: "discard", reason: authz.reason };

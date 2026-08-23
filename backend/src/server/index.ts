@@ -31,6 +31,7 @@ import { registerCheckTools } from "./check.js";
 import { registerDocumentAuthoringTools } from "./document-authoring.js";
 import { registerAuthoringPrompts } from "./prompts.js";
 import { registerUndoTools } from "./undo.js";
+import { registerReviewTools } from "./review.js";
 
 export function buildServer(): McpServer {
   const server = new McpServer({ name: "tlm-authoring-server", title: "Teaching & Learning Materials authoring", version: "0.4.0" });
@@ -47,6 +48,7 @@ export function buildServer(): McpServer {
   registerDocumentTools(server);     // reconcile, upload/download, record/log
   registerLifecycleTools(server);    // diff_draft, publish_draft, discard_draft
   registerUndoTools(server);         // undo_last (take back ONE staged edit — the per-edit counterpart to discard_draft)
+  registerReviewTools(server);       // request_review (the curator→approver handoff, derived from the audit trail)
   registerCheckTools(server);        // check_draft (structural WIRING lint in French — review_draft's mechanical sibling)
   registerStructuralTools(server);   // create_edges, delete_edges, delete_nodes (edge + deletion verbs)
   registerRecipeTools(server);       // edit_node (content / position / title edits — replaced reposition + set_content)

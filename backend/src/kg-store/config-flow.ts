@@ -17,7 +17,7 @@
 
 import { createHash, randomBytes, randomUUID } from "node:crypto";
 import { getKgStore } from "./adapter.js";
-import { toAuditActor } from "./audit.js";
+import { toAuditActor, nextAuditSeq } from "./audit.js";
 import { stableStringify, shouldStorePayload, pendingTtlMs } from "./mutations.js";
 import type { AuditRecord, Slot, StoredConfig, ValidationResult } from "./types.js";
 import { currentActor, type Actor } from "../actor.js";
@@ -145,7 +145,7 @@ export async function editProfileWithConfirm(
 
   const auditBlocked = async (reason: string): Promise<void> => {
     await store.appendAudit({
-      id: randomUUID(), ts: new Date().toISOString(), actor: auditActor,
+      id: randomUUID(), ts: new Date().toISOString(), seq: nextAuditSeq(), actor: auditActor,
       namespace, eventType: "blocked", mutation: "edit_profile", reason,
     });
   };
@@ -214,7 +214,7 @@ export async function editProfileWithConfirm(
     // byte-for-byte copy of published, config cell included) before writing.
     if (base.kind === "onPublished") {
       await store.createDraft(namespace, {
-        id: randomUUID(), ts: new Date().toISOString(), actor: auditActor,
+        id: randomUUID(), ts: new Date().toISOString(), seq: nextAuditSeq(), actor: auditActor,
         namespace, eventType: "createDraft", baseVersion: hashConfig(base.config),
       });
     }
@@ -227,7 +227,7 @@ export async function editProfileWithConfirm(
 
     const diff: ConfigDiff = { before: base.config, after: effective };
     const applyRec: AuditRecord = {
-      id: randomUUID(), ts: new Date().toISOString(), actor: auditActor,
+      id: randomUUID(), ts: new Date().toISOString(), seq: nextAuditSeq(), actor: auditActor,
       namespace, eventType: "apply", mutation: "edit_profile",
       baseVersion: hashConfig(base.config), resultingVersion: hashConfig(effective),
     };

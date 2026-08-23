@@ -38,6 +38,23 @@ La publication se fait en **deux temps**, comme les autres actions importantes :
 
 Par défaut, un approbateur **peut** publier un brouillon qu'il a lui-même édité. Selon la configuration du projet, une **seconde relecture** peut être exigée. Dans tous les cas, la trace de publication indique si l'auteur des changements est aussi celui qui a publié — pour la transparence.
 
+## Signaler que le brouillon est prêt
+
+Quand vous avez fini une série de modifications, dites-le :
+
+> « Marque le brouillon comme prêt à relire. Note : chapitres 1 à 3 faits, le 4 attend encore son bilan. »
+
+La note est le message que vous auriez envoyé à la main : ce qui a changé, ce qui reste. La personne qui publie la verra en arrivant.
+
+!!! warning "Personne n'est prévenu automatiquement"
+    Aucun e-mail, aucune notification. La demande apparaît quand l'approbateur demande « où en est-on ? » ou consulte le brouillon. **Prévenez-le** s'il ne regarde pas déjà.
+
+Si vous voulez continuer à travailler, reprenez votre demande :
+
+> « Finalement j'ai encore des corrections — annule la demande de relecture. »
+
+Le brouillon lui-même n'est pas touché : seule la demande est retirée. Et une fois le brouillon publié (ou abandonné), la demande disparaît d'elle-même — elle ne peut pas rester affichée sur un travail déjà en ligne.
+
 ## Revenir sur une seule modification
 
 Une erreur sur la **dernière** modification n'oblige pas à tout jeter :

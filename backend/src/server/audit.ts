@@ -31,7 +31,7 @@ import { randomUUID } from "node:crypto";
 import { asJson, guarded } from "./shared.js";
 import { getActiveAdapter } from "../adapters/index.js";
 import { activeWorkspace } from "../context/index.js";
-import { getKgStore, kgNamespace, toAuditActor } from "../kg-store/index.js";
+import { getKgStore, kgNamespace, toAuditActor, nextAuditSeq } from "../kg-store/index.js";
 import type { AuditEventType, AuditQuery, AuditRecord } from "../kg-store/index.js";
 import { authorize } from "../authz.js";
 import { currentActor } from "../actor.js";
@@ -160,6 +160,10 @@ function describeTarget(r: AuditRecord): string {
       return truncate(r.reason ?? "preview");
     case "read":
       return truncate(`returned ${r.readCount ?? 0} record(s)${r.readQuery ? ` · ${r.readQuery}` : ""}`);
+    case "review":
+      // The handoff to whoever publishes — the note is the message a curator
+      // would otherwise have sent by hand, so it belongs in the one-liner.
+      return truncate([`draft ${r.reviewState ?? "review"}`, r.reviewNote].filter(Boolean).join(" — "));
     case "membership":
     case "workspace":
       // Tenant-admin events (add/remove member, create workspace) — the human
@@ -193,7 +197,7 @@ async function denyIfNotAuditReader(ns: string): Promise<Record<string, unknown>
   // every other denial in the system. Lightweight: no diff, no snapshot.
   await getKgStore().appendAudit({
     id: randomUUID(),
-    ts: new Date().toISOString(),
+    ts: new Date().toISOString(), seq: nextAuditSeq(),
     actor: toAuditActor(actor),
     namespace: ns,
     eventType: "blocked",
@@ -295,7 +299,7 @@ async function appendReadEvent(ns: string, args: ReadAuditArgs, count: number): 
 
   await getKgStore().appendAudit({
     id: randomUUID(),
-    ts: new Date().toISOString(),
+    ts: new Date().toISOString(), seq: nextAuditSeq(),
     actor: toAuditActor(currentActor()),
     namespace: ns,
     eventType: "read",

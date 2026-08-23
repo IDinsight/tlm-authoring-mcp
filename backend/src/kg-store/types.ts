@@ -291,7 +291,7 @@ export type AuditActor = {
   unknown: boolean;
 };
 
-export type AuditEventType = "apply" | "createDraft" | "publish" | "discard" | "blocked" | "preview" | "read" | "membership" | "workspace";
+export type AuditEventType = "apply" | "createDraft" | "publish" | "discard" | "blocked" | "preview" | "read" | "membership" | "workspace" | "review";
 
 // One flat shape covers every event type. Fields are populated per event;
 // which ones apply is discriminated by `eventType`. Kept flat (rather than a
@@ -300,6 +300,12 @@ export type AuditEventType = "apply" | "createDraft" | "publish" | "discard" | "
 export type AuditRecord = {
   id: string;                          // uuid; also the Firestore doc id
   ts: string;                          // ISO-8601 UTC
+  /**
+   * Write order WITHIN one millisecond — the tiebreak `ts` cannot give (see
+   * audit.ts::nextAuditSeq). Process-local and restarts at 0, so it orders a
+   * burst and claims nothing more. Absent on records written before it existed.
+   */
+  seq?: number;
   actor: AuditActor;
   namespace: string;
   eventType: AuditEventType;
@@ -329,6 +335,14 @@ export type AuditRecord = {
   readQuery?: string;
   /** read-only (#16): how many records the read returned. */
   readCount?: number;
+  /**
+   * review-only (request_review): which way the handoff moved. The draft's
+   * review state is the NEWEST of these on the current draft chain — there is
+   * no stored flag, so a publish or a discard clears it by being a boundary.
+   */
+  reviewState?: "requested" | "withdrawn";
+  /** review-only: the curator's message to whoever will read the draft. */
+  reviewNote?: string;
   /**
    * apply-only (undo_last): the id of the apply record this one INVERTS. Set
    * only on an undo, and it is what makes repeated undos peel back rather than

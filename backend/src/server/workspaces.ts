@@ -24,7 +24,7 @@ import { authorizeWorkspace, effectiveRole } from "../authz.js";
 import { basePrefix } from "../config.js";
 import { slug } from "../utils/index.js";
 import { listAvailableContexts } from "../context/index.js";
-import { getKgStore, toAuditActor } from "../kg-store/index.js";
+import { getKgStore, toAuditActor, nextAuditSeq } from "../kg-store/index.js";
 import { getWorkspaceStore } from "../workspaces/index.js";
 import { accessibleContexts } from "./context.js";
 
@@ -35,7 +35,7 @@ const ROLE = z.enum(["curator", "approver", "admin"]);
 async function auditAdmin(workspace: string, eventType: "membership" | "workspace", reason: string): Promise<void> {
   await getKgStore().appendAudit({
     id: randomUUID(),
-    ts: new Date().toISOString(),
+    ts: new Date().toISOString(), seq: nextAuditSeq(),
     actor: toAuditActor(currentActor()),
     namespace: basePrefix() + workspace,
     eventType,

@@ -183,6 +183,7 @@ The loop is a set of role-gated MCP tools over the draft:
 - **`review_draft`** (curator+) — read-only. The guide's coverage expectations + a structural snapshot, for the model to reason over before publishing.
 - **`publish_draft`** (approver only) — two-phase: dry-run shows the whole-draft diff + a draft-level token; confirm folds the overlay into canonical atomically. If the draft moved since dry-run, confirm is rejected (retry).
 - **`discard_draft`** (curator+) — two-phase: dry-run shows what will be thrown away; confirm drops the draft. Published is byte-untouched. Audited.
+- **`request_review`** (curator+) — a single call, no confirm: marks the open draft FINISHED and waiting for someone to read it, with an optional note (the message that would otherwise have gone by hand). `withdraw:true` takes it back. It notifies nobody — an approver sees it as `waitingOn` in `start_here` and `reviewRequested` on `diff_draft`. See [The review handoff](#the-review-handoff-request_review) below.
 - **`undo_last`** (curator+) — two-phase: takes back the **most recent** staged edit and leaves the rest of the draft standing, by replaying that edit's recorded `GraphDiff` **backwards**. Argument-free: the target is resolved server-side and reported in `undoing` before you confirm. Repeated calls **peel back** — each undo's apply record carries `undoOf`, so the resolver skips both an undo and the edit it names. Scope is the **current draft only**: once a draft is published, taking a change back is a fresh edit. See [Undo](#undo-undo_last) below.
 
 ```
@@ -194,6 +195,30 @@ approver: review_draft() → coverage expectations + structural snapshot
 approver: publish_draft() → dry-run: diff + draft-level token
 approver: publish_draft(confirm:true, confirmationToken:…) → live; generation now reads the new graph
 ```
+
+### The review handoff (`request_review`)
+
+`kg-store/review.ts`. A curator finishes a batch and needs whoever publishes to look at
+it. That message used to travel outside the system entirely, so nobody could answer "is
+anything waiting on me?" from inside the product.
+
+**There is no stored flag.** The state is the newest `review` event on the current draft
+chain (`kg-store/draft-chain.ts`), the same chain `undo_last` reads. That is deliberate:
+
+- **Publish and discard clear it by being the chain's boundary.** A stored stamp would
+  need clearing in two places, and a stale "waiting for review" on already-published work
+  is exactly the failure the feature exists to prevent.
+- Every request and withdrawal is permanently in the trail — who asked, when, what they said.
+- Nothing new to keep in sync, which is the principle `start_here` is built on.
+
+The cost is one audit read on the surfaces that show it; they already read the store, and
+the query is bounded by the draft chain.
+
+**Ordering matters here.** Audit records carry a process-local `seq` alongside `ts`, and
+`sortAuditNewestFirst` orders by `(ts, seq, id)`. Before that, two records written in the
+same millisecond were separated by a random UUID — harmless until `undo_last` and this
+both started reading "the newest record". A counter rather than a nudged timestamp,
+because an audit record must say when the thing actually happened.
 
 ### Undo (`undo_last`)
 

@@ -26,7 +26,7 @@ import { asJson } from "./shared.js";
 import { accessibleContexts } from "./context.js";
 import { getActiveAdapter } from "../adapters/index.js";
 import { activeWorkspace, getActiveContext } from "../context/index.js";
-import { getKgStore, kgNamespace, lintGraph, type LintFinding, type MutationGraph, type Slot, type StoredEdge, type StoredNode } from "../kg-store/index.js";
+import { getKgStore, kgNamespace, lintGraph, readDraftStanding, type DraftActivity, type LintFinding, type MutationGraph, type ReviewRequest, type Slot, type StoredEdge, type StoredNode } from "../kg-store/index.js";
 import { currentActor } from "../actor.js";
 import { effectiveRole } from "../authz.js";
 import type { EffectiveRole } from "../actor.js";
@@ -48,7 +48,25 @@ const asGraph = (nodes: StoredNode[], edges: StoredEdge[]): MutationGraph =>
 
 // The half-finished work, as sentences an expert recognises. Built from the same
 // wiring lint check_draft reports, grouped so a long tail reads as one line.
-function unfinished(findings: LintFinding[]): string[] {
+//
+// Each group NAMES the first few items. A count on its own ("3 documents have no
+// layout rules") tells an expert something is wrong but not which thing, so the
+// only way to act was a second call — which is the friction this whole read
+// exists to remove. Names are capped because the point is to make it actionable,
+// not to reproduce check_draft.
+const NAMES_PER_RULE = 3;
+
+type UnfinishedGroup = {
+  issue: string;
+  count: number;
+  /** The first few by name, so the expert recognises what is meant. */
+  examples: string[];
+  /** Present when the group is longer than `examples`. */
+  andMore?: number;
+  fix: string;
+};
+
+function unfinished(findings: LintFinding[]): UnfinishedGroup[] {
   const byRule = new Map<string, LintFinding[]>();
   for (const finding of findings) {
     byRule.set(finding.rule, [...(byRule.get(finding.rule) ?? []), finding]);
@@ -61,8 +79,33 @@ function unfinished(findings: LintFinding[]): string[] {
     "isolated-node": (n) => `${n} element(s) are connected to nothing.`,
     "section-covers-nothing": (n) => `${n} section(s) cover no content (normal for a cover page or a table of contents).`,
   };
-  return [...byRule.entries()]
-    .map(([rule, group]) => (phrasing[rule] ?? ((n: number) => `${n} point(s) to check (${rule}).`))(group.length));
+  return [...byRule.entries()].map(([rule, group]) => {
+    const examples = group.slice(0, NAMES_PER_RULE).map((finding) => finding.title).filter(Boolean);
+    return {
+      issue: (phrasing[rule] ?? ((n: number) => `${n} point(s) to check (${rule}).`))(group.length),
+      count: group.length,
+      examples,
+      ...(group.length > examples.length ? { andMore: group.length - examples.length } : {}),
+      // Every finding of one rule carries the same remedy, so the first speaks for all.
+      fix: group[0].fix,
+    };
+  });
+}
+
+// Whose move it is. A review request has two readers and they need opposite
+// sentences: the curator who asked is waiting, the approver who can publish is
+// being waited ON. Returns null when nothing is pending, so the caller can skip
+// the line entirely rather than print "no review requested" at everyone.
+function waitingOn(review: ReviewRequest | null, role: EffectiveRole | null, actorId: string): string | null {
+  if (!review) return null;
+  const canPublish = role === "approver" || role === "admin" || role === "super_admin";
+  if (canPublish && review.requestedBy !== actorId) {
+    return `This draft is waiting for YOU: ${review.requestedBy} asked for it to be reviewed on ${review.requestedAt}.`;
+  }
+  if (review.requestedBy === actorId) {
+    return `You asked for this draft to be reviewed on ${review.requestedAt}. Nobody was notified — say so to whoever publishes if they are not already looking.`;
+  }
+  return `This draft is waiting to be reviewed (asked for by ${review.requestedBy} on ${review.requestedAt}).`;
 }
 
 /**
@@ -99,6 +142,13 @@ export async function startHere(): Promise<Record<string, unknown>> {
   const findings = lintGraph(asGraph(nodes, edges)).filter((finding) => finding.severity === "warning");
 
   const draftOpen = Boolean(pointer?.draftSlot);
+  // One audit read gives BOTH derived facts about the draft — how much work is
+  // standing on it, and whether it is waiting for someone (kg-store/review.ts).
+  const standing = draftOpen ? await readDraftStanding(namespace) : null;
+  const review = standing?.review ?? null;
+  const activity: DraftActivity | null = standing?.activity ?? null;
+  const waiting = waitingOn(review, role ?? null, currentActor().id);
+
   const suggestions = [
     "Read the subject's guide so you speak its language: get_graph_guide.",
     "See what the curriculum is made of: namespace_stats.",
@@ -109,6 +159,7 @@ export async function startHere(): Promise<Record<string, unknown>> {
           "One edit went wrong? undo_last takes back just the last one; discard_draft throws the whole draft away.",
         ]
       : []),
+    ...(draftOpen && !review ? ["Finished for now? request_review marks the draft ready so whoever publishes knows to look."] : []),
     ...(findings.length > 0 ? ["Pick up the unfinished work listed in `unfinished`."] : []),
   ];
 
@@ -118,11 +169,17 @@ export async function startHere(): Promise<Record<string, unknown>> {
     role: role ?? null,
     allowedTo: role ? ROLE_POWERS[role] : ["read and generate, but not change anything — ask a workspace administrator for a role"],
     draft: draftOpen ? "a draft is open (your changes are not published yet)" : "no draft in progress",
+    // How much is standing on the draft, so "where did I leave off" answers
+    // itself. Counted from the edits' own audit records, not by re-diffing the
+    // graph: an edit and its undo cancel out rather than counting as two.
+    draftActivity: activity,
+    waitingOn: waiting,
     unfinished: unfinished(findings),
     suggestions,
     instruction:
       "Deliver this to the user as a situation report — where they are, what they can do, what is still outstanding — IN THEIR OWN LANGUAGE: the one this subject's curriculum and guide are written in (French for Senegal, English for the EIDU frameworks), or whichever they are writing to you in. " +
-      "Use their words — document, section, chapter, objective — never TLM, SFI, hasPart, or an identifier. Then offer one or two actions and let them choose.",
+      "Use their words — document, section, chapter, objective — never TLM, SFI, hasPart, or an identifier. Then offer one or two actions and let them choose. " +
+      "If `waitingOn` is set, lead with it: it says whose move it is, and it is the only thing here that another person is blocked on.",
   };
 }
 

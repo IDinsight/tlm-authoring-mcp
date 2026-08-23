@@ -1,6 +1,6 @@
 # Self-serve authoring — the expert without a developer
 
-> **Status: Phases 1–4 BUILT (2026-08-23); phase 5 still proposed.**
+> **Status: Phases 1–5 BUILT (2026-08-23).**
 > What shipped, and where it lives:
 >
 > - **Phase 1** — `?slot=draft` on the `/kg` routes with a curator gate + per-node
@@ -45,8 +45,15 @@
 >   [`server/undo.ts`](../../backend/src/server/undo.ts)) takes back the most recent
 >   staged edit by replaying its recorded diff backwards, peeling one edit per call.
 >
-> Still open: **phase 5** (`request_review`, the unfinished-work view), and **risk 7**
-> — nobody has watched a real expert use any of this yet.
+> - **Phase 5** — **`request_review`** ([`kg-store/review.ts`](../../backend/src/kg-store/review.ts),
+>   [`server/review.ts`](../../backend/src/server/review.ts)): the curator→approver handoff,
+>   derived from the audit trail rather than stamped on the pointer, surfaced as
+>   `waitingOn` in `start_here` and `reviewRequested` on `diff_draft`; plus the grown-up
+>   unfinished-work view (named items, `draftActivity`). Notification stays unbuilt, by
+>   design.
+>
+> Still open: **risk 7** — nobody has watched a real expert use any of this yet. Every
+> phase above is friction *inferred* from the tool surface, never observed.
 >
 > The rest of this note is the original proposal, kept as the rationale. What has
 > been **run to completion** is the client probe: a
@@ -391,6 +398,8 @@ would have offered to invert published work. The resolver walks to the first dra
 
 ## Phase 5 — "This is a workflow, not a box of tools"
 
+*Built 2026-08-23, with two departures from the proposal. The original is kept below.*
+
 - **`request_review`** — a curator marks the draft ready and the approver sees it.
   Today that handoff happens on WhatsApp. A stamp on the draft pointer, surfaced in
   `get_context` (and a natural Rung-4 prompt: *Préparer une relecture*).
@@ -398,6 +407,51 @@ would have offered to invert published work. The resolver walks to the first dra
   changes, these 3 documents have no formatter, these 12 lessons have no routine.
 - **Notification on review request** — only if the team asks. Email is a real dependency
   for what may be five people in one room.
+
+### What building it found
+
+**Not a stamp on the pointer — a fact derived from the audit trail.** A stored flag has
+to be cleared, and the place it would need clearing is publish and discard: two sites,
+either of which could be forgotten, and a "waiting for review" left standing on work that
+already went live is precisely the failure this feature exists to prevent. The audit log
+already answers the question: the newest `review` event on the current draft chain, where
+the chain stops at the first `createDraft`/`publish`/`discard`
+([`kg-store/draft-chain.ts`](../../backend/src/kg-store/draft-chain.ts)). Publishing
+clears it **by being the boundary**. There is no second place to forget, which is the
+same principle `start_here` was already built on — *"a READ over state we already keep…
+no new bookkeeping, so it cannot go stale."* `undo_last` was refactored onto the same
+helper, since it had grown its own copy of the boundary walk a day earlier.
+
+**Surfaced in `start_here` and `diff_draft`, not `get_context`.** `get_context` is a pure
+session read that touches no store today; making it hit the audit log to answer "is
+anyone waiting" would change what it is. `start_here` already reads the pointer, and
+`diff_draft` is read by exactly the person a request is addressed to.
+
+**`waitingOn` says the opposite thing to the two readers.** A request has a curator who
+asked and an approver who is being waited on; one sentence cannot serve both. The
+approver is told *"this draft is waiting for YOU"*; the curator is told they asked, and —
+because it is the assumption a curator will otherwise make wrongly — that **nobody was
+notified**.
+
+**The note's third example for the unfinished view was wrong for the data model, and was
+not built.** *"These 12 lessons have no routine"* reads as a wiring gap, but routine
+resolution is **nearest-wins up the ancestry**, and `ci/maths` deliberately collapsed its
+112 per-lesson `usesRoutine` edges onto the Course. The rule would have fired ~112 times
+on a healthy graph — the same false alarm as the `routine-unused` bug in #185, which also
+came from a rule that did not know how routines actually attach. What the view did gain:
+each lint group now **names** its first few items (a bare count sent the expert back for a
+second call), and `draftActivity` reports the edits standing on the draft, counted from
+the edits' own audit records so that an edit and its undo cancel rather than counting twice.
+
+**A latent ordering bug surfaced, and it was load-bearing.** `sortAuditNewestFirst` broke
+ties on a random UUID, so two records written in the same millisecond came back in
+arbitrary order. That was harmless while nothing read "the newest record" — and by then
+two things did: `undo_last` and this. Records now carry a process-local `seq`, and the
+sort is `(ts, seq, id)`. A counter rather than nudging the timestamp forward, because an
+audit trail must say when a thing actually happened, even by a millisecond.
+
+**Notification stays unbuilt**, as the note proposed — and `request_review` says so in
+its own response rather than letting a curator assume otherwise.
 
 ## What we deliberately won't build
 
@@ -468,6 +522,7 @@ Building Phase 3 before Phase 1 produces better tools that nobody trusts yet.
 | D8 | In-product guidance mechanism | **Rungs 1, 2 and 4; Rung 3 struck.** Prompts are surfaced and their content *is* acted on — provided it is written in the expert's voice, never as orders to the assistant. Elicitation is unavailable in this client |
 | D9 | How the expert supplies a node id | **Never by hand — resolved server-side.** Completions were measured and do not render, so tools accept a typed name and return candidates when ambiguous. A pasted UUID is still a bug in the flow, not user error |
 | D10 | Undo granularity | **One edit per call, peeling backwards.** `undo_last` inverts the newest apply record not yet undone (tracked by `undoOf`), scoped to the current draft; published work is out of reach, and a conflict is a refusal that names the node, never a merge |
+| D11 | Where the review handoff lives | **Derived from the audit trail, not stored.** The newest `review` event on the current draft chain; publish/discard clear it by being the chain's boundary, so a stale "waiting for review" is structurally impossible |
 
 ## Related
 

@@ -57,7 +57,26 @@ export function matchesAuditQuery(r: AuditRecord, q: AuditQuery): boolean {
   return true;
 }
 
-// Sort newest-first by timestamp. Ties broken by id so the order is stable
-// regardless of the underlying storage order.
+// Write order within one millisecond. `ts` alone cannot order two records
+// written in the same millisecond, and the old tiebreak — a random UUID — put
+// them in an arbitrary order. That is load-bearing now: undo_last reads "the
+// newest edit" off this log, and the review handoff reads "the newest request or
+// withdrawal", so a coin-flip between two same-millisecond records is a wrong
+// answer, not a cosmetic one.
+//
+// A counter, rather than nudging `ts` forward, because this is an audit trail:
+// a record must say when the thing actually happened, even by a millisecond. It
+// is process-local and restarts at 0, so it orders a burst correctly (the only
+// case that produces a tie in the first place) and never claims more than that.
+let writeSequence = 0;
+export const nextAuditSeq = (): number => ++writeSequence;
+export const __resetAuditSeqForTest = (): void => { writeSequence = 0; };
+
+// Sort newest-first by timestamp, then by write order within the millisecond,
+// then by id so the result is total and stable regardless of storage order.
+// `seq` is absent on records written before it existed; those sort as 0, which
+// keeps them behind same-millisecond records from this process — the only
+// ordering an old record can be given, and the same one it has today.
 export const sortAuditNewestFirst = (rs: AuditRecord[]): AuditRecord[] =>
-  [...rs].sort((a, b) => (b.ts.localeCompare(a.ts)) || b.id.localeCompare(a.id));
+  [...rs].sort((a, b) =>
+    b.ts.localeCompare(a.ts) || (b.seq ?? 0) - (a.seq ?? 0) || b.id.localeCompare(a.id));

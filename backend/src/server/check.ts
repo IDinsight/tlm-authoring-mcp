@@ -21,8 +21,7 @@ import { getActiveAdapter } from "../adapters/index.js";
 import { activeWorkspace } from "../context/index.js";
 import {
   getKgStore, kgNamespace, lintGraph, toAuditActor, diffGraphs,
-  type LintFinding, type MutationGraph, type StoredNode, type StoredEdge, type Slot,
-} from "../kg-store/index.js";
+  type LintFinding, type MutationGraph, type StoredNode, type StoredEdge, type Slot, nextAuditSeq,} from "../kg-store/index.js";
 import { authorize } from "../authz.js";
 import { currentActor } from "../actor.js";
 
@@ -80,7 +79,7 @@ export async function checkDraft(): Promise<Record<string, unknown>> {
     const authz = authorize(actor, "readDraft", namespace);
     if (!authz.ok) {
       await store.appendAudit({
-        id: randomUUID(), ts: new Date().toISOString(), actor: toAuditActor(actor),
+        id: randomUUID(), ts: new Date().toISOString(), seq: nextAuditSeq(), actor: toAuditActor(actor),
         namespace, eventType: "blocked", reason: `unauthorized: ${authz.reason}`,
       });
       return { phase: "unauthorized", action: "readDraft", reason: authz.reason };
