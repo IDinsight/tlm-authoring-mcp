@@ -1,5 +1,5 @@
 // ── the `catalog` redirect on the generic write verbs ──────────────────────────
-// edit_node / add_nodes / create_edges normally write to the active subject's
+// edit_node / add_nodes / create_edges / delete_nodes / delete_edges normally write to the active subject's
 // namespace. With `catalog` they write to a catalog LIBRARY instead, so a master
 // entry that drifted from the copies use_formatter made can be corrected in place
 // (before this, a stale "[p X]" in one spec meant re-filing a whole new entry).
@@ -19,7 +19,7 @@ import {
 import { SHARED_CATALOG_NAMESPACE, catalogNamespace, listCatalogEntries } from "../../kg-recipes/index.js";
 import { readCatalog } from "../catalog.js";
 import { runAddNodes } from "../authoring.js";
-import { runCreateEdges } from "../structural.js";
+import { runCreateEdges, runDeleteNodes, runDeleteEdges } from "../structural.js";
 import { __setStorageForTest } from "../../storage/index.js";
 import { __setActorForTest, type Actor } from "../../actor.js";
 import { __setWorkspaceStoreForTest, createMemoryWorkspaceStore } from "../../workspaces/index.js";
@@ -198,6 +198,65 @@ describe("add_nodes / create_edges with `catalog`", () => {
 
     const catalog = await readCatalog(SHARED_CATALOG_NAMESPACE);
     expect(catalog.edges.some((e) => e.type === "relatesTo" && e.from === SHARED_ENTRY && e.to === "shared-root")).toBe(true);
+  });
+});
+
+describe("delete_nodes / delete_edges with `catalog` — retiring an entry", () => {
+  // Retiring an entry is a delete of the entry node; its steps and Materials come
+  // along in delete_nodes' existing cascade, so a library never keeps orphaned specs.
+  it("removes an entry and the Material hanging off it, and publishes", async () => {
+    let specId = "";
+    await inCtx(SUPER, async () => {
+      const items = [{ kind: "Material", parentId: SHARED_ENTRY, description: "Spec à retirer" }];
+      const staged = await runAddNodes({ items, catalog: "shared" });
+      await runAddNodes({ items, catalog: "shared", confirm: true, confirmationToken: staged.confirmationToken as string, mintedNodeIds: staged.mintedNodeIds as string[] });
+      specId = (staged.mintedNodeIds as string[])[0];
+
+      const dry = await runDeleteNodes({ nodeIds: [SHARED_ENTRY], catalog: "shared" });
+      expect(dry.publishesOnConfirm).toBe(true);
+
+      const done = await runDeleteNodes({ nodeIds: [SHARED_ENTRY], catalog: "shared", confirm: true, confirmationToken: dry.confirmationToken as string });
+      expect(done).toMatchObject({ ok: true, published: true });
+    });
+
+    const catalog = await readCatalog(SHARED_CATALOG_NAMESPACE);
+    expect(catalog.nodes.some((n) => n.id === SHARED_ENTRY)).toBe(false);
+    expect(catalog.nodes.some((n) => n.id === specId)).toBe(false);   // cascaded
+    expect(listCatalogEntries(catalog, "shared")).toHaveLength(0);
+    expect((await store.readPointer(SHARED_CATALOG_NAMESPACE))!.draftSlot).toBeFalsy();
+  });
+
+  it("unfiles an entry from the root without deleting it, via delete_edges", async () => {
+    await inCtx(SUPER, async () => {
+      const edgeIds = [makeEdgeId("hasPart", "shared-root", SHARED_ENTRY)];
+      const dry = await runDeleteEdges({ edgeIds, catalog: "shared" });
+      expect(dry.publishesOnConfirm).toBe(true);
+
+      const done = await runDeleteEdges({ edgeIds, catalog: "shared", confirm: true, confirmationToken: dry.confirmationToken as string });
+      expect(done).toMatchObject({ ok: true, published: true });
+    });
+
+    const catalog = await readCatalog(SHARED_CATALOG_NAMESPACE);
+    expect(listCatalogEntries(catalog, "shared")).toHaveLength(0);      // no longer listed
+    expect(catalog.nodes.some((n) => n.id === SHARED_ENTRY)).toBe(true); // but still there
+  });
+
+  it("stages nothing on a dry-run, and leaves the active subject graph alone", async () => {
+    const before = (await store.listNodes(subjectNs, "a")).length;
+    await inCtx(SUPER, async () => {
+      await runDeleteNodes({ nodeIds: [SHARED_ENTRY], catalog: "shared" });
+    });
+    expect(await sharedEntryName()).toBe("Entrée existante");
+    expect((await store.listNodes(subjectNs, "a")).length).toBe(before);
+    expect((await store.readPointer(subjectNs))!.draftSlot).toBeFalsy();
+  });
+
+  it("refuses a non-super-admin who targets the shared library", async () => {
+    await inCtx(APPROVER, async () => {
+      const res = await runDeleteNodes({ nodeIds: [SHARED_ENTRY], catalog: "shared" });
+      expect(String(res.error)).toMatch(/super admin/i);
+    });
+    expect(await sharedEntryName()).toBe("Entrée existante");
   });
 });
 

@@ -85,16 +85,27 @@ async function createEdgesInNamespace(namespace: string, a: CreateEdgesArgs): Pr
   });
 }
 
-// The delete_edges core, exported so tests drive the real logic. Removes one edge
-// or many by id in one atomic batch; no minted ids, so `extra` is empty.
-export async function runDeleteEdges(a: {
+type DeleteEdgesArgs = {
   edgeIds: string[];
   confirm?: boolean;
   confirmationToken?: string;
   returnMode?: ReturnMode;
   idempotencyKey?: string;
-}): Promise<Record<string, unknown>> {
-  const namespace = activeNamespace();
+  catalog?: string;   // delete inside a catalog library instead of the active subject
+};
+
+// The delete_edges core, exported so tests drive the real logic. Removes one edge
+// or many by id in one atomic batch; no minted ids, so `extra` is empty.
+export async function runDeleteEdges(a: DeleteEdgesArgs): Promise<Record<string, unknown>> {
+  const deleteInNamespace = (namespace: string) => deleteEdgesInNamespace(namespace, a);
+  if (a.catalog) {
+    return runCatalogWrite(a.catalog, a.confirm, deleteInNamespace);
+  }
+  return deleteInNamespace(activeNamespace());
+}
+
+// Namespace-agnostic so the same path serves a subject and a catalog write.
+async function deleteEdgesInNamespace(namespace: string, a: DeleteEdgesArgs): Promise<Record<string, unknown>> {
   return runBatchMutation({
     namespace,
     mutation: deleteEdges,
@@ -108,16 +119,29 @@ export async function runDeleteEdges(a: {
   });
 }
 
-// The delete_nodes core, exported so tests drive the real logic. Removes one node
-// or many — each with its dependent subtree (cascade) — in one atomic batch.
-export async function runDeleteNodes(a: {
+type DeleteNodesArgs = {
   nodeIds: string[];
   confirm?: boolean;
   confirmationToken?: string;
   returnMode?: ReturnMode;
   idempotencyKey?: string;
-}): Promise<Record<string, unknown>> {
-  const namespace = activeNamespace();
+  catalog?: string;   // delete inside a catalog library instead of the active subject
+};
+
+// The delete_nodes core, exported so tests drive the real logic. Removes one node
+// or many — each with its dependent subtree (cascade) — in one atomic batch.
+// Retiring a catalog ENTRY is exactly this: the entry node plus the steps and
+// Materials hanging off it, which the cascade already takes.
+export async function runDeleteNodes(a: DeleteNodesArgs): Promise<Record<string, unknown>> {
+  const deleteInNamespace = (namespace: string) => deleteNodesInNamespace(namespace, a);
+  if (a.catalog) {
+    return runCatalogWrite(a.catalog, a.confirm, deleteInNamespace);
+  }
+  return deleteInNamespace(activeNamespace());
+}
+
+// Namespace-agnostic so the same path serves a subject and a catalog write.
+async function deleteNodesInNamespace(namespace: string, a: DeleteNodesArgs): Promise<Record<string, unknown>> {
   return runBatchMutation({
     namespace,
     mutation: deleteNodes,
@@ -171,18 +195,18 @@ export function registerStructuralTools(server: McpServer) {
       description:
         "Remove ONE edge or MANY by id in one atomic draft edit. Each `edgeIds[i]` is a deterministic edge id (`<type>:<from>-><to>`) — get them from a prior create_edges preview, from diff_draft, or from the graph. Removing an edge cannot orphan a node (the node just becomes less connected); the dangling-edge check only cares about surviving edges. Use this to detach a node before delete_nodes if you want to keep the (now-detached) subtree. ALL-OR-NOTHING: the dry-run validates every id and returns ONE confirmationToken; any missing id (or an id listed twice) blocks the whole batch (no partial delete). To confirm, call again with confirm:true and the token. " +
         "`returnMode` (default 'summary') controls the response: 'summary' returns `counts` {nodesAdded,edgesAdded,nodesChanged,nodesRemoved,edgesRemoved} instead of the full diff; 'full' also attaches the whole `diff`. " +
-        "`idempotencyKey` (optional): a unique key (a UUID) makes a RETRIED confirm safe — same key + same payload replays the first apply's summary with `replayed:true` instead of REPLAY; same key + different payload is rejected as IDEMPOTENCY_KEY_MISMATCH. Namespace-scoped, 24h TTL. DRAFT edit — publish_draft to make it live.",
+        "`idempotencyKey` (optional): a unique key (a UUID) makes a RETRIED confirm safe — same key + same payload replays the first apply's summary with `replayed:true` instead of REPLAY; same key + different payload is rejected as IDEMPOTENCY_KEY_MISMATCH. Namespace-scoped, 24h TTL. DRAFT edit — publish_draft to make it live. " +
+         "`catalog` (optional) targets a CATALOG LIBRARY instead of the active subject graph — pass 'workspace' (your own library), 'shared', or a workspace id; crossing libraries needs super_admin. Confirming PUBLISHES the library live in one step (catalogs are not enterable, so no publish_draft), and `catalog` must be RE-SENT on the confirm.",
       inputSchema: {
         edgeIds: z.array(z.string()),
         returnMode: z.enum(["summary", "full"]).optional(),
         idempotencyKey: z.string().optional(),
+        catalog: z.string().optional(),
         confirm: z.boolean().optional(),
         confirmationToken: z.string().optional(),
       },
     },
-    guarded(async (a: {
-      edgeIds: string[]; confirm?: boolean; confirmationToken?: string; returnMode?: ReturnMode; idempotencyKey?: string;
-    }) => asJson(await runDeleteEdges(a))),
+    guarded(async (a: DeleteEdgesArgs) => asJson(await runDeleteEdges(a))),
   );
 
   // ── delete_nodes ───────────────────────────────────────────────────────────
@@ -193,17 +217,17 @@ export function registerStructuralTools(server: McpServer) {
       description:
         "Remove ONE node or MANY by id in one atomic draft edit — each together with its dependent subtree (its hasChild/hasPart descendants) and every edge touching any removed node. The cascade is computed over ALL the ids at once, so a child shared by two nodes you delete together also vanishes. The dry-run diff shows the FULL set that will vanish and emits a WARNING listing it; nothing is deleted until you confirm, so seeing the cascade before confirming IS the safety (there is no separate force flag). ALL-OR-NOTHING: any missing id (or an id listed twice) blocks the whole batch. The result is re-checked for referential integrity. " +
         "`returnMode` (default 'summary') controls the response: 'summary' returns `counts` {nodesAdded,edgesAdded,nodesChanged,nodesRemoved,edgesRemoved} instead of the full diff (a big cascade's full diff can be large); 'full' also attaches the whole `diff`. " +
-        "`idempotencyKey` (optional): a unique key (a UUID) makes a RETRIED confirm safe — same key + same payload replays the first apply's summary with `replayed:true` instead of REPLAY; same key + different payload is rejected as IDEMPOTENCY_KEY_MISMATCH. Namespace-scoped, 24h TTL. DRAFT edit — publish_draft to make it live.",
+        "`idempotencyKey` (optional): a unique key (a UUID) makes a RETRIED confirm safe — same key + same payload replays the first apply's summary with `replayed:true` instead of REPLAY; same key + different payload is rejected as IDEMPOTENCY_KEY_MISMATCH. Namespace-scoped, 24h TTL. DRAFT edit — publish_draft to make it live. " +
+         "`catalog` (optional) targets a CATALOG LIBRARY instead of the active subject graph — pass 'workspace' (your own library), 'shared', or a workspace id; crossing libraries needs super_admin. Confirming PUBLISHES the library live in one step (catalogs are not enterable, so no publish_draft), and `catalog` must be RE-SENT on the confirm." + " Retiring a catalog entry is this call with `catalog` set: name the ENTRY id and its steps/Materials come along in the cascade.",
       inputSchema: {
         nodeIds: z.array(z.string()),
         returnMode: z.enum(["summary", "full"]).optional(),
         idempotencyKey: z.string().optional(),
+        catalog: z.string().optional(),
         confirm: z.boolean().optional(),
         confirmationToken: z.string().optional(),
       },
     },
-    guarded(async (a: {
-      nodeIds: string[]; confirm?: boolean; confirmationToken?: string; returnMode?: ReturnMode; idempotencyKey?: string;
-    }) => asJson(await runDeleteNodes(a))),
+    guarded(async (a: DeleteNodesArgs) => asJson(await runDeleteNodes(a))),
   );
 }
