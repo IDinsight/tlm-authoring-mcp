@@ -38,6 +38,11 @@ function activeNamespace(): string {
 // match, so "Chapitre 5" cannot resolve to a same-named document.
 const CURRICULUM_LABELS = ["Course", "LessonGrouping", "Lesson", "StandardsFrameworkItem"];
 
+// What the caller was trying to name, for the "did you mean" message. Named
+// constants rather than inline strings so the three call sites cannot drift.
+const CURRICULUM_TO_COVER = "the content to cover";
+const THE_DOCUMENT = "the document";
+
 // A "did you mean" answer: no state change, no token, and the candidates the
 // model reads back to the user.
 function needsChoice(what: string, typed: string, candidates: FoundNode[]): Record<string, unknown> {
@@ -103,7 +108,7 @@ export async function runCreateDocument(a: CreateDocumentToolArgs): Promise<Reco
   if (!a.name) return { error: "`name` is required: give the document the name the user would call it." };
   if (!a.covers) return { error: "`covers` is required: say which curriculum content this document must produce (the name of the course, chapter or week)." };
 
-  const target = await resolveOne(namespace, a.covers, CURRICULUM_LABELS, "le contenu à couvrir");
+  const target = await resolveOne(namespace, a.covers, CURRICULUM_LABELS, CURRICULUM_TO_COVER);
   if ("answer" in target) return target.answer;
 
   const newNodeId = a.confirm ? (a.mintedNodeId ?? "") : mintNodeId();
@@ -152,12 +157,12 @@ export async function runAddSection(a: AddSectionToolArgs): Promise<Record<strin
   if (!a.document) return { error: "`document` is required: the name of the document this section belongs to." };
   if (!a.name) return { error: "`name` is required: the section's title." };
 
-  const document = await resolveOne(namespace, a.document, ["TeachingLearningMaterial"], "le document");
+  const document = await resolveOne(namespace, a.document, ["TeachingLearningMaterial"], THE_DOCUMENT);
   if ("answer" in document) return document.answer;
 
   let coversId: string | undefined;
   if (a.covers) {
-    const target = await resolveOne(namespace, a.covers, CURRICULUM_LABELS, "le contenu à couvrir");
+    const target = await resolveOne(namespace, a.covers, CURRICULUM_LABELS, CURRICULUM_TO_COVER);
     if ("answer" in target) return target.answer;
     coversId = target.id;
   }

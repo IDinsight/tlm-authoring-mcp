@@ -224,6 +224,13 @@ describe("create_document — the TLM and its `covers` edge are one step", () =>
     expect((result.candidates as unknown[]).length).toBeGreaterThan(1);
     expect(result.confirmationToken).toBeUndefined();
     expect((await store.readPointer(ns))!.draftSlot).toBeNull();
+
+    // The message is one language throughout. It once mixed English prose with a
+    // French label ("… (le contenu à couvrir)") because the label was a leftover
+    // literal; the payload is English and the model translates, so a stray French
+    // word here is a bug, not a feature.
+    expect(String(result.message)).toContain("the content to cover");
+    expect(String(result.message)).not.toMatch(/\b(le|la|les|des|une)\b/);
   });
 
   it("refuses to cover another document: only curriculum labels are searched", async () => {
