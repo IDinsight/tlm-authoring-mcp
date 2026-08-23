@@ -78,6 +78,12 @@ const LABEL_DEFS: TaxonomyEntry[] = [
   { key: "DocumentSection",          label: { fr: "Section",          en: "Document section" },      color: "#3ba7a0" },
   { key: "Formatter",                label: { fr: "Formateur",        en: "Formatter" },             color: "#6d597a" },
   { key: "FormatterSpec",            label: { fr: "Règle de format",  en: "Formatter spec" },        color: "#9b8aa8" },
+  // The evaluation grids (evaluation-rubrics.md) hang beside the formatters under a
+  // TLM: an amber family, so "how the document is judged" reads apart from "how it
+  // is rendered" at a glance.
+  { key: "Rubric",                   label: { fr: "Grille d'évaluation", en: "Evaluation rubric" },   color: "#b07d19" },
+  { key: "RubricSection",            label: { fr: "Section de grille", en: "Rubric section" },        color: "#d3a238" },
+  { key: "RubricCriterion",          label: { fr: "Critère",          en: "Rubric criterion" },       color: "#e5c477" },
 ];
 
 // `r` is the TRAVERSAL type (what the containment tree walks — always "hasChild"
@@ -318,9 +324,13 @@ const STANDARDS_LABELS = ["StandardsFramework", "StandardsFrameworkItem"];
 // InstructionalRoutine + Material carry the shared "fiche de leçon" routine; it folds
 // into the content tree under the Course only (see toDisplayEdges' usesRoutine case).
 const CONTENT_LABELS = ["Course", "LessonGrouping", "Lesson", "Activity", "Material", "InstructionalRoutine"];
-// The document / rendering layer, nested by hasPart (folded onto the hasChild
-// display axis): TLM ▸ DocumentSection · TLM ▸ Formatter ▸ FormatterSpec.
-const DOCUMENT_LABELS = ["TeachingLearningMaterial", "DocumentSection", "Formatter", "FormatterSpec"];
+// The document / rendering / evaluation layer, nested by hasPart (folded onto the
+// hasChild display axis): TLM ▸ DocumentSection · TLM ▸ Formatter ▸ FormatterSpec ·
+// TLM ▸ Rubric ▸ RubricSection ▸ RubricCriterion.
+const DOCUMENT_LABELS = [
+  "TeachingLearningMaterial", "DocumentSection", "Formatter", "FormatterSpec",
+  "Rubric", "RubricSection", "RubricCriterion",
+];
 
 function buildViewConfig(nodes: DisplayNode[], edges: DisplayEdge[]): ViewConfig {
   const present = new Set(nodes.map((n) => n.label));
