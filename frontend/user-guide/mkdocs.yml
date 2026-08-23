@@ -48,6 +48,7 @@ plugins:
             Produire et publier: Produce & publish
             Générer du matériel pédagogique: Generate teaching materials
             Relire, publier ou abandonner un brouillon: Review, publish or discard a draft
+            Évaluer un document produit: Evaluate a produced document
             Explorer le graphe: Explore the graph
             Administration et développement: Administration & development
             Ajouter un espace de travail ou une matière: Add a workspace or a subject
@@ -75,6 +76,7 @@ nav:
   - Produire et publier:
       - Générer du matériel pédagogique: create-materials.md
       - Relire, publier ou abandonner un brouillon: review-approve.md
+      - Évaluer un document produit: evaluate.md
   - Explorer le graphe: explorer.md
   - Administration et développement:
       - Ajouter un espace de travail ou une matière: admin-developer.md

@@ -15,7 +15,7 @@ Roles are granted **per workspace**: you can be a curator here and a plain reade
 | Create / delete a workspace | — | — | — | — | ✅ |
 | Edit a **shared** catalog entry | — | — | — | — | ✅ |
 
-A catalog entry specific to a workspace (routine, formatter) is edited by a **curator** of that workspace; a **shared** entry (common to all programmes) is reserved for the **super admin**.
+A catalog entry specific to a workspace (routine, formatter, evaluation rubric) is edited by a **curator** of that workspace; a **shared** entry (common to all programmes) is reserved for the **super admin**.
 
 To find your role: ask Claude "**What can I do?**".
 
@@ -45,7 +45,8 @@ Either way, nothing happens without your confirmation.
 | **Lesson** | The unit of work: you align it to an objective and apply a routine to it. |
 | **Instructional routine** | A reusable lesson-structure template, stored in the catalog. Applies to a lesson. |
 | **Formatter** | A formatting instruction (palette, type, layout, illustrations). Applies to a course. |
-| **Catalog** | The library of routines and formatters, with a shared shelf and one per workspace. |
+| **Evaluation rubric** | A list of criteria used to judge a produced document. Applies to a document. See [Evaluate a produced document](evaluate.md). |
+| **Catalog** | The library of routines, formatters and evaluation rubrics, with a shared shelf and one per workspace. |
 | **Pupil manual** | The document for the pupil. |
 | **Lesson sheets** | The teacher's guide. |
 | **Draft** | A set of pending changes, not yet official. |
