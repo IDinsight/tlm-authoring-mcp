@@ -183,6 +183,7 @@ The loop is a set of role-gated MCP tools over the draft:
 - **`review_draft`** (curator+) — read-only. The guide's coverage expectations + a structural snapshot, for the model to reason over before publishing.
 - **`publish_draft`** (approver only) — two-phase: dry-run shows the whole-draft diff + a draft-level token; confirm folds the overlay into canonical atomically. If the draft moved since dry-run, confirm is rejected (retry).
 - **`discard_draft`** (curator+) — two-phase: dry-run shows what will be thrown away; confirm drops the draft. Published is byte-untouched. Audited.
+- **`undo_last`** (curator+) — two-phase: takes back the **most recent** staged edit and leaves the rest of the draft standing, by replaying that edit's recorded `GraphDiff` **backwards**. Argument-free: the target is resolved server-side and reported in `undoing` before you confirm. Repeated calls **peel back** — each undo's apply record carries `undoOf`, so the resolver skips both an undo and the edit it names. Scope is the **current draft only**: once a draft is published, taking a change back is a fresh edit. See [Undo](#undo-undo_last) below.
 
 ```
 curator:  add_nodes([...]) / edit_node(...) → dry-run: diff + token
@@ -193,6 +194,30 @@ approver: review_draft() → coverage expectations + structural snapshot
 approver: publish_draft() → dry-run: diff + draft-level token
 approver: publish_draft(confirm:true, confirmationToken:…) → live; generation now reads the new graph
 ```
+
+### Undo (`undo_last`)
+
+`kg-store/undo.ts`. The mechanism is already paid for: every `apply` audit record carries its
+`GraphDiff` inline, so undoing an edit is replaying that diff backwards — add what it removed,
+remove what it added, restore what it changed. No snapshots, no inverse recorded at write time.
+
+It runs through the **same** two-phase framework as any other write: an undo is an ordinary staged
+edit, audited and role-gated (`apply`, i.e. curator+), and it reaches generation only after
+`publish_draft`.
+
+Two rules keep it honest:
+
+- **Scope.** Only edits on the current draft chain. `findUndoTarget` walks the audit log
+  newest-first to the first draft **boundary** (`createDraft` / `publish` / `discard`); unless that
+  boundary is a `createDraft`, there is no open chain and the answer is `nothingToUndo`.
+- **Conflict.** The inverse is applied only when the draft still looks the way that edit left it —
+  checked element by element against the *current* draft (`undoConflicts`), never by reasoning about
+  the records in between. A later edit on the same node means a **refusal that names the node**,
+  not a merge: a half-undone node nobody asked for is worse than a clear "undo the later edit first".
+
+Because the resolver always targets the newest not-yet-undone edit, undos peel strictly in reverse
+order and a conflict is not reachable through the tool today. The check is what makes that property
+**checked rather than assumed** — and it is what an out-of-order or concurrent apply would hit.
 
 ### Structural lint (`check_draft`)
 

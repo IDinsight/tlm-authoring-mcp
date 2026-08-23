@@ -38,6 +38,19 @@ Publishing happens in **two steps**, like the other important actions:
 
 By default an approver **may** publish a draft they edited themselves. Depending on the project's configuration, a **second review** may be required. Either way, the publish record shows whether the person who made the changes is also the one who published — for transparency.
 
+## Take back a single change
+
+A mistake in the **last** change does not mean throwing everything away:
+
+> "Undo the last change."
+
+Claude first tells you **which** change it is about to take back (what, when, by whom), you confirm, and that one change leaves the draft — **the others stay**. Ask again and the change before it goes: you walk back up the thread one change at a time.
+
+Two deliberate limits:
+
+- You can only walk back within the **current draft**. Anything already published cannot be undone this way: it takes a new change, itself reviewed and published.
+- If a more recent change touched the **same element**, Claude **refuses** and says which one, rather than patching together a mixture of the two. Take back the more recent one first.
+
 ## Discard a draft
 
 If a draft should not go out:

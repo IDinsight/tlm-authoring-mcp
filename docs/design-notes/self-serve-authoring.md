@@ -1,6 +1,6 @@
 # Self-serve authoring — the expert without a developer
 
-> **Status: Phases 1–3 BUILT (2026-08-23); phases 4–5 still proposed.**
+> **Status: Phases 1–4 BUILT (2026-08-23); phase 5 still proposed.**
 > What shipped, and where it lives:
 >
 > - **Phase 1** — `?slot=draft` on the `/kg` routes with a curator gate + per-node
@@ -38,9 +38,15 @@
 > documents and routines, and Senegal is the only workspace with a content layer
 > to author.
 >
-> Still open: **phases 4 and 5** (`undo_last`, per-section `preview_generation`,
-> `request_review`, the unfinished-work view), and **risk 7** — nobody has watched a
-> real expert use any of this yet.
+> - **Phase 4** — **`preview_generation`** takes a `nodeId` that may be a
+>   `DocumentSection`, a `TeachingLearningMaterial`, or a `Course`, reported back as
+>   `previewOf` ([`preview.ts`](../../backend/src/server/preview.ts)); and
+>   **`undo_last`** ([`kg-store/undo.ts`](../../backend/src/kg-store/undo.ts),
+>   [`server/undo.ts`](../../backend/src/server/undo.ts)) takes back the most recent
+>   staged edit by replaying its recorded diff backwards, peeling one edit per call.
+>
+> Still open: **phase 5** (`request_review`, the unfinished-work view), and **risk 7**
+> — nobody has watched a real expert use any of this yet.
 >
 > The rest of this note is the original proposal, kept as the rationale. What has
 > been **run to completion** is the client probe: a
@@ -333,6 +339,8 @@ candidate appears, it goes through the test, not through sympathy for the caller
 
 ## Phase 4 — "I can try it, and take it back"
 
+*Built 2026-08-23. The proposal is kept below, with what building it actually taught.*
+
 - **`preview_generation(nodeId)`** accepting a `DocumentSection` (or a document), not
   only a Course ([`preview.ts`](../../backend/src/server/preview.ts) takes `course`
   only). The per-piece reader already exists — `walk_document_section`
@@ -344,6 +352,42 @@ candidate appears, it goes through the test, not through sympathy for the caller
   a later edit touched the same node) but bounded. `discard_draft` being the only undo
   means six edits and one regret costs all six — a strong deterrent to exactly the
   experimentation this phase exists to encourage. *Medium.*
+
+### What building it found
+
+**The preview item was smaller than "small".** By the time it was picked up,
+`walk_document` and `walk_document_section` had both grown a role-gated `slot:"draft"`,
+so the draft-resolved *read* of one section already existed. What `preview_generation`
+still owned was the part that is not a read: the PREVIEW label, the audited `preview`
+event, and the routing to the segregated `previews/` output. So the change is a
+three-way dispatch on the node's own label — each resolver returns null unless the id
+really is a node of its kind, which makes trying them in turn the dispatch, with no
+label vocabulary duplicated in the preview module. The response reports `previewOf`
+rather than `scope`, because `walk_document` already returns a `scope` of its own.
+
+**Undo needed one new fact in the audit trail, and no new state.** Apply records already
+carry their diff inline, so the inverse is a replay backwards. What was missing was a
+way to tell an undo apart from an ordinary edit: without it, a second `undo_last` would
+invert the first one and toggle. Each undo's apply record now carries **`undoOf`**, and
+the resolver skips both an undo and the edit it names — so repeated calls peel back.
+
+**The conflict rule is real but, today, unreachable through the tool.** Risk 4 pictured
+inverting apply *k* while *k+1* touched the same node. Because the resolver always
+targets the newest edit not yet undone, undos peel in strict reverse order, and each one
+lands on a draft that still looks exactly the way its edit left it. The check is written
+against the **current draft** (is every element still as this edit left it?) rather than
+against the records in between — which is what makes peeling work at all, and what an
+out-of-order or concurrent apply would hit. It is therefore tested where it lives, as a
+pure function, alongside an integration test that the peel really is clean. Calling that
+out is the honest version: the check makes a property **checked rather than assumed**,
+and pretending it fires today would have meant writing a test that proves nothing.
+
+**Scope had a bug the first test caught.** "Everything since the last `createDraft`" is
+the right chain for *publish* (which runs before the boundary is written) and the wrong
+one for *undo*: after a publish, those records are still the newest applies, so undo
+would have offered to invert published work. The resolver walks to the first draft
+**boundary** — `createDraft`, `publish`, or `discard` — and requires it to be a
+`createDraft` for there to be an undoable chain at all.
 
 ## Phase 5 — "This is a workflow, not a box of tools"
 
@@ -394,9 +438,11 @@ Building Phase 3 before Phase 1 produces better tools that nobody trusts yet.
    that ungates the `/kg` read routes and reports `authRequired:false`. A draft slot is
    unpublished work in a multi-tenant store — scope the ungate explicitly to published
    reads, or remove it, before a draft route ships.
-4. **Undo conflicts.** Inverting apply *k* when apply *k+1* touched the same node has no
-   safe automatic answer. Recommend refusing with a clear explanation over attempting a
-   merge.
+4. **~~Undo conflicts.~~** *(Answered — see Phase 4.)* Refusing beat merging, and the
+   refusal names the node. The surprise is that it does not fire: `undo_last` targets the
+   newest edit not yet undone, so undos peel in strict reverse order and every one lands
+   on a draft still shaped the way its edit left it. The check stays as the guard that
+   makes that property checked rather than assumed.
 5. **Does `check_draft` belong inside `review_draft`?** Both are "look at my draft and
    tell me what's wrong". Recommend keeping them separate — one is mechanical and
    server-decidable, the other a judgment the calling model makes from prose — but
@@ -421,6 +467,7 @@ Building Phase 3 before Phase 1 produces better tools that nobody trusts yet.
 | D7 | Draft visibility auth | **Role check on top of the existing JWT gate**, with the read-ungate escape hatch scoped to published only |
 | D8 | In-product guidance mechanism | **Rungs 1, 2 and 4; Rung 3 struck.** Prompts are surfaced and their content *is* acted on — provided it is written in the expert's voice, never as orders to the assistant. Elicitation is unavailable in this client |
 | D9 | How the expert supplies a node id | **Never by hand — resolved server-side.** Completions were measured and do not render, so tools accept a typed name and return candidates when ambiguous. A pasted UUID is still a bug in the flow, not user error |
+| D10 | Undo granularity | **One edit per call, peeling backwards.** `undo_last` inverts the newest apply record not yet undone (tracked by `undoOf`), scoped to the current draft; published work is out of reach, and a conflict is a refusal that names the node, never a merge |
 
 ## Related
 

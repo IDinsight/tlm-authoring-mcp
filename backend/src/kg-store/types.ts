@@ -329,6 +329,12 @@ export type AuditRecord = {
   readQuery?: string;
   /** read-only (#16): how many records the read returned. */
   readCount?: number;
+  /**
+   * apply-only (undo_last): the id of the apply record this one INVERTS. Set
+   * only on an undo, and it is what makes repeated undos peel back rather than
+   * toggle — the resolver skips both an undo and the edit it names.
+   */
+  undoOf?: string;
 };
 
 // Query surface — a minimal internal filter. Not user-facing; #7 does not

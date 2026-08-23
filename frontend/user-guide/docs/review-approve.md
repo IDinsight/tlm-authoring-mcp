@@ -38,6 +38,19 @@ La publication se fait en **deux temps**, comme les autres actions importantes :
 
 Par défaut, un approbateur **peut** publier un brouillon qu'il a lui-même édité. Selon la configuration du projet, une **seconde relecture** peut être exigée. Dans tous les cas, la trace de publication indique si l'auteur des changements est aussi celui qui a publié — pour la transparence.
 
+## Revenir sur une seule modification
+
+Une erreur sur la **dernière** modification n'oblige pas à tout jeter :
+
+> « Annule la dernière modification. »
+
+Claude vous dit d'abord **laquelle** il s'apprête à annuler (quoi, quand, par qui), vous confirmez, et cette modification-là disparaît du brouillon — **les autres restent**. Redemandez, et c'est la modification d'avant qui part : on remonte le fil une modification à la fois.
+
+Deux limites, volontaires :
+
+- On ne remonte que dans le **brouillon en cours**. Ce qui est déjà publié ne se défait pas ainsi : il faut faire une nouvelle modification, qui sera elle aussi relue et publiée.
+- Si une modification plus récente a touché le **même élément**, Claude **refuse** et vous dit lequel, plutôt que de bricoler un mélange des deux. Annulez d'abord la plus récente.
+
 ## Rejeter un brouillon
 
 Si un brouillon ne doit pas partir :

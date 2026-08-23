@@ -32,6 +32,7 @@ const AFTER_DRAFT_EDIT = [
   "Check the draft's wiring: check_draft.",
   "Check curriculum coverage: review_draft.",
   "See what it would produce before publishing: preview_generation.",
+  "If this edit was not what was wanted: undo_last takes back just this one and keeps the rest.",
   "Publish once it is right: publish_draft (generation only sees the draft after that).",
 ];
 
@@ -44,8 +45,15 @@ const AFTER_APPLY: Record<string, string[]> = {
   ],
   addSection: [
     "Add the next section: add_section.",
-    "See what this one section would produce: preview_generation.",
+    "See what this one section would produce: preview_generation on the section's id.",
     "Check the wiring: check_draft, then publish: publish_draft.",
+  ],
+  // An undo is itself a draft edit, so the shared loop would tell the curator to
+  // undo their undo. What follows one is the ordinary editing loop instead.
+  undoLast: [
+    "The other staged edits are untouched — diff_draft shows what is left.",
+    "Take back the edit before it as well: undo_last again (it peels back, one edit per call).",
+    "Publish what remains once it is right: publish_draft.",
   ],
 };
 

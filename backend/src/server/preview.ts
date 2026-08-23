@@ -6,6 +6,12 @@
  * same edit would yield — by resolving the curriculum from the DRAFT slot
  * instead of published, and running the SAME generation flow on it.
  *
+ * A preview is taken at the size of the thing that changed: one DocumentSection,
+ * one document (TLM), or a whole Course. The published readers already resolve
+ * all three, so this is routing rather than new machinery — what it adds is the
+ * draft slot, the PREVIEW label, the audited preview event, and the segregated
+ * output path below.
+ *
  * ISOLATION is the whole point. A preview:
  *   • reads the DRAFT (unpublished) — it does NOT mutate the graph;
  *   • NEVER reads or writes published;
@@ -32,7 +38,7 @@ import { timed, timedSync } from "../utils/index.js";
 import { getActiveAdapter } from "../adapters/index.js";
 import { activeWorkspace } from "../context/index.js";
 import { getKgStore, kgNamespace, toAuditActor } from "../kg-store/index.js";
-import { toRawEnvelope, courseSubgraph } from "../curriculum/index.js";
+import { toRawEnvelope, courseSubgraph, documentSubgraph, documentSectionSubgraph } from "../curriculum/index.js";
 import { getStorageAdapter } from "../storage/index.js";
 import { authorize } from "../authz.js";
 import { currentActor } from "../actor.js";
@@ -86,10 +92,26 @@ async function denyIfNotDraftReader(ns: string): Promise<Record<string, unknown>
 }
 
 // ── Core: preview_generation ─────────────────────────────────────────────────
-// The draft-resolved course-subtree read (what walk_graph over hasPart/hasChild
-// returns, but from the DRAFT model), tagged as a preview. Reads only; no graph
-// write. Exported so tests drive the real logic.
-export async function previewGeneration(course: string): Promise<Record<string, unknown>> {
+// The draft-resolved read of ONE piece of work, tagged as a preview. Reads only;
+// no graph write. Exported so tests drive the real logic.
+
+// What a preview can be taken of, in the order the resolvers are tried. Each
+// resolver returns null unless the id really is a node of that label, so trying
+// them in turn IS the dispatch — no label vocabulary is duplicated here.
+//
+// Three scopes, not one, because a preview is only useful at the size of the
+// thing you just edited (self-serve-authoring.md, phase 4): changing one routine
+// step used to mean regenerating a whole chapter to see the effect.
+// `previewOf` rather than `scope`: walk_document already returns a `scope` of its
+// own (how it resolved the curriculum — sections / course / none), and the
+// resolver's payload is spread into this response verbatim.
+const PREVIEW_SCOPES = [
+  { previewOf: "section", of: "a DocumentSection — one slot of a document", resolve: documentSectionSubgraph },
+  { previewOf: "document", of: "a TeachingLearningMaterial — a whole document", resolve: documentSubgraph },
+  { previewOf: "course", of: "a Course — the curriculum subtree", resolve: courseSubgraph },
+] as const;
+
+export async function previewGeneration(nodeId: string): Promise<Record<string, unknown>> {
   const adapter = getActiveAdapter();
   const ns = kgNamespace(activeWorkspace(), adapter.grade, adapter.subject);
 
@@ -103,16 +125,24 @@ export async function previewGeneration(course: string): Promise<Record<string, 
       noDraft: true,
       message:
         `No draft exists for '${ns}' to preview. A preview reflects UNPUBLISHED draft edits, so with no draft there is nothing to preview. ` +
-        `Stage an edit first (add_node / set_content / reposition / …), then call preview_generation again.`,
+        `Stage an edit first (add_nodes / edit_node / add_section / …), then call preview_generation again.`,
     };
   }
 
-  // Read the SAME course subtree walk_graph returns, but from the draft-resolved
-  // model — so the curator sees the graph a staged edit would generate from. The
-  // standards spine (get_standards) resolves against published as usual.
-  const sub = courseSubgraph(resolved.model, course);
-  if (!sub) {
-    return { preview: true, error: `Course '${course}' not found in the draft. Call namespace_stats (its roots) for available course ids.` };
+  // Read the SAME subtree the published generation path exposes — but from the
+  // draft-resolved model, so the curator sees what a staged edit would generate
+  // from. The standards spine (get_standards) resolves against published as usual.
+  const matched = PREVIEW_SCOPES
+    .map((candidate) => ({ ...candidate, sub: candidate.resolve(resolved.model, nodeId) }))
+    .find((candidate) => candidate.sub !== null);
+
+  if (!matched) {
+    return {
+      preview: true,
+      error:
+        `'${nodeId}' is not a previewable node in the draft. A preview is taken of ${PREVIEW_SCOPES.map((s) => s.of).join(", or ")}. ` +
+        `Use find_node to turn a name into an id, walk_document for a document's section ids, or namespace_stats for the roots.`,
+    };
   }
 
   // Audit a PREVIEW event — distinct from apply/publish/generation, and never
@@ -124,16 +154,17 @@ export async function previewGeneration(course: string): Promise<Record<string, 
     actor: toAuditActor(currentActor()),
     namespace: ns,
     eventType: "preview",
-    reason: `preview generation for course '${course}' from draft${resolved.draftVersion ? ` ${resolved.draftVersion}` : ""}`,
+    reason: `preview generation for ${matched.previewOf} '${nodeId}' from draft${resolved.draftVersion ? ` ${resolved.draftVersion}` : ""}`,
   });
 
   return {
     preview: true,
+    previewOf: matched.previewOf,
     label: PREVIEW_LABEL,
     isolation:
-      "This course subtree was resolved from the UNPUBLISHED draft. Generate the .docx from it, then surface the result via create_preview_upload_url. Do NOT call log_generation or create_upload_url with a preview — those write to the canonical documents bucket and history and would break the isolation.",
+      "This was resolved from the UNPUBLISHED draft. Generate the .docx from it, then surface the result via create_preview_upload_url. Do NOT call log_generation or create_upload_url with a preview — those write to the canonical documents bucket and history and would break the isolation.",
     draftVersion: resolved.draftVersion,
-    ...sub,
+    ...matched.sub,
   };
 }
 
@@ -170,10 +201,21 @@ export function registerPreviewTools(server: McpServer) {
     {
       title: "Preview generation from the draft",
       description:
-        "Return the containment subtree under one Course resolved from the UNPUBLISHED DRAFT (not published) — the draft-resolved course-subtree read (walk_graph reads the published graph; this reads the draft) — so you can generate a PREVIEW of the teaching material a staged edit would produce, before publishing. This closes the editing loop: dry-run shows the graph DIFF, preview shows the resulting MATERIAL. Read-only on the draft (no graph change). Curators and approvers only. If no draft exists, returns a clear 'no draft to preview' notice. 'course' is a Course id (from namespace_stats roots). IMPORTANT: the returned subtree is a PREVIEW — generate the .docx from it, then surface it via create_preview_upload_url (segregated, short-lived, non-canonical). NEVER log_generation or create_upload_url a preview: those write to the canonical bucket/history and would defeat the isolation.",
-      inputSchema: { course: z.string() },
+        "Return, resolved from the UNPUBLISHED DRAFT (not published), everything generation needs to produce ONE piece of material — so you can generate a PREVIEW of what a staged edit would yield, before publishing. This closes the editing loop: dry-run shows the graph DIFF, preview shows the resulting MATERIAL. `nodeId` may be a DocumentSection (one slot of a document — what walk_document_section returns), a TeachingLearningMaterial (a whole document — what walk_document returns), or a Course (the curriculum subtree — what walk_graph returns); the response's `previewOf` says which was matched. Preview the SMALLEST piece you changed: after editing one section, preview that section rather than its whole document. Get ids from find_node (a name → ids), walk_document (a document's `sections` spine), or namespace_stats (the roots). Read-only on the draft (no graph change). Curators and approvers only. If no draft exists, returns a clear 'no draft to preview' notice. IMPORTANT: what comes back is a PREVIEW — generate the .docx from it, then surface it via create_preview_upload_url (segregated, short-lived, non-canonical). NEVER log_generation or create_upload_url a preview: those write to the canonical bucket/history and would defeat the isolation.",
+      inputSchema: {
+        nodeId: z.string().optional(),
+        // `course` is the argument this tool took when a preview could only be a
+        // whole Course. Still accepted so an in-flight caller isn't broken mid-deploy.
+        course: z.string().optional(),
+      },
     },
-    guarded(async (a: { course: string }) => asJson(await previewGeneration(a.course))),
+    guarded(async (a: { nodeId?: string; course?: string }) => {
+      const nodeId = a.nodeId ?? a.course;
+      if (!nodeId) {
+        return asJson({ preview: true, error: "preview_generation needs a 'nodeId' — a DocumentSection, a TeachingLearningMaterial, or a Course. find_node turns a name into an id." });
+      }
+      return asJson(await previewGeneration(nodeId));
+    }),
   );
 
   server.registerTool(
