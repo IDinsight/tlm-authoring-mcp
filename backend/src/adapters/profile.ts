@@ -3,10 +3,12 @@
  *
  * A `SubjectProfile` is the DATA that describes a subject to the generic adapter
  * builder (build.ts). It replaces the hand-written per-subject behavior modules:
- * everything those modules used to express as code — the parse descriptor, the
- * capabilities, the parse-time prune — is expressed here as a validated literal.
- * (Deliverables left the profile with the graph-linked-documents change; coverage
- * rules were retired in phase 2c — coverage now lives in the guide's prose.)
+ * everything those modules used to express as code — the parse descriptor and the
+ * parse-time prune — is expressed here as a validated literal. What's left is the
+ * parse block: a subject is now a name plus a description of how to read its graph.
+ * (Deliverables left with the graph-linked-documents change; coverage rules were
+ * retired in phase 2c — coverage lives in the guide's prose; `capabilities` went
+ * with the CI-maths example-domain tools, the last subject-conditional surface.)
  *
  * The one function-valued bit the old adapters carried is declared as data and
  * synthesized generically by the builder:
@@ -47,31 +49,35 @@ const parseSchema = z
   })
   .strict();
 
-const capabilitiesSchema = z
-  .object({
-    exampleDomainRotation: z.boolean(),
-  })
-  .strict();
+// TRANSITIONAL: keys that LIVE profile cells still carry but this schema no
+// longer models. The object below is `.strict()`, so an unknown key is a hard
+// refusal — and a refused profile means the namespace won't activate at all.
+// Stripping them here keeps every already-published cell loading unchanged,
+// with no flag day and no re-seed to schedule:
+//
+//   • `deliverables` — retired when a document's identity became the graph node
+//     it covers (docs/design-notes/graph-linked-documents.md).
+//   • `capabilities` — retired with the CI-maths example-domain tools. It only
+//     ever held `exampleDomainRotation`, and nothing reads it now.
+//
+// Each entry can go once every namespace has been re-seeded without that key.
+const RETIRED_PROFILE_KEYS = ["deliverables", "capabilities"] as const;
 
-// TRANSITIONAL: a profile cell seeded before the deliverables removal still
-// carries a `deliverables` array. Strip it before strict validation so those
-// cells keep activating through the re-seed (the strict object would otherwise
-// reject the unknown key). Remove this shim once every namespace is re-seeded
-// without deliverables (see docs/design-notes/graph-linked-documents.md).
-const stripLegacyDeliverables = (raw: unknown): unknown => {
-  if (raw && typeof raw === "object" && "deliverables" in raw) {
-    const { deliverables: _dropped, ...rest } = raw as Record<string, unknown>;
-    return rest;
-  }
-  return raw;
+const stripRetiredKeys = (raw: unknown): unknown => {
+  if (!raw || typeof raw !== "object") return raw;
+  const record = raw as Record<string, unknown>;
+  const present = RETIRED_PROFILE_KEYS.filter((key) => key in record);
+  if (present.length === 0) return raw;
+  const rest = { ...record };
+  for (const key of present) delete rest[key];
+  return rest;
 };
 
 export const subjectProfileSchema = z.preprocess(
-  stripLegacyDeliverables,
+  stripRetiredKeys,
   z
     .object({
       id: z.string().min(1),               // stable adapter id, e.g. "ci-maths/nodes-relationships-v1"
-      capabilities: capabilitiesSchema,
       parse: parseSchema,
     })
     .strict(),

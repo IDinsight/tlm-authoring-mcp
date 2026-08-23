@@ -3,7 +3,7 @@
  *
  * The pure MCP-response helper and its result type. No project imports, so it's
  * leaf-safe and re-exported from utils/index.ts. App-coupled tool helpers that
- * need the active profile/context (guarded, needsCapability) do NOT belong here
+ * need the active profile/context (guarded) do NOT belong here
  * — they live in server/shared.ts inside the server module.
  */
 

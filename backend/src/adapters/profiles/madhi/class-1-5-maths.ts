@@ -12,7 +12,6 @@ import type { SubjectProfile } from "../../profile.js";
 
 export const MADHI_MATHS_PROFILE: SubjectProfile = {
   id: "madhi-maths/lc-graph-v1",
-  capabilities: { exampleDomainRotation: false },
 
   // Standards-only dialect: hierarchy carried by `statementType`, LearningComponent
   // layer keyed by its label. No ordinal field.

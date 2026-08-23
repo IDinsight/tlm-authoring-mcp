@@ -22,7 +22,6 @@ export const CONFIG = {
   // pending their migration into the graph guides). Filenames are fixed conventions.
   assetsDir: env.TLM_ASSETS_DIR ? resolve(env.TLM_ASSETS_DIR) : fromRoot("assets"),
   terminologyFile: "terminology.json",
-  exampleDomainsFile: "example_domains.json",
   // Firebase Storage (shared source of truth for documents + history).
   serviceAccountKeyPath: env.SERVICE_ACCOUNT_KEY_PATH ?? "",
   // Alternative to the key path: the key's JSON content directly (for hosts

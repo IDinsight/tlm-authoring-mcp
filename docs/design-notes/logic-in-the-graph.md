@@ -130,7 +130,7 @@ held in the graph:
 - `add_node`, `move_node`, `edit_node`
 - `create_node`, `link_nodes`, `unlink_nodes`, `delete_node`
 - `upsert_property`, `diff_draft`, `publish_draft`, `discard_draft`
-- `list_units`, `get_curriculum`, `get_terminology`, `terminology_sections`
+- `list_units`, `get_curriculum`, `get_terminology`
 
 **B — formatting + character/art consistency (generation).** The generation/output
 surface *and* the cast-consistency machinery:
@@ -144,7 +144,9 @@ surface *and* the cast-consistency machinery:
 misconception distractors", "vary the correct letter") and has essentially **no tool
 footprint**. The only tools that lean C are the *variety* heuristic:
 
-- `suggest_fresh_domain`, `domain_usage` — rotate object families so chapters don't repeat
+- ~~`suggest_fresh_domain`, `domain_usage`~~ — rotated object families so chapters
+  didn't repeat. **Retired**: the heuristic moved into the maths guide's prose, which
+  points at `list_documents` / `get_document_text` to see what recent chapters used.
 
 **Neither (infra/governance):** `ping`, `set_context`, `get_context`,
 `list_workspaces`, `create_workspace`, `add_member`, `remove_member`, `list_members`,
@@ -156,8 +158,10 @@ Phase 1 — the routine) together with the B character inputs to feed a generati
 The takeaway: **A is the graph tool surface, B is the generation/output surface plus
 the character-consistency tools, and C barely touches tools at all** — which is
 exactly what this note predicts. C is guidance on *how to author*, so it lives in the
-prompt, not in tools; `suggest_fresh_domain`/`domain_usage` are the lone tools that
-exist purely to serve a Bucket-C heuristic.
+prompt, not in tools. `suggest_fresh_domain`/`domain_usage` were the lone tools that
+existed purely to serve a Bucket-C heuristic — and they have since been **retired**,
+the heuristic moving into the guide's prose. Bucket C now has a tool footprint of
+zero, which is the end state this note argued for.
 
 ## Realized — the adapter projection is trimmed
 

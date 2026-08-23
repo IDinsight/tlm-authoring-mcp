@@ -7,13 +7,11 @@
  * the three per-subject `.ts` adapters collapse into three profile literals plus
  * this single generic factory (docs/design-notes/authorable-catalog.md, phase 2).
  *
- * The adapter's runtime shape is unchanged — consumers still see `classify`
- * functions, a `coverageWarnings` function, a `parse`, etc. Only their SOURCE
- * changes: each is synthesized here from the profile's data, via the shared
- * generic mechanisms (parseGraph, the coverage-rule dispatcher, the prune
+ * The adapter's runtime shape is unchanged — consumers still see a `parse`, a
+ * `model()`, an `id`. Only their SOURCE changes: each is synthesized here from
+ * the profile's data, via the shared generic mechanisms (parseGraph, the prune
  * registry). So nothing downstream of the adapter changes.
  */
-import { suggestFreshDomain, domainUsage } from "../generation/index.js";
 import { parseGraph, resolvePrune, type GraphParseDescriptor } from "../curriculum/index.js";
 import { makeEnsure } from "./engine.js";
 import type { SubjectProfile } from "./profile.js";
@@ -31,24 +29,10 @@ export function buildAdapterFromProfile(profile: SubjectProfile, grade: string, 
   const descriptor = toDescriptor(profile.parse);
   const parse = (raw: unknown): CurriculumModel => parseGraph(raw, descriptor);
 
-  const adapter: SubjectAdapter = {
+  return {
     grade, subject,
     id: profile.id,
-    capabilities: profile.capabilities,
     parse,
     model: makeEnsure(),
   };
-
-  // Capability-gated generation helpers: present only when the subject rotates
-  // example domains (the tool boundary in src/server/ci-maths.ts also checks the
-  // flag, so this just avoids advertising a helper the subject won't use).
-  if (profile.capabilities.exampleDomainRotation) {
-    // A document's chapter number is its scope node's ordinal, read from this
-    // adapter's model at call time (the history no longer stores it).
-    const ordinalOf = (nodeId: string) => adapter.model().byId.get(nodeId)?.order ?? null;
-    adapter.suggestFreshDomain = () => suggestFreshDomain(ordinalOf);
-    adapter.domainUsage = () => domainUsage(ordinalOf);
-  }
-
-  return adapter;
 }

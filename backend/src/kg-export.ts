@@ -189,7 +189,7 @@ export async function listExportNamespaces(): Promise<NamespaceEntry[]> {
 
 // ── raw-LC → display node transform ──────────────────────────────────────────
 // Maps a stored node ({type, properties:{code,title,text,order,isAssessment,raw}})
-// to the explorer's display node. Reads raw.* with both CI CI maths (camelCase) and
+// to the explorer's display node. Reads raw.* with both CI maths (camelCase) and
 // CE1 CE1 reading (snake_case) spellings where they differ, so ONE mapping serves both.
 const LABEL_BY_KIND: Record<string, string> = {
   domaine: "StandardsFrameworkItem",

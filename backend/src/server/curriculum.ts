@@ -15,7 +15,7 @@ import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { asJson, guarded } from "./shared.js";
 import { getActiveAdapter } from "../adapters/index.js";
-import { terminologySections, standardsFor } from "../curriculum/index.js";
+import { standardsFor } from "../curriculum/index.js";
 import { effectiveTerms, filterByQuery } from "./glossary-read.js";
 
 export function registerCurriculumTools(server: McpServer) {
@@ -24,7 +24,4 @@ export function registerCurriculumTools(server: McpServer) {
 
   server.registerTool("get_terminology", { title: "Get terminology (FR/Wolof)", description: "Search the workspace's French/Wolof lexicon for a term's established wording (from the store-backed glossary, or the on-disk MOHEBS terminology when a workspace has no glossary yet). Each result carries `francais`/`wolof` plus the full `renderings` map. Returns [] if nothing matches — then say the wording is missing rather than invent it.", inputSchema: { query: z.string(), limit: z.number().int().optional() } },
     guarded(async (a: { query: string; limit?: number }) => asJson({ query: a.query, results: filterByQuery(await effectiveTerms(), a.query, a.limit ?? 20) })));
-
-  server.registerTool("terminology_sections", { title: "Terminology sections", description: "List terminology sections and entry counts.", inputSchema: {} },
-    guarded(async () => asJson(terminologySections())));
 }

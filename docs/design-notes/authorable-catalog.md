@@ -430,8 +430,10 @@ configuration, sitting beside a fully generic engine:
   detection are subject-agnostic. Each adapter only supplies a small **descriptor**
   (which LC label/role maps to which read *kind*) that the generic parser consumes.
 - Nothing in `src/server/` branches on a subject or grade *value* — grade/subject are
-  opaque partition keys. The one subject-conditional tool (`suggest_fresh_domain`) is
-  gated by a **capability flag**, not a `if (subject === "maths")` check.
+  opaque partition keys. The one subject-conditional tool (`suggest_fresh_domain`) was
+  gated by a **capability flag**, not a `if (subject === "maths")` check — and has since
+  been retired outright, taking the whole `capabilities` block with it. There is no
+  subject-conditional tool left.
 - The `InstructionalRoutine` + `usesRoutine` machinery — the substrate this whole note
   builds on — already exists and is live for CI maths. One routine is shared by
   **112** teacher-guide lessons today; that is a catalog entry in all but name.
@@ -652,8 +654,11 @@ files are gone.
   consistency is Bucket-B/C and belongs in authored data (prompt today, a formatter
   or routine catalog entry tomorrow), not a code flag. It was deleted rather than
   carried into the config layer, where a curator could toggle a setting that does
-  nothing. (`exampleDomainRotation` stays — it gates a real behaviour: the
-  `suggest_fresh_domain` / `domain_usage` helper tools.)
+  nothing. (`exampleDomainRotation` was kept at the time, because it gated a real
+  behaviour: the `suggest_fresh_domain` / `domain_usage` helper tools. Those tools were
+  later retired for the same reason given just above — the variety heuristic is
+  Bucket-C guidance and belongs in the guide's prose — so the flag went with them, and
+  with it the `capabilities` block entirely.)
 - **Scale honesty.** With three subjects and a couple of routines, the catalog earns
   its keep from the *authoring UX* and the multi-tenant direction, not from
   deduplication alone. Keep phase 3's first cut small (the shared house style + the two

@@ -13,7 +13,6 @@ import type { SubjectProfile } from "../../profile.js";
 
 export const GHANA_ENGLISH_PROFILE: SubjectProfile = {
   id: "ghana-english/lc-graph-v1",
-  capabilities: { exampleDomainRotation: false },
 
   // Standards-only dialect: hierarchy carried by `statementType`, LearningComponent
   // layer keyed by its label. No ordinal field.
