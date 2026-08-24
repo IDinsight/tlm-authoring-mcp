@@ -8,6 +8,7 @@ import {
   hasSession,
   initSupabase,
   signIn,
+  signInWithGoogle,
 } from "../lib/api";
 import { createGraphModel, type GraphModel } from "../lib/graphModel";
 import { readUrlState } from "../lib/urlState";
@@ -29,6 +30,8 @@ export type GraphData = {
   data: DisplayGraph | null;
   model: GraphModel | null;
   login: (email: string, password: string) => Promise<string | null>;
+  /** Null when the Supabase project has no Google provider — the gate then offers only a password. */
+  loginWithGoogle: (() => Promise<string | null>) | null;
   selectNs: (ns: string) => void;
   refresh: () => void;
   /** Which slot is on screen — published (live) or the unpublished draft. */
@@ -47,6 +50,9 @@ export function useGraphData(lang: Lang): GraphData {
   tRef.current = t;
 
   const [phase, setPhase] = useState<Phase>("loading");
+  // Read from /kg/config at boot: false when the Supabase project has no Google
+  // provider, so the gate doesn't draw a button that errors on click.
+  const [googleEnabled, setGoogleEnabled] = useState(false);
   const [loadingText, setLoadingText] = useState("");
   const [errorText, setErrorText] = useState("");
   const [retry, setRetry] = useState<(() => void) | null>(null);
@@ -129,6 +135,7 @@ export function useGraphData(lang: Lang): GraphData {
     }
     if (cfg.authRequired) {
       initSupabase(cfg);
+      setGoogleEnabled(cfg.googleEnabled !== false);
       if (!(await hasSession())) {
         setPhase("login");
         return; // login screen shows; boot resumes after a successful sign-in
@@ -141,6 +148,12 @@ export function useGraphData(lang: Lang): GraphData {
     void boot();
     // Boot runs once; language changes re-translate live copy via components.
     // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const loginWithGoogle = useCallback(async (): Promise<string | null> => {
+    const res = await signInWithGoogle();
+    // A success never returns — the browser is already on its way to Google.
+    return res.ok ? null : tRef.current("loginFail") + res.message;
   }, []);
 
   const login = useCallback(
@@ -176,6 +189,7 @@ export function useGraphData(lang: Lang): GraphData {
     data,
     model,
     login,
+    loginWithGoogle: googleEnabled ? loginWithGoogle : null,
     selectNs,
     refresh,
     slot,

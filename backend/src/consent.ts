@@ -9,11 +9,17 @@
  * user is mid-login here, so bearer auth cannot apply.
  *
  * Flow (per Supabase OAuth Server docs): the authorize endpoint redirects here
- * with ?authorization_id=…; the page signs the user in (email+password),
- * fetches the authorization details, and calls approve/deny, then follows the
- * returned redirect back to the client (e.g. Claude).
+ * with ?authorization_id=…; the page signs the user in, fetches the
+ * authorization details, and calls approve/deny, then follows the returned
+ * redirect back to the client (e.g. Claude).
+ *
+ * Two ways in. Google leaves the page and comes back — so the return URL keeps
+ * `authorization_id`, and the session check at the bottom picks the flow up
+ * again on reload. Email+password never leaves the page. `showGoogle` is false
+ * only when the Supabase project has the provider switched off, so we don't
+ * render a button that dead-ends.
  */
-export function consentPage(supabaseUrl: string, anonKey: string): string {
+export function consentPage(supabaseUrl: string, anonKey: string, showGoogle = true): string {
   return `<!doctype html>
 <html lang="fr">
 <head>
@@ -35,6 +41,10 @@ export function consentPage(supabaseUrl: string, anonKey: string): string {
   .primary { background: #177245; color: #fff; }
   .secondary { background: #eef1ee; color: #1f2a2a; margin-top: .5rem; }
   .err { color: #a33; font-size: .85rem; margin-top: .75rem; min-height: 1.2em; }
+  .google { display: flex; align-items: center; justify-content: center; gap: .5rem;
+            background: #fff; color: #1f2a2a; border: 1px solid #c9d2c9; margin-top: 1rem; }
+  .or { display: flex; align-items: center; gap: .6rem; margin: 1rem 0 .25rem; color: #8a9a98; font-size: .8rem; }
+  .or::before, .or::after { content: ""; flex: 1; height: 1px; background: #dde3dd; }
   .hidden { display: none; }
   .app { font-weight: 700; }
 </style>
@@ -44,6 +54,13 @@ export function consentPage(supabaseUrl: string, anonKey: string): string {
   <div id="login">
     <h1>Connexion</h1>
     <p>Connectez-vous avec le compte qui vous a été attribué. <br><small>Sign in with your assigned account.</small></p>
+    <div id="google-block"${showGoogle ? "" : ' class="hidden"'}>
+      <button class="google" id="google">
+        <svg viewBox="0 0 18 18" width="16" height="16" aria-hidden="true"><path fill="#4285F4" d="M17.6 9.2c0-.6-.05-1.2-.16-1.7H9v3.3h4.8a4.1 4.1 0 0 1-1.8 2.7v2.2h2.9c1.7-1.6 2.7-3.9 2.7-6.5z"/><path fill="#34A853" d="M9 18c2.4 0 4.5-.8 6-2.2l-2.9-2.2c-.8.5-1.8.9-3.1.9-2.4 0-4.4-1.6-5.1-3.8H.9v2.3A9 9 0 0 0 9 18z"/><path fill="#FBBC05" d="M3.9 10.7a5.4 5.4 0 0 1 0-3.4V5H.9a9 9 0 0 0 0 8l3-2.3z"/><path fill="#EA4335" d="M9 3.6c1.3 0 2.5.5 3.4 1.3l2.6-2.6A9 9 0 0 0 .9 5l3 2.3C4.6 5.2 6.6 3.6 9 3.6z"/></svg>
+        Continuer avec Google
+      </button>
+      <div class="or"><span>ou</span></div>
+    </div>
     <label for="email">Email</label>
     <input id="email" type="email" autocomplete="username">
     <label for="password">Mot de passe</label>
@@ -86,6 +103,17 @@ export function consentPage(supabaseUrl: string, anonKey: string): string {
   });
   el("password").addEventListener("keydown", (e) => { if (e.key === "Enter") el("signin").click(); });
 
+  el("google").addEventListener("click", async () => {
+    el("login-err").textContent = "";
+    // Rebuilt rather than reusing location.href: a previous attempt can leave a
+    // spent ?code= in the URL, and only authorization_id may survive the trip.
+    const returnUrl = location.origin + location.pathname
+      + (authorizationId ? "?authorization_id=" + encodeURIComponent(authorizationId) : "");
+    const { error } = await supabase.auth.signInWithOAuth({ provider: "google", options: { redirectTo: returnUrl } });
+    // Success navigates away to Google; only a failure gets this far.
+    if (error) el("login-err").textContent = "Échec de la connexion : " + error.message;
+  });
+
   el("approve").addEventListener("click", async () => {
     try {
       const { data, error } = await supabase.auth.oauth.approveAuthorization(authorizationId);
@@ -101,6 +129,8 @@ export function consentPage(supabaseUrl: string, anonKey: string): string {
     } catch (e) { el("consent-err").textContent = e.message ?? String(e); }
   });
 
+  // Also the landing point for the Google round trip: supabase-js has already
+  // turned the ?code= it came back with into a session by the time this runs.
   const { data: { session } } = await supabase.auth.getSession();
   if (session) await toConsent();
 </script>

@@ -133,6 +133,9 @@ export type KgConfig = {
   authRequired: boolean;
   supabaseUrl?: string;
   supabaseAnonKey?: string;
+  // False only when the Supabase project has the Google provider switched off;
+  // the login gate hides its Google button to match.
+  googleEnabled?: boolean;
 };
 
 // ── Catalog (GET /kg/catalog?ns=) ────────────────────────────────────────────

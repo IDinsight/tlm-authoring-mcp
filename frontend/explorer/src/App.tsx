@@ -244,7 +244,7 @@ export default function App() {
           onRetry={g.retry}
         />
       )}
-      {g.phase === "login" && <LoginGate lang={lang} onSubmit={g.login} />}
+      {g.phase === "login" && <LoginGate lang={lang} onSubmit={g.login} onGoogle={g.loginWithGoogle ?? undefined} />}
 
       {ready && (
         <div>
