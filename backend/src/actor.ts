@@ -43,6 +43,18 @@ export interface Actor {
   /** Verified issuer that produced this identity (JWT `iss`). */
   readonly tokenIssuer?: string;
   /**
+   * How this person signed in, from the token's `app_metadata.provider` —
+   * "google", "email", … Only `app_metadata` is usable for a trust decision:
+   * `user_metadata` is writable by the signed-in user themselves
+   * (supabase.auth.updateUser), so anything in it is self-asserted.
+   *
+   * Used by domain auto-join, which needs a provider that VOUCHES for the
+   * address (Google vouches for an @idinsight.org Workspace account; a
+   * self-declared "email" signup vouches for nothing). See
+   * docs/design-notes/member-onboarding.md.
+   */
+  readonly authProvider?: string;
+  /**
    * LEGACY global role from the verified `app_role` JWT claim. Authoritative
    * authorization now comes from `memberships`; this only grants the named role
    * in the DEFAULT_WORKSPACE, as a migration bridge for users whose Supabase
@@ -103,7 +115,7 @@ export function __setActorForTest(actor: Actor | null): void {
  * and NEVER a request body, tool arguments, or client-settable headers.
  */
 export function resolveActor(
-  auth: { extra?: { sub?: unknown; email?: unknown; iss?: unknown; app_role?: unknown } } | undefined,
+  auth: { extra?: { sub?: unknown; email?: unknown; iss?: unknown; app_role?: unknown; app_metadata?: unknown } } | undefined,
 ): Actor {
   const sub = auth?.extra?.sub;
   if (typeof sub !== "string" || sub.length === 0) return UNKNOWN_ACTOR;
@@ -116,11 +128,13 @@ export function resolveActor(
   // `auth.extra` is only populated by the signature-verified middleware.
   const rawRole = auth?.extra?.app_role;
   const role: Role | undefined = rawRole === "curator" || rawRole === "approver" ? rawRole : undefined;
+  const appMetadata = auth?.extra?.app_metadata as { provider?: unknown } | undefined;
+  const authProvider = typeof appMetadata?.provider === "string" ? appMetadata.provider : undefined;
   // Super-admin is env-rooted (config.superAdmins()) and matched against the
   // VERIFIED id/email only — reading env is I/O-free, so identity stays sync.
   const admins = superAdmins();
   const superAdmin = admins.includes(sub.toLowerCase()) || (email ? admins.includes(email.toLowerCase()) : false);
-  return { id: sub, email, tokenIssuer, role, superAdmin, memberships: {}, unknown: false };
+  return { id: sub, email, tokenIssuer, authProvider, role, superAdmin, memberships: {}, unknown: false };
 }
 
 /**

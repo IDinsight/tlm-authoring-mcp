@@ -5,6 +5,8 @@
  * docs/design-notes/workspaces.md.
  */
 export * from "./types.js";
+export { provisionMemberships } from "./provision.js";
+export type { ProvisionGrant, ProvisionIdentity } from "./provision.js";
 export {
   getWorkspaceStore,
   __setWorkspaceStoreForTest,

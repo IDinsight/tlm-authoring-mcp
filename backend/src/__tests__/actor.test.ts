@@ -133,3 +133,19 @@ describe("spoofing — tool arguments cannot influence the actor", () => {
     });
   });
 });
+
+describe("resolveActor — sign-in provider", () => {
+  it("reads the provider from app_metadata", () => {
+    const actor = resolveActor({ extra: { sub: "u_1", email: "awa@idinsight.org", app_metadata: { provider: "google" } } });
+    expect(actor.authProvider).toBe("google");
+  });
+
+  it("leaves it undefined when the token carries none", () => {
+    expect(resolveActor({ extra: { sub: "u_1" } }).authProvider).toBeUndefined();
+  });
+
+  it("ignores a non-string provider rather than trusting it", () => {
+    const actor = resolveActor({ extra: { sub: "u_1", app_metadata: { provider: { toString: () => "google" } } } });
+    expect(actor.authProvider).toBeUndefined();
+  });
+});

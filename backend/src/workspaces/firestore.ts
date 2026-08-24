@@ -1,15 +1,16 @@
 /*
  * Module: workspaces · firestore (service surface)
  *
- * Firestore-backed WorkspaceStore. Two flat collections — `workspaces` (doc id =
- * workspace id) and `workspace_members` (doc id = `${workspace}::${userId}`) —
- * mirroring kg-store's flat layout. The firebase-admin bootstrap here is the
- * same idempotent init kg-store uses (guarded by getApps()); a second
- * initializeApp is a no-op, so the two stores share one app.
+ * Firestore-backed WorkspaceStore. Three flat collections — `workspaces` (doc id
+ * = workspace id), `workspace_members` (doc id = `${workspace}::${userId}`) and
+ * `workspace_invites` (doc id = `${workspace}::${email}`) — mirroring kg-store's
+ * flat layout. The firebase-admin bootstrap here is the same idempotent init
+ * kg-store uses (guarded by getApps()); a second initializeApp is a no-op, so
+ * the two stores share one app.
  */
 import { createRequire } from "node:module";
 import { CONFIG } from "../config.js";
-import type { MembershipRecord, WorkspaceRecord, WorkspaceStore } from "./types.js";
+import type { InviteRecord, MembershipRecord, WorkspaceRecord, WorkspaceStore } from "./types.js";
 
 const require = createRequire(import.meta.url);
 
@@ -45,10 +46,13 @@ function initFirebase(): void {
 
 const WORKSPACES = "workspaces";
 const MEMBERS = "workspace_members";
+const INVITES = "workspace_invites";
 const memberDocId = (workspace: string, userId: string) => `${workspace}::${userId}`;
+const inviteDocId = (workspace: string, email: string) => `${workspace}::${email}`;
 
 const asWorkspace = (d: FsDoc): WorkspaceRecord => d.data() as unknown as WorkspaceRecord;
 const asMember = (d: FsDoc): MembershipRecord => d.data() as unknown as MembershipRecord;
+const asInvite = (d: FsDoc): InviteRecord => d.data() as unknown as InviteRecord;
 
 export function createFirestoreWorkspaceStore(): WorkspaceStore {
   initFirebase();
@@ -83,6 +87,24 @@ export function createFirestoreWorkspaceStore(): WorkspaceStore {
     },
     async removeMember(workspace, userId) {
       await db.collection(MEMBERS).doc(memberDocId(workspace, userId)).delete();
+    },
+    async listInvites(workspace) {
+      const snap = await db.collection(INVITES).where("workspace", "==", workspace).get();
+      return snap.docs.map(asInvite).sort((a, b) => a.email.localeCompare(b.email));
+    },
+    async invitesForEmail(email) {
+      const snap = await db.collection(INVITES).where("email", "==", email).get();
+      return snap.docs.map(asInvite);
+    },
+    async getInvite(workspace, email) {
+      const doc = await db.collection(INVITES).doc(inviteDocId(workspace, email)).get();
+      return doc.exists ? asInvite(doc) : null;
+    },
+    async putInvite(rec) {
+      await db.collection(INVITES).doc(inviteDocId(rec.workspace, rec.email)).set(rec as unknown as Record<string, unknown>);
+    },
+    async removeInvite(workspace, email) {
+      await db.collection(INVITES).doc(inviteDocId(workspace, email)).delete();
     },
   };
 }

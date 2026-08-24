@@ -36,7 +36,8 @@ import { activateContext, refreshAvailableContexts } from "./activate.js";
 import { consentPage } from "./consent.js";
 import { resolveActor, withMemberships, runAsActor, type Actor } from "./actor.js";
 import { authorize } from "./authz.js";
-import { resolveMemberships } from "./workspaces/index.js";
+import { resolveMemberships, provisionMemberships, type ProvisionGrant } from "./workspaces/index.js";
+import { getKgStore, toAuditActor, nextAuditSeq } from "./kg-store/index.js";
 import { installProcessGuards } from "./utils/index.js";
 
 const LOG = "[senegal-mohebs-tlm:http]";
@@ -63,7 +64,12 @@ function supabaseVerifier(): OAuthTokenVerifier {
           // Hook (see scripts/supabase-user-roles.sql) — it's part of the same
           // signature-verified payload as sub/email/iss, so authz shares identity's
           // trust channel and cannot be spoofed by a header or tool argument.
-          extra: { sub: payload.sub, email: (payload as any).email, iss: payload.iss, app_role: (payload as any).app_role },
+          // `app_metadata` carries the sign-in provider. It is set by Supabase
+          // itself (only a service-role key can change it), unlike
+          // `user_metadata`, which the signed-in user can rewrite at will — so
+          // this is the one place a "how did they prove this address" signal
+          // can be trusted from. NEVER pass user_metadata through here.
+          extra: { sub: payload.sub, email: (payload as any).email, iss: payload.iss, app_role: (payload as any).app_role, app_metadata: (payload as any).app_metadata },
         };
       } catch (e) {
         // Map every verification failure (bad signature, expiry, JWKS fetch) to
@@ -72,6 +78,62 @@ function supabaseVerifier(): OAuthTokenVerifier {
       }
     },
   };
+}
+
+// ── Identity for one request ─────────────────────────────────────────────────
+// Verified token → Actor → the per-workspace memberships authz reads. Shared by
+// /mcp and the /kg draft read so onboarding can't apply on one path and not the
+// other.
+//
+// A caller with NO memberships may still be entitled to some: a pending invite
+// for their address, or a workspace whose domain rule matches it. That check
+// runs here, once — the moment it grants, they have memberships and every later
+// request takes the cheap path. Fail-closed throughout: any store error leaves
+// memberships empty (env-rooted super admin still stands).
+async function resolveRequestActor(auth: Parameters<typeof resolveActor>[0]): Promise<Actor> {
+  const identity = resolveActor(auth);
+  if (identity.unknown) {
+    return identity;
+  }
+
+  try {
+    let memberships = await resolveMemberships(identity.id);
+
+    if (Object.keys(memberships).length === 0) {
+      const grants = await provisionMemberships(identity);
+      for (const grant of grants) {
+        await auditProvisioning(identity, grant);
+      }
+      if (grants.length > 0) {
+        memberships = await resolveMemberships(identity.id);
+      }
+    }
+
+    return withMemberships(identity, memberships);
+  } catch (e) {
+    console.error(`${LOG} membership read failed for ${identity.id}:`, (e as Error).message);
+    return identity;
+  }
+}
+
+// Record a first-login grant in the same audit trail an admin's add_member
+// writes to, so "how did this person get access?" has one answer.
+async function auditProvisioning(identity: Actor, grant: ProvisionGrant): Promise<void> {
+  try {
+    await getKgStore().appendAudit({
+      id: randomUUID(),
+      ts: new Date().toISOString(),
+      seq: nextAuditSeq(),
+      actor: toAuditActor(identity),
+      namespace: basePrefix() + grant.workspace,
+      eventType: "membership",
+      reason: grant.reason,
+    });
+  } catch (e) {
+    // The membership is already written; losing its audit line must not cost
+    // the person their access, but it should be loud in the logs.
+    console.error(`${LOG} could not audit ${grant.via} grant for ${identity.id}:`, (e as Error).message);
+  }
 }
 
 // ── Read-only KG export routes ───────────────────────────────────────────────
@@ -164,13 +226,8 @@ function registerKgRoutes(app: express.Express, authEnabled: boolean, verifier: 
   async function draftReadDenied(req: express.Request, ns: string): Promise<string | null> {
     if (!authEnabled) return "draft reads require authentication to be configured";
     const auth = (req as { auth?: Parameters<typeof resolveActor>[0] }).auth;
-    let actor = resolveActor(auth);
+    const actor = await resolveRequestActor(auth);
     if (actor.unknown) return "no verified identity";
-    try {
-      actor = withMemberships(actor, await resolveMemberships(actor.id));
-    } catch (e) {
-      console.error(`${LOG} membership read failed for ${actor.id}:`, (e as Error).message);
-    }
     const authz = authorize(actor, "readDraft", ns);
     return authz.ok ? null : authz.reason;
   }
@@ -426,18 +483,11 @@ async function main() {
     // Resolve the caller's identity from the verified auth layer ONLY. Never
     // from tool arguments, request body, or client-settable headers — those
     // are spoofable. `resolveActor` is the single writer for actor state.
-    let actor: Actor = resolveActor((req as any).auth);
-    // Attach per-workspace memberships (the authoritative authz source) with ONE
-    // registry read per request. Identity stays sync + spoof-proof; only this
-    // app-layer step touches the store. Fail-closed: a read error leaves
-    // memberships empty (super-admin, from env, still stands).
-    if (!actor.unknown) {
-      try {
-        actor = withMemberships(actor, await resolveMemberships(actor.id));
-      } catch (e) {
-        console.error(`${LOG} membership read failed for ${actor.id}:`, (e as Error).message);
-      }
-    }
+    // Memberships (the authoritative authz source) are attached here, in the
+    // app layer — identity itself stays sync + spoof-proof and never touches a
+    // store. This is also where a first-time caller's invite or domain rule is
+    // claimed; see resolveRequestActor.
+    const actor: Actor = await resolveRequestActor((req as any).auth);
 
     // ── unknown-actor policy (DEFAULTED — flip here when roles land) ─────────
     // Today: unknown actors proceed (no roles are enforced anywhere yet).
