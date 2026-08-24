@@ -9,9 +9,13 @@ service `senegal-mohebs-tlm`, capped at one instance.
   `https://senegal-mohebs-tlm-148764688487.europe-west1.run.app/mcp`. First use runs an
   OAuth login (Supabase project `senegal-tlm-auth`, IDinsight org) on a consent page this
   server hosts at `/oauth/consent`.
-- **Accounts** are created in the Supabase dashboard (Authentication → Users → *Create new
-  user*, auto-confirm on). The invite-email flow is **not** supported yet — its link expects
-  a password-setup page that hasn't been built.
+- **Accounts.** IDinsight colleagues sign in with Google and get their role from a
+  workspace **domain rule**; anyone else is given access with `invite_member`, keyed by
+  their email, and claims it on first login. Neither needs a dashboard visit. Creating a
+  user by hand (Authentication → Users → *Create new user*) still works for a password
+  account. Supabase's own invite-email flow is **not** used — its link expects a
+  password-setup page that hasn't been built. See
+  [`member-onboarding.md`](../design-notes/member-onboarding.md).
 - **A user's grade/subject selection is sticky per person** (persisted at
   `_state/<user-id>.json` in the bucket) because web clients open a fresh MCP session per
   tool call.
@@ -41,6 +45,17 @@ With auth on, unauthenticated calls get a 401 pointing at `/.well-known/oauth-pr
 which advertises the Supabase authorization server — MCP clients (e.g. Claude connectors)
 discover the login flow from there. Every tool call is logged with the caller's identity.
 `GET /health` is unauthenticated. (Use `/health`, not `/healthz`, for external checks — Google's Front End reserves the literal `/healthz` path and 404s it before the request reaches the container.)
+
+#### Supabase project settings this server depends on
+
+Three dashboard settings are load-bearing. The server probes
+`/auth/v1/settings` once at startup and logs a warning about the third.
+
+| Setting | Where | Why |
+|---|---|---|
+| **Google provider** enabled | Authentication → Providers → Google | Turns on the "Continuer avec Google" button (the consent page and the explorer both hide it when the provider is off) and is what makes **domain auto-join** possible — a rule only admits sign-ins from a provider that vouches for the address. Needs a Google Cloud OAuth client, with `https://<ref>.supabase.co/auth/v1/callback` as an authorized redirect URI. |
+| **Redirect URLs** allow-listed | Authentication → URL Configuration | The Google round trip returns to `<PUBLIC_URL>/oauth/consent` and to the explorer's origin. Both must be listed or the login bounces. |
+| **Confirm email** ON | Authentication → Providers → Email | An invite is claimable by whoever holds a token for that address. With confirmations off, someone can sign up *as* an invited colleague and take their invite. The server logs a loud `WARNING` at boot if it detects auto-confirm. |
 
 #### Per-request actor identity
 

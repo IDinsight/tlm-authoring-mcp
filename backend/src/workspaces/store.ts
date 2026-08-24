@@ -7,7 +7,7 @@
  * a user id into the `{ workspace: role }` map it hangs on the Actor.
  */
 import type { MembershipRole } from "../actor.js";
-import type { MembershipRecord, WorkspaceRecord, WorkspaceStore } from "./types.js";
+import type { InviteRecord, MembershipRecord, WorkspaceRecord, WorkspaceStore } from "./types.js";
 import { createFirestoreWorkspaceStore } from "./firestore.js";
 
 let store: WorkspaceStore | null = null;
@@ -36,15 +36,19 @@ export async function resolveMemberships(
 
 // ── In-memory implementation (tests / stdio without Firestore) ────────────────
 const memberKey = (workspace: string, userId: string) => `${workspace}::${userId}`;
+const inviteKey = (workspace: string, email: string) => `${workspace}::${email}`;
 
 export function createMemoryWorkspaceStore(seed?: {
   workspaces?: WorkspaceRecord[];
   members?: MembershipRecord[];
+  invites?: InviteRecord[];
 }): WorkspaceStore {
   const workspaces = new Map<string, WorkspaceRecord>();
   const members = new Map<string, MembershipRecord>();
+  const invites = new Map<string, InviteRecord>();
   for (const w of seed?.workspaces ?? []) workspaces.set(w.id, w);
   for (const m of seed?.members ?? []) members.set(memberKey(m.workspace, m.userId), m);
+  for (const i of seed?.invites ?? []) invites.set(inviteKey(i.workspace, i.email), i);
 
   return {
     async listWorkspaces() {
@@ -72,6 +76,23 @@ export function createMemoryWorkspaceStore(seed?: {
     },
     async removeMember(workspace, userId) {
       members.delete(memberKey(workspace, userId));
+    },
+    async listInvites(workspace) {
+      return [...invites.values()]
+        .filter((invite) => invite.workspace === workspace)
+        .sort((a, b) => a.email.localeCompare(b.email));
+    },
+    async invitesForEmail(email) {
+      return [...invites.values()].filter((invite) => invite.email === email);
+    },
+    async getInvite(workspace, email) {
+      return invites.get(inviteKey(workspace, email)) ?? null;
+    },
+    async putInvite(rec) {
+      invites.set(inviteKey(rec.workspace, rec.email), rec);
+    },
+    async removeInvite(workspace, email) {
+      invites.delete(inviteKey(workspace, email));
     },
   };
 }

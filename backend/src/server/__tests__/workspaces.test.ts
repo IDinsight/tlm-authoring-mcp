@@ -6,7 +6,7 @@
  * InMemory transport doesn't carry one.
  */
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
-import { createWorkspaceOp, addMemberOp, removeMemberOp, listMembersOp, listWorkspacesOp } from "../workspaces.js";
+import { createWorkspaceOp, addMemberOp, removeMemberOp, listMembersOp, listWorkspacesOp, inviteMemberOp, revokeInviteOp, setDomainRuleOp, removeDomainRuleOp } from "../workspaces.js";
 import { __setActorForTest, type Actor } from "../../actor.js";
 import { __setWorkspaceStoreForTest, createMemoryWorkspaceStore } from "../../workspaces/index.js";
 import type { WorkspaceStore } from "../../workspaces/index.js";
@@ -121,10 +121,189 @@ describe("list — visibility", () => {
     expect((result.members as unknown[]).length).toBe(1);
   });
 
+  it("list_members shows unclaimed invites beside real members", async () => {
+    __setActorForTest(SEN_ADMIN);
+    await inviteMemberOp({ workspace: "senegal", email: "awa@idinsight.org", role: "curator" });
+    const result = await listMembersOp({ workspace: "senegal" });
+    expect(result.pendingInvites).toMatchObject([{ email: "awa@idinsight.org", role: "curator" }]);
+  });
+
   it("list_workspaces shows super admin everything", async () => {
     __setActorForTest(SUPER);
     const result = await listWorkspacesOp();
     expect(result.superAdmin).toBe(true);
     expect((result.workspaces as Array<{ id: string }>).some((w) => w.id === "senegal")).toBe(true);
+  });
+});
+
+describe("invite_member — access before the account exists", () => {
+  it("an admin invites by email + writes an audit record", async () => {
+    __setActorForTest(SEN_ADMIN);
+    const result = await inviteMemberOp({ workspace: "senegal", email: "awa@idinsight.org", role: "curator" });
+    expect(result.ok).toBe(true);
+    expect(await workspaceStore.getInvite("senegal", "awa@idinsight.org")).toMatchObject({ role: "curator", invitedBy: "adm" });
+    const audit = await kgStore.listAudit({ namespace: "senegal", eventType: "membership" });
+    expect(audit[0].reason).toContain("invited awa@idinsight.org as 'curator'");
+  });
+
+  it("a curator cannot invite", async () => {
+    __setActorForTest(SEN_CURATOR);
+    const result = await inviteMemberOp({ workspace: "senegal", email: "awa@idinsight.org", role: "curator" });
+    expect(result.ok).toBe(false);
+    expect(String(result.error)).toMatch(/manage members/i);
+    expect(await workspaceStore.getInvite("senegal", "awa@idinsight.org")).toBeNull();
+  });
+
+  it("the email is the match key, so case and padding don't fork the record", async () => {
+    __setActorForTest(SEN_ADMIN);
+    await inviteMemberOp({ workspace: "senegal", email: "  Awa@IDinsight.org ", role: "curator" });
+    expect(await workspaceStore.getInvite("senegal", "awa@idinsight.org")).not.toBeNull();
+    expect((await revokeInviteOp({ workspace: "senegal", email: "AWA@idinsight.org" })).ok).toBe(true);
+  });
+
+  it("re-inviting replaces the role rather than duplicating the invite", async () => {
+    __setActorForTest(SEN_ADMIN);
+    await inviteMemberOp({ workspace: "senegal", email: "awa@idinsight.org", role: "curator" });
+    const result = await inviteMemberOp({ workspace: "senegal", email: "awa@idinsight.org", role: "approver" });
+    expect(result.replaced).toMatchObject({ role: "curator" });
+    expect((await workspaceStore.listInvites("senegal"))).toHaveLength(1);
+    expect((await workspaceStore.getInvite("senegal", "awa@idinsight.org"))?.role).toBe("approver");
+  });
+
+  it("refuses an invite for someone who is already a member, naming their userId", async () => {
+    __setActorForTest(SEN_ADMIN);
+    await addMemberOp({ workspace: "senegal", userId: "u1", role: "curator", email: "awa@idinsight.org" });
+    const result = await inviteMemberOp({ workspace: "senegal", email: "awa@idinsight.org", role: "approver" });
+    expect(result.ok).toBe(false);
+    expect(String(result.error)).toContain("u1");
+    expect(await workspaceStore.getInvite("senegal", "awa@idinsight.org")).toBeNull();
+  });
+
+  it("rejects a value that isn't an email", async () => {
+    __setActorForTest(SEN_ADMIN);
+    const result = await inviteMemberOp({ workspace: "senegal", email: "awa", role: "curator" });
+    expect(result.ok).toBe(false);
+    expect(String(result.error)).toMatch(/email address/i);
+  });
+});
+
+describe("revoke_invite", () => {
+  it("withdraws an unclaimed invite + audits it", async () => {
+    __setActorForTest(SEN_ADMIN);
+    await inviteMemberOp({ workspace: "senegal", email: "awa@idinsight.org", role: "curator" });
+    const result = await revokeInviteOp({ workspace: "senegal", email: "awa@idinsight.org" });
+    expect(result.ok).toBe(true);
+    expect(await workspaceStore.getInvite("senegal", "awa@idinsight.org")).toBeNull();
+    const audit = await kgStore.listAudit({ namespace: "senegal", eventType: "membership" });
+    expect(audit.some((record) => record.reason?.includes("revoked the 'curator' invite"))).toBe(true);
+  });
+
+  it("says so when there is nothing to revoke", async () => {
+    __setActorForTest(SEN_ADMIN);
+    const result = await revokeInviteOp({ workspace: "senegal", email: "nobody@idinsight.org" });
+    expect(result.ok).toBe(false);
+    expect(String(result.error)).toMatch(/no pending invite/i);
+  });
+});
+
+describe("add_member — identified by email or userId", () => {
+  it("an email nobody holds yet becomes an invite", async () => {
+    __setActorForTest(SEN_ADMIN);
+    const result = await addMemberOp({ workspace: "senegal", email: "awa@idinsight.org", role: "curator" });
+    expect(result.ok).toBe(true);
+    expect(result.invite).toMatchObject({ email: "awa@idinsight.org", role: "curator" });
+    expect(await workspaceStore.membersOf("senegal")).toHaveLength(1); // still just the seeded admin
+  });
+
+  it("an email an existing member carries updates that membership directly", async () => {
+    __setActorForTest(SEN_ADMIN);
+    await addMemberOp({ workspace: "senegal", userId: "u1", role: "curator", email: "awa@idinsight.org" });
+    const result = await addMemberOp({ workspace: "senegal", email: "awa@idinsight.org", role: "approver" });
+    expect(result.ok).toBe(true);
+    expect((await workspaceStore.getMember("senegal", "u1"))?.role).toBe("approver");
+    expect(await workspaceStore.listInvites("senegal")).toHaveLength(0);
+  });
+
+  it("needs one identifier or the other", async () => {
+    __setActorForTest(SEN_ADMIN);
+    const result = await addMemberOp({ workspace: "senegal", role: "curator" });
+    expect(result.ok).toBe(false);
+    expect(String(result.error)).toMatch(/userId|email/);
+  });
+
+  it("omits the email field entirely when none is given (Firestore rejects undefined)", async () => {
+    __setActorForTest(SEN_ADMIN);
+    await addMemberOp({ workspace: "senegal", userId: "u1", role: "curator" });
+    const stored = await workspaceStore.getMember("senegal", "u1");
+    expect(Object.keys(stored!)).not.toContain("email");
+  });
+});
+
+describe("domain rules — super admin only", () => {
+  it("a super admin opens a workspace to a domain + audits it", async () => {
+    __setActorForTest(SUPER);
+    const result = await setDomainRuleOp({ workspace: "senegal", domain: "idinsight.org", role: "curator" });
+    expect(result.ok).toBe(true);
+    expect((await workspaceStore.getWorkspace("senegal"))?.domainRules).toMatchObject([{ domain: "idinsight.org", role: "curator" }]);
+    const audit = await kgStore.listAudit({ namespace: "senegal", eventType: "workspace" });
+    expect(audit[0].reason).toContain("anyone at idinsight.org");
+  });
+
+  it("a workspace ADMIN cannot set one — this grant gets no per-person review", async () => {
+    __setActorForTest(SEN_ADMIN);
+    const result = await setDomainRuleOp({ workspace: "senegal", domain: "idinsight.org", role: "curator" });
+    expect(result.ok).toBe(false);
+    expect(String(result.error)).toMatch(/super admin/i);
+    expect((await workspaceStore.getWorkspace("senegal"))?.domainRules).toBeUndefined();
+  });
+
+  it("stores the domain the way an email address will arrive", async () => {
+    __setActorForTest(SUPER);
+    await setDomainRuleOp({ workspace: "senegal", domain: " @IDinsight.org ", role: "curator" });
+    expect((await workspaceStore.getWorkspace("senegal"))?.domainRules).toMatchObject([{ domain: "idinsight.org" }]);
+  });
+
+  it("re-setting a domain replaces its role instead of stacking rules", async () => {
+    __setActorForTest(SUPER);
+    await setDomainRuleOp({ workspace: "senegal", domain: "idinsight.org", role: "curator" });
+    await setDomainRuleOp({ workspace: "senegal", domain: "idinsight.org", role: "approver" });
+    expect((await workspaceStore.getWorkspace("senegal"))?.domainRules).toMatchObject([{ domain: "idinsight.org", role: "approver" }]);
+  });
+
+  it("warns when the rule hands out more than curator", async () => {
+    __setActorForTest(SUPER);
+    const result = await setDomainRuleOp({ workspace: "senegal", domain: "idinsight.org", role: "approver" });
+    expect(String(result.note)).toMatch(/no per-person review/i);
+  });
+
+  it("rejects something that is not a domain", async () => {
+    __setActorForTest(SUPER);
+    const result = await setDomainRuleOp({ workspace: "senegal", domain: "awa@idinsight.org", role: "curator" });
+    expect(result.ok).toBe(false);
+    expect(String(result.error)).toMatch(/not a domain/i);
+  });
+
+  it("removing a rule leaves existing members alone", async () => {
+    __setActorForTest(SUPER);
+    await setDomainRuleOp({ workspace: "senegal", domain: "idinsight.org", role: "curator" });
+    const result = await removeDomainRuleOp({ workspace: "senegal", domain: "idinsight.org" });
+    expect(result.ok).toBe(true);
+    expect((await workspaceStore.getWorkspace("senegal"))?.domainRules).toEqual([]);
+    expect(await workspaceStore.getMember("senegal", "adm")).not.toBeNull();
+  });
+
+  it("says so when there is no such rule", async () => {
+    __setActorForTest(SUPER);
+    const result = await removeDomainRuleOp({ workspace: "senegal", domain: "nowhere.org" });
+    expect(result.ok).toBe(false);
+    expect(String(result.error)).toMatch(/no rule/i);
+  });
+
+  it("list_members surfaces the rule beside members and invites", async () => {
+    __setActorForTest(SUPER);
+    await setDomainRuleOp({ workspace: "senegal", domain: "idinsight.org", role: "curator" });
+    __setActorForTest(SEN_ADMIN);
+    const result = await listMembersOp({ workspace: "senegal" });
+    expect(result.domainRules).toMatchObject([{ domain: "idinsight.org", role: "curator" }]);
   });
 });

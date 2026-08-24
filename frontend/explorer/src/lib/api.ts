@@ -53,6 +53,20 @@ export async function signIn(
   return error ? { ok: false, message: error.message } : { ok: true };
 }
 
+// Hand off to Google. On success the browser navigates away and comes back to
+// this page, where createClient turns the returned ?code= into a session before
+// hasSession() is consulted — so there is no "signed in" path to handle here,
+// only the failure to report.
+export async function signInWithGoogle(): Promise<{ ok: true } | { ok: false; message: string }> {
+  if (!supa) return { ok: false, message: "not configured" };
+  const returnUrl = location.origin + location.pathname;
+  const { error } = await supa.auth.signInWithOAuth({
+    provider: "google",
+    options: { redirectTo: returnUrl },
+  });
+  return error ? { ok: false, message: error.message } : { ok: true };
+}
+
 // Bearer header from the live session (empty when auth is not in play).
 async function authHeaders(): Promise<Record<string, string>> {
   if (!supa) return {};
