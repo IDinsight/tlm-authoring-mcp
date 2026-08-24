@@ -15,6 +15,10 @@
 import { z } from "zod";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { asJson, guarded } from "./shared.js";
+import { denyUnlessMember } from "./membership.js";
+import { getActiveAdapter } from "../adapters/index.js";
+import { activeWorkspace } from "../context/index.js";
+import { kgNamespace } from "../kg-store/index.js";
 import { CONFIG } from "../config.js";
 import { effectiveTerms, filterByText } from "./glossary-read.js";
 import { translate, type TranslateDirection } from "../translation/index.js";
@@ -25,7 +29,7 @@ export function registerTranslationTools(server: McpServer) {
     {
       title: "Translate French ↔ Wolof (Gemini)",
       description:
-        "Translate text between French and Wolof using Google Gemini, grounded in the active subject's MOHEBS FR/Wolof glossary (relevant terms are passed to the model as a term bank so wording stays consistent with existing materials). Direction defaults to auto-detect; pass 'fr>wo' or 'wo>fr' to pin it. Unlike get_terminology (glossary lookup only), this generates a full translation. Requires an active grade/subject and a server-side Gemini API key.",
+        "Translate text between French and Wolof using Google Gemini, grounded in the active subject's MOHEBS FR/Wolof glossary (relevant terms are passed to the model as a term bank so wording stays consistent with existing materials). Direction defaults to auto-detect; pass 'fr>wo' or 'wo>fr' to pin it. Unlike get_terminology (glossary lookup only), this generates a full translation. Requires an active grade/subject, a ROLE in the active workspace (it spends a metered backend, unlike the open curriculum reads), and a server-side Gemini API key.",
       inputSchema: {
         text: z.string().describe("The passage to translate."),
         direction: z
@@ -35,6 +39,11 @@ export function registerTranslationTools(server: McpServer) {
       },
     },
     guarded(async (a: { text: string; direction?: TranslateDirection }) => {
+      // Members only: every call spends Gemini budget, so this is the one read-
+      // shaped tool that is not open along with the published curriculum.
+      const adapter = getActiveAdapter();
+      const denied = await denyUnlessMember("translate", kgNamespace(activeWorkspace(), adapter.grade, adapter.subject));
+      if (denied) return denied;
       if (!CONFIG.gemini.apiKey) {
         return asJson({
           unavailable: true,
