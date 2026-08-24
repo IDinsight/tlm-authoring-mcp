@@ -49,39 +49,22 @@ const parseSchema = z
   })
   .strict();
 
-// TRANSITIONAL: keys that LIVE profile cells still carry but this schema no
-// longer models. The object below is `.strict()`, so an unknown key is a hard
-// refusal — and a refused profile means the namespace won't activate at all.
-// Stripping them here keeps every already-published cell loading unchanged,
-// with no flag day and no re-seed to schedule:
+// `.strict()`: an unrecognized key is a hard refusal, not a silent ignore — a
+// profile that fails here refuses to activate its whole namespace, which is the
+// point (a typo'd key must never look like it took effect).
 //
-//   • `deliverables` — retired when a document's identity became the graph node
-//     it covers (docs/design-notes/graph-linked-documents.md).
-//   • `capabilities` — retired with the CI-maths example-domain tools. It only
-//     ever held `exampleDomainRotation`, and nothing reads it now.
-//
-// Each entry can go once every namespace has been re-seeded without that key.
-const RETIRED_PROFILE_KEYS = ["deliverables", "capabilities"] as const;
-
-const stripRetiredKeys = (raw: unknown): unknown => {
-  if (!raw || typeof raw !== "object") return raw;
-  const record = raw as Record<string, unknown>;
-  const present = RETIRED_PROFILE_KEYS.filter((key) => key in record);
-  if (present.length === 0) return raw;
-  const rest = { ...record };
-  for (const key of present) delete rest[key];
-  return rest;
-};
-
-export const subjectProfileSchema = z.preprocess(
-  stripRetiredKeys,
-  z
-    .object({
-      id: z.string().min(1),               // stable adapter id, e.g. "ci-maths/nodes-relationships-v1"
-      parse: parseSchema,
-    })
-    .strict(),
-);
+// This carried a `z.preprocess` shim that stripped two retired keys
+// (`deliverables`, then `capabilities`) so cells published under an older schema
+// kept loading. Every stored cell has since been re-published without them —
+// verified across all 11 namespaces, the reserved `_catalog`/`_glossary`
+// partitions included, by scripts/check-config-cells.mjs — so the shim is gone.
+// Run that script again before retiring the next key.
+export const subjectProfileSchema = z
+  .object({
+    id: z.string().min(1),               // stable adapter id, e.g. "ci-maths/nodes-relationships-v1"
+    parse: parseSchema,
+  })
+  .strict();
 
 export type SubjectProfile = z.infer<typeof subjectProfileSchema>;
 export type ParseProfile = z.infer<typeof parseSchema>;
