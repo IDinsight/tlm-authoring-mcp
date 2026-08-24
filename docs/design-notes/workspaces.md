@@ -54,12 +54,16 @@ independent draft/publish lifecycle for free.
 | **admin** (workspace admin) | one workspace | manage that workspace's members + everything approver can |
 | **approver** | one workspace | publish + everything curator can |
 | **curator** | one workspace | stage / apply / discard drafts, read draft |
-| _(no membership)_ | — | cannot enter the workspace (see read isolation) |
+| _(no membership)_ | — | enter any workspace + read its published curriculum; nothing else (see read isolation) |
 
 Being a curator in `senegal` grants nothing in `kenya`. Super admin is the only
 cross-workspace tier.
 
 ### Read isolation
+
+> **Reversed 2026-08-24 — the entry gate below is no longer in force.** See
+> "Open reads" immediately after. The rest of this section is kept as the
+> original rationale.
 
 Today reads and generation are **ungated** — any signed-in (even unknown) actor
 can read any graph. With tenants that is wrong: a Kenya user should not browse
@@ -69,6 +73,54 @@ admin over) that workspace. Reads within a workspace stay ungated *once you're
 in*, so no read tool changes — but you can only enter a workspace you belong to.
 This is the recommended default; it trades the current "anyone can read anything"
 property for tenant isolation, which is the point of workspaces.
+
+### Open reads (2026-08-24, supersedes the entry gate)
+
+The entry gate never delivered the isolation it promised. `GET /kg?ns=…` serves
+any namespace's **published** graph to any valid token — and with
+`KG_EXPLORER_PUBLIC=1` to anyone at all, no token — so the same curriculum the
+gate withheld from `walk_graph` was a `curl` away from the explorer. Two doors
+into one room, and we were locking the smaller one.
+
+So entry is now **open**: any signed-in caller may `set_context` into any
+workspace and read its published curriculum. Concretely, a user with no
+membership anywhere can `set_context("senegal","ci","maths")` and call
+`walk_graph`, `get_standards`, `find_node`, `namespace_stats`,
+`walk_document`, `get_graph_guide` — the same data the public explorer renders.
+`set_context` reports their `role` (null for a non-member) plus a note saying
+what a role would add, so nobody discovers the boundary by hitting it.
+
+What did NOT open, because none of it is curriculum:
+
+| Still gated | Tier | Why |
+|---|---|---|
+| the **draft** (`slot:"draft"`, `diff_draft`, `check_draft`, `review_draft`, `preview_generation`, `get_profile(draft)`) | curator | unpublished work in a multi-tenant store |
+| **graph writes** (every `runGraphMutation` verb, `publish_draft`, `discard_draft`) | curator / approver | unchanged |
+| the **documents bucket + generation history** (`reconcile`, `list_documents`, `create_download_url`, `get_document_text`, `create_upload_url`, `log_generation`, `record_document_content`) | member (any role) | signed URLs to produced `.docx`; the three writes are live with **no draft and no undo** |
+| **`translate`** | member (any role) | every call spends Gemini budget |
+| the **audit trail**, **member lists**, **workspace admin** | approver / admin / super_admin | unchanged |
+
+That last pair is the part worth stating plainly: opening the door is not the
+same as opening the reads, because "inside a workspace" used to confer live
+bucket writes and metered spend *by default* — those rode on the door being
+locked and had no `authorize()` call of their own. They have one now
+(`server/membership.ts::denyUnlessMember`, three lowest-tier actions:
+`readDocuments` / `writeDocuments` / `translate`), so a non-member gets a
+`phase:"unauthorized"` payload naming what they'd need, and the refusal is
+audited like any other denial.
+
+Two consequences worth knowing:
+
+- **`restoreUserContext` is no longer a hole.** It called `activateContext`
+  directly, skipping the `set_context` gate, so a removed member kept read access
+  on their next session. With entry open that path grants nothing the caller
+  could not get anyway; the tools that matter re-check membership per call.
+- **A future tenant with contractual limits needs a real answer.** Open reads are
+  blanket across every workspace. Today only the `senegal` namespaces are seeded,
+  so this opens Senegal's curriculum and nothing else — but a partner KG that
+  cannot be public would need a per-workspace `publicReads` flag on the registry
+  record, gating both `set_context` and the `/kg` published route. Deliberately
+  not built yet; build it before seeding such a tenant, not after.
 
 ## Where membership lives
 

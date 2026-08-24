@@ -30,22 +30,25 @@ import {
 import { RECIPES, SHARED_CATALOG_NAMESPACE, catalogNamespace } from "../kg-recipes/index.js";
 import { KIND_PROPERTIES } from "./authoring.js";
 
-// The five actions this server has today. Kept as a const-tuple so the
-// response shape is stable and the mirror-property test can iterate over
-// the same set the tool reports.
+// The actions this server has today. Kept as a const-tuple so the response
+// shape is stable and the mirror-property test can iterate over the same set
+// the tool reports.
 const CAPABILITY_ACTIONS = [
-  "canReadGenerate",  // reads and generation are ungated (no authorize() call needed)
+  "canReadGenerate",  // published curriculum reads are ungated — no membership, no authorize() call
   "canReadDraft",     // #9's diff_draft
   "canPreview",       // preview_generation (draft-resolved) — same tier as readDraft
   "canEditDraft",     // the apply gate for every draft edit (recipes / structural / typed adds)
   "canDiscardDraft",  // #9's discard_draft
   "canPublish",       // #9's publish_draft
   "canReadAudit",     // #16's read_audit — approver-only, same tier as publish
+  "canReadDocuments", // the bucket + history reads — members only, though the curriculum is open
+  "canWriteDocuments",// create_upload_url / log_generation / record_document_content — live, no undo
+  "canTranslate",     // the Gemini-backed translator — members only (it is metered)
 ] as const;
 
 // Map each capability action to the underlying authz action name, when
-// authorize() is what gates it. `canReadGenerate` has no gate — reads are
-// open to unknown actors too.
+// authorize() is what gates it. `canReadGenerate` has no gate — the published
+// curriculum is open to everyone, members and non-members alike.
 const CAPABILITY_TO_AUTHZ: Record<Exclude<typeof CAPABILITY_ACTIONS[number], "canReadGenerate">, AuthAction> = {
   canReadDraft: "readDraft",
   canPreview: "readDraft",   // previewing reads the unpublished draft — same trust tier
@@ -53,6 +56,9 @@ const CAPABILITY_TO_AUTHZ: Record<Exclude<typeof CAPABILITY_ACTIONS[number], "ca
   canDiscardDraft: "discard",
   canPublish: "publish",
   canReadAudit: "readAudit",  // reviewing the append-only trail — approver-only
+  canReadDocuments: "readDocuments",
+  canWriteDocuments: "writeDocuments",
+  canTranslate: "translate",
 };
 
 // The inner logic, exported so tests can drive it without spinning up an
@@ -207,6 +213,22 @@ export async function buildCapabilitiesReport(): Promise<Record<string, unknown>
       "read_audit is a filtered, paginated, READ-ONLY view of the append-only audit log for THIS namespace, newest-first. APPROVERS ONLY (same tier as publish); curators / no-role are blocked and the blocked read is itself audited. It cannot alter, redact, or reorder any record. Namespace-scoped: to review another namespace, set_context to it (there is no namespace argument). Filters: actor, action, outcome (applied|blocked), nodeId, since/until. Modes: 'summary' (compact, no before/after — the default) and 'detail' (full before/after; also for a specific auditId). Pagination via limit (default 25, max 100) + an opaque cursor. Each call appends ONE lightweight 'read' event (actor + query + timestamp + count) — never a before/after — so 'who reviewed history' stays answerable. It is deliberately a reader, not analytics.",
   };
 
+  // ── documents: the workspace's LIVE assets. This is where the open-reads
+  // policy stops: anyone signed in may enter a workspace and read its published
+  // curriculum, but the produced .docx, the generation history and the metered
+  // translator are members-only. Both flags mirror the SAME authorize() calls
+  // the tools enforce (actions.canReadDocuments / canWriteDocuments), so they
+  // cannot drift.
+  const documents = {
+    canRead: actions.canReadDocuments,
+    canWrite: actions.canWriteDocuments,
+    canTranslate: actions.canTranslate,
+    readTools: ["reconcile", "list_documents", "create_download_url", "get_document_text"],
+    writeTools: ["create_upload_url", "log_generation", "record_document_content"],
+    note:
+      "The published CURRICULUM is open — no membership is needed to set_context into a workspace and read its graph (walk_graph, get_standards, find_node, namespace_stats, walk_document, get_graph_guide), matching the public KG explorer that already serves the same data. Its DOCUMENTS are not: signed URLs to produced .docx, the generation history, and the Gemini-backed `translate` all require a ROLE in this workspace (any role — curator is enough). The write tools additionally write LIVE with no draft and no undo, which is why they are held at membership rather than left open with the reads. A non-member gets a `phase:'unauthorized'` payload naming what they'd need, and the refusal is audited.",
+  };
+
   // ── catalog: advertise the reusable-spec catalog (both scopes). `browse`
   // (list_catalog) is an ungated read; `canUse` (use_routine) COPIES an entry onto a
   // lesson, so it mirrors the SAME apply gate any draft edit enforces
@@ -356,6 +378,7 @@ export async function buildCapabilitiesReport(): Promise<Record<string, unknown>
     preview,
     audit,
     catalog,
+    documents,
     rules,
     // The universal response-size backstop every tool passes through: a payload
     // over the cap is replaced by a small RESPONSE_TOO_LARGE envelope (isError).

@@ -10,9 +10,17 @@
  *      Supabase JWT; per-workspace memberships resolved once per request by the
  *      app layer and attached to the actor; super-admin from env). No tool
  *      argument, header, or client-set field influences the decision.
- *   2. Unknown / no-membership actors have no write role in a workspace; they
- *      can still read and generate — reads are ungated once you're inside a
- *      workspace (workspace ENTRY is gated at set_context; see workspaces.md).
+ *   2. Unknown / no-membership actors have no write role in a workspace, but
+ *      the PUBLISHED curriculum graph is open to everyone: workspace entry
+ *      (set_context) is ungated, and so is every published read behind it. The
+ *      same graph is already served anonymously by the public KG explorer, so
+ *      gating the tool path bought nothing. See workspaces.md.
+ *
+ *      What membership still buys, now that entry is open, is the workspace's
+ *      LIVE ASSETS rather than its curriculum: the documents bucket, the
+ *      generation history, and the metered translation backend. Those are the
+ *      readDocuments / writeDocuments / translate actions below — all at the
+ *      lowest tier, so they mean "is a member here at all".
  *
  * Roles are PER WORKSPACE (see docs/design-notes/workspaces.md). The workspace
  * is the first segment of the namespace (`<workspace>/<grade>/<subject>`), so
@@ -33,6 +41,7 @@ import { DEFAULT_WORKSPACE, basePrefix } from "./config.js";
 
 export type AuthAction =
   | "apply" | "discard" | "publish" | "readDraft" | "readAudit"
+  | "readDocuments" | "writeDocuments" | "translate"
   | "retireCatalogEntry"
   | "manageMembers" | "manageWorkspace";
 
@@ -47,6 +56,15 @@ const RANK: Record<EffectiveRole, number> = { curator: 1, approver: 2, admin: 3,
 const REQUIRED: Record<AuthAction, number> = {
   apply: RANK.curator, discard: RANK.curator, readDraft: RANK.curator,
   publish: RANK.approver, readAudit: RANK.approver,
+  // The workspace's live assets, held at the LOWEST tier — these three mean
+  // "a member of this workspace", not "a senior member". Reading the
+  // published graph needs no membership at all, but the documents bucket, the
+  // generation history and the Gemini-backed translator are not curriculum:
+  // one hands out signed URLs to produced .docx, one writes live with no draft
+  // and no undo, and one spends money per call. Kept separate (rather than
+  // reusing `apply`) so a workspace that wants, say, publishing-tier uploads
+  // can raise one without touching draft edits.
+  readDocuments: RANK.curator, writeDocuments: RANK.curator, translate: RANK.curator,
   // Deleting from a CATALOG library is the one write with no draft and no undo:
   // a catalog write applies AND publishes in one step, so a confirmed delete is
   // immediately live, and other workspaces may be using the entry. Held one tier

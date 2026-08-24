@@ -9,9 +9,26 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { asJson, asText, guarded, requireConfirmation } from "./shared.js";
+import { denyUnlessMember, type MemberAction } from "./membership.js";
 import { getActiveAdapter } from "../adapters/index.js";
+import { activeWorkspace } from "../context/index.js";
+import { kgNamespace } from "../kg-store/index.js";
 import { getStorageAdapter, extractDocxText, listEntries, recordContent, reconcile } from "../storage/index.js";
 import type { HistoryEntry } from "../types.js";
+
+// A document belongs to the workspace whose namespace it hangs under, so the
+// membership check reads that namespace — the same one history is keyed by.
+function activeNamespace(): string {
+  const a = getActiveAdapter();
+  return kgNamespace(activeWorkspace(), a.grade, a.subject);
+}
+
+// Every tool here touches the LIVE bucket or history: signed URLs to produced
+// .docx, and writes with no draft and no undo. Reading the published graph
+// needs no role; this does. See server/membership.ts.
+function denyNonMember(action: MemberAction) {
+  return denyUnlessMember(action, activeNamespace());
+}
 
 // ── list_documents pagination + filters ──────────────────────────────────────
 // listEntries() is sorted (unit-hint asc, then nodeId asc) and stable, so we
@@ -159,29 +176,33 @@ export function pageDocumentText(relPath: string, full: string, offset?: number,
 }
 
 export function registerDocumentTools(server: McpServer) {
-  server.registerTool("reconcile", { title: "Reconcile bucket with history", description: "List the .docx documents in Firebase Storage and diff against history BY relPath: tracked docs (present + unchanged), UNTRACKED docs needing a link ('new' = no history entry, 'changed' = bytes differ from the recorded entry), and entries dropped because their object is gone. It no longer classifies filenames — link each untracked doc to the node it covers with record_document_content(nodeId, relPath, content).", inputSchema: {} },
-    guarded(async () => asJson(await reconcile())));
+  server.registerTool("reconcile", { title: "Reconcile bucket with history", description: "List the .docx documents in Firebase Storage and diff against history BY relPath: tracked docs (present + unchanged), UNTRACKED docs needing a link ('new' = no history entry, 'changed' = bytes differ from the recorded entry), and entries dropped because their object is gone. It no longer classifies filenames — link each untracked doc to the node it covers with record_document_content(nodeId, relPath, content). Requires a ROLE in the active workspace — the published curriculum is open to everyone, but a workspace's generated documents are not.", inputSchema: {} },
+    guarded(async () => (await denyNonMember("readDocuments")) ?? asJson(await reconcile())));
 
-  server.registerTool("list_documents", { title: "List tracked documents", description: "Current history: one canonical entry per document, keyed by the scope node it covers (nodeId), with its known content, ordered by unit ordinal then nodeId. Paginated: pass limit (default 25, max 100) and an opaque cursor. Optional filters: nodeId (one scope node) and unit (a chapter/week ordinal). Returns { entries, count, total, totalUnfiltered, nextCursor }; nextCursor is null on the last page — pass it back to fetch the next page.", inputSchema: listDocumentsShape },
+  server.registerTool("list_documents", { title: "List tracked documents", description: "Current history: one canonical entry per document, keyed by the scope node it covers (nodeId), with its known content, ordered by unit ordinal then nodeId. Paginated: pass limit (default 25, max 100) and an opaque cursor. Optional filters: nodeId (one scope node) and unit (a chapter/week ordinal). Returns { entries, count, total, totalUnfiltered, nextCursor }; nextCursor is null on the last page — pass it back to fetch the next page. Requires a ROLE in the active workspace — the published curriculum is open to everyone, but a workspace's generated documents are not.", inputSchema: listDocumentsShape },
     guarded(async (a: { cursor?: string; limit?: number; nodeId?: string; unit?: number }) => {
+      const denied = await denyNonMember("readDocuments"); if (denied) return denied;
       const byId = getActiveAdapter().model().byId;
       return asJson(pageDocuments(await listEntries(), (id) => byId.get(id)?.order ?? null, a));
     }));
 
-  server.registerTool("create_upload_url", { title: "Create document upload URL", description: "Get a short-lived signed URL to upload a generated .docx to the bucket. Upload with an HTTP PUT, Content-Type application/vnd.openxmlformats-officedocument.wordprocessingml.document. relPath is like 'chapitre_05/Manuel - Chapitre 5.docx'. After uploading, call log_generation with the same relPath. REQUIRES CONFIRMATION: called without confirm:true it only returns a needsConfirmation notice — ask the user to approve the upload, then call again with confirm:true.", inputSchema: { relPath: z.string(), confirm: z.boolean().optional() } },
+  server.registerTool("create_upload_url", { title: "Create document upload URL", description: "Get a short-lived signed URL to upload a generated .docx to the bucket. Upload with an HTTP PUT, Content-Type application/vnd.openxmlformats-officedocument.wordprocessingml.document. relPath is like 'chapitre_05/Manuel - Chapitre 5.docx'. After uploading, call log_generation with the same relPath. REQUIRES CONFIRMATION: called without confirm:true it only returns a needsConfirmation notice — ask the user to approve the upload, then call again with confirm:true. Requires a ROLE in the active workspace (any role): this writes to live storage/history, unlike the open curriculum reads.", inputSchema: { relPath: z.string(), confirm: z.boolean().optional() } },
     guarded(async (a: { relPath: string; confirm?: boolean }) => {
+      const denied = await denyNonMember("writeDocuments"); if (denied) return denied;
       const needConfirm = await requireConfirmation(server, a.confirm, `issue an upload URL for '${a.relPath}' — this writes NOW to the live documents bucket (no draft, no undo)`);
       return needConfirm ?? asJson(await getStorageAdapter().createUploadUrl(a.relPath));
     }));
 
-  server.registerTool("create_download_url", { title: "Create document download URL", description: "Get a short-lived signed URL to download an EXISTING .docx from the bucket with an HTTP GET (no auth header needed). relPath is documents-relative, like 'chapitre_05/Manuel - Chapitre 5.docx' — the same path used by create_upload_url and get_document_text. Use this to fetch the original binary file (with its images and formatting intact) so you can edit it and re-upload via create_upload_url. Returns { url, objectKey, expiresAt, exists }; exists is false when there is no such object.", inputSchema: { relPath: z.string() } },
-    guarded(async (a: { relPath: string }) => asJson(await getStorageAdapter().createDownloadUrl(a.relPath))));
+  server.registerTool("create_download_url", { title: "Create document download URL", description: "Get a short-lived signed URL to download an EXISTING .docx from the bucket with an HTTP GET (no auth header needed). relPath is documents-relative, like 'chapitre_05/Manuel - Chapitre 5.docx' — the same path used by create_upload_url and get_document_text. Use this to fetch the original binary file (with its images and formatting intact) so you can edit it and re-upload via create_upload_url. Returns { url, objectKey, expiresAt, exists }; exists is false when there is no such object. Requires a ROLE in the active workspace — the published curriculum is open to everyone, but a workspace's generated documents are not.", inputSchema: { relPath: z.string() } },
+    guarded(async (a: { relPath: string }) =>
+      (await denyNonMember("readDocuments")) ?? asJson(await getStorageAdapter().createDownloadUrl(a.relPath))));
 
-  server.registerTool("get_document_text", { title: "Get document text", description: "Extract the plain text of a document in the bucket (by its documents-relative path) so you can read an UNTRACKED document and then record its content. PAGINATED so a long document never overflows the response: one call returns a window of up to `maxChars` characters (default 20000, max 50000) starting at `offset` (default 0), plus a small JSON envelope { offset, returned, total, nextOffset } and the window as a text/plain resource. To read the WHOLE document — you must, characters appear in the opening scene AND in the activities and bilan, not only the amorce — keep calling with offset:<nextOffset> until nextOffset is null.", inputSchema: { relPath: z.string(), offset: z.number().int().optional(), maxChars: z.number().int().optional() } },
+  server.registerTool("get_document_text", { title: "Get document text", description: "Extract the plain text of a document in the bucket (by its documents-relative path) so you can read an UNTRACKED document and then record its content. PAGINATED so a long document never overflows the response: one call returns a window of up to `maxChars` characters (default 20000, max 50000) starting at `offset` (default 0), plus a small JSON envelope { offset, returned, total, nextOffset } and the window as a text/plain resource. To read the WHOLE document — you must, characters appear in the opening scene AND in the activities and bilan, not only the amorce — keep calling with offset:<nextOffset> until nextOffset is null. Requires a ROLE in the active workspace — the published curriculum is open to everyone, but a workspace's generated documents are not.", inputSchema: { relPath: z.string(), offset: z.number().int().optional(), maxChars: z.number().int().optional() } },
     // Two content blocks: a small JSON envelope (offset/total/nextOffset — how to
     // page) and the window itself as a text/plain resource (labelled by its
     // document path, so the reader gets rendered text, not a JSON-escaped blob).
     guarded(async (a: { relPath: string; offset?: number; maxChars?: number }) => {
+      const denied = await denyNonMember("readDocuments"); if (denied) return denied;
       const { text, ...meta } = pageDocumentText(a.relPath, await extractDocxText(a.relPath), a.offset, a.maxChars);
       return {
         content: [
@@ -191,15 +212,17 @@ export function registerDocumentTools(server: McpServer) {
       };
     }));
 
-  server.registerTool("record_document_content", { title: "Record parsed document content", description: "After reading an UNTRACKED document's text, store the structured content you extracted into history so it is never re-parsed. For characters, include every one found ANYWHERE in the document (opening scene and activities/bilan), each with details like {name, type}. The object must already be in the bucket. 'nodeId' is the scope node the document covers — the Chapitre/Semaine/Lesson (find it with walk_graph / namespace_stats). REQUIRES CONFIRMATION: called without confirm:true it only returns a needsConfirmation notice — ask the user to approve writing to history, then call again with confirm:true.", inputSchema: { nodeId: z.string(), relPath: z.string(), content: z.object(contentSchema), confirm: z.boolean().optional() } },
+  server.registerTool("record_document_content", { title: "Record parsed document content", description: "After reading an UNTRACKED document's text, store the structured content you extracted into history so it is never re-parsed. For characters, include every one found ANYWHERE in the document (opening scene and activities/bilan), each with details like {name, type}. The object must already be in the bucket. 'nodeId' is the scope node the document covers — the Chapitre/Semaine/Lesson (find it with walk_graph / namespace_stats). REQUIRES CONFIRMATION: called without confirm:true it only returns a needsConfirmation notice — ask the user to approve writing to history, then call again with confirm:true. Requires a ROLE in the active workspace (any role): this writes to live storage/history, unlike the open curriculum reads.", inputSchema: { nodeId: z.string(), relPath: z.string(), content: z.object(contentSchema), confirm: z.boolean().optional() } },
     guarded(async (a: { nodeId: string; relPath: string; content: any; confirm?: boolean }) => {
+      const denied = await denyNonMember("writeDocuments"); if (denied) return denied;
       const err = scopeNodeError(a.nodeId); if (err) return asJson({ error: err });
       const needConfirm = await requireConfirmation(server, a.confirm, `record content into history for node ${a.nodeId} — this writes NOW to the live history (no draft, no undo)`);
       return needConfirm ?? asJson(await recordContent("parsed", { nodeId: a.nodeId, relPath: a.relPath, content: a.content }));
     }));
 
-  server.registerTool("log_generation", { title: "Log a generated document", description: "Call after uploading a generated .docx to the bucket (via create_upload_url). Reads the object's hash from storage and records what you produced so it feeds future consistency + variety. Log each character with details like {name, type} (e.g. {name:'Awa', type:'child'}), not just the name. No local file needed. 'nodeId' is the scope node the document covers — the Chapitre/Semaine/Lesson. REQUIRES CONFIRMATION: called without confirm:true it only returns a needsConfirmation notice — ask the user to approve writing to history, then call again with confirm:true.", inputSchema: { nodeId: z.string(), relPath: z.string(), content: z.object(contentSchema), confirm: z.boolean().optional() } },
+  server.registerTool("log_generation", { title: "Log a generated document", description: "Call after uploading a generated .docx to the bucket (via create_upload_url). Reads the object's hash from storage and records what you produced so it feeds future consistency + variety. Log each character with details like {name, type} (e.g. {name:'Awa', type:'child'}), not just the name. No local file needed. 'nodeId' is the scope node the document covers — the Chapitre/Semaine/Lesson. REQUIRES CONFIRMATION: called without confirm:true it only returns a needsConfirmation notice — ask the user to approve writing to history, then call again with confirm:true. Requires a ROLE in the active workspace (any role): this writes to live storage/history, unlike the open curriculum reads.", inputSchema: { nodeId: z.string(), relPath: z.string(), content: z.object(contentSchema), confirm: z.boolean().optional() } },
     guarded(async (a: { nodeId: string; relPath: string; content: any; confirm?: boolean }) => {
+      const denied = await denyNonMember("writeDocuments"); if (denied) return denied;
       const err = scopeNodeError(a.nodeId); if (err) return asJson({ error: err });
       const needConfirm = await requireConfirmation(server, a.confirm, `log the generated document for node ${a.nodeId} into history — this writes NOW to the live history (no draft, no undo)`);
       return needConfirm ?? asJson(await recordContent("pipeline", { nodeId: a.nodeId, relPath: a.relPath, content: a.content }));

@@ -89,6 +89,42 @@ describe("authorize — the tier ladder (within a workspace)", () => {
   });
 });
 
+describe("authorize — the member tier (live assets, open curriculum)", () => {
+  // Entering a workspace and reading its PUBLISHED curriculum needs no role at
+  // all (server/context.ts). These three are what membership still buys, so
+  // they sit at the lowest tier: any role passes, no role does not.
+  const MEMBER_ACTIONS = ["readDocuments", "writeDocuments", "translate"] as const;
+
+  it("every role — down to curator — may reach the documents and the translator", () => {
+    for (const actor of [curator, approver, admin, superAdmin]) {
+      for (const action of MEMBER_ACTIONS) {
+        expect(authorize(actor, action, SEN).ok).toBe(true);
+      }
+    }
+  });
+
+  it("signed in with no role is refused, and told to ask an admin", () => {
+    for (const action of MEMBER_ACTIONS) {
+      const result = authorize(signedInNoRole, action, SEN);
+      expect(result.ok).toBe(false);
+      if (!result.ok) expect(result.reason).toMatch(/no role is assigned/i);
+    }
+  });
+
+  it("membership does not leak across workspaces", () => {
+    for (const action of MEMBER_ACTIONS) {
+      expect(authorize(curator, action, KEN).ok).toBe(false);
+      expect(authorize(kenyaCurator, action, KEN).ok).toBe(true);
+    }
+  });
+
+  it("no identity at all is refused", () => {
+    for (const action of MEMBER_ACTIONS) {
+      expect(authorize(UNKNOWN_ACTOR, action, SEN).ok).toBe(false);
+    }
+  });
+});
+
 describe("authorize — workspace isolation", () => {
   it("a Senegal curator has NO rights in Kenya", () => {
     const result = authorize(curator, "apply", KEN);
