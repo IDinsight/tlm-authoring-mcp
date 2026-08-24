@@ -1,4 +1,4 @@
-import { Languages, RefreshCw } from "lucide-react";
+import { Languages, LogIn, LogOut, RefreshCw } from "lucide-react";
 import { pick } from "../i18n";
 import type { Lang, NamespaceEntry } from "../types";
 
@@ -26,6 +26,9 @@ type Props = {
   onRefresh: () => void;
   refreshing: boolean;
   onToggleLang: () => void;
+  // Absent when the server offers no Supabase config — then there is nothing to
+  // sign in to and no affordance is drawn. `email` null = signed out.
+  auth?: { email: string | null; onSignIn: () => void; onSignOut: () => void };
 };
 
 export function Header({
@@ -39,6 +42,7 @@ export function Header({
   onRefresh,
   refreshing,
   onToggleLang,
+  auth,
 }: Props) {
   // Group graphs by workspace so two workspaces sharing a grade/subject stay
   // distinguishable — one <optgroup> header per workspace, in API order.
@@ -107,6 +111,26 @@ export function Header({
           <Languages size={13} />
           {lang === "fr" ? "EN" : "FR"}
         </button>
+
+        {auth && (auth.email ? (
+          <button
+            className="flex max-w-[200px] flex-shrink-0 items-center gap-1.5 rounded-lg border border-line bg-panel2 px-2.5 py-[5px] text-xs text-muted hover:border-accent hover:text-txt"
+            onClick={auth.onSignOut}
+            title={lang === "fr" ? "Se déconnecter" : "Sign out"}
+          >
+            <LogOut size={13} />
+            <span className="truncate">{auth.email}</span>
+          </button>
+        ) : (
+          <button
+            className="flex flex-shrink-0 items-center gap-1.5 rounded-lg border border-line bg-panel2 px-2.5 py-[5px] text-xs font-semibold text-muted hover:border-accent hover:text-txt"
+            onClick={auth.onSignIn}
+            title={lang === "fr" ? "Se connecter pour voir les brouillons" : "Sign in to see drafts"}
+          >
+            <LogIn size={13} />
+            {lang === "fr" ? "Se connecter" : "Sign in"}
+          </button>
+        ))}
       </div>
     </header>
   );
