@@ -14,9 +14,13 @@
  *     (listAudit + appendAudit) — there is no update/delete on the interface,
  *     so this tool structurally CANNOT alter, redact, or reorder a record.
  *     The append-only guarantee of #7 is preserved absolutely.
- *   • NAMESPACE-SCOPED, STRICTLY. The namespace is resolved from the active
- *     adapter (like every other tool); there is deliberately NO namespace
- *     argument. To read another namespace an approver must set_context to it.
+ *   • NAMESPACE-SCOPED. The namespace is resolved from the active adapter (like
+ *     every other tool); to read another GRAPH's trail an approver must
+ *     set_context to it — there is still no free-form namespace argument. The
+ *     one exception is `workspace`, which targets the workspace's own namespace:
+ *     membership grants, invites, domain rules and workspace creation are
+ *     recorded there, belong to no grade/subject, and so are unreachable by
+ *     set_context. Without it those records are written and never readable.
  *   • LIGHTWEIGHT, NON-RECURSIVE READ-EVENT. Each successful call appends ONE
  *     `read` audit record (actor + query + ts + count) — never a before/after.
  *     It is appended AFTER the query returns, so it triggers no further read;
@@ -31,6 +35,8 @@ import { randomUUID } from "node:crypto";
 import { asJson, guarded } from "./shared.js";
 import { getActiveAdapter } from "../adapters/index.js";
 import { activeWorkspace } from "../context/index.js";
+import { basePrefix } from "../config.js";
+import { slug } from "../utils/index.js";
 import { getKgStore, kgNamespace, toAuditActor, nextAuditSeq } from "../kg-store/index.js";
 import type { AuditEventType, AuditQuery, AuditRecord } from "../kg-store/index.js";
 import { authorize } from "../authz.js";
@@ -45,9 +51,14 @@ const MAX_LIMIT = 100;
 // empty page that looks like "nothing happened".
 const EVENT_TYPES: readonly AuditEventType[] = [
   "apply", "createDraft", "publish", "discard", "blocked", "preview", "read",
+  // Workspace-level events (see `workspace` below) plus review, which
+  // request_review writes. All three were missing here, so filtering for one
+  // used to be rejected as a typo.
+  "membership", "workspace", "review",
 ];
 
 export type ReadAuditArgs = {
+  workspace?: string;                // read the WORKSPACE's trail, not a graph's
   actor?: string;                    // actorId
   action?: string;                   // AuditEventType
   outcome?: "applied" | "blocked";
@@ -207,9 +218,28 @@ async function denyIfNotAuditReader(ns: string): Promise<Record<string, unknown>
 }
 
 // ── Core: read_audit ──────────────────────────────────────────────────────────
+/**
+ * Which namespace this read covers: the active graph by default, or a
+ * workspace's own namespace when `workspace` is given. The workspace path must
+ * NOT touch the active adapter — admin events are reviewable with no context
+ * set at all, which is exactly the state a fresh session starts in.
+ */
+function resolveAuditNamespace(args: ReadAuditArgs): { ns: string } | { error: string } {
+  if (args.workspace == null) {
+    const adapter = getActiveAdapter();
+    return { ns: kgNamespace(activeWorkspace(), adapter.grade, adapter.subject) };
+  }
+  const workspace = slug(args.workspace);
+  if (!workspace) {
+    return { error: `'${args.workspace}' is not a usable workspace id.` };
+  }
+  return { ns: basePrefix() + workspace };
+}
+
 export async function readAudit(args: ReadAuditArgs): Promise<Record<string, unknown>> {
-  const adapter = getActiveAdapter();
-  const ns = kgNamespace(activeWorkspace(), adapter.grade, adapter.subject);
+  const target = resolveAuditNamespace(args);
+  if ("error" in target) return target;
+  const ns = target.ns;
 
   // 1. Approver-only gate (blocked reads are audited).
   const denied = await denyIfNotAuditReader(ns);
@@ -314,13 +344,15 @@ export function registerAuditTools(server: McpServer) {
     {
       title: "Review the audit trail",
       description:
-        "Read a page of the append-only audit log for the ACTIVE grade/subject namespace, newest-first. APPROVERS ONLY (same tier as publish); curators and no-role callers are blocked (and the blocked read is itself audited). READ-ONLY — it cannot create, edit, delete, redact, or reorder any audit record. Namespace-scoped: to review another namespace, set_context to it first (there is no namespace argument). " +
-        "Filters (all optional, AND-combined): actor (actorId), action (one of apply|createDraft|publish|discard|blocked|preview|read), outcome (applied|blocked), nodeId (entries whose apply-diff touches that node), since/until (inclusive ISO-8601). Pagination: limit (default 25, max 100) + an opaque cursor — pass back the returned nextCursor to get the next page. " +
+        "Read a page of the append-only audit log for the ACTIVE grade/subject namespace, newest-first. APPROVERS ONLY (same tier as publish); curators and no-role callers are blocked (and the blocked read is itself audited). READ-ONLY — it cannot create, edit, delete, redact, or reorder any audit record. Namespace-scoped: to review another GRAPH's trail, set_context to it first (there is no free-form namespace argument). " +
+        "Pass `workspace` instead to read that WORKSPACE's own trail — member grants, invites, domain rules, workspace creation. Those events belong to no grade/subject, so set_context cannot reach them and this is the only way to see them; it needs no active context, and requires approver in that workspace. " +
+        "Filters (all optional, AND-combined): actor (actorId), action (one of apply|createDraft|publish|discard|blocked|preview|read|membership|workspace|review), outcome (applied|blocked), nodeId (entries whose apply-diff touches that node), since/until (inclusive ISO-8601). Pagination: limit (default 25, max 100) + an opaque cursor — pass back the returned nextCursor to get the next page. " +
         "Modes: 'summary' (default) returns compact records (actor, action, outcome, ts, auditId, self-authorship, one-line target) with NO before/after; 'detail' returns the full record including the before/after diff. Pass auditId to fetch one record in detail. " +
         "Calling this appends ONE lightweight 'read' audit event (actor + query + timestamp + count) — never a before/after — so 'who reviewed history' stays answerable. This is the supported way to review the trail; it is deliberately a reader, not analytics.",
       inputSchema: {
+        workspace: z.string().optional(),
         actor: z.string().optional(),
-        action: z.enum(["apply", "createDraft", "publish", "discard", "blocked", "preview", "read"]).optional(),
+        action: z.enum(["apply", "createDraft", "publish", "discard", "blocked", "preview", "read", "membership", "workspace", "review"]).optional(),
         outcome: z.enum(["applied", "blocked"]).optional(),
         nodeId: z.string().optional(),
         since: z.string().optional(),

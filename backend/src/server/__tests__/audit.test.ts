@@ -143,6 +143,79 @@ describe("namespace scoping: strict — current context only, no namespace argum
   });
 });
 
+// ── Workspace-scoped reads ───────────────────────────────────────────────────
+
+describe("workspace scoping: the admin trail set_context cannot reach", () => {
+  // Member grants, invites and domain rules are audited under the bare
+  // workspace namespace ("senegal"), which no set_context can select — so
+  // before `workspace`, these records were written and never readable.
+  const WS_APPROVER: Actor = { id: "ws-approver", unknown: false, memberships: { senegal: "approver" } };
+  const WS_CURATOR: Actor = { id: "ws-curator", unknown: false, memberships: { senegal: "curator" } };
+
+  const seedAdminEvents = async () => {
+    await store.appendAudit(rec({
+      id: "grant", ts: "2026-08-01T00:00:00Z", eventType: "membership",
+      namespace: "senegal", reason: "granted 'curator' to u1 in 'senegal'",
+    }));
+    await store.appendAudit(rec({
+      id: "rule", ts: "2026-08-02T00:00:00Z", eventType: "workspace",
+      namespace: "senegal", reason: "set domain rule: anyone at idinsight.org joins 'senegal' as 'curator'",
+    }));
+  };
+
+  it("returns the workspace's own events, with NO active context set", async () => {
+    await seedAdminEvents();
+    // Deliberately not inside withCtx: an admin trail must be readable from a
+    // fresh session, which is exactly where nobody has set a context yet.
+    const result = await runAsActor(WS_APPROVER, () => readAudit({ workspace: "senegal", mode: "detail" }));
+    const ids = (result.records as AuditRecord[]).map((r) => r.id);
+    expect(result.namespace).toBe("senegal");
+    expect(ids).toContain("grant");
+    expect(ids).toContain("rule");
+  });
+
+  it("a graph-scoped read does not see them, and vice versa", async () => {
+    await seedAdminEvents();
+    await store.appendAudit(rec({ id: "graph-apply", ts: "2026-08-03T00:00:00Z", eventType: "apply", mutation: "m", diff: emptyDiff() }));
+
+    const graphIds = ((await inTarget(APPROVER, () => readAudit({ mode: "detail" }))).records as AuditRecord[]).map((r) => r.id);
+    expect(graphIds).toContain("graph-apply");
+    expect(graphIds).not.toContain("grant");
+
+    const wsIds = ((await runAsActor(WS_APPROVER, () => readAudit({ workspace: "senegal", mode: "detail" }))).records as AuditRecord[]).map((r) => r.id);
+    expect(wsIds).toContain("grant");
+    expect(wsIds).not.toContain("graph-apply");
+  });
+
+  it("applies the same approver gate — a curator of that workspace is refused", async () => {
+    await seedAdminEvents();
+    const result = await runAsActor(WS_CURATOR, () => readAudit({ workspace: "senegal" }));
+    expect(result.records).toBeUndefined();
+    expect(String(result.error ?? result.blocked ?? JSON.stringify(result))).toMatch(/approver/i);
+  });
+
+  it("someone with no role in that workspace is refused", async () => {
+    await seedAdminEvents();
+    const stranger: Actor = { id: "outsider", unknown: false, memberships: { kenya: "approver" } };
+    const result = await runAsActor(stranger, () => readAudit({ workspace: "senegal" }));
+    expect(result.records).toBeUndefined();
+  });
+
+  it("filters by the workspace event types that used to be rejected as typos", async () => {
+    await seedAdminEvents();
+    const result = await runAsActor(WS_APPROVER, () => readAudit({ workspace: "senegal", action: "membership", mode: "detail" }));
+    const ids = (result.records as AuditRecord[]).map((r) => r.id);
+    expect(ids).toEqual(["grant"]);
+  });
+
+  it("normalizes the workspace id rather than missing the namespace", async () => {
+    await seedAdminEvents();
+    const result = await runAsActor(WS_APPROVER, () => readAudit({ workspace: "Senegal", mode: "detail" }));
+    expect(result.namespace).toBe("senegal");
+    expect((result.records as AuditRecord[]).length).toBeGreaterThan(0);
+  });
+});
+
 // ── Filters (a) ──────────────────────────────────────────────────────────────
 
 describe("filters: actor, action, outcome, nodeId, time range", () => {

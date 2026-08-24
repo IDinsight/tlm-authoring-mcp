@@ -106,11 +106,22 @@ bloat. Read-events are first-class and **visible + filterable** in `read_audit` 
 *blocked* read (curator/no-role) is audited as a `blocked` record (not a `read`), same as
 every other denial.
 
-**(e) Namespace scoping — strict: current context only.**
+**(e) Namespace scoping — current context only, plus the workspace trail.**
 `read_audit` resolves the namespace from the active adapter (`kgNamespace(grade, subject)`),
-exactly like every other tool. There is **no** namespace argument. An approver on ci/maths
-sees ci/maths entries only; to read another namespace they must `set_context` to it. This
-is the tightest honoring of the requirement.
+exactly like every other tool. There is **no** free-form namespace argument. An approver on
+ci/maths sees ci/maths entries only; to read another graph's trail they must `set_context`
+to it.
+
+*Amended 2026-08-24.* One argument was added — `workspace` — because strictness had produced
+a hole rather than a guarantee. Workspace-admin events (member grants, invites, domain rules,
+workspace creation) are audited under the **bare workspace namespace** (`senegal`), which has
+no grade or subject, so no `set_context` could ever select it: those records were written
+faithfully and were **unreadable through any tool**. That was discovered when the first domain
+rule was set and its audit line could not be shown. `workspace` targets that namespace
+directly, needs no active context (a fresh session has none), and goes through the same
+`authorize(actor, "readAudit", ns)` gate — approver *in that workspace*. The `action` filter
+also gained `membership`, `workspace` and `review`, which the enum had never listed, so
+filtering for one was rejected as a typo.
 
 **(f) Role — approver-only this version.**
 Gated via `authorize(actor, "readAudit", ns)` → allowed only for `approver`. Curator and
