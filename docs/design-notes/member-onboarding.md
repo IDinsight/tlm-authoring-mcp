@@ -221,6 +221,31 @@ fine — they carry no secret. Passwords are not.
 This needs SMTP configured on the Supabase project for reset mail; without it,
 reset stays a super-admin action in the dashboard.
 
+## Seeing who is stuck
+
+`list_unaffiliated_users` (super admin) lists accounts that hold no role anywhere —
+the people who signed in and found they could do nothing. It reads the identity
+provider's directory through `identity/IdentityDirectory` and joins it against the
+membership registry.
+
+The alternative was to record unaffiliated callers ourselves at the provisioning
+step, which needs no new secret and stays provider-agnostic. It was rejected because
+it only ever sees people who reached the server: someone who signed up and never came
+back — the case most worth noticing — would be invisible. The cost is
+`SUPABASE_SERVICE_ROLE_KEY`, confined to `identity/supabase.ts` behind an interface so
+a Firebase move reimplements one method.
+
+Each entry says *why* there is no role, because the three causes need different fixes:
+
+| status | meaning | fix |
+|---|---|---|
+| `invited` | an invite is waiting; they have not signed in since | tell them to sign in |
+| `unconfirmed` | password signup, confirmation mail never clicked | resend it; a role would do nothing yet |
+| `stranded` | nothing is waiting for them | `add_member` or `invite_member` |
+
+Super admins are excluded: they hold no membership by design, so listing them would
+be a standing false alarm.
+
 ## Open questions
 
 1. **Sign-in methods.** Both are built and both stay enabled: Google (which is

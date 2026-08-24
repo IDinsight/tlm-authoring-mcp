@@ -36,6 +36,9 @@ import { slug, normalizeEmail, looksLikeEmail } from "../utils/index.js";
 import { listAvailableContexts } from "../context/index.js";
 import { getKgStore, toAuditActor, nextAuditSeq } from "../kg-store/index.js";
 import { getWorkspaceStore } from "../workspaces/index.js";
+import { getIdentityDirectory } from "../identity/index.js";
+import type { DirectoryUser } from "../identity/index.js";
+import { superAdmins } from "../config.js";
 import { accessibleContexts } from "./context.js";
 
 const ROLE = z.enum(["curator", "approver", "admin"]);
@@ -328,6 +331,90 @@ export async function listMembersOp(a: { workspace: string }): Promise<Record<st
   return { workspace, members, pendingInvites: invites, domainRules: record?.domainRules ?? [] };
 }
 
+/**
+ * Accounts that exist at the identity provider but hold no role anywhere — the
+ * people who signed in and found they could do nothing.
+ *
+ * Cross-workspace and full of addresses, so it is SUPER ADMIN only; a workspace
+ * admin has no business enumerating accounts outside their tenant. Each entry
+ * says which state the person is actually in, because "no role" has three quite
+ * different causes and different fixes:
+ *   invited          — an invite is waiting; they just have not signed in since.
+ *   unconfirmed      — they never clicked the confirmation mail, so the account
+ *                      is not usable yet and granting a role would do nothing.
+ *   stranded         — nothing is waiting for them. This is the actionable list.
+ */
+export async function listUnaffiliatedUsersOp(): Promise<Record<string, unknown>> {
+  const actor = currentActor();
+  if (!actor.superAdmin) {
+    return { ok: false, error: "listing accounts requires super admin" };
+  }
+
+  const directory = getIdentityDirectory();
+  if (!directory) {
+    return {
+      ok: false,
+      error: "no identity directory configured — set SUPABASE_SERVICE_ROLE_KEY on the server to enable this read",
+    };
+  }
+
+  let users: DirectoryUser[];
+  try {
+    users = await directory.listUsers();
+  } catch (e) {
+    return { ok: false, error: (e as Error).message };
+  }
+
+  const store = getWorkspaceStore();
+  const admins = superAdmins();
+  const unaffiliated: Array<Record<string, unknown>> = [];
+
+  for (const user of users) {
+    const memberships = await store.membershipsForUser(user.id);
+    if (memberships.length > 0) {
+      continue;
+    }
+    // A super admin legitimately holds no membership — they span every
+    // workspace from env. Listing them as stranded would be a false alarm.
+    const isSuperAdmin = admins.includes(user.id.toLowerCase())
+      || (user.email ? admins.includes(normalizeEmail(user.email)) : false);
+    if (isSuperAdmin) {
+      continue;
+    }
+
+    const invites = user.email ? await store.invitesForEmail(normalizeEmail(user.email)) : [];
+    unaffiliated.push({
+      userId: user.id,
+      email: user.email,
+      provider: user.provider,
+      createdAt: user.createdAt,
+      lastSignInAt: user.lastSignInAt,
+      status: statusOf(user, invites.length > 0),
+      pendingInvites: invites.map((invite) => ({ workspace: invite.workspace, role: invite.role })),
+    });
+  }
+
+  // Newest sign-in first: someone who tried today is the one to deal with.
+  unaffiliated.sort((a, b) => String(b.lastSignInAt ?? "").localeCompare(String(a.lastSignInAt ?? "")));
+
+  return {
+    ok: true,
+    totalAccounts: users.length,
+    unaffiliated,
+    nextSteps: unaffiliated.length
+      ? ["Give someone access with add_member (email is enough), or invite_member if they should join later."]
+      : ["Every account holds a role somewhere."],
+  };
+}
+
+function statusOf(user: DirectoryUser, hasInvite: boolean): string {
+  if (hasInvite) return "invited";
+  // Google and other OAuth providers vouch for the address, so there is no
+  // confirmation step to be missing — only password signups can be unconfirmed.
+  if (user.provider === "email" && !user.emailConfirmedAt) return "unconfirmed";
+  return "stranded";
+}
+
 export function registerWorkspaceTools(server: McpServer) {
   server.registerTool("list_workspaces", { title: "List workspaces", description: "List the workspaces you can enter (a super admin sees all). Each entry shows your role and its grade/subject graphs. Use this before set_context.", inputSchema: {} },
     async () => asJson(await listWorkspacesOp()));
@@ -352,6 +439,9 @@ export function registerWorkspaceTools(server: McpServer) {
 
   server.registerTool("remove_domain_rule", { title: "Remove a domain rule", description: "Stop auto-admitting people from an email domain. Super admin only. People who already joined under the rule keep their role — use remove_member for those.", inputSchema: { workspace: z.string(), domain: z.string() } },
     async (a) => asJson(await removeDomainRuleOp(a)));
+
+  server.registerTool("list_unaffiliated_users", { title: "Find accounts with no role", description: "List people who have an account but hold no role in any workspace — the ones who signed in and found they could do nothing. Super admin only. Each entry says why: 'invited' (an invite is waiting; they have not signed in since), 'unconfirmed' (never clicked the confirmation mail, so granting a role would do nothing yet), or 'stranded' (nothing is waiting for them — the actionable list). Requires SUPABASE_SERVICE_ROLE_KEY on the server; without it the read is unavailable.", inputSchema: {} },
+    async () => asJson(await listUnaffiliatedUsersOp()));
 
   server.registerTool("list_members", { title: "List workspace members", description: "List everyone with a role in a workspace. Requires admin in that workspace (or super admin).", inputSchema: { workspace: z.string() } },
     async (a) => asJson(await listMembersOp(a)));

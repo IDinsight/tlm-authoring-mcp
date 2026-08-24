@@ -6,7 +6,9 @@
  * InMemory transport doesn't carry one.
  */
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
-import { createWorkspaceOp, addMemberOp, removeMemberOp, listMembersOp, listWorkspacesOp, inviteMemberOp, revokeInviteOp, setDomainRuleOp, removeDomainRuleOp } from "../workspaces.js";
+import { createWorkspaceOp, addMemberOp, removeMemberOp, listMembersOp, listWorkspacesOp, inviteMemberOp, revokeInviteOp, setDomainRuleOp, removeDomainRuleOp, listUnaffiliatedUsersOp } from "../workspaces.js";
+import { __setIdentityDirectoryForTest } from "../../identity/index.js";
+import type { DirectoryUser } from "../../identity/index.js";
 import { __setActorForTest, type Actor } from "../../actor.js";
 import { __setWorkspaceStoreForTest, createMemoryWorkspaceStore } from "../../workspaces/index.js";
 import type { WorkspaceStore } from "../../workspaces/index.js";
@@ -29,6 +31,7 @@ beforeEach(() => {
   __setKgStoreForTest(kgStore);
 });
 afterEach(() => {
+  __setIdentityDirectoryForTest(undefined);
   __setActorForTest(null);
   __setWorkspaceStoreForTest(null);
   __setKgStoreForTest(null);
@@ -305,5 +308,73 @@ describe("domain rules — super admin only", () => {
     __setActorForTest(SEN_ADMIN);
     const result = await listMembersOp({ workspace: "senegal" });
     expect(result.domainRules).toMatchObject([{ domain: "idinsight.org", role: "curator" }]);
+  });
+});
+
+
+describe("list_unaffiliated_users — accounts with no role anywhere", () => {
+  const directoryOf = (users: DirectoryUser[]) => ({ listUsers: async () => users });
+
+  const ROOT: DirectoryUser = { id: "root", email: "root@x", provider: "google" };
+  const MEMBER: DirectoryUser = { id: "adm", email: "adm@x", provider: "google", lastSignInAt: "2026-08-20T00:00:00Z" };
+  const STRANDED: DirectoryUser = { id: "u-new", email: "new@x", provider: "google", lastSignInAt: "2026-08-24T00:00:00Z" };
+  const INVITED: DirectoryUser = { id: "u-inv", email: "awa@idinsight.org", provider: "google", lastSignInAt: "2026-08-22T00:00:00Z" };
+  const UNCONFIRMED: DirectoryUser = { id: "u-unc", email: "pending@x", provider: "email", lastSignInAt: "2026-08-21T00:00:00Z" };
+
+  it("lists only the accounts holding no membership, newest sign-in first", async () => {
+    __setIdentityDirectoryForTest(directoryOf([MEMBER, STRANDED, INVITED, UNCONFIRMED]));
+    __setActorForTest(SUPER);
+    await inviteMemberOp({ workspace: "senegal", email: "awa@idinsight.org", role: "curator" });
+
+    const result = await listUnaffiliatedUsersOp();
+    expect(result.ok).toBe(true);
+    expect(result.totalAccounts).toBe(4);
+    const rows = result.unaffiliated as Array<Record<string, unknown>>;
+    expect(rows.map((r) => r.userId)).toEqual(["u-new", "u-inv", "u-unc"]); // 'adm' is a member
+  });
+
+  it("says WHY each one has no role", async () => {
+    __setIdentityDirectoryForTest(directoryOf([STRANDED, INVITED, UNCONFIRMED]));
+    __setActorForTest(SUPER);
+    await inviteMemberOp({ workspace: "senegal", email: "awa@idinsight.org", role: "curator" });
+
+    const rows = (await listUnaffiliatedUsersOp()).unaffiliated as Array<Record<string, unknown>>;
+    const byId = new Map(rows.map((r) => [r.userId, r]));
+    expect(byId.get("u-new")?.status).toBe("stranded");
+    expect(byId.get("u-inv")?.status).toBe("invited");
+    expect(byId.get("u-inv")?.pendingInvites).toMatchObject([{ workspace: "senegal", role: "curator" }]);
+    expect(byId.get("u-unc")?.status).toBe("unconfirmed");
+  });
+
+  it("does not report a super admin as stranded — they hold no membership by design", async () => {
+    // Super admins come from env, not the registry, so the env is the thing
+    // under test here.
+    const saved = process.env.TLM_SUPER_ADMINS;
+    process.env.TLM_SUPER_ADMINS = "root@x";
+    try {
+      __setIdentityDirectoryForTest(directoryOf([ROOT, STRANDED]));
+      __setActorForTest(SUPER);
+      const rows = (await listUnaffiliatedUsersOp()).unaffiliated as Array<Record<string, unknown>>;
+      expect(rows.map((r) => r.userId)).toEqual(["u-new"]);
+    } finally {
+      if (saved === undefined) delete process.env.TLM_SUPER_ADMINS;
+      else process.env.TLM_SUPER_ADMINS = saved;
+    }
+  });
+
+  it("a workspace admin cannot enumerate accounts", async () => {
+    __setIdentityDirectoryForTest(directoryOf([STRANDED]));
+    __setActorForTest(SEN_ADMIN);
+    const result = await listUnaffiliatedUsersOp();
+    expect(result.ok).toBe(false);
+    expect(String(result.error)).toMatch(/super admin/i);
+  });
+
+  it("says so when no directory is configured, rather than failing obscurely", async () => {
+    __setIdentityDirectoryForTest(null);
+    __setActorForTest(SUPER);
+    const result = await listUnaffiliatedUsersOp();
+    expect(result.ok).toBe(false);
+    expect(String(result.error)).toMatch(/SUPABASE_SERVICE_ROLE_KEY/);
   });
 });
