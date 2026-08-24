@@ -233,6 +233,11 @@ export default function App() {
         onRefresh={g.refresh}
         refreshing={refreshing}
         onToggleLang={() => setLang((l) => (l === "fr" ? "en" : "fr"))}
+        auth={
+          g.account
+            ? { email: g.account.email, onSignIn: g.promptLogin, onSignOut: g.logout }
+            : undefined
+        }
       />
 
       {g.phase === "loading" && <Banner kind="load" text={g.loadingText} />}
@@ -244,9 +249,19 @@ export default function App() {
           onRetry={g.retry}
         />
       )}
-      {g.phase === "login" && <LoginGate lang={lang} onSubmit={g.login} onGoogle={g.loginWithGoogle ?? undefined} />}
+      {/* Two ways this shows: the server requires auth (phase "login", no way
+          out), or the reader asked to sign in on the public explorer to reach a
+          draft (dismissible). */}
+      {(g.phase === "login" || g.showLogin) && (
+        <LoginGate
+          lang={lang}
+          onSubmit={g.login}
+          onGoogle={g.loginWithGoogle ?? undefined}
+          onCancel={g.phase === "login" ? undefined : g.dismissLogin}
+        />
+      )}
 
-      {ready && (
+      {ready && !g.showLogin && (
         <div>
           <SlotSwitch
             lang={lang}

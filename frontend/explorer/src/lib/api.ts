@@ -34,12 +34,19 @@ export function initSupabase(cfg: KgConfig): SupabaseClient {
   return supa;
 }
 
-export async function hasSession(): Promise<boolean> {
-  if (!supa) return false;
+// The signed-in address, for the header to show whose token is being sent.
+// Null when nobody is signed in — which is the normal state on the public
+// explorer, where signing in is optional.
+export async function sessionEmail(): Promise<string | null> {
+  if (!supa) return null;
   const {
     data: { session },
   } = await supa.auth.getSession();
-  return !!session;
+  return session?.user?.email ?? null;
+}
+
+export async function signOut(): Promise<void> {
+  await supa?.auth.signOut();
 }
 
 // Sign in with email/password; resolves the Supabase error message on failure so
@@ -55,7 +62,7 @@ export async function signIn(
 
 // Hand off to Google. On success the browser navigates away and comes back to
 // this page, where createClient turns the returned ?code= into a session before
-// hasSession() is consulted — so there is no "signed in" path to handle here,
+// the session is looked up — so there is no "signed in" path to handle here,
 // only the failure to report.
 export async function signInWithGoogle(): Promise<{ ok: true } | { ok: false; message: string }> {
   if (!supa) return { ok: false, message: "not configured" };

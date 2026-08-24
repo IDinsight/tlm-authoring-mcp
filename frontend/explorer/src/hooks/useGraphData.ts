@@ -5,10 +5,11 @@ import {
   fetchConfig,
   fetchGraph,
   fetchNamespaces,
-  hasSession,
   initSupabase,
+  sessionEmail,
   signIn,
   signInWithGoogle,
+  signOut,
 } from "../lib/api";
 import { createGraphModel, type GraphModel } from "../lib/graphModel";
 import { readUrlState } from "../lib/urlState";
@@ -19,6 +20,9 @@ import type { DisplayGraph, KgConfig, Lang, NamespaceEntry, Slot } from "../type
 // list the graphs, then load one. Mirrors the original page's boot() → ensureLogin
 // → loadNamespaces → loadGraph chain, as a hook that exposes phase + actions.
 export type Phase = "loading" | "login" | "error" | "ready";
+
+/** Who is signed in, if anyone. `email` is null when nobody is. */
+export type Account = { email: string | null };
 
 export type GraphData = {
   phase: Phase;
@@ -32,6 +36,17 @@ export type GraphData = {
   login: (email: string, password: string) => Promise<string | null>;
   /** Null when the Supabase project has no Google provider — the gate then offers only a password. */
   loginWithGoogle: (() => Promise<string | null>) | null;
+  /**
+   * Signing in is OPTIONAL on the public explorer: published graphs read fine
+   * without it, but a draft read needs a curator's token. Null when the server
+   * has no Supabase config at all, in which case no sign-in affordance shows.
+   */
+  account: Account | null;
+  /** True while the (dismissible) login gate is open on an already-loaded explorer. */
+  showLogin: boolean;
+  promptLogin: () => void;
+  dismissLogin: () => void;
+  logout: () => void;
   selectNs: (ns: string) => void;
   refresh: () => void;
   /** Which slot is on screen — published (live) or the unpublished draft. */
@@ -53,6 +68,11 @@ export function useGraphData(lang: Lang): GraphData {
   // Read from /kg/config at boot: false when the Supabase project has no Google
   // provider, so the gate doesn't draw a button that errors on click.
   const [googleEnabled, setGoogleEnabled] = useState(false);
+  // Null until boot finds Supabase config; then { email } with email null when
+  // signed out. Distinguishing the two is what decides whether the header shows
+  // a sign-in affordance at all.
+  const [account, setAccount] = useState<Account | null>(null);
+  const [showLogin, setShowLogin] = useState(false);
   const [loadingText, setLoadingText] = useState("");
   const [errorText, setErrorText] = useState("");
   const [retry, setRetry] = useState<(() => void) | null>(null);
@@ -133,12 +153,18 @@ export function useGraphData(lang: Lang): GraphData {
       fail(`${tRef.current("errServer")} (${apiOrigin})`);
       return;
     }
-    if (cfg.authRequired) {
+    // Set up Supabase whenever the server offers it — NOT only when auth is
+    // required. On the public explorer (KG_EXPLORER_PUBLIC=1) published reads
+    // need no token, but a signed-in curator's token still has to ride along or
+    // the draft slot can never be read.
+    if (cfg.supabaseUrl && cfg.supabaseAnonKey) {
       initSupabase(cfg);
       setGoogleEnabled(cfg.googleEnabled !== false);
-      if (!(await hasSession())) {
+      const email = await sessionEmail();
+      setAccount({ email });
+      if (cfg.authRequired && !email) {
         setPhase("login");
-        return; // login screen shows; boot resumes after a successful sign-in
+        return; // blocking gate; boot resumes after a successful sign-in
       }
     }
     await loadNamespaces();
@@ -156,15 +182,37 @@ export function useGraphData(lang: Lang): GraphData {
     return res.ok ? null : tRef.current("loginFail") + res.message;
   }, []);
 
+  // Reload everything the new identity can now see. The namespace list itself
+  // is identity-dependent (hasDraft), so a fresh sign-in re-reads from the top
+  // rather than just re-fetching the open graph.
+  const restartAsSignedIn = useCallback(async () => {
+    setAccount({ email: await sessionEmail() });
+    setShowLogin(false);
+    await loadNamespaces();
+  }, [loadNamespaces]);
+
   const login = useCallback(
     async (email: string, password: string): Promise<string | null> => {
       const res = await signIn(email.trim(), password);
       if (!res.ok) return tRef.current("loginFail") + res.message;
-      await loadNamespaces();
+      await restartAsSignedIn();
       return null;
     },
-    [loadNamespaces],
+    [restartAsSignedIn],
   );
+
+  const logout = useCallback(() => {
+    void (async () => {
+      await signOut();
+      setAccount({ email: null });
+      // Back to published: whatever draft was on screen is no longer readable.
+      setSlot("published");
+      await loadNamespaces();
+    })();
+  }, [loadNamespaces]);
+
+  const promptLogin = useCallback(() => setShowLogin(true), []);
+  const dismissLogin = useCallback(() => setShowLogin(false), []);
 
   // Switching graphs always lands on published: the previous graph's draft state
   // says nothing about the new one.
@@ -190,6 +238,11 @@ export function useGraphData(lang: Lang): GraphData {
     model,
     login,
     loginWithGoogle: googleEnabled ? loginWithGoogle : null,
+    account,
+    showLogin,
+    promptLogin,
+    dismissLogin,
+    logout,
     selectNs,
     refresh,
     slot,

@@ -8,13 +8,17 @@ type Props = {
   // Absent when the Supabase project has no Google provider configured, in
   // which case no button is drawn.
   onGoogle?: () => Promise<string | null>;
+  // Absent when signing in is mandatory (the server requires auth). Present on
+  // the public explorer, where signing in is an optional step to reach drafts
+  // and the reader must be able to back out.
+  onCancel?: () => void;
 };
 
 // Login gate shown when the server reports authRequired and there is no live
 // Supabase session. Two ways in: Google (IDinsight staff, who also auto-join by
 // email domain) and email+password (invited experts). On success the parent
 // resumes the boot flow.
-export function LoginGate({ lang, onSubmit, onGoogle }: Props) {
+export function LoginGate({ lang, onSubmit, onGoogle, onCancel }: Props) {
   const t = makeT(lang);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -47,7 +51,13 @@ export function LoginGate({ lang, onSubmit, onGoogle }: Props) {
       <div className="w-[min(92vw,24rem)] rounded-xl border border-line bg-panel p-[26px]">
         <h2 className="text-base font-semibold">{t("loginTitle")}</h2>
         <p className="mb-3.5 mt-1 text-[12.5px] text-muted">
-          {lang === "fr" ? "Connectez-vous pour continuer." : "Sign in to continue."}
+          {onCancel
+            ? lang === "fr"
+              ? "Connectez-vous pour voir les brouillons."
+              : "Sign in to see drafts."
+            : lang === "fr"
+              ? "Connectez-vous pour continuer."
+              : "Sign in to continue."}
         </p>
 
         {onGoogle && (
@@ -103,6 +113,15 @@ export function LoginGate({ lang, onSubmit, onGoogle }: Props) {
         >
           {t("signin")}
         </button>
+        {onCancel && (
+          <button
+            className="mt-2 w-full rounded-md border border-line bg-panel2 px-3 py-2.5 text-sm text-muted hover:text-txt"
+            onClick={onCancel}
+            disabled={busy}
+          >
+            {lang === "fr" ? "Annuler" : "Cancel"}
+          </button>
+        )}
         <div className="mt-2.5 min-h-[1.2em] text-xs text-err">{error}</div>
       </div>
     </div>

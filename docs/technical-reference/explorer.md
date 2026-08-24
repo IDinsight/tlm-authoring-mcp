@@ -78,8 +78,15 @@ to authorize, so a draft is simply not served over HTTP). A refusal is `403 draf
 with a reason; the explorer shows the reason and stays on published.
 
 **Auth** (decision: Supabase login). When `SUPABASE_URL` is set, `/kg/namespaces` and `/kg`
-require a valid Supabase Bearer JWT — the same trust channel as `/mcp`. The static page runs a
-small `supabase-js` email/password login (mirroring `/oauth/consent`) and sends the token. In
+require a valid Supabase Bearer JWT — the same trust channel as `/mcp`. The page runs a
+`supabase-js` login (Google or email+password, mirroring `/oauth/consent`) and sends the token.
+
+**Signing in is optional when `KG_EXPLORER_PUBLIC=1`.** The ungate makes published reads
+anonymous, but a draft read still needs a curator's token — so the explorer sets up its Supabase
+client whenever the server offers one, not only when `authRequired` is true, and the header
+carries a "Se connecter" affordance that opens the same login gate on demand (dismissible, unlike
+the blocking one). Without that, an ungated explorer could never send a token at all and the draft
+slot was unreachable through it. In
 `ALLOW_UNAUTHENTICATED=1` (local only) the routes are open.
 
 **Public explorer** (`KG_EXPLORER_PUBLIC=1`). Opens the read-only explorer to anyone: the `/kg`
