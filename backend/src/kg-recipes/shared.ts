@@ -34,6 +34,34 @@ export function parentEdgeIds(graph: MutationGraph, childId: string, edgeType: s
   return parentEdges.map((edge) => edge.id);
 }
 
+// Every containment descendant of `rootId`, walked over `edgeTypes` and
+// cycle-guarded (an authored graph can already hold a loop — kg-store/lint.ts
+// guards for the same reason — and this is the check that refuses to create
+// another). The root itself is NOT included: "is my new parent inside me?" is a
+// different question from "is my new parent me?", which the caller checks by id.
+export function containmentDescendants(graph: MutationGraph, rootId: string, edgeTypes: Iterable<string>): Set<string> {
+  const axes = new Set(edgeTypes);
+
+  // Index the containment edges once — a subtree walk that re-scanned every edge
+  // per step would be quadratic on the bigger graphs (reading: 2244 edges).
+  const childrenOf = new Map<string, string[]>();
+  for (const edge of graph.edges) {
+    if (!axes.has(edge.type)) continue;
+    childrenOf.set(edge.from, [...(childrenOf.get(edge.from) ?? []), edge.to]);
+  }
+
+  const descendants = new Set<string>();
+  const queue = [rootId];
+  while (queue.length > 0) {
+    for (const child of childrenOf.get(queue.shift()!) ?? []) {
+      if (descendants.has(child)) continue;
+      descendants.add(child);
+      queue.push(child);
+    }
+  }
+  return descendants;
+}
+
 // A node's POSITION — the single ordinal concept (the normalized top-level
 // `order`, mirrored into raw at a source-specific path the template knows).
 export const positionOf = (node: MutationNode): number => {

@@ -73,6 +73,31 @@ async function movableActivity(): Promise<{ activityId: string; fromLessonId: st
   return { activityId: activity!.id, fromLessonId, toLessonId, alignEdgeIds };
 }
 
+/*
+ * A chapter with a grandchild, for the subtree-detaching case: moving the chapter
+ * under something two levels inside it is the move that leaves a ring.
+ */
+async function aSubtree(): Promise<{ chapterId: string; grandchildId: string }> {
+  const { nodes, edges } = await slot("a");
+  const childrenOf = (id: string) => edges.filter((e) => e.type === HAS_PART && e.from === id).map((e) => e.to);
+  const chapter = nodes.find((node) =>
+    (node.labels ?? []).includes("LessonGrouping") &&
+    childrenOf(node.id).some((child) => childrenOf(child).length > 0))!;
+  expect(chapter, "the CI-maths fixture should hold a chapter two levels deep").toBeTruthy();
+  const child = childrenOf(chapter.id).find((id) => childrenOf(id).length > 0)!;
+  return { chapterId: chapter.id, grandchildId: childrenOf(child)[0] };
+}
+
+// The standard the most content nodes align to — the blast radius a non-containment
+// `via` would have had.
+async function aMuchAlignedStandard(): Promise<{ sfiId: string; alignedCount: number; anyLessonId: string }> {
+  const { nodes, edges } = await slot("a");
+  const incoming = new Map<string, number>();
+  for (const edge of edges.filter((e) => e.type === ALIGN)) incoming.set(edge.to, (incoming.get(edge.to) ?? 0) + 1);
+  const [sfiId, alignedCount] = [...incoming.entries()].sort((a, b) => b[1] - a[1])[0];
+  return { sfiId, alignedCount, anyLessonId: nodes.find((n) => (n.labels ?? []).includes("Lesson"))!.id };
+}
+
 beforeAll(() => { __setStorageForTest(fakeStorage); });
 beforeEach(async () => {
   store = await seedFreshStore();
@@ -187,9 +212,11 @@ describe("move_node — a node on TWO axes moves along ONE", () => {
   it("moving along hasPart leaves the hasChild parent in place, and vice versa", async () => {
     const { activityId, fromLessonId, toLessonId } = await movableActivity();
     const { nodes } = await slot("a");
-    const [scheduleA, scheduleB] = nodes
+    const groupings = nodes
       .filter((node) => (node.labels ?? []).includes("LessonGrouping") && node.id !== fromLessonId && node.id !== toLessonId)
       .map((node) => node.id);
+    expect(groupings.length, "the fixture should hold two groupings to schedule against").toBeGreaterThan(1);
+    const [scheduleA, scheduleB] = groupings;
 
     await withActiveContext(CURATOR, async () => {
       await giveSecondAxis(activityId, scheduleA);
@@ -238,5 +265,91 @@ describe("move_node — what it refuses to guess at", () => {
     const { activityId, toLessonId } = await movableActivity();
     const errors = await blockedBy({ nodeId: activityId, toParentId: toLessonId, via: "hasChild" });
     expect(errors.join(" ")).toContain("hasChild");
+  });
+
+  it("blocks a target parent that sits INSIDE the node — the subtree-detaching move", async () => {
+    /*
+     * Moving a chapter under its own grandchild leaves a ring: nothing reaches the
+     * chapter any more, so generation silently drops it, while the diff shows only
+     * one edge removed and one added. Refused outright rather than warned about,
+     * because the diff a reviewer sees does not look alarming.
+     */
+    const { chapterId, grandchildId } = await aSubtree();
+    const errors = await blockedBy({ nodeId: chapterId, toParentId: grandchildId });
+    expect(errors.join(" ")).toContain(grandchildId);
+    expect(errors.join(" ")).toMatch(/INSIDE/);
+
+    // And the graph is untouched: a blocked mutation opens no draft.
+    expect(await draft()).toBeNull();
+  });
+
+  it("refuses a `via` that is not a containment edge, naming the two that are", async () => {
+    /*
+     * The reason this is an error and not a convenience: apply() detaches EVERY
+     * edge of the named type pointing at the node, so `via:"hasEducationalAlignment"`
+     * on a standard would strip every content node's alignment to it — a bulk
+     * delete reported as a move. Verified below by counting what survives.
+     */
+    const { sfiId, alignedCount, anyLessonId } = await aMuchAlignedStandard();
+    expect(alignedCount).toBeGreaterThan(1);
+
+    const errors = await blockedBy({ nodeId: sfiId, toParentId: anyLessonId, via: "hasEducationalAlignment" });
+    expect(errors.join(" ")).toContain("hasEducationalAlignment");
+    expect(errors.join(" ")).toContain("hasPart");
+    expect(errors.join(" ")).toContain("hasChild");
+
+    // Nothing staged, so every alignment still stands.
+    expect(await draft()).toBeNull();
+    const published = await slot("a");
+    expect(published.edges.filter((e) => e.type === ALIGN && e.to === sfiId)).toHaveLength(alignedCount);
+  });
+});
+
+describe("move_node — the axis comes from the graph, not the label alone", () => {
+  it("moves a derived LearningComponent, whose parent edge is hasChild", async () => {
+    /*
+     * containmentEdgeFor("LearningComponent") answers a different question — which
+     * edge a NEW component is attached BY — and its answer, `supports`, points
+     * component→SFI, so it is never an incoming parent edge. Resolving the axis off
+     * the graph is what keeps all 80 derived components movable.
+     */
+    const { nodes, edges } = await slot("a");
+    const component = nodes.find((node) =>
+      (node.labels ?? []).includes("LearningComponent") &&
+      edges.some((edge) => edge.type === "hasChild" && edge.to === node.id))!;
+    const currentFrame = edges.find((e) => e.type === "hasChild" && e.to === component.id)!.from;
+    const otherFrame = edges.find((e) => e.type === "hasChild" && e.from !== currentFrame && e.to !== component.id)!.from;
+
+    const applied = await withActiveContext(CURATOR, async () => {
+      const preview = await runMoveNode({ nodeId: component.id, toParentId: otherFrame });
+      expect(preview.phase, JSON.stringify(preview)).toBe("preview");
+      return runMoveNode({ nodeId: component.id, toParentId: otherFrame, confirm: true, confirmationToken: preview.confirmationToken as string });
+    });
+    expect(applied).toMatchObject({ phase: "apply", ok: true });
+
+    const staged = (await draft())!;
+    expect(staged.edges.some((e) => e.id === makeEdgeId("hasChild", otherFrame, component.id))).toBe(true);
+    expect(staged.edges.some((e) => e.id === makeEdgeId("hasChild", currentFrame, component.id))).toBe(false);
+    // Its outgoing `supports` edges are alignment, not membership — untouched.
+    const supportsBefore = edges.filter((e) => e.type === "supports" && e.from === component.id).length;
+    expect(staged.edges.filter((e) => e.type === "supports" && e.from === component.id)).toHaveLength(supportsBefore);
+  });
+
+  it("WARNS, without blocking, when the move detaches more than one parent", async () => {
+    // Two parents on one axis is legal but rarely what someone re-filing one thing
+    // means, and the diff alone reads as an ordinary move — so name them first.
+    const { activityId, fromLessonId, toLessonId } = await movableActivity();
+    const preview = await withActiveContext(CURATOR, async () => {
+      const edges = [{ edgeType: HAS_PART, fromId: toLessonId, toId: activityId }];
+      const staged = await runCreateEdges({ edges });
+      await runCreateEdges({ edges, confirm: true, confirmationToken: staged.confirmationToken as string });
+
+      const thirdLesson = (await slot("a")).nodes.find((n) =>
+        (n.labels ?? []).includes("Lesson") && n.id !== fromLessonId && n.id !== toLessonId)!;
+      return runMoveNode({ nodeId: activityId, toParentId: thirdLesson.id });
+    });
+
+    expect(preview.phase).toBe("preview");   // a warning, not a block
+    expect((preview.warnings as string[]).join(" ")).toMatch(/2 'hasPart' parents/);
   });
 });

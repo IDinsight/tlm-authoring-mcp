@@ -260,8 +260,8 @@ describe("editable and rules come from the real sources (no hand-copied literals
     // The two generic verbs, in order (node creation is add_nodes). Every name
     // here MUST be a registered tool — see the "advertises only registered
     // tools" case in server/__tests__/recipes.test.ts, which pins the mirror to
-    // the server's real tool list (move_node was advertised here for months
-    // while no tool by that name existed).
+    // the server's real tool list (move_node was advertised here while no tool
+    // by that name existed).
     expect(caps.editable.recipes.list.map((r: { name: string }) => r.name)).toEqual(["edit_node", "move_node"]);
   });
 

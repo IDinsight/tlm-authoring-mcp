@@ -36,11 +36,11 @@ export const RECIPES: readonly RecipeDescriptor[] = [
   },
   {
     name: "move_node",
-    summary: "Re-parent a node in one atomic draft edit: detach it from its current parent(s) on ONE containment axis, attach it under the new parent, set its ordinal there. The axis defaults to the node's canonical containment edge (hasPart for content, hasChild for standards) and `via` overrides it — a node's OTHER axis is left intact (a CI-maths lesson keeps its week when it moves chapter). Never cascades: the node's own children travel with it.",
+    summary: "Re-parent a node in one atomic draft edit: detach it from its current parent(s) on ONE containment axis, attach it under the new parent, set its ordinal there. There are two containment axes — hasPart (content) and hasChild (standards) — and the axis is read off the graph, whichever the node actually hangs from, so a node's OTHER axis is left intact (a CI-maths lesson keeps its week when it moves chapter). Never cascades: the node's own children travel with it. Refuses a target parent that sits inside the node (that would detach the subtree from the graph) and warns when the node has several parents on the axis, since all of them are detached.",
     params: [
       { name: "nodeId", required: true },
       { name: "toParentId", required: true },
-      { name: "via", required: false, note: "containment-edge axis to move along; defaults to the node's canonical edge (hasPart for content, hasChild for standards)" },
+      { name: "via", required: false, note: "which containment axis to move along — hasPart or hasChild ONLY; defaults to the one the node hangs from (its label's canonical edge when it hangs from both). An alignment/reference edge is refused: detaching one would delete relationships, not move a node" },
       { name: "position", required: false, note: "ordinal among the new siblings; omit to append" },
     ],
   },

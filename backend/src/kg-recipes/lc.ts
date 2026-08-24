@@ -43,6 +43,14 @@ export function containmentEdgeFor(label: string): string {
   return "hasPart"; // content labels + sensible default
 }
 
+// The CONTAINMENT axes — the only two edges that express membership, and so the
+// only two a re-parent may run along. Both point parent→child, which is what makes
+// them usable that way: `supports` (component→SFI) and `hasEducationalAlignment`
+// (content→SFI) point the OTHER way and mean "teaches", not "is part of", so a verb
+// that detaches a node's incoming edges of that type would strip a standard's whole
+// alignment set rather than move anything. move_node validates `via` against this.
+export const CONTAINMENT_EDGES: ReadonlySet<string> = new Set(["hasPart", "hasChild"]);
+
 // The canonical alignment edge (content → StandardsFrameworkItem). Used by
 // add_node's optional `alignTo`.
 export const ALIGNMENT_EDGE = "hasEducationalAlignment";
