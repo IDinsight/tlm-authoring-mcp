@@ -39,7 +39,16 @@ different grades/subjects without interfering. Stdio mode (`npm start`) is uncha
 | `PORT` | Listen port (default 8080) |
 | `PUBLIC_URL` | This server's public base URL (required when auth is on) |
 | `SUPABASE_URL` | `https://<ref>.supabase.co` — enables OAuth (Supabase Auth is the authorization server; this server only validates its JWTs) |
+| `SUPABASE_SERVICE_ROLE_KEY` | **Optional, sensitive.** Enables `list_unaffiliated_users` only. See the warning below |
 | `ALLOW_UNAUTHENTICATED` | `1` to run without auth — local testing only |
+
+> **`SUPABASE_SERVICE_ROLE_KEY` is not like the others.** It bypasses row-level security
+> and can mint tokens and delete users — it is the Supabase equivalent of root. The server
+> reads it in exactly one place (`src/identity/supabase.ts`) for one read-only call, listing
+> accounts so `list_unaffiliated_users` can find people who signed in and got no role. Leave
+> it unset and that one tool reports itself unavailable; nothing else changes. If you do set
+> it, set it as a **secret** (`--set-secrets`), not a plain env var, and rotate it if the
+> service's env is ever exposed. It is never logged and never returned to a caller.
 
 With auth on, unauthenticated calls get a 401 pointing at `/.well-known/oauth-protected-resource`,
 which advertises the Supabase authorization server — MCP clients (e.g. Claude connectors)
