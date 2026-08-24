@@ -29,6 +29,10 @@ import { __setActorForTest, type Actor } from "../../actor.js";
 import { authorize } from "../../authz.js";
 import { activateContext } from "../../activate.js";
 import { buildCapabilitiesReport } from "../capabilities.js";
+import { CATALOG_WRITE_VERBS } from "../catalog-target.js";
+import { Client } from "@modelcontextprotocol/sdk/client/index.js";
+import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js";
+import { buildServer } from "../index.js";
 import type { KgNodeStore, StoredMeta } from "../../kg-store/index.js";
 import type { StorageAdapter, HistoryFile } from "../../types.js";
 
@@ -263,6 +267,34 @@ describe("editable and rules come from the real sources (no hand-copied literals
     // the server's real tool list (move_node was advertised here while no tool
     // by that name existed).
     expect(caps.editable.recipes.list.map((r: { name: string }) => r.name)).toEqual(["edit_node", "move_node"]);
+  });
+
+  it("catalog.editVerbs IS the set of tools that actually take a `catalog` argument", async () => {
+    /*
+     * The claim get_capabilities makes about itself is that every field comes from
+     * the module that enforces it. `editVerbs` was the exception — a hand-kept array
+     * that went stale twice, missing delete_nodes/delete_edges when they gained the
+     * redirect (#178) and move_node (#200). There is no runtime registry to read
+     * (each tool declares `catalog` in its own MCP inputSchema), so this test IS the
+     * derivation: it asks the assembled server which tools advertise the argument
+     * and pins the declared list to exactly that set.
+     */
+    const client = new Client({ name: "test-client", version: "0.0.0" });
+    const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
+    await Promise.all([client.connect(clientTransport), buildServer().connect(serverTransport)]);
+    try {
+      const advertising = (await client.listTools()).tools
+        .filter((tool) => "catalog" in ((tool.inputSchema as { properties?: Record<string, unknown> }).properties ?? {}))
+        .map((tool) => tool.name);
+
+      expect([...CATALOG_WRITE_VERBS].sort()).toEqual(advertising.sort());
+    } finally {
+      await client.close();
+    }
+
+    // And the report renders that list rather than a copy of it.
+    const caps = await withActiveContext(CURATOR, callGetCapabilities);
+    expect(caps.catalog.editVerbs).toEqual(CATALOG_WRITE_VERBS);
   });
 
   it("catalog advertises its tools + browse resource; canUse mirrors the apply gate", async () => {
