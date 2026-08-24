@@ -72,6 +72,25 @@ export async function resolveCatalogTarget(target: string | undefined): Promise<
 
 // ── the `catalog` write redirect ──────────────────────────────────────────────
 
+/*
+ * The write verbs that accept a `catalog` argument, in the order a curator meets
+ * them: correct a field, re-file a node, extend an entry, wire it up, retire it.
+ *
+ * Declared here, next to the routing they all run through, because there is no
+ * runtime registry to read it from — each tool declares `catalog` in its own MCP
+ * inputSchema. So the list is pinned by a TEST instead: capabilities.test.ts asserts
+ * it equals exactly the set of registered tools whose ADVERTISED schema carries a
+ * `catalog` property, which fails the moment a verb gains or loses the argument.
+ * get_capabilities renders this array rather than a copy of it — the same rule the
+ * RECIPES registry follows, and for the same reason (this list had gone stale twice:
+ * it missed delete_nodes/delete_edges when they gained the redirect in #178, and
+ * move_node in #200).
+ */
+export const CATALOG_WRITE_VERBS: readonly string[] = [
+  "edit_node", "move_node", "add_nodes", "create_edges", "delete_edges", "delete_nodes",
+];
+
+
 // A resolved write destination: the namespace the mutation runs against, plus the
 // labels the response reports it under.
 export type CatalogWrite = { namespace: string; scope: CatalogScope; workspace: string };
