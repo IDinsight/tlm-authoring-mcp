@@ -52,7 +52,10 @@ function toDirectoryUser(raw: GoTrueUser): DirectoryUser | null {
  */
 export function createSupabaseDirectory(): IdentityDirectory | null {
   const url = (process.env.SUPABASE_URL ?? "").replace(/\/+$/, "");
-  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY ?? "";
+  // Trimmed: a key pasted into `gcloud secrets create --data-file=-` picks up a
+  // trailing newline, which makes an HTTP header GoTrue rejects as unauthorized
+  // — a 401 that looks exactly like a wrong key.
+  const serviceKey = (process.env.SUPABASE_SERVICE_ROLE_KEY ?? "").trim();
   if (!url || !serviceKey) {
     return null;
   }
