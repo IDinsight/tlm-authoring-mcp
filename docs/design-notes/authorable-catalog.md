@@ -73,15 +73,15 @@ FormatterSpec was to re-file the whole entry under a new id — and every later
 
 The fix is **addressing, not a new verb**. The generic write verbs were already
 subject-agnostic; only their tool registrations hard-bound the namespace to the active
-adapter. `edit_node`, `add_nodes`, and `create_edges` now take an optional **`catalog`**
-argument — `"workspace"` (your own library), `"shared"`, or a workspace id — which routes
+adapter. `edit_node`, `move_node`, `add_nodes`, `create_edges`, `delete_nodes` and
+`delete_edges` now take an optional **`catalog`** argument — `"workspace"` (your own library), `"shared"`, or a workspace id — which routes
 the write to that library instead. A deliberate *tool* was rejected: `edit_catalog_entry`
 would have covered field edits only, leaving "this entry is missing a spec" (an
 `add_nodes` job) still unfixable, and would have duplicated `edit_node`'s protected-path
 and ordinal-mirror rules.
 
-Routing lives in `src/server/catalog-target.ts::runCatalogWrite`, shared by all three
-verbs, and it carries the two things a catalog write does differently:
+Routing lives in `src/server/catalog-target.ts::runCatalogWrite`, shared by every one of
+them, and it carries the two things a catalog write does differently:
 
 - **Destination rights** — `resolveCatalogTarget` (lifted out of `catalog.ts`, which now
   imports it) locks a workspace curator to their own library; crossing into another
