@@ -3,9 +3,14 @@
  *
  * One descriptor per GENERIC verb. get_capabilities renders THIS array, never a
  * hand-written copy — so the tool list Claude sees can't drift from the verbs
- * actually wired up. Node CREATION is add_nodes (server/authoring.ts); edit_node
- * is the generic field-edit verb (content/position/title are the same concept
- * for every label).
+ * actually wired up. Node CREATION is add_nodes (server/authoring.ts); the two
+ * verbs here act on a node that already exists — edit_node for its FIELDS
+ * (content/position/title are the same concept for every label), move_node for
+ * its PLACE.
+ *
+ * A verb belongs here only once it is REGISTERED as a tool in server/recipes.ts:
+ * this array is what get_capabilities advertises, so an entry for an unwired
+ * recipe would be the exact drift the mirror exists to prevent.
  */
 
 export type RecipeParam = { name: string; required: boolean; note?: string };
@@ -27,6 +32,16 @@ export const RECIPES: readonly RecipeDescriptor[] = [
       { name: "title_en", required: false },
       { name: "summary", required: false },
       { name: "properties", required: false, note: "amend any other canonical LC prop → raw.<key>; refuses identity + mirrored paths (use position/title/content for those)" },
+    ],
+  },
+  {
+    name: "move_node",
+    summary: "Re-parent a node in one atomic draft edit: detach it from its current parent(s) on ONE containment axis, attach it under the new parent, set its ordinal there. The axis defaults to the node's canonical containment edge (hasPart for content, hasChild for standards) and `via` overrides it — a node's OTHER axis is left intact (a CI-maths lesson keeps its week when it moves chapter). Never cascades: the node's own children travel with it.",
+    params: [
+      { name: "nodeId", required: true },
+      { name: "toParentId", required: true },
+      { name: "via", required: false, note: "containment-edge axis to move along; defaults to the node's canonical edge (hasPart for content, hasChild for standards)" },
+      { name: "position", required: false, note: "ordinal among the new siblings; omit to append" },
     ],
   },
 ];

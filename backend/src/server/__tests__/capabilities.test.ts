@@ -257,8 +257,12 @@ describe("editable and rules come from the real sources (no hand-copied literals
     expect(caps.editable.recipes.available).toBe(true);
     expect(caps.editable.recipes.list.map((r: { name: string }) => r.name)).toEqual(RECIPES.map((r) => r.name));
     expect(caps.editable.recipes.list).toEqual(RECIPES.map((r) => ({ name: r.name, summary: r.summary, params: r.params })));
-    // The two generic verbs, in order (node creation is the typed adds).
-    expect(caps.editable.recipes.list.map((r: { name: string }) => r.name)).toEqual(["edit_node"]);
+    // The two generic verbs, in order (node creation is add_nodes). Every name
+    // here MUST be a registered tool — see the "advertises only registered
+    // tools" case in server/__tests__/recipes.test.ts, which pins the mirror to
+    // the server's real tool list (move_node was advertised here for months
+    // while no tool by that name existed).
+    expect(caps.editable.recipes.list.map((r: { name: string }) => r.name)).toEqual(["edit_node", "move_node"]);
   });
 
   it("catalog advertises its tools + browse resource; canUse mirrors the apply gate", async () => {

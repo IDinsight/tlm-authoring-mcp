@@ -49,7 +49,7 @@ export function buildServer(): McpServer {
   registerReviewTools(server);       // request_review (the curator→approver handoff, derived from the audit trail)
   registerCheckTools(server);        // check_draft (structural WIRING lint in French — review_draft's mechanical sibling)
   registerStructuralTools(server);   // create_edges, delete_edges, delete_nodes (edge + deletion verbs)
-  registerRecipeTools(server);       // edit_node (content / position / title edits — replaced reposition + set_content)
+  registerRecipeTools(server);       // edit_node (content / position / title edits — replaced reposition + set_content), move_node (re-parent along one containment axis)
   registerAuthoringTools(server);    // add_nodes (the single node-creation tool — one or many; replaced the per-label typed adds)
   registerDocumentAuthoringTools(server); // create_document, add_section (task verbs that enforce a multi-element invariant a primitive can silently violate)
   registerProfileTools(server);      // get_profile, edit_profile (subject profile as authored config — phase 2b)

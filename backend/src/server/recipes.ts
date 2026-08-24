@@ -1,13 +1,24 @@
 /*
- * Module: server · tool group: node field edits (edit_node)
+ * Module: server · tool group: the generic node verbs (edit_node, move_node)
  *
- * edit_node is the single field-edit verb: change a node's content, position,
- * and/or display title in one atomic draft edit. It consolidated the separate
- * set_content + reposition tools and added title editing (which had no verb after
- * upsert_property was removed). Node CREATION is add_nodes (server/authoring.ts);
- * re-parenting is move_node.
+ * Two verbs over a node that already exists — one for its FIELDS, one for its
+ * PLACE. edit_node changes a node's content, position and/or display title in one
+ * atomic draft edit (it consolidated the separate set_content + reposition tools
+ * and added title editing, which had no verb after upsert_property was removed).
+ * move_node re-parents a node along ONE containment axis. Node CREATION is
+ * add_nodes (server/authoring.ts).
  *
- * It shares the graph-mutation envelope: a dry-run returns a diff + warnings +
+ * Why move_node is a verb and not two primitives: re-parenting by hand is
+ * delete_edges (every current parent edge on that axis) + create_edges (the new
+ * one) + edit_node (the ordinal) — three separate two-phase writes, so a caller
+ * who stops after the first leaves the node detached, and one who forgets the
+ * third leaves its `position` field disagreeing with its slot. Doing it wrong
+ * also means touching the WRONG AXIS: a CI-maths lesson hangs off both a chapter
+ * (hasPart) and a week (hasChild), and only one of those should move. That is the
+ * multi-element invariant a primitive can silently violate — the same test
+ * create_document and add_section pass (self-serve-authoring.md, D3).
+ *
+ * Both share the graph-mutation envelope: a dry-run returns a diff + warnings +
  * confirmationToken (no state change); the confirm re-checks the token and
  * applies to the DRAFT only.
  */
@@ -18,13 +29,49 @@ import { asJson, guarded } from "./shared.js";
 import { getActiveAdapter } from "../adapters/index.js";
 import { activeWorkspace } from "../context/index.js";
 import { runGraphMutation, kgNamespace } from "../kg-store/index.js";
-import { editNode } from "../kg-recipes/index.js";
+import { editNode, moveNode } from "../kg-recipes/index.js";
 import { runCatalogWrite, type WriteOutcome } from "./catalog-target.js";
 import { withNextSteps } from "./next-steps.js";
 import type { SubjectAdapter } from "../types.js";
 
 function bind(adapter: SubjectAdapter): { namespace: string } {
   return { namespace: kgNamespace(activeWorkspace(), adapter.grade, adapter.subject) };
+}
+
+type MoveNodeToolArgs = {
+  nodeId: string;
+  toParentId: string;
+  via?: string;
+  position?: number;
+  catalog?: string;
+  confirm?: boolean;
+  confirmationToken?: string;
+};
+
+// The move_node core, exported so tests drive the registered tool's real logic
+// (the same shape runAddNodes uses). Routes the move to the active subject's
+// namespace, or — when `catalog` is set — to a catalog library, which also
+// publishes on confirm (catalogs have no publish_draft; see catalog-target.ts).
+export async function runMoveNode(a: MoveNodeToolArgs): Promise<Record<string, unknown>> {
+  const moveInNamespace = async (namespace: string): Promise<WriteOutcome> => {
+    const result = await runGraphMutation({
+      namespace,
+      mutation: moveNode,
+      args: { namespace, nodeId: a.nodeId, toParentId: a.toParentId, via: a.via, position: a.position },
+      confirm: a.confirm,
+      token: a.confirmationToken,
+      // No storePayload, unlike edit_node: a move is three ids and a number, so
+      // re-sending it on confirm is free — the parking mechanism exists for
+      // prose-heavy payloads (see kg-mutations/token-only-confirm.md).
+    });
+    return result as WriteOutcome;
+  };
+
+  if (a.catalog) {
+    return runCatalogWrite(a.catalog, a.confirm, moveInNamespace);
+  }
+  const result = await moveInNamespace(bind(getActiveAdapter()).namespace);
+  return withNextSteps(result, moveNode.name);
 }
 
 export function registerRecipeTools(server: McpServer) {
@@ -72,5 +119,29 @@ export function registerRecipeTools(server: McpServer) {
       const result = await editInNamespace(bind(getActiveAdapter()).namespace);
       return asJson(withNextSteps(result as unknown as Record<string, unknown>, editNode.name));
     }),
+  );
+
+  server.registerTool(
+    "move_node",
+    {
+      title: "Re-parent a node",
+      description:
+        "Move an EXISTING node under a different parent, in ONE atomic draft edit: it detaches the node from its current parent(s) on ONE containment axis, attaches it under `toParentId`, and sets its ordinal there — one diff, one token, one audit record. Use it whenever something is filed in the wrong place (a lesson under the wrong chapter, a step under the wrong routine). Move in place — do NOT delete + re-add (that cascades the subtree, drops every incident edge, and mints a new id), and prefer it over hand-rolling delete_edges + create_edges (three separate writes, each of which can be left half-done). " +
+        "ONLY ONE AXIS MOVES. The axis defaults to the node's canonical containment edge — `hasPart` for content (Course/LessonGrouping/Lesson/Activity/Material), `hasChild` for the standards hierarchy — and `via` overrides it. A node's OTHER axis is deliberately left intact: a CI-maths lesson sits under both a chapter (`hasPart`) and a week (`hasChild`), so moving it to another chapter leaves its week alone; move the schedule axis with a second call passing via:'hasChild'. " +
+        "`position` (optional) is the ordinal among the new siblings; omit it to append at the end. Membership is the containment edge, so a move never cascades to the node's own children — they travel with it. " +
+        "BLOCKED, rather than guessed at: a nonexistent `nodeId` or `toParentId`, a node made its own parent, and a node with no parent on the chosen axis (that last one names the axis — pass `via` if you meant the other one). Ids come from find_node or walk_graph. " +
+        "REQUIRES CONFIRMATION: the dry-run returns a diff + confirmationToken; confirm by calling again with the SAME arguments plus confirm:true + the token (a move is small enough that nothing is ever parked server-side). DRAFT edit — publish_draft to make it live. " +
+        "`catalog` (optional) moves a node inside a CATALOG LIBRARY instead of the active subject graph — that is how a master entry's steps get re-filed without re-filing the whole entry. Pass 'workspace' (your own library), 'shared' (the cross-tenant one), or a workspace id; crossing libraries needs super_admin. Confirming PUBLISHES the library live in one step (catalogs are not enterable, so there is no publish_draft or diff_draft for them), and `catalog` must be RE-SENT on the confirm. Copies already made from an entry are independent — re-filing the master does not reach them.",
+      inputSchema: {
+        nodeId: z.string(),
+        toParentId: z.string(),
+        via: z.string().optional(),
+        position: z.number().optional(),
+        catalog: z.string().optional(),
+        confirm: z.boolean().optional(),
+        confirmationToken: z.string().optional(),
+      },
+    },
+    guarded(async (a: MoveNodeToolArgs) => asJson(await runMoveNode(a))),
   );
 }

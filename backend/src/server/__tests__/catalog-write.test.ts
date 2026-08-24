@@ -1,5 +1,5 @@
 // ── the `catalog` redirect on the generic write verbs ──────────────────────────
-// edit_node / add_nodes / create_edges / delete_nodes / delete_edges normally write to the active subject's
+// edit_node / move_node / add_nodes / create_edges / delete_nodes / delete_edges normally write to the active subject's
 // namespace. With `catalog` they write to a catalog LIBRARY instead, so a master
 // entry that drifted from the copies use_formatter made can be corrected in place
 // (before this, a stale "[p X]" in one spec meant re-filing a whole new entry).
@@ -21,6 +21,7 @@ import { SHARED_CATALOG_NAMESPACE, catalogNamespace, listCatalogEntries } from "
 import { readCatalog } from "../catalog.js";
 import { runAddNodes } from "../authoring.js";
 import { runCreateEdges, runDeleteNodes, runDeleteEdges } from "../structural.js";
+import { runMoveNode } from "../recipes.js";
 import { __setStorageForTest } from "../../storage/index.js";
 import { __setActorForTest, type Actor } from "../../actor.js";
 import { __setWorkspaceStoreForTest, createMemoryWorkspaceStore } from "../../workspaces/index.js";
@@ -185,6 +186,33 @@ describe("add_nodes / create_edges with `catalog`", () => {
 
     const catalog = await readCatalog(SHARED_CATALOG_NAMESPACE);
     expect(catalog.edges.some((e) => e.type === "relatesTo" && e.from === SHARED_ENTRY && e.to === "shared-root")).toBe(true);
+  });
+});
+
+describe("move_node with `catalog` — re-filing a step inside a library", () => {
+  it("re-parents a spec within the library and publishes it live on confirm", async () => {
+    let specId = "";
+    await inCtx(SUPER, async () => {
+      // Give the entry a spec to move — the drifted-master shape this exists for:
+      // a rule filed under the wrong entry, without re-filing the whole entry.
+      const items = [{ kind: "Material", parentId: SHARED_ENTRY, description: "Règle mal classée" }];
+      const staged = await runAddNodes({ items, catalog: "shared" });
+      await runAddNodes({ items, catalog: "shared", confirm: true, confirmationToken: staged.confirmationToken as string, mintedNodeIds: staged.mintedNodeIds as string[] });
+      specId = (staged.mintedNodeIds as string[])[0];
+
+      const dry = await runMoveNode({ nodeId: specId, toParentId: "shared-root", catalog: "shared" });
+      expect(dry.publishesOnConfirm).toBe(true);
+
+      const done = await runMoveNode({ nodeId: specId, toParentId: "shared-root", catalog: "shared", confirm: true, confirmationToken: dry.confirmationToken as string });
+      expect(done).toMatchObject({ ok: true, published: true });
+      expect(done.catalog).toMatchObject({ scope: "shared", namespace: SHARED_CATALOG_NAMESPACE });
+    });
+
+    const catalog = await readCatalog(SHARED_CATALOG_NAMESPACE);
+    expect(catalog.edges.some((e) => e.type === "hasPart" && e.from === "shared-root" && e.to === specId)).toBe(true);
+    expect(catalog.edges.some((e) => e.type === "hasPart" && e.from === SHARED_ENTRY && e.to === specId)).toBe(false);
+    // Published, not stranded: the library has no draft left open.
+    expect((await store.readPointer(SHARED_CATALOG_NAMESPACE))!.draftSlot).toBeFalsy();
   });
 });
 
