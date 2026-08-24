@@ -46,19 +46,13 @@ describe("buildAdapterFromProfile — synthesized behavior", () => {
 });
 
 describe("retired profile keys", () => {
-  // Every profile cell published before this change still carries `capabilities`
-  // (and the older ones `deliverables`). The schema is strict, so without the
-  // strip shim those cells would fail validation and their namespace would
-  // refuse to activate — a hard outage, not a degraded read.
-  it("a live cell carrying capabilities/deliverables still validates", () => {
-    const legacy = {
-      ...CI_MATHS_PROFILE,
-      capabilities: { exampleDomainRotation: true },
-      deliverables: ["chapter"],
-    };
-    const parsed = validateProfile(legacy);
-    expect(parsed.id).toBe(CI_MATHS_PROFILE.id);
-    expect(parsed).not.toHaveProperty("capabilities");
-    expect(parsed).not.toHaveProperty("deliverables");
+  // These were tolerated by a strip shim while live cells still carried them.
+  // Every stored cell has since been re-published without them, so the shim is
+  // gone and they are now plain unknown keys. This is the inverse of the test it
+  // replaced: the refusal is deliberate, so a cell restored from an old backup
+  // fails loudly at activation instead of silently parsing as something else.
+  it.each(["capabilities", "deliverables"])("a legacy cell carrying `%s` is now refused", (key) => {
+    const legacy = { ...CI_MATHS_PROFILE, [key]: {} };
+    expect(() => validateProfile(legacy)).toThrow(new RegExp(key));
   });
 });
