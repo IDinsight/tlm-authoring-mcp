@@ -22,7 +22,7 @@
  *      existing callers.
  */
 import { describe, it, expect, beforeAll, afterAll, beforeEach } from "vitest";
-import { seedStore, seededContexts, CI_MATHS } from "../../__tests__/index.js";
+import { seedStore, seededContexts, CI_MATHS, aContentGrouping } from "../../__tests__/index.js";
 import { newSessionState, runInSession, docKey, previewKey } from "../../context/index.js";
 import { subjectDir, KG_FIXTURE } from "../../__tests__/index.js";
 import { resolveAdapter } from "../../adapters/index.js";
@@ -96,17 +96,20 @@ async function rawSlot(kgStore: KgNodeStore, slot: Slot) {
   };
 }
 
-// Pick a chapter node that carries a string title, and return its id + number.
+// A grouping node carrying a title + ordinal. ci/maths has weeks now, not
+// chapters, so this is keyed on the LC label rather than a subject's word.
 async function pickChapter(): Promise<{ id: string; num: number; title: string }> {
-  const nodes = await store.listNodes(ns, "a");
-  const chapter = nodes.find((n) => n.type === "Chapitre" && typeof (n.properties as any).title === "string" && typeof (n.properties as any).order === "number")!;
-  return { id: chapter.id, num: (chapter.properties as any).order, title: (chapter.properties as any).title };
+  const grouping = await aContentGrouping(store, ns);
+  return { id: grouping.id, num: grouping.order, title: grouping.title };
 }
 
-// The student-book Course ("Outil de l'élève") — the id previews are scoped to.
+// The content Course previews are scoped to. "Outil de l'élève" used to be a
+// second Course; the TLM migration made it a TeachingLearningMaterial, leaving
+// ci/maths with exactly one Course ("Planification").
 async function pickCourse(): Promise<{ id: string }> {
   const nodes = await store.listNodes(ns, "a");
-  const course = nodes.find((n) => (n.labels ?? []).includes("Course") && String((n.properties as any).raw?.description ?? "").includes("Outil de l'élève"))!;
+  const course = nodes.find((n) => (n.labels ?? []).includes("Course"));
+  if (!course) throw new Error(`fixture '${ns}' holds no Course`);
   return { id: course.id };
 }
 

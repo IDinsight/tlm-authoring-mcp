@@ -24,12 +24,12 @@ import { resolve } from "node:path";
 import { listAvailableContexts, newSessionState, runInSession, type ActiveContext } from "../context/index.js";
 import { resolveAdapter, getRegisteredProfile, getRegisteredGuide } from "../adapters/index.js";
 import { serializeModel, __clearModelCache } from "../curriculum/index.js";
-import { createMemoryKgStore, kgNamespace } from "../kg-store/index.js";
+import { createMemoryKgStore, kgNamespace, parseNamespace } from "../kg-store/index.js";
 import { __setStorageForTest } from "../storage/index.js";
 import { __setActorForTest, type Actor } from "../actor.js";
 import { activateContext } from "../activate.js";
 import { subjectDir, KG_FIXTURE } from "./fixtures.js";
-import type { KgNodeStore, StoredConfig, StoredMeta } from "../kg-store/index.js";
+import type { KgNodeStore, StoredConfig, StoredMeta, Slot } from "../kg-store/index.js";
 import type { StorageAdapter, HistoryFile } from "../types.js";
 
 // ── Storage stub ─────────────────────────────────────────────────────────────
@@ -156,3 +156,65 @@ export function fixtureContext(key: ContextKey): ActiveContext {
 
 export const CI_MATHS: ContextKey = "ci/maths";
 export const CE1_READING: ContextKey = "ce1/reading";
+
+// ── Picking a node out of a fixture ──────────────────────────────────────────
+
+/** A grouping node as the suites use it: enough to edit, rename or reposition. */
+export type FixtureGrouping = { id: string; title: string; order: number; kind: string };
+
+/**
+ * The first content grouping in a namespace, whatever the subject calls it.
+ *
+ * Five suites used to hard-code `groupName === "Chapitre"`. ci/maths retired its
+ * 25 chapters when the Student's Book became a TeachingLearningMaterial, so
+ * those finders all returned undefined and ~137 tests failed on the refreshed
+ * fixture. Keyed on the LC label instead, this works for a week (ci/maths today)
+ * or a chapter alike — a suite that only needs "a grouping to edit" should use
+ * it and stay out of the subject's vocabulary. A suite that genuinely tests
+ * CHAPTER semantics wants `chapterFixtureGraph()` below, not this.
+ */
+export async function aContentGrouping(
+  store: KgNodeStore,
+  namespace: string,
+  slot: Slot = "a",
+): Promise<FixtureGrouping> {
+  const nodes = await store.listNodes(namespace, slot);
+  const grouping = nodes.find((node) => (node.labels ?? []).includes("LessonGrouping"));
+  if (!grouping) {
+    throw new Error(`fixture '${namespace}' holds no LessonGrouping to pick`);
+  }
+  const properties = (grouping.properties ?? {}) as Record<string, unknown>;
+  return {
+    id: grouping.id,
+    title: String(properties.title ?? ""),
+    order: Number(properties.order ?? 0),
+    kind: String(grouping.type ?? ""),
+  };
+}
+
+/**
+ * Replace `namespace`'s published slot with the synthetic chapter graph.
+ *
+ * For suites testing mechanics the live curriculum can no longer exercise (a
+ * `Chapitre` grouping; an Activity contained by a Lesson while aligned to a
+ * standard). The context and adapter stay the same — only the data changes — so
+ * the suite still runs through the real parse and the real tools.
+ */
+export async function seedSyntheticChapters(store: KgNodeStore, namespace: string): Promise<void> {
+  const { chapterFixtureGraph } = await import("./synthetic.js");
+  const [{ workspace, grade, subject }] = [parseNamespace(namespace) ?? { workspace: "senegal", grade: "ci", subject: "maths" }];
+  const adapter = resolveAdapter(workspace, grade, subject);
+  if (!adapter) throw new Error(`no adapter for '${namespace}'`);
+
+  const { nodes, edges } = serializeModel(adapter.parse(chapterFixtureGraph()), namespace);
+  const meta: StoredMeta = {
+    contentHash: createHash("sha256").update(JSON.stringify({ nodes, edges })).digest("hex"),
+    seededAt: "1970-01-01T00:00:00Z",
+    adapterId: adapter.id,
+    nodeCount: nodes.length,
+    edgeCount: edges.length,
+  };
+  __clearModelCache();
+  await store.writeSlot(namespace, "a", { nodes, edges, meta });
+  await store.ensurePointer(namespace, "a");
+}

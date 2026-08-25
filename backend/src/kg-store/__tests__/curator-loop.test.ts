@@ -58,7 +58,8 @@ async function seedFreshStore(): Promise<KgNodeStore> {
 // repositions both (two distinct node ids, two distinct ordinals).
 async function pickChapterAndLesson() {
   const nodes = await store.listNodes(ns, "a");
-  const chapter = nodes.find((n) => n.type === "Chapitre")!;
+  // A grouping, whatever this subject calls it (ci/maths has weeks now).
+  const chapter = nodes.find((n) => (n.labels ?? []).includes("LessonGrouping"))!;
   const lesson = nodes.find((n) => n.type === "Lesson")!;
   expect(chapter).toBeTruthy();
   expect(lesson).toBeTruthy();
@@ -377,9 +378,10 @@ describe("parity: published reads unaffected until publish, then reflect the cha
         }
         const adapter = resolveAdapter(firstCtx.workspace, firstCtx.grade, firstCtx.subject)!;
         const model = adapter.model();
-        // node ids + the ordinal of each chapter — a reposition doesn't change ids
-        // but does change the published chapter's order, which is what we assert.
-        const orders = Object.fromEntries([...model.byId.values()].filter((u) => u.kind === "Chapitre").map((u) => [u.id, u.order]));
+        // node ids + the ordinal of each grouping — a reposition doesn't change
+        // ids but does change the published grouping's order, which is what we
+        // assert. Keyed on the LC label: ci/maths groups by week, not chapter.
+        const orders = Object.fromEntries([...model.byId.values()].filter((u) => (u.labels ?? []).includes("LessonGrouping")).map((u) => [u.id, u.order]));
         return { nodes: [...model.byId.keys()].sort(), orders };
       });
     }

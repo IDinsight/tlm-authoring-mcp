@@ -18,7 +18,7 @@
  *     undo cancel out instead of counting twice.
  */
 import { describe, it, expect, beforeAll, beforeEach, afterAll } from "vitest";
-import { seedStore, seededContexts, fakeStorage, CI_MATHS , withActiveContext as inContext } from "../../__tests__/index.js";
+import { seedStore, seededContexts, fakeStorage, CI_MATHS , withActiveContext as inContext, aContentGrouping } from "../../__tests__/index.js";
 import { newSessionState, runInSession } from "../../context/index.js";
 import { subjectDir, KG_FIXTURE } from "../../__tests__/index.js";
 import {
@@ -57,13 +57,9 @@ async function seedFreshStore(): Promise<KgNodeStore> {
 const withActiveContext = <T>(actor: Actor | null, fn: () => Promise<T>): Promise<T> =>
   inContext(targetCtx, actor, fn);
 
-async function aChapter(): Promise<{ id: string; title: string }> {
-  const nodes = await store.listNodes(ns, "a");
-  const chapter = nodes.find((node) =>
-    (node.labels ?? []).includes("LessonGrouping") &&
-    (node.properties?.raw as Record<string, unknown> | undefined)?.groupName === "Chapitre")!;
-  return { id: chapter.id, title: String(chapter.properties?.title ?? "") };
-}
+// A grouping to rename. ci/maths has weeks (it retired its chapters with the
+// Student's Book), so this must not name a subject's vocabulary.
+const aChapter = (): Promise<{ id: string; title: string }> => aContentGrouping(store, ns);
 
 // Stage one rename on the draft, two-phase, as `actor`.
 async function stageTitleEdit(actor: Actor, nodeId: string, title: string): Promise<void> {

@@ -6,7 +6,7 @@
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { describe, it, expect, beforeAll, beforeEach, afterAll } from "vitest";
-import { fakeStorage } from "../../__tests__/index.js";
+import { fakeStorage, seedSyntheticChapters } from "../../__tests__/index.js";
 import { listAvailableContexts, newSessionState, runInSession } from "../../context/index.js";
 import { activateContext } from "../../activate.js";
 import { applyCatalogEntry } from "../catalog.js";
@@ -102,12 +102,18 @@ async function readPublished(): Promise<MutationGraph> { const p = await store.r
 async function readDraft(): Promise<MutationGraph | null> { const p = await store.readPointer(ns); return p?.draftSlot ? readSlot(p.draftSlot) : null; }
 const modelOf = (g: MutationGraph): CurriculumModel => adapter().parse(toRawEnvelope({ nodes: g.nodes, edges: g.edges }));
 
-// Seed a TeachingLearningMaterial (+ covers→course) into the published slot so
-// use_formatter has a document to resolve/attach under — the CI-maths fixture has
-// none (the Phase 4 TLM migration hasn't run on it).
+// The TeachingLearningMaterial use_formatter resolves and attaches under.
+//
+// The CI-maths fixture used to carry none, so this seeded one. The Phase 4 TLM
+// migration has since run on the live graph, so the refreshed fixture ships two
+// real TLMs — seeding a third would leave resolution picking whichever it likes.
+// Prefer the document already covering this Course, and only seed when there is
+// genuinely none (the synthetic graph).
 async function addTlmToPublished(courseId: string, tlmId = "tlm-fixture"): Promise<string> {
   const slot = (await store.readPointer(ns))!.publishedSlot;
   const [nodes, edges] = await Promise.all([store.listNodes(ns, slot), store.listEdges(ns, slot)]);
+  const existing = edges.find((edge) => edge.type === "covers" && edge.to === courseId);
+  if (existing) return existing.from;
   const tlm: Omit<StoredNode, "slot"> = { id: tlmId, type: "TeachingLearningMaterial", namespace: ns, labels: ["TeachingLearningMaterial"], spine: false, properties: { raw: { description: "Manuel de l'élève", metadata: { role: "teaching-learning-material", assemblyGuide: "how to build me" } } } };
   const covers: Omit<StoredEdge, "slot"> = { id: makeEdgeId("covers", tlmId, courseId), type: "covers", from: tlmId, to: courseId, namespace: ns, properties: {} };
   const meta: StoredMeta = { contentHash: "test", seededAt: "1970-01-01T00:00:00Z", adapterId: "test", nodeCount: nodes.length + 1, edgeCount: edges.length + 1 };
@@ -333,9 +339,10 @@ describe("use_routine", () => {
     expect(() => modelOf(draft)).not.toThrow();
   });
 
-  it("blocks copying onto a non-lesson target (a chapter grouping)", async () => {
+  it("blocks copying onto a non-lesson target (a grouping)", async () => {
     const published = await readPublished();
-    const chapterId = modelOf(published).unitsOfKind("Chapitre")[0].id;
+    // ci/maths groups by week now, not chapter — any grouping is a non-lesson target.
+    const chapterId = modelOf(published).unitsOfKind("Semaine")[0].id;
     const catalog = await readCatalog(SHARED_CATALOG_NAMESPACE);
     const clone = cloneRoutineSubtree(catalog, "cat-entry", ns, () => mintNodeId())!;
     const args = { namespace: ns, targetId: chapterId, clonedNodes: clone.nodes, clonedEdges: clone.edges, newEntryId: clone.newEntryId };
@@ -393,6 +400,9 @@ describe("use_formatter", () => {
   });
 
   it("errors when the target Course has no TLM to cover it yet", async () => {
+    // The live ci/maths Course IS covered by a TLM now, so the uncovered case
+    // needs the synthetic graph, whose Course has no document.
+    await seedSyntheticChapters(store, ns);
     await inCtx(async () => {
       const courseId = (await readPublished()).nodes.find((n) => (n.labels ?? []).includes("Course"))!.id;
       const res = jsonOf(await applyCatalogEntry({ entryId: "cat-fmt", targetId: courseId }, "formatter")) as { error?: string };

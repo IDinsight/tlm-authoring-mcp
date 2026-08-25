@@ -240,7 +240,7 @@ const withActiveContext = <T>(actor: Actor | null, fn: () => Promise<T>): Promis
 // reads have something to reflect. Returns the new node's id.
 async function stageALessonEdit(): Promise<string> {
   const [nodes] = await Promise.all([store.listNodes(ns, "a")]);
-  const chapter = nodes.find((node) => (node.labels ?? []).includes("LessonGrouping") && (node.properties?.raw as Record<string, unknown> | undefined)?.groupName === "Chapitre")!;
+  const chapter = nodes.find((node) => (node.labels ?? []).includes("LessonGrouping"))!;
   const newNodeId = mintNodeId();
   const args = { namespace: ns, parentId: chapter.id, label: "Lesson", newNodeId, title: "Draft-only lesson" };
   const preview = await runGraphMutation({ namespace: ns, mutation: addNode, args });
@@ -319,7 +319,7 @@ describe("walk_graph (tool core)", () => {
     const result = await withActiveContext(CURATOR, async () => {
       const stagedId = await stageALessonEdit();
       const nodes = await store.listNodes(ns, "a");
-      const chapter = nodes.find((node) => (node.labels ?? []).includes("LessonGrouping") && (node.properties?.raw as Record<string, unknown> | undefined)?.groupName === "Chapitre")!;
+      const chapter = nodes.find((node) => (node.labels ?? []).includes("LessonGrouping"))!;
       const walked = await walkActiveGraph({ fromId: chapter.id, direction: "out", edgeTypes: ["hasPart"], maxDepth: 2, slot: "draft" });
       return { walked, stagedId };
     });

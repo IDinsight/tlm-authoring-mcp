@@ -48,7 +48,7 @@ const withActiveContext = <T>(fn: () => Promise<T>): Promise<T> =>
 async function firstChapterId(): Promise<string> {
   const nodes = await store.listNodes(ns, "a");
   const chapter = nodes.find(
-    (node) => (node.labels ?? []).includes("LessonGrouping") && (node.properties?.raw as Record<string, unknown> | undefined)?.groupName === "Chapitre",
+    (node) => (node.labels ?? []).includes("LessonGrouping"),
   );
   return chapter!.id;
 }

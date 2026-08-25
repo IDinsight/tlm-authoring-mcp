@@ -101,7 +101,7 @@ describe("firestore mode", () => {
       expect(res.reviewing).toBe("published");
       expect(String(res.guide)).toContain("Coverage expectations");
       const facts = res.structuralFacts as { nodesByType: Record<string, number>; containers: unknown[]; contentMultiParent: unknown[] };
-      expect(facts.nodesByType.Chapitre).toBeGreaterThan(0);
+      expect(facts.nodesByType.Semaine).toBeGreaterThan(0);
       expect(facts.nodesByType.Lesson).toBeGreaterThan(0);
       expect(facts.containers.length).toBeGreaterThan(0);
       expect(Array.isArray(facts.contentMultiParent)).toBe(true);

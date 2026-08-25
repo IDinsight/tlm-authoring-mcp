@@ -59,6 +59,13 @@ async function seedFreshStore(withRubric: boolean): Promise<KgNodeStore> {
   ];
   const extraEdges = [edge("covers", TLM_ID, courseId)];
 
+  // The refreshed fixture ships its own TLMs covering this Course, so leaving
+  // them in would make "which document covers it" ambiguous and the assertions
+  // below race whichever resolves first. This suite owns the document layer.
+  const withoutRealDocuments = nodes.filter((n) => !(n.labels ?? []).includes("TeachingLearningMaterial"));
+  const documentIds = new Set(nodes.filter((n) => (n.labels ?? []).includes("TeachingLearningMaterial")).map((n) => n.id));
+  const withoutRealCovers = edges.filter((e) => !documentIds.has(e.from) && !documentIds.has(e.to));
+
   if (withRubric) {
     extraNodes.push(
       node(RUBRIC_ID, "Rubric", { description: "Annexe 8", metadata: { scale: "oui-non", summary: "Tout Non bloque" } }),
@@ -76,8 +83,8 @@ async function seedFreshStore(withRubric: boolean): Promise<KgNodeStore> {
     );
   }
 
-  const meta: StoredMeta = { contentHash: "test", seededAt: "1970-01-01T00:00:00Z", adapterId: "test", nodeCount: nodes.length + extraNodes.length, edgeCount: edges.length + extraEdges.length };
-  await s.writeSlot(ns, "a", { nodes: [...nodes.map(strip), ...extraNodes], edges: [...edges.map(strip), ...extraEdges], meta });
+  const meta: StoredMeta = { contentHash: "test", seededAt: "1970-01-01T00:00:00Z", adapterId: "test", nodeCount: withoutRealDocuments.length + extraNodes.length, edgeCount: withoutRealCovers.length + extraEdges.length };
+  await s.writeSlot(ns, "a", { nodes: [...withoutRealDocuments.map(strip), ...extraNodes], edges: [...withoutRealCovers.map(strip), ...extraEdges], meta });
   return s;
 }
 
