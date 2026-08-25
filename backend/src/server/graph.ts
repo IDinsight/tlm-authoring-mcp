@@ -230,7 +230,16 @@ export async function namespaceStats(): Promise<Record<string, unknown>> {
   // the true count, and a note fires when the tail was dropped so the caller knows
   // to walk_graph for the rest rather than assume `roots` is exhaustive.
   const rootsNote = stats.rootsTotal > stats.roots.length
-    ? `Showing ${stats.roots.length} of ${stats.rootsTotal} roots (interesting kinds first); the rest are leaf nodes with no containment parent. Walk the graph for specific nodes.`
+    ? `Showing ${stats.roots.length} of ${stats.rootsTotal} roots (interesting kinds first). Walk the graph for the rest.`
+    : undefined;
+
+  // Say plainly that these are attached, not stranded. The old response counted
+  // them as roots and called the tail "leaf nodes with no containment parent",
+  // which reads as ~100 orphans to clean up — they are ci/maths' MOHEBS
+  // illustrative Activities, reached by reverse lookup from the standard they
+  // align to, and deleting them would silently strip lessons of their examples.
+  const alignmentNote = stats.attachedByAlignment.count > 0
+    ? `${stats.attachedByAlignment.count} node(s) are attached to a standard by their own hasEducationalAlignment/supports edge rather than being contained. They are NOT orphans and are excluded from \`roots\` — reach them by walking 'in' from the standard.`
     : undefined;
 
   return {
@@ -241,6 +250,9 @@ export async function namespaceStats(): Promise<Record<string, unknown>> {
     roots: stats.roots,
     rootsTotal: stats.rootsTotal,
     ...(rootsNote ? { rootsNote } : {}),
+    attachedByAlignment: stats.attachedByAlignment,
+    ...(alignmentNote ? { alignmentNote } : {}),
+    isolatedCount: stats.isolatedCount,
     draft,
     coverageFlags,
   };
@@ -374,7 +386,7 @@ export function registerGraphTools(server: McpServer) {
     {
       title: "Namespace orientation snapshot",
       description:
-        "A cheap, argument-free snapshot of the active workspace/grade/subject: `nodeCounts` (per LC label), `edgeCounts` (per edge type), `roots` (nodes with no inbound containment edge — Course/StandardsFramework/orphan groupings, each with id + labels + description), `draft` (whether one is open and how many edits it stages), and `coverageFlags` (high-level orientation hints). Run this FIRST, before writing any walk_graph query, to see the shape of the graph — and this is where you find the subject's Course content roots (id + name) to walk from (it replaced list_courses; filter `roots` by labels including 'Course'). Also carries `physicalSlot` — the slot ('a'/'b') these counts were read from. Read-only; no audit event.",
+        "A cheap, argument-free snapshot of the active workspace/grade/subject: `nodeCounts` (per LC label), `edgeCounts` (per edge type), `roots` (genuinely unplaced nodes — Course/StandardsFramework/stranded groupings, each with id + labels + description; a node that aligns itself to a standard, or that a lesson attaches by usesRoutine, is NOT a root and is summarised under `attachedByAlignment` instead), `isolatedCount` (nodes NO edge touches in any direction — unlike a root, this is unambiguously wrong and is the number to act on), `draft` (whether one is open and how many edits it stages), and `coverageFlags` (high-level orientation hints). Run this FIRST, before writing any walk_graph query, to see the shape of the graph — and this is where you find the subject's Course content roots (id + name) to walk from (it replaced list_courses; filter `roots` by labels including 'Course'). Also carries `physicalSlot` — the slot ('a'/'b') these counts were read from. Read-only; no audit event.",
       inputSchema: {},
     },
     guarded(async () => asJson(await namespaceStats())),
