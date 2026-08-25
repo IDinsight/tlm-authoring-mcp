@@ -118,34 +118,37 @@ describe("kg-export — LC ontology (maths)", () => {
   it("categorizes nodes by LC label; taxonomy lists the present labels in order", async () => {
     const graph = (await exportNamespace(mathsNs))!;
     expect(graph).toBeTruthy();
-    // LessonGrouping = 25 chapters + 23 weeks (weeks are canonical content groupings now).
-    expect(graph.meta.counts.byKind).toMatchObject({ StandardsFramework: 1, Course: 2, LessonGrouping: 48, Lesson: 137, Activity: 322, LearningComponent: 80 });
+    // One Course and 23 week groupings: the Student's Book Course, its 25
+    // chapters, their container Lessons and 218 placeholder Activities all went
+    // away when it became a TeachingLearningMaterial.
+    expect(graph.meta.counts.byKind).toMatchObject({ StandardsFramework: 1, Course: 1, LessonGrouping: 23, Lesson: 112, Activity: 104, LearningComponent: 32 });
     expect(graph.meta.counts.byKind.StandardsFrameworkItem).toBeGreaterThan(0);
     expect(graph.meta.counts.byKind.Curriculum).toBeUndefined(); // canonical: relabeled to Activity/LessonGrouping
-    expect(graph.meta.counts.byKind.Course).toBe(2);             // two content roots: "Outil de l'élève" (student) + "Guide de l'enseignant" (teacher)
+    expect(graph.meta.counts.byKind.Course).toBe(1);             // one content Course since the TLM migration
     // every node's legend category IS its LC label — no subject roles/kinds
     expect(graph.nodes.every((n) => n.cat === n.label && n.kind === n.label)).toBe(true);
-    // + Material and InstructionalRoutine: the shared "fiche de leçon" routine (Phase 1).
-    expect(graph.meta.taxonomy.map((x) => x.key)).toEqual(["StandardsFramework", "StandardsFrameworkItem", "Course", "LessonGrouping", "Lesson", "Activity", "Material", "LearningComponent", "InstructionalRoutine"]);
+    // + Material and InstructionalRoutine: the shared "fiche de leçon" routine
+    // (Phase 1); + the document layer the TLM migration added.
+    expect(graph.meta.taxonomy.map((x) => x.key)).toEqual(["StandardsFramework", "StandardsFrameworkItem", "Course", "LessonGrouping", "Lesson", "Activity", "Material", "LearningComponent", "TeachingLearningMaterial", "Formatter", "FormatterSpec", "InstructionalRoutine"]);
     expect(graph.meta.taxonomy.every((x) => /^#[0-9a-f]{6}$/i.test(x.color) && x.label.fr && x.label.en)).toBe(true);
   });
 
-  it("declares the LC lenses present in the data: standards + components + curriculum + progression, then by-type", async () => {
+  it("declares the LC lenses present in the data: standards + components + curriculum + documents, then by-type", async () => {
     const graph = (await exportNamespace(mathsNs))!;
-    // Maths has every layer: a standards spine, LearningComponents, the content
-    // tree (Course/Lesson/Activity), and chapter prerequisites (hasDependency →
-    // buildsTowards). So all four LC lenses + the generic view appear.
-    expect(graph.meta.viewConfig.views.map((v) => v.id)).toEqual(["standards", "components", "curriculum", "progression", "generic"]);
+    // Maths has a standards spine, LearningComponents, the content tree
+    // (Course/Lesson/Activity) and — since the TLM migration — a document layer.
+    // The progression lens is gone with the chapter prerequisites: ci/maths
+    // carries no hasDependency edges any more.
+    expect(graph.meta.viewConfig.views.map((v) => v.id)).toEqual(["standards", "components", "curriculum", "documents", "generic"]);
     // Standards is the full containment tree (former "Hierarchy") — components and
     // curriculum fold in via hasChild, so it stays a grouped-spine on the framework.
     const standardsView = graph.meta.viewConfig.views.find((v) => v.id === "standards") as any;
     expect(standardsView.shape).toBe("grouped-spine");
     expect(standardsView.params).toMatchObject({ anchorKind: "StandardsFramework", expandEdge: "hasChild" });
     expect(standardsView.params.groupBy).toEqual([]);
-    const progressionView = graph.meta.viewConfig.views.find((v) => v.id === "progression") as any;
-    expect(progressionView.params).toMatchObject({ edge: "buildsTowards" });
-    // hasDependency is normalised onto buildsTowards for the progression view.
-    expect(graph.edges.some((e) => e.rel === "buildsTowards")).toBe(true);
+    // No hasDependency in the graph, so no progression lens is declared — and
+    // nothing is left to normalise onto buildsTowards.
+    expect(graph.meta.viewConfig.views.some((v) => v.id === "progression")).toBe(false);
     expect(graph.edges.some((e) => e.rel === "hasDependency")).toBe(false);
   });
 
@@ -206,11 +209,11 @@ describe("kg-export — LC ontology (maths)", () => {
     expect(graph.edges.every((e) => typeof e.rel === "string" && e.rel.length > 0)).toBe(true);
     // Content containment folds to a hasChild TRAVERSAL edge but keeps its real
     // type — so Course→chapter badges as "hasPart", not a blanket "hasChild".
-    // (Two Courses now exist; pin the student book by its title. The Course also
-    // carries usesRoutine→formatter edges now, so scope to the containment edges.)
-    const course = graph.nodes.find((n) => n.label === "Course" && n.desc === "Outil de l'élève")!;
+    // (One Course since the TLM migration. It also carries a usesRoutine edge,
+    // so scope to the containment edges.)
+    const course = graph.nodes.find((n) => n.label === "Course")!;
     const courseEdges = graph.edges.filter((e) => e.s === course.id && e.rel === "hasPart");
-    expect(courseEdges.length).toBe(25);
+    expect(courseEdges.length).toBe(23);   // its 23 weeks
     expect(courseEdges.every((e) => e.r === "hasChild" && e.rel === "hasPart")).toBe(true);
 
     // An illustrative Activity is re-parented under the LearningComponent it

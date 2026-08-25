@@ -10,7 +10,7 @@
 // (dry-run = diff + token, no state change; confirm = atomic draft apply), and a
 // faithful re-parse of the draft.
 import { describe, it, expect, beforeAll, beforeEach, afterAll } from "vitest";
-import { seedStore, fakeStorage, CI_MATHS } from "../../__tests__/index.js";
+import { seedStore, fakeStorage, CI_MATHS, seedSyntheticChapters, SYNTHETIC_IDS } from "../../__tests__/index.js";
 import { subjectDir, KG_FIXTURE } from "../../__tests__/index.js";
 import { resolveAdapter } from "../../adapters/index.js";
 import { toRawEnvelope } from "../../curriculum/index.js";
@@ -71,8 +71,10 @@ async function runRecipe<A>(mutation: GraphMutation<A>, args: A) {
 // take the lesson from a week rather than the chapter.
 function pick(graph: MutationGraph) {
   const model = modelOf(graph);
-  const chapter = model.unitsOfKind("Chapitre").sort((a, b) => (a.order ?? 0) - (b.order ?? 0))[0];
+  // ci/maths retired its chapters with the Student's Book, so the "chapter" here
+  // is just a second grouping to move things between — take the first week.
   const week = model.unitsOfKind("Semaine").find((candidate) => model.childrenOf(candidate.id).some((child) => child.kind === "Lesson"))!;
+  const chapter = model.unitsOfKind("Semaine").sort((a, b) => (a.order ?? 0) - (b.order ?? 0))[0];
   const lesson = model.childrenOf(week.id).find((child) => child.kind === "Lesson")!;
   // A standard's kind is its statementType (many values); find one by its
   // structural class instead (a leaf SFI is normalizedStatementType "Standard").
@@ -207,14 +209,15 @@ describe("typed-add core behaviors (boilerplate, supports direction, root node)"
 
 describe("move_node + reposition + set_content", () => {
   it("move_node rehomes an activity along hasPart, leaving its alignment (hasEducationalAlignment) axis intact", async () => {
-    // Canonical nesting: chapter ▸ Lesson ▸ Activity. Move an activity between two
-    // chapters' Student's-Book lessons; its alignment edge (Activity→expectation)
-    // must survive.
+    // Canonical nesting: chapter ▸ Lesson ▸ Activity. From the SYNTHETIC graph:
+    // ci/maths has no Activity under a Lesson any more (its illustrative tasks
+    // align outward and are contained by nothing), so the shape this mechanic
+    // needs has to be built.
+    await seedSyntheticChapters(store, ns);
     const published = await readPublished();
     const model = modelOf(published);
-    const lessons = model.unitsOfKind("Lesson").filter((lesson) => model.childrenOf(lesson.id).some((child) => child.kind === "Activity"));
-    const fromLesson = lessons[0];
-    const toLesson = lessons[1];
+    const fromLesson = model.byId.get(SYNTHETIC_IDS.lessonA)!;
+    const toLesson = model.byId.get(SYNTHETIC_IDS.lessonB)!;
     const activity = model.childrenOf(fromLesson.id).find((child) => child.kind === "Activity")!;
     const alignEdges = published.edges.filter((edge) => edge.type === "hasEducationalAlignment" && edge.from === activity.id).map((edge) => edge.id);
     expect(alignEdges.length).toBeGreaterThan(0);

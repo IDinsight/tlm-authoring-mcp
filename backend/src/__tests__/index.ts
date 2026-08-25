@@ -9,3 +9,4 @@
  */
 export * from "./fixtures.js";
 export * from "./harness.js";
+export * from "./synthetic.js";

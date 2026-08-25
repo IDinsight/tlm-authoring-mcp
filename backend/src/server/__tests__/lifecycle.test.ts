@@ -55,7 +55,7 @@ const withActiveContextAs = <T>(actor: Actor, fn: () => Promise<T>): Promise<T> 
 async function stageOneEditAsCurator(): Promise<void> {
   await withActiveContextAs(CURATOR, async () => {
     const nodes = await store.listNodes(ns, "a");
-    const chapterId = nodes.find((n) => n.type === "Chapitre")!.id;
+    const chapterId = nodes.find((n) => (n.labels ?? []).includes("LessonGrouping"))!.id;
     const args = { namespace: ns, nodeId: chapterId, position: 9 };
     const preview = await runGraphMutation({ namespace: ns, mutation: reposition, args });
     if (preview.phase !== "preview") throw new Error("expected a preview");

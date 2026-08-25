@@ -11,7 +11,7 @@
 import { describe, it, expect, beforeAll, beforeEach, afterAll } from "vitest";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js";
-import { seedStore, seededContexts, fakeStorage, CI_MATHS, withActiveContext as inContext } from "../../__tests__/index.js";
+import { seedStore, seededContexts, fakeStorage, CI_MATHS, withActiveContext as inContext, seedSyntheticChapters, SYNTHETIC_IDS } from "../../__tests__/index.js";
 import {
   __setKgStoreForTest, kgNamespace, edgeId as makeEdgeId,
   __resetMutationsForTest, __resetDraftTokensForTest,
@@ -50,43 +50,42 @@ async function draft(): Promise<{ nodes: StoredNode[]; edges: StoredEdge[] } | n
 }
 
 /*
- * A movable Activity, discovered from the seed rather than hard-coded so a
- * re-import cannot silently invalidate the suite: an Activity filed under one
- * Lesson by hasPart that also ALIGNS to a standard, plus a second Lesson to move
- * it to. The alignment edge is the "other axis" every assertion below watches —
- * it must survive a move along hasPart.
+ * A movable Activity: contained by one Lesson via hasPart while ALIGNED to a
+ * standard, plus a second Lesson to move it to. The alignment is the "other
+ * axis" every assertion below watches — it must survive a move along hasPart.
+ *
+ * This comes from the SYNTHETIC graph, not the curriculum: ci/maths has no
+ * Activity under a Lesson any more (its 104 illustrative tasks align outward
+ * and are contained by nothing), so the shape this mechanic needs has to be
+ * built. Being hand-built also makes the assertions deterministic.
  */
 async function movableActivity(): Promise<{ activityId: string; fromLessonId: string; toLessonId: string; alignEdgeIds: string[] }> {
-  const { nodes, edges } = await slot("a");
-  const isLesson = new Set(nodes.filter((n) => (n.labels ?? []).includes("Lesson")).map((n) => n.id));
-  const parentOf = new Map(edges.filter((e) => e.type === HAS_PART).map((e) => [e.to, e.from]));
-
-  const activity = nodes.find((node) =>
-    (node.labels ?? []).includes("Activity") &&
-    isLesson.has(parentOf.get(node.id) ?? "") &&
-    edges.some((edge) => edge.type === ALIGN && edge.from === node.id));
-  expect(activity, "the CI-maths fixture should hold an aligned Activity under a Lesson").toBeTruthy();
-
-  const fromLessonId = parentOf.get(activity!.id)!;
-  const toLessonId = [...isLesson].find((id) => id !== fromLessonId)!;
-  const alignEdgeIds = edges.filter((edge) => edge.type === ALIGN && edge.from === activity!.id).map((edge) => edge.id);
-  return { activityId: activity!.id, fromLessonId, toLessonId, alignEdgeIds };
+  await seedSyntheticChapters(store, ns);
+  const { edges } = await slot("a");
+  const alignEdgeIds = edges
+    .filter((edge) => edge.type === ALIGN && edge.from === SYNTHETIC_IDS.activity)
+    .map((edge) => edge.id);
+  expect(alignEdgeIds.length, "the synthetic graph should align its Activity").toBeGreaterThan(0);
+  return {
+    activityId: SYNTHETIC_IDS.activity,
+    fromLessonId: SYNTHETIC_IDS.lessonA,
+    toLessonId: SYNTHETIC_IDS.lessonB,
+    alignEdgeIds,
+  };
 }
+
 
 /*
- * A chapter with a grandchild, for the subtree-detaching case: moving the chapter
- * under something two levels inside it is the move that leaves a ring.
+ * A grouping with a grandchild, for the subtree-detaching case: moving the
+ * grouping under something two levels inside it is the move that leaves a ring.
+ * From the synthetic graph (chapter → lesson-a → activity), since ci/maths no
+ * longer nests content that deep under a grouping.
  */
 async function aSubtree(): Promise<{ chapterId: string; grandchildId: string }> {
-  const { nodes, edges } = await slot("a");
-  const childrenOf = (id: string) => edges.filter((e) => e.type === HAS_PART && e.from === id).map((e) => e.to);
-  const chapter = nodes.find((node) =>
-    (node.labels ?? []).includes("LessonGrouping") &&
-    childrenOf(node.id).some((child) => childrenOf(child).length > 0))!;
-  expect(chapter, "the CI-maths fixture should hold a chapter two levels deep").toBeTruthy();
-  const child = childrenOf(chapter.id).find((id) => childrenOf(id).length > 0)!;
-  return { chapterId: chapter.id, grandchildId: childrenOf(child)[0] };
+  await seedSyntheticChapters(store, ns);
+  return { chapterId: SYNTHETIC_IDS.chapter, grandchildId: SYNTHETIC_IDS.activity };
 }
+
 
 // The standard the most content nodes align to — the blast radius a non-containment
 // `via` would have had.

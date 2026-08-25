@@ -64,9 +64,8 @@ async function run<A>(mutation: GraphMutation<A>, args: A) {
 // The first chapter (a content LessonGrouping) — a stable parent to attach a
 // batch of new Lessons under.
 function firstChapterId(graph: MutationGraph): string {
-  const chapter = graph.nodes
-    .filter((node) => (node.labels ?? []).includes("LessonGrouping"))
-    .find((node) => (node.properties?.raw as Record<string, unknown> | undefined)?.groupName === "Chapitre");
+  // Whatever grouping this subject has (ci/maths retired its chapters).
+  const chapter = graph.nodes.find((node) => (node.labels ?? []).includes("LessonGrouping"));
   return chapter!.id;
 }
 
