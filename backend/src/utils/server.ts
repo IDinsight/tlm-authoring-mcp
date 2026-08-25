@@ -59,9 +59,17 @@ function shapeOf(data: unknown): unknown {
   return describe(data);
 }
 
+// What to tell a caller whose payload blew the cap, when the tool has no way to
+// narrow the request. The generic line lists every escape hatch the server offers
+// SOMEWHERE — limit, cursor, nodeTypes — which is good advice for walk_graph and
+// unactionable for a tool like walk_document that takes neither. A tool that knows
+// a better remedy passes its own through `asJson`.
+const GENERIC_OVERSIZE_HINT =
+  "Narrow the request: add/lower a limit, page with a cursor, apply filters (nodeTypes/edgeTypes), request a smaller slice, or use a summary returnMode. Raise TLM_MAX_RESPONSE_BYTES only if a larger response is genuinely required.";
+
 // The small replacement returned when a payload would exceed the cap. isError so
 // the caller knows it got no usable data, plus the byte math + shape + how to fix.
-function oversizeEnvelope(bytes: number, data: unknown): ToolResult {
+function oversizeEnvelope(bytes: number, data: unknown, remedy?: string): ToolResult {
   const cap = maxResponseBytes();
   const body = {
     error: {
@@ -71,17 +79,23 @@ function oversizeEnvelope(bytes: number, data: unknown): ToolResult {
       cap,
     },
     shape: shapeOf(data),
-    hint: "Narrow the request: add/lower a limit, page with a cursor, apply filters (nodeTypes/edgeTypes), request a smaller slice, or use a summary returnMode. Raise TLM_MAX_RESPONSE_BYTES only if a larger response is genuinely required.",
+    hint: remedy ?? GENERIC_OVERSIZE_HINT,
   };
   return { content: [{ type: "text", text: serializeResponse(body) }], isError: true };
 }
 
-// Wrap any value in the MCP text-content envelope tools must return — capped by
-// the universal backstop above.
-export const asJson = (data: unknown): ToolResult => {
+/**
+ * Wrap any value in the MCP text-content envelope tools must return — capped by
+ * the universal backstop above.
+ *
+ * `oversizeRemedy` is the way OUT of the cap for this particular tool, used in
+ * place of the generic hint when the payload is withheld. Pass it wherever the
+ * generic advice would send the caller nowhere.
+ */
+export const asJson = (data: unknown, oversizeRemedy?: string): ToolResult => {
   const text = serializeResponse(data);
   const bytes = Buffer.byteLength(text, "utf8");
-  return bytes <= maxResponseBytes() ? { content: [{ type: "text", text }] } : oversizeEnvelope(bytes, data);
+  return bytes <= maxResponseBytes() ? { content: [{ type: "text", text }] } : oversizeEnvelope(bytes, data, oversizeRemedy);
 };
 
 // Return a textual payload tagged with a MIME type so the client knows how to

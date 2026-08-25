@@ -10,6 +10,9 @@
  *     orientation snapshot, and namespace scoping.
  */
 import { describe, it, expect, beforeAll, beforeEach, afterAll } from "vitest";
+import { Client } from "@modelcontextprotocol/sdk/client/index.js";
+import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js";
+import { buildServer } from "../index.js";
 import { seedStore, seededContexts, fakeStorage, CI_MATHS , withActiveContext as inContext } from "../../__tests__/index.js";
 import { newSessionState, runInSession } from "../../context/index.js";
 import { subjectDir, KG_FIXTURE } from "../../__tests__/index.js";
@@ -22,7 +25,7 @@ import { addNode, addNodes, createEdges } from "../../kg-recipes/index.js";
 import { __setStorageForTest } from "../../storage/index.js";
 import { __setActorForTest, type Actor } from "../../actor.js";
 import { activateContext } from "../../activate.js";
-import { walkActiveGraph, walkDocument, walkDocumentSection, namespaceStats, exportGraphView } from "../graph.js";
+import { walkActiveGraph, walkDocument, walkDocumentSection, namespaceStats, exportGraphView, documentOversizeRemedy } from "../graph.js";
 import type { KgNodeStore, StoredMeta, MutationGraph } from "../../kg-store/index.js";
 import type { StorageAdapter, HistoryFile, CurriculumModel, RawGraphSnapshot } from "../../types.js";
 
@@ -366,6 +369,91 @@ async function stageADocument(): Promise<{ tlmId: string; courseId: string }> {
 
   return { tlmId, courseId };
 }
+
+// Hang `count` DocumentSections off a staged TLM, so the document has a real
+// section spine to be read one piece at a time.
+async function stageSections(tlmId: string, count: number): Promise<string[]> {
+  const sectionIds = Array.from({ length: count }, () => mintNodeId());
+
+  const addArgs = {
+    namespace: ns,
+    items: sectionIds.map((sectionId, index) => ({
+      label: "DocumentSection", newNodeId: sectionId, title: `Semaine ${index + 1}`, position: index + 1,
+    })),
+  };
+  const addPreview = await runGraphMutation({ namespace: ns, mutation: addNodes, args: addArgs });
+  if (addPreview.phase !== "preview") throw new Error("expected add preview");
+  await runGraphMutation({ namespace: ns, mutation: addNodes, args: addArgs, confirm: true, token: addPreview.confirmationToken });
+
+  const edgeArgs = { namespace: ns, edges: sectionIds.map((sectionId) => ({ edgeType: "hasPart", fromId: tlmId, toId: sectionId })) };
+  const edgePreview = await runGraphMutation({ namespace: ns, mutation: createEdges, args: edgeArgs });
+  if (edgePreview.phase !== "preview") throw new Error("expected edge preview");
+  await runGraphMutation({ namespace: ns, mutation: createEdges, args: edgeArgs, confirm: true, token: edgePreview.confirmationToken });
+
+  return sectionIds;
+}
+
+describe("walk_document oversize remedy", () => {
+  it("sends a section-spined document to walk_document_section, naming the ids' source", async () => {
+    const { payload, tlmId } = await withActiveContext(CURATOR, async () => {
+      const { tlmId } = await stageADocument();
+      await stageSections(tlmId, 3);
+      return { payload: await walkDocument({ tlmId, slot: "draft" }), tlmId };
+    });
+
+    const remedy = documentOversizeRemedy(payload)!;
+    // The generic hint offers a limit and a cursor; this tool has neither, so the
+    // remedy has to name the tool that CAN read the document, and — since the
+    // withheld payload took the section ids with it — how to get those ids back.
+    expect(remedy).toMatch(/walk_document_section/);
+    expect(remedy).toMatch(/walk_graph/);
+    expect(remedy).toMatch(/DocumentSection/);
+    expect(remedy).toContain(tlmId);
+    expect(remedy).toMatch(/3 sections/);
+    expect(remedy).toMatch(/Do NOT retry/);
+  });
+
+  it("REACHES the caller: the registered tool puts the remedy in the refusal", async () => {
+    // The core returning a good string is worthless if the registration forgets to
+    // pass it — this drives the real assembled server so that wiring is covered.
+    const prior = process.env.TLM_MAX_RESPONSE_BYTES;
+    process.env.TLM_MAX_RESPONSE_BYTES = "700"; // force the refusal path
+    try {
+      const refusal = await withActiveContext(CURATOR, async () => {
+        const { tlmId } = await stageADocument();
+        await stageSections(tlmId, 3);
+
+        const client = new Client({ name: "test-client", version: "0.0.0" });
+        const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
+        await Promise.all([client.connect(clientTransport), buildServer().connect(serverTransport)]);
+        try {
+          const result = await client.callTool({ name: "walk_document", arguments: { tlmId, slot: "draft" } });
+          return JSON.parse((result as { content: Array<{ text: string }> }).content[0].text) as Record<string, unknown>;
+        } finally {
+          await client.close();
+        }
+      });
+
+      expect((refusal.error as { code: string }).code).toBe("RESPONSE_TOO_LARGE");
+      expect(refusal.hint).toMatch(/walk_document_section/);
+      expect(refusal.hint).not.toMatch(/add\/lower a limit/);
+    } finally {
+      if (prior === undefined) delete process.env.TLM_MAX_RESPONSE_BYTES;
+      else process.env.TLM_MAX_RESPONSE_BYTES = prior;
+    }
+  });
+
+  it("declines to advise when there is no section spine, leaving the generic hint", async () => {
+    const payload = await withActiveContext(CURATOR, async () => {
+      const { tlmId } = await stageADocument();
+      return walkDocument({ tlmId, slot: "draft" });
+    });
+
+    // A Course-fallback document cannot be read section by section, so inventing
+    // advice here would send the caller somewhere that does not exist.
+    expect(documentOversizeRemedy(payload)).toBeUndefined();
+  });
+});
 
 describe("walk_document (tool core)", () => {
   it("resolves a staged TLM: its assembly guide + the Course it covers (fallback scope)", async () => {
