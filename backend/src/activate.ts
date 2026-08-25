@@ -16,8 +16,8 @@
 import { slug, timed, timedSync } from "./utils/index.js";
 import { setActiveContext, setAvailableContexts, listAvailableContexts, getActiveContext, sessionState, type ActiveContext } from "./context/index.js";
 import { resolveAdapter, buildAdapterFromStoredProfile, setActiveAdapter } from "./adapters/index.js";
-import { getKgStore, kgNamespace, parseNamespace } from "./kg-store/index.js";
-import { toRawEnvelope, PRELOADED_MODEL_KEY, PRELOADED_SLOT_KEY } from "./curriculum/index.js";
+import { getKgStore, kgNamespace, parseNamespace, hashConfig } from "./kg-store/index.js";
+import { toRawEnvelope, readCachedModel, writeCachedModel, PRELOADED_MODEL_KEY, PRELOADED_SLOT_KEY, type ModelVersion } from "./curriculum/index.js";
 import type { CurriculumModel } from "./types.js";
 
 export type ActivateResult =
@@ -65,10 +65,10 @@ export async function activateContext(workspace: string, grade: string, subject:
   }
   if (!pointer) return { ok: false, error: `No graph in the store for namespace '${ns}'. Import it first.`, available };
   const publishedSlot = pointer.publishedSlot;
-  const [meta, nodes, edges, storedConfig] = await timed("activate.readGraph", () => Promise.all([
+  // Meta and config are FIELDS ON THE POINTER DOCUMENT, so these two are cheap
+  // single-doc reads — unlike listNodes/listEdges below, which pull thousands.
+  const [meta, storedConfig] = await timed("activate.readStamp", () => Promise.all([
     getKgStore().readMeta(ns, publishedSlot),
-    getKgStore().listNodes(ns, publishedSlot),
-    getKgStore().listEdges(ns, publishedSlot),
     getKgStore().readConfig(ns, publishedSlot),
   ]));
   if (!meta) return { ok: false, error: `The pointer for '${ns}' says slot '${publishedSlot}' is published, but that slot has no meta — the graph is corrupt. Re-import it.`, available };
@@ -82,9 +82,26 @@ export async function activateContext(workspace: string, grade: string, subject:
       return { ok: false, error: `The stored subject profile for '${ns}' is invalid and would mis-parse: ${(e as Error).message}. Fix it via edit_profile or re-import.`, available };
     }
   }
-  // The store holds the full raw graph; reconstruct the LC envelope and parse it
-  // into the spine model (non-spine nodes are dropped by parse).
-  const preloadedModel: CurriculumModel = timedSync("activate.parse", () => adapter.parse(toRawEnvelope({ nodes, edges })));
+  // Reuse the last hydration when nothing that feeds it has moved. The profile
+  // hash is part of the key because a profile-only publish leaves the graph hash
+  // untouched, yet the profile is what drives adapter.parse.
+  const version: ModelVersion = {
+    publishedSlot,
+    contentHash: meta.contentHash,
+    configHash: hashConfig(storedConfig ?? null),
+  };
+
+  let preloadedModel = readCachedModel(ns, version);
+  if (!preloadedModel) {
+    // The store holds the full raw graph; reconstruct the LC envelope and parse
+    // it into the spine model (non-spine nodes are dropped by parse).
+    const [nodes, edges] = await timed("activate.readGraph", () => Promise.all([
+      getKgStore().listNodes(ns, publishedSlot),
+      getKgStore().listEdges(ns, publishedSlot),
+    ]));
+    preloadedModel = timedSync("activate.parse", () => adapter.parse(toRawEnvelope({ nodes, edges })));
+    writeCachedModel(ns, version, preloadedModel);
+  }
 
   const bound = setActiveContext(match.workspace, match.grade, match.subject); // clears the session bag
   if (!bound.ok) return bound;

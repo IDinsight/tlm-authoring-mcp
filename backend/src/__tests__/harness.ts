@@ -19,10 +19,11 @@
  *     returned store — the harness deliberately stays out of that business.
  */
 import { readFileSync } from "node:fs";
+import { createHash } from "node:crypto";
 import { resolve } from "node:path";
 import { listAvailableContexts, newSessionState, runInSession, type ActiveContext } from "../context/index.js";
 import { resolveAdapter, getRegisteredProfile, getRegisteredGuide } from "../adapters/index.js";
-import { serializeModel } from "../curriculum/index.js";
+import { serializeModel, __clearModelCache } from "../curriculum/index.js";
 import { createMemoryKgStore, kgNamespace } from "../kg-store/index.js";
 import { __setStorageForTest } from "../storage/index.js";
 import { __setActorForTest, type Actor } from "../actor.js";
@@ -100,6 +101,9 @@ export function seededContexts(only?: ContextKey[]): ActiveContext[] {
 // published on slot "a". Returns the store so a suite can layer extra
 // namespaces (a catalog library, a document spine) on top before injecting it.
 export async function seedStore(options: SeedOptions = {}): Promise<KgNodeStore> {
+  // The hydrated-model cache is process-wide and survives a store swap, so a
+  // fresh store must start from a cold cache.
+  __clearModelCache();
   const store = createMemoryKgStore();
   for (const { workspace, grade, subject } of seededContexts(options.only)) {
     const adapter = resolveAdapter(workspace, grade, subject);
@@ -109,7 +113,7 @@ export async function seedStore(options: SeedOptions = {}): Promise<KgNodeStore>
     const namespace = kgNamespace(workspace, grade, subject);
     const { nodes, edges } = serializeModel(adapter.parse(raw), namespace);
     const meta: StoredMeta = {
-      contentHash: "test",
+      contentHash: createHash("sha256").update(JSON.stringify({ nodes, edges })).digest("hex"),
       seededAt: "1970-01-01T00:00:00Z",
       adapterId: adapter.id,
       nodeCount: nodes.length,
