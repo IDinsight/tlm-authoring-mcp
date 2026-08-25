@@ -83,7 +83,18 @@ The server hosts Supabase's delegated login/consent UI at `/oauth/consent` (henc
 - **Authentication → OAuth Server**: enabled, **Dynamic OAuth Apps** on,
   **Authorization Path** = `/oauth/consent`.
 - **Authentication → URL Configuration**: **Site URL** = `https://<service-url>`
-  (the TLM service — it serves the consent page for both MCP servers).
+  (the TLM service — it serves the consent page for both MCP servers), and **Redirect URLs**
+  must list every origin that starts a sign-in — there are two:
+  - `https://<service-url>/**` — the `/oauth/consent` page, i.e. signing in from **Claude**
+    while adding the connector.
+  - `https://senegal-ci-maths.web.app/**` and `https://senegal-ci-maths.firebaseapp.com/**` —
+    signing in from the **explorer**. Add `http://localhost:5173/**` for local explorer dev.
+
+  Both flows pass Supabase a `redirectTo`. An origin missing from this list is not an error:
+  Supabase silently falls back to the **Site URL**, so the user lands on the service root with
+  a valid token in the URL fragment and nothing to spend it on. `GET /` catches that case and
+  forwards the token to the explorer (`backend/src/landing.ts`), but it is a net, not the fix —
+  the allow-list is.
 - **Authentication → Users**: invite designers by email (they set a password via the invite link).
 
 ## Claude connector
@@ -97,6 +108,7 @@ user to the consent page above.
 
 ```bash
 curl -s https://<service-url>/health                                   # → ok  (NOT /healthz — see note)
+curl -s https://<service-url>/ | grep -o '<title>.*</title>'           # → landing page, not "Cannot GET /"
 curl -s https://<service-url>/.well-known/oauth-protected-resource     # → AS pointer
 curl -si -X POST https://<service-url>/mcp -H 'content-type: application/json' -d '{}' \
   | head -3                                                            # → 401 + WWW-Authenticate

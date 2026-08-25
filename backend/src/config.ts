@@ -62,6 +62,17 @@ export function superAdmins(): string[] {
     .filter(Boolean);
 }
 
+// Where the KG explorer is served from (Firebase Hosting), most-preferred first.
+// One value, two readers: it is the CORS allow-list for /kg, and it is where the
+// root landing page forwards a sign-in that Supabase bounced to this service
+// instead of the explorer. Read at call time so a deployment can override it
+// (KG_ALLOWED_ORIGINS, comma-separated) without a code change.
+export function explorerOrigins(): string[] {
+  const configured = process.env.KG_ALLOWED_ORIGINS
+    ?? "https://senegal-ci-maths.web.app,https://senegal-ci-maths.firebaseapp.com";
+  return configured.split(",").map((s) => s.trim().replace(/\/+$/, "")).filter(Boolean);
+}
+
 export const DOCX_MIME = "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
 
 // Base object-key prefix from env. The active grade/subject scope is appended in

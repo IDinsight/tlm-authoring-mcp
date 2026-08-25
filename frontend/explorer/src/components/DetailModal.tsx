@@ -1,6 +1,7 @@
 import { useEffect } from "react";
 import { X } from "lucide-react";
 import { makeT } from "../i18n";
+import { Markdown } from "../lib/markdown";
 import type { GraphModel } from "../lib/graphModel";
 import type { Lang } from "../types";
 
@@ -18,6 +19,14 @@ const SKIP = new Set([
   "description",
   "statement_code",
 ]);
+
+// Authored prose — a routine step's text, a document's assemblyGuide — is
+// markdown, and it belongs in a full-width block with real formatting rather
+// than squeezed into a key/value cell as literal `**` and lost line breaks.
+// Anything short and single-line is a scalar (position, materialType, …) and
+// stays in the compact grid.
+const isProse = (v: unknown): v is string =>
+  typeof v === "string" && (v.includes("\n") || v.length > 120);
 
 type Props = {
   lang: Lang;
@@ -102,6 +111,9 @@ export function DetailModal({ lang, model, id, onClose, onOpen }: Props) {
       ([, v]) => v != null && v !== "" && !(Array.isArray(v) && v.length === 0),
     );
 
+  const scalars = rows.filter(([, v]) => !isProse(v));
+  const prose = rows.filter((row): row is readonly [string, string] => isProse(row[1]));
+
   const parentId = model.inHasChild[id];
   const children = model.outTargets(id, "hasChild");
   const buildsTo = model.btOut[id] || [];
@@ -145,13 +157,13 @@ export function DetailModal({ lang, model, id, onClose, onOpen }: Props) {
         </div>
 
         <div className="overflow-auto px-5 pb-5 pt-1.5">
-          {rows.length > 0 && (
+          {scalars.length > 0 && (
             <div className="mt-4">
               <h3 className="mb-2 text-[11px] uppercase tracking-[0.05em] text-muted">
                 {t("properties")}
               </h3>
               <div className="grid grid-cols-[auto_1fr] gap-x-3.5 gap-y-1 text-[13px]">
-                {rows.map(([k, v]) => {
+                {scalars.map(([k, v]) => {
                   const disp = Array.isArray(v)
                     ? v.join(", ")
                     : typeof v === "object"
@@ -167,6 +179,17 @@ export function DetailModal({ lang, model, id, onClose, onOpen }: Props) {
               </div>
             </div>
           )}
+
+          {prose.map(([k, v]) => (
+            <div key={k} className="mt-4">
+              <h3 className="mb-2 text-[11px] uppercase tracking-[0.05em] text-muted">
+                {k}
+              </h3>
+              <div className="rounded-lg border border-line bg-panel2 px-3.5 py-2.5">
+                <Markdown text={v} />
+              </div>
+            </div>
+          ))}
 
           {parentId && (
             <RelBlock

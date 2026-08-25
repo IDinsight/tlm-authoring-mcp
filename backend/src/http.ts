@@ -29,11 +29,12 @@ import type { OAuthTokenVerifier } from "@modelcontextprotocol/sdk/server/auth/p
 import { isInitializeRequest } from "@modelcontextprotocol/sdk/types.js";
 import { buildServer } from "./server/index.js";
 import { listExportNamespaces, exportNamespace, exportCatalog, exportCatalogEntry, exportTerminology } from "./kg-export.js";
-import { CONFIG, basePrefix, DEFAULT_WORKSPACE } from "./config.js";
+import { CONFIG, basePrefix, DEFAULT_WORKSPACE, explorerOrigins } from "./config.js";
 import { newSessionState, runInSession, listAvailableContexts, type SessionState } from "./context/index.js";
 import { readGlobalObject, writeGlobalObject } from "./storage/index.js";
 import { activateContext, refreshAvailableContexts } from "./activate.js";
 import { consentPage } from "./consent.js";
+import { landingPage } from "./landing.js";
 import { resolveActor, withMemberships, runAsActor, type Actor } from "./actor.js";
 import { authorize } from "./authz.js";
 import { resolveMemberships, provisionMemberships, type ProvisionGrant } from "./workspaces/index.js";
@@ -205,9 +206,7 @@ async function auditProvisioning(identity: Actor, grant: ProvisionGrant): Promis
 // curator role in that namespace's workspace, whatever KG_EXPLORER_PUBLIC says.
 function registerKgRoutes(app: express.Express, authEnabled: boolean, verifier: OAuthTokenVerifier | null, settings: AuthSettings): void {
   const explorerPublic = process.env.KG_EXPLORER_PUBLIC === "1";
-  const allowed = (process.env.KG_ALLOWED_ORIGINS
-    ?? "https://senegal-ci-maths.web.app,https://senegal-ci-maths.firebaseapp.com")
-    .split(",").map((s) => s.trim()).filter(Boolean);
+  const allowed = explorerOrigins();
   const isLocalhost = (o: string) => /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(o);
 
   // CORS: echo the origin only when it is allow-listed (or localhost for dev).
@@ -449,6 +448,13 @@ async function main() {
   const health = (_req: express.Request, res: express.Response) => { res.status(200).send("ok"); };
   app.get("/health", health);
   app.get("/healthz", health);
+
+  // Root. Nothing is served from here — but it is where Supabase drops a login
+  // whose redirect target was not allow-listed, token in the fragment, so the
+  // page hands that token on to the explorer instead of dead-ending. See
+  // landing.ts.
+  const landing = landingPage(explorerOrigins()[0] ?? "");
+  app.get("/", (_req, res) => { res.type("html").send(landing); });
 
   const authEnabled = !!SUPABASE_URL;
   // One verifier instance, shared by /mcp's bearer middleware and the read-only
