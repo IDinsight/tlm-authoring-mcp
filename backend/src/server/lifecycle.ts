@@ -37,6 +37,7 @@ import {
 import { authorize } from "../authz.js";
 import { currentActor } from "../actor.js";
 import { randomUUID } from "node:crypto";
+import { RETURN_MODE_NOTE } from "./tool-notes.js";
 
 // Small helper: namespace for the active context. Every tool below asks for
 // this the same way.
@@ -236,7 +237,7 @@ export function registerLifecycleTools(server: McpServer) {
       title: "Publish the draft to LIVE",
       description:
         "Promote the current draft on the active grade/subject to published — generation reads published, so this is the step that makes edits VISIBLE. REQUIRES CONFIRMATION: dry-run returns a summary of the change (counts) and a confirmationToken; ask the user to approve, then call again with confirm:true and the token. Approver only. If the draft has moved since dry-run (someone else edited), the confirm is rejected — dry-run again to see the new summary. Self-authored edits are recorded on the publish audit either way; strict separation-of-duties can be enabled via TLM_ALLOW_SELF_APPROVE=0. To check the draft against the subject's coverage expectations before publishing, run review_draft. " +
-        "`returnMode` (default 'summary') controls the dry-run response: 'summary' returns `counts` {nodesAdded,edgesAdded,nodesChanged,nodesRemoved,edgesRemoved} instead of the whole-draft diff (which is 200+ KB on a large draft and can overflow the token cap); 'full' also attaches the whole `diff` (and any staged profileDiff). To inspect the full diff before publishing, call diff_draft.",
+        "" + RETURN_MODE_NOTE + " The 'full' diff also carries any staged profileDiff. To inspect the full diff before publishing, call diff_draft.",
       inputSchema: {
         confirm: z.boolean().optional(),
         confirmationToken: z.string().optional(),
@@ -257,7 +258,7 @@ export function registerLifecycleTools(server: McpServer) {
       title: "Discard the current draft",
       description:
         "Throw away the current draft on the active grade/subject. Published is untouched; only draft edits are dropped. REQUIRES CONFIRMATION: dry-run summarises what will be discarded (counts) and returns a confirmationToken; ask the user to approve, then call again with confirm:true and the token. Curator or approver may call. If the draft moves between dry-run and confirm, the confirm is rejected. " +
-        "`returnMode` (default 'summary') controls the dry-run response: 'summary' returns `counts` {nodesAdded,edgesAdded,nodesChanged,nodesRemoved,edgesRemoved} instead of the whole-draft diff (which can overflow the token cap on a large draft); 'full' also attaches the whole `diff` (and any staged profileDiff). To inspect the full diff first, call diff_draft.",
+        "" + RETURN_MODE_NOTE + " The 'full' diff also carries any staged profileDiff. To inspect the full diff first, call diff_draft.",
       inputSchema: {
         confirm: z.boolean().optional(),
         confirmationToken: z.string().optional(),

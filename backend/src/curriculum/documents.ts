@@ -26,6 +26,7 @@
  */
 import type { CurriculumModel, RawGraphSnapshot } from "../types.js";
 import { nodeOut, edgeOut, type NodeOut, type EdgeOut } from "./read-projection.js";
+import { responseBytes } from "../utils/index.js";
 
 type RawNode = RawGraphSnapshot["nodes"][number];
 type RawEdge = RawGraphSnapshot["relationships"][number];
@@ -57,7 +58,7 @@ const documentMaxBytes = (): number => {
   const override = Number(process.env.TLM_DOCUMENT_MAX_BYTES);
   return Number.isFinite(override) && override > 0 ? override : DEFAULT_DOCUMENT_MAX_BYTES;
 };
-const byteLength = (value: unknown): number => Buffer.byteLength(JSON.stringify(value, null, 2), "utf8");
+const byteLength = (value: unknown): number => responseBytes(value);
 
 const labelsOf = (n: RawNode): string[] => n.labels ?? [];
 const props = (n: RawNode): Record<string, any> => (n.properties ?? {}) as Record<string, any>;

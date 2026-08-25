@@ -109,6 +109,43 @@ describe("firestore mode", () => {
     });
   });
 
+  it("review_draft omits the guide when includeGuide is false", async () => {
+    await inContext(maths, CURATOR, async () => {
+      const withGuide = await reviewDraft(true);
+      const without = await reviewDraft(false);
+
+      expect(String(withGuide.guide)).toContain("Coverage expectations");
+      expect(without.guide).toBeUndefined();
+      // hasGuide still reports the truth — only the payload is skipped.
+      expect(without.hasGuide).toBe(true);
+      expect(String(without.guideOmitted)).toMatch(/get_graph_guide/);
+
+      // The expensive half is the guide; the facts must still be there.
+      expect(without.structuralFacts).toBeDefined();
+      // The guide is roughly half of this response (measured ~20KB of ~42KB).
+      const size = (v: unknown) => JSON.stringify(v).length;
+      expect(size(without)).toBeLessThan(size(withGuide) * 0.6);
+    });
+  });
+
+  it("review_draft omits empty child histograms and zero assessment counts", async () => {
+    await inContext(maths, CURATOR, async () => {
+      const facts = (await reviewDraft()).structuralFacts as {
+        containers: Array<Record<string, unknown>>;
+      };
+      // "absent" means "empty" — a container never carries an empty axis object
+      // or an assessmentChildren:0, which was a third of this payload.
+      for (const container of facts.containers) {
+        expect(container.hasPartChildrenByType).not.toEqual({});
+        expect(container.hasChildChildrenByType).not.toEqual({});
+        expect(container.assessmentChildren).not.toBe(0);
+      }
+      // ...but the ones that DO have children still report them.
+      const populated = facts.containers.filter((c) => c.hasPartChildrenByType || c.hasChildChildrenByType);
+      expect(populated.length).toBe(facts.containers.length);
+    });
+  });
+
   it("review_draft reviews an open draft, and gates it for a non-curator", async () => {
     await store.createDraft(kgNamespace(maths.workspace, maths.grade, maths.subject));
     await inContext(maths, CURATOR, async () => {

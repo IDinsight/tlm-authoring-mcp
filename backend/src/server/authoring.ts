@@ -27,6 +27,7 @@ import { runBatchMutation, type ReturnMode } from "./batch.js";
 import { idempotencyPayloadHash } from "./idempotency.js";
 import { runCatalogWrite } from "./catalog-target.js";
 import type { SubjectAdapter } from "../types.js";
+import { PARKED_PAYLOAD_NOTE, IDEMPOTENCY_NOTE, RETURN_MODE_NOTE } from "./tool-notes.js";
 
 // The namespace the active subject binds to (same as the other mutation tool groups).
 function bind(adapter: SubjectAdapter): { namespace: string } {
@@ -85,20 +86,19 @@ export const KIND_PROPERTIES: Record<string, string[]> = {
 // fields, the bilan flag, the supports-edge case) — embedded in the tool
 // description so a caller sees what each kind expects at call time.
 const PER_KIND_GUIDE =
-  "Per-kind `properties` (canonical LC props → raw.*): " +
-  "Course (a ROOT — omit parentId): audience, educationalUse, courseCode, timeRequired · " +
-  "LessonGrouping (chapter/unit/week): groupName (REQUIRED — e.g. 'Chapitre'/'Unité'/'Semaine'), groupLevel, audience, educationalUse · " +
-  "Lesson: audience, educationalUse (set 'Assessment' to mark a bilan), timeRequired · " +
-  "Activity: audience, studentGroupingType, timeRequired · " +
-  "Assessment: audience, educationalUse (use 'Assessment'), variant, timeRequired · " +
-  "Material: content (body text/HTML), materialType, audience, educationalUse · " +
-  "LearningComponent: examples — attaches to its parent StandardsFrameworkItem via `supports` (no alignTo) · " +
-  "StandardsFrameworkItem: normalizedStatementType, statementType, statementCode, gradeLevel · " +
-  "InstructionalRoutine: timeRequired, 'metadata.summary' (cross-cutting rules) — attach a routine ROOT onto a Lesson/Course/Activity with `via:\"usesRoutine\"`; nest its steps/step-Materials under it by the default hasPart. " +
-  "TeachingLearningMaterial (the document — a ROOT, omit parentId): audience, mediumType, 'metadata.assemblyGuide' (its own build logic). PREFER create_document for a NEW document and add_section for its sections: those mint the node AND its `covers` edge to the curriculum atomically, whereas add_nodes leaves the document covering nothing until you remember create_edges — which fails silently (generation just reads an empty document). " +
-  "DocumentSection (the document's own spine — nest under the TLM by hasPart; add_section does this and the `covers` edge together): 'metadata.assemblyGuide'; a section with no `covers` target is front-matter. " +
-  "Formatter (a rendering concern — under the TLM or a DocumentSection): 'metadata.summary'; composed of FormatterSpec children by hasPart. " +
-  "FormatterSpec (one rule — under a Formatter): content (the rule text). " +
+  // The per-kind PROPERTY KEYS live in get_capabilities (`editable.batch.kindProperties`)
+  // as structured data — repeating them here cost ~570 tokens of every session's
+  // tool manifest. What stays is only what that table CANNOT express: which
+  // kinds are roots, which props are required, and the wiring traps.
+  "Per-kind `properties` are catalogued in get_capabilities → `editable.batch.kindProperties` (call it once if you need the exact keys for a kind). " +
+  "The rules that catalog does NOT carry: " +
+  "Course and TeachingLearningMaterial are ROOTS — omit parentId · " +
+  "LessonGrouping REQUIRES `groupName` (e.g. 'Chapitre'/'Unité'/'Semaine') · " +
+  "on a Lesson, educationalUse:'Assessment' is what marks a bilan · " +
+  "LearningComponent attaches to its parent StandardsFrameworkItem via `supports` (no alignTo) · " +
+  "attach an InstructionalRoutine ROOT onto a Lesson/Course/Activity with `via:\"usesRoutine\"`, then nest its steps/step-Materials under it by the default hasPart · " +
+  "a DocumentSection with no `covers` target is front-matter; a Formatter is composed of FormatterSpec children by hasPart, and the FormatterSpec carries the rule text in `content`. " +
+  "PREFER create_document for a NEW document and add_section for its sections: those mint the node AND its `covers` edge atomically, whereas add_nodes leaves the document covering nothing until you remember create_edges — which fails silently (generation just reads an empty document). " +
   "Common to every item: `description` (display title), `title_en`, `position`; content kinds may `alignTo` an SFI (hasEducationalAlignment).";
 
 type AddNodesArgs = {
@@ -192,9 +192,9 @@ export function registerAuthoringTools(server: McpServer) {
       description:
         "The single node-creation tool — create ONE node or MANY in one atomic draft edit (it replaced the per-label add_lesson/add_material/… tools). Each `items[i]` has `kind` (the LC label — Course/LessonGrouping/Lesson/Activity/Assessment/Material/LearningComponent/InstructionalRoutine/StandardsFrameworkItem, or a document-layer label TeachingLearningMaterial/DocumentSection/Formatter/FormatterSpec), an EXISTING `parentId` (omit for a root Course/StandardsFramework), `description` (display title), optional `position`/`alignTo`/`via`, and `properties` (the kind-specific canonical LC bag). " +
         PER_KIND_GUIDE + " " +
-        "Each item attaches under an already-existing parent — a node minted in the SAME batch cannot be a parent (stage nodes here, then wire cross-references with create_edges). Optional per-item `mintedNodeId` is your own alias, returned in an id map so you can correlate items to their real ids. ALL-OR-NOTHING: the dry-run validates every item and returns ONE confirmationToken + `mintedNodeIds` (real ids, in item order); any item error blocks the whole batch (no partial apply). When the dry-run reports `payloadStored:true` (a large batch held server-side), confirm with ONLY confirm:true + the token — do NOT re-send `items` or `mintedNodeIds`; otherwise re-send `items` verbatim with confirm:true, the token, and `mintedNodeIds` in the same order. " +
-        "`returnMode` (default 'summary') controls the response: 'summary' returns `counts` {nodesAdded,edgesAdded,nodesChanged,nodesRemoved,edgesRemoved} instead of the full diff (~1 KB — enough to progress to confirm and wire ids); 'full' also attaches the whole `diff`. " +
-        "`idempotencyKey` (optional): pass a unique key (a UUID) to make a RETRIED confirm safe — a repeat with the same key + same payload returns the first apply's summary with `replayed:true` (no double-apply, no double-audit) instead of REPLAY; the same key with a different payload is rejected as IDEMPOTENCY_KEY_MISMATCH. Keys are namespace-scoped and expire after 24h. Omit it to keep strict single-use. DRAFT edit — publish_draft to make it live. " +
+        "Each item attaches under an already-existing parent — a node minted in the SAME batch cannot be a parent (stage nodes here, then wire cross-references with create_edges). Optional per-item `mintedNodeId` is your own alias, returned in an id map so you can correlate items to their real ids. ALL-OR-NOTHING: the dry-run validates every item and returns ONE confirmationToken + `mintedNodeIds` (real ids, in item order); any item error blocks the whole batch (no partial apply). " + PARKED_PAYLOAD_NOTE + "" +
+        "" + RETURN_MODE_NOTE + "" +
+        "" + IDEMPOTENCY_NOTE + " DRAFT edit — publish_draft to make it live. " +
         "`catalog` (optional) adds the nodes to a CATALOG LIBRARY instead of the active subject graph — this is ALSO how a brand-new library entry should be authored (write it straight into the library; do NOT build it inside the curriculum and clone it over with add_to_catalog — an interrupted session leaves a half-built formatter stranded in the subject graph with nothing to flag it). It also extends a stale master entry (e.g. a missing FormatterSpec) that use_routine / use_formatter would otherwise keep re-cloning without it. Pass 'workspace' (your own library), 'shared' (the cross-tenant one), or a workspace id. Crossing into another workspace's or the shared library needs super_admin. In a catalog the entry root is an `InstructionalRoutine` and its steps/specs are `Material` — a formatter is only RELABELLED to Formatter/FormatterSpec when use_formatter clones it out, so author catalog children as Material. TWO DIFFERENCES from a subject add: confirming PUBLISHES the library live in one step (catalogs are not enterable, so no publish_draft or diff_draft), and you must RE-SEND `catalog` on the confirm. Sequence multi-call authoring so each confirmed call leaves the library coherent on its own.",
       inputSchema: {
         // `items` is required on a dry-run; on a token-only confirm (large batch

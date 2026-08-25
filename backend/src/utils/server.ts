@@ -25,7 +25,18 @@ export type ToolResult = { content: (TextBlock | ResourceBlock)[]; isError?: boo
 // misuse (limit:500 + includeEdges), and the tool nobody remembered to bound. The
 // ceiling is deliberately generous — above the largest legitimate response
 // (get_capabilities) — and tunable for ops via TLM_MAX_RESPONSE_BYTES.
-const DEFAULT_MAX_RESPONSE_BYTES = 100 * 1024; // ~100 KB pretty-printed ≈ ~25k tokens
+const DEFAULT_MAX_RESPONSE_BYTES = 100 * 1024; // ~100 KB ≈ ~27k tokens
+
+// THE serialization every tool response uses. Compact, not pretty-printed:
+// indentation cost 21-34% of a payload's bytes (measured on a walk_graph page
+// and namespace_stats) and no consumer reads the raw text — every caller
+// JSON.parses it. Readers that trim to a byte budget MUST measure through
+// responseBytes below, or their budget silently disagrees with what is sent.
+export const serializeResponse = (data: unknown): string => JSON.stringify(data);
+
+/** Byte size of `data` exactly as a tool response would carry it. */
+export const responseBytes = (data: unknown): number =>
+  Buffer.byteLength(serializeResponse(data), "utf8");
 const maxResponseBytes = (): number => {
   const override = Number(process.env.TLM_MAX_RESPONSE_BYTES);
   return Number.isFinite(override) && override > 0 ? override : DEFAULT_MAX_RESPONSE_BYTES;
@@ -62,13 +73,13 @@ function oversizeEnvelope(bytes: number, data: unknown): ToolResult {
     shape: shapeOf(data),
     hint: "Narrow the request: add/lower a limit, page with a cursor, apply filters (nodeTypes/edgeTypes), request a smaller slice, or use a summary returnMode. Raise TLM_MAX_RESPONSE_BYTES only if a larger response is genuinely required.",
   };
-  return { content: [{ type: "text", text: JSON.stringify(body, null, 2) }], isError: true };
+  return { content: [{ type: "text", text: serializeResponse(body) }], isError: true };
 }
 
 // Wrap any value in the MCP text-content envelope tools must return — capped by
 // the universal backstop above.
 export const asJson = (data: unknown): ToolResult => {
-  const text = JSON.stringify(data, null, 2);
+  const text = serializeResponse(data);
   const bytes = Buffer.byteLength(text, "utf8");
   return bytes <= maxResponseBytes() ? { content: [{ type: "text", text }] } : oversizeEnvelope(bytes, data);
 };
@@ -143,7 +154,7 @@ export function toolError(code: ToolErrorCode, message: string, detail?: unknown
   const error: Record<string, unknown> = { code, message };
   if (detail !== undefined) error.detail = detail;
   return {
-    content: [{ type: "text", text: JSON.stringify({ error }, null, 2) }],
+    content: [{ type: "text", text: serializeResponse({ error }) }],
     isError: true,
   };
 }

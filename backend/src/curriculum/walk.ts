@@ -16,6 +16,7 @@
  */
 import type { CurriculumModel, RawGraphSnapshot } from "../types.js";
 import { nodeOut, edgeOut, type NodeOut, type EdgeOut } from "./read-projection.js";
+import { responseBytes } from "../utils/index.js";
 
 type RawNode = RawGraphSnapshot["nodes"][number];
 type RawEdge = RawGraphSnapshot["relationships"][number];
@@ -202,10 +203,9 @@ function buildPage(
   return { nodes, edges };
 }
 
-// Serialized size of a candidate page, measured the way asJson serializes it
-// (pretty-printed), so the budget reflects the reader's real token cost.
-const pageBytes = (page: { nodes: NodeOut[]; edges?: EdgeOut[] }): number =>
-  Buffer.byteLength(JSON.stringify(page, null, 2), "utf8");
+// Serialized size of a candidate page, measured through the SAME serializer the
+// response uses, so the budget can't drift from what actually ships.
+const pageBytes = (page: { nodes: NodeOut[]; edges?: EdgeOut[] }): number => responseBytes(page);
 
 // Largest prefix length of `pageIds` whose built page fits `budget` bytes. Binary
 // search over prefix length (the page is a contiguous, size-monotonic window), so

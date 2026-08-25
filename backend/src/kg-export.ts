@@ -31,6 +31,7 @@ import {
   type CatalogEntry, type CatalogScope,
 } from "./kg-recipes/index.js";
 import { listAvailableContexts } from "./context/index.js";
+import { responseBytes } from "./utils/index.js";
 import { glossaryNamespace, readGlossaryEntries, type LexiconEntry } from "./glossary/index.js";
 
 // ── Display schema (what the explorer consumes) ──────────────────────────────
@@ -597,7 +598,7 @@ const clampDepth = (depth: number): number =>
   Math.min(SUBTREE_MAX_DEPTH, Math.max(1, Math.floor(depth)));
 
 const displayGraphBytes = (graph: DisplayGraph): number =>
-  Buffer.byteLength(JSON.stringify(graph, null, 2), "utf8");
+  responseBytes(graph);
 
 // The scoped node set for a subtree: the containment descendants of `fromId`,
 // PLUS the alignment tail the Curriculum view grafts onto content leaves (a
