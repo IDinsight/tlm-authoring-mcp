@@ -158,6 +158,30 @@ export async function walkDocument(args: { tlmId: string; slot?: WalkSlot }): Pr
   return { slot, physicalSlot: resolved.physicalSlot, ...document };
 }
 
+/**
+ * What to tell a caller whose walk_document response was withheld for size.
+ *
+ * The generic oversize hint offers a limit, a cursor and node filters; this tool
+ * takes `tlmId` and `slot` and nothing else, so a caller following that advice has
+ * no move to make. A section-spined document has a real answer — read it a section
+ * at a time — but the withheld payload took the section ids down with it, so the
+ * remedy has to say how to get them back.
+ */
+export function documentOversizeRemedy(payload: Record<string, unknown>): string | undefined {
+  const sections = payload.sections;
+  if (!Array.isArray(sections) || sections.length === 0) {
+    return undefined;
+  }
+
+  const tlmId = String(payload.tlm ?? "");
+  return (
+    `This document is too large to read whole; it has ${sections.length} sections. ` +
+    `Read it one section at a time: call walk_graph(fromId:'${tlmId}', direction:'out', edgeTypes:['hasPart'], nodeTypes:['DocumentSection']) ` +
+    `for the section ids, then walk_document_section for each. ` +
+    `Do NOT retry walk_document — it has no limit or cursor to narrow.`
+  );
+}
+
 // ── Core: walk_document_section ───────────────────────────────────────────────
 // Resolve one DocumentSection's full generation scope: the owning document, the
 // curriculum this slot renders, the routine that applies (section → document →
@@ -346,7 +370,10 @@ export function registerGraphTools(server: McpServer) {
         slot: z.enum(["published", "draft"]).optional(),
       },
     },
-    guarded(async (a: { tlmId: string; slot?: WalkSlot }) => asJson(await walkDocument(a))),
+    guarded(async (a: { tlmId: string; slot?: WalkSlot }) => {
+      const payload = await walkDocument(a);
+      return asJson(payload, documentOversizeRemedy(payload));
+    }),
   );
 
   server.registerTool(

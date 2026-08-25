@@ -36,6 +36,16 @@ describe("asJson response cap", () => {
     expect(typeof parsed.hint).toBe("string");
   });
 
+  it("uses a tool's own remedy in place of the generic hint", () => {
+    process.env.TLM_MAX_RESPONSE_BYTES = "500";
+    const big = { blob: "x".repeat(2000) };
+    const remedy = "Read it one section at a time: call walk_document_section for each.";
+
+    expect(body(asJson(big, remedy)).hint).toBe(remedy);
+    // Without one, the generic advice still stands for every other tool.
+    expect(body(asJson(big)).hint).toMatch(/add\/lower a limit/);
+  });
+
   it("reports a one-level shape so the caller sees WHAT overflowed", () => {
     process.env.TLM_MAX_RESPONSE_BYTES = "500";
     const res = asJson({ roots: Array.from({ length: 1000 }, () => 0), name: "hi", meta: { a: 1, b: 2 } });
