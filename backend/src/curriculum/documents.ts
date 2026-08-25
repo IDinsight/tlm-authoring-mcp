@@ -25,13 +25,10 @@
  * walk" separation, expressed additively — courseSubgraph is left untouched).
  */
 import type { CurriculumModel, RawGraphSnapshot } from "../types.js";
+import { nodeOut, edgeOut, type NodeOut, type EdgeOut } from "./read-projection.js";
 
 type RawNode = RawGraphSnapshot["nodes"][number];
 type RawEdge = RawGraphSnapshot["relationships"][number];
-
-// A bare node/edge as returned to the caller — raw LC labels + properties.
-type NodeOut = { id: string; labels: string[]; properties: Record<string, unknown> };
-type EdgeOut = { id: string; type: string; start: string; end: string; properties: Record<string, unknown> };
 
 const TLM_LABEL = "TeachingLearningMaterial";
 const SECTION_LABEL = "DocumentSection";
@@ -44,8 +41,6 @@ const DOCUMENT_EDGE = "hasPart";
 // TLM, never through the curriculum subtree.
 const CURRICULUM_EDGES = new Set(["hasPart", "hasChild"]);
 
-const nodeOut = (n: RawNode): NodeOut => ({ id: n.id, labels: n.labels ?? [], properties: n.properties ?? {} });
-const edgeOut = (e: RawEdge): EdgeOut => ({ id: e.id, type: e.type, start: e.start, end: e.end, properties: e.properties ?? {} });
 
 // walk_document inlines the WHOLE curriculum a document renders. For a
 // whole-Course document (a pupil manual whose section spine covers the full

@@ -54,7 +54,9 @@ const idsOf = (result: { nodes: Array<{ id: string }> }) => result.nodes.map((no
 
 describe("walkGraph (pure BFS)", () => {
   it("walks OUT over hasPart and skips edges not in edgeTypes", () => {
-    const result = walkGraph(sampleModel, { fromId: "root", direction: "out", edgeTypes: ["hasPart"], maxDepth: 3 });
+    // includeEdges is opt-in now (edges dominate a page's byte budget), and this
+    // case asserts on the edges themselves, so ask for them explicitly.
+    const result = walkGraph(sampleModel, { fromId: "root", direction: "out", edgeTypes: ["hasPart"], maxDepth: 3, includeEdges: true });
     if ("error" in result) throw new Error(result.error);
     // sfi is reachable only by the alignment edge, which we did not follow.
     expect(idsOf(result)).toEqual(["a", "a1", "a2", "b", "b1", "root"]);
