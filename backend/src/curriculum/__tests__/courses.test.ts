@@ -16,26 +16,27 @@ const modelFor = (grade: string, subject: string) => {
 };
 
 describe("coursesOf / courseSubgraph — generic Course readers", () => {
+  // ci/maths had two Courses until the Student's Book became a
+  // TeachingLearningMaterial; "Outil de l'élève" and "Guide de l'enseignant" are
+  // TLMs now, leaving one content Course.
   it("lists the maths Course nodes as raw LC nodes", () => {
     const courses = coursesOf(modelFor("ci", "maths"));
-    expect(courses).toHaveLength(2);
+    expect(courses).toHaveLength(1);
     expect(courses.every((course) => course.labels.includes("Course"))).toBe(true);
-    const titles = courses.map((course) => course.properties.description);
-    expect(titles).toContain("Outil de l'élève");
-    expect(titles).toContain("Guide de l'enseignant");
+    expect(courses.map((course) => course.properties.description)).toContain("Planification");
   });
 
   it("returns the containment subtree under a course, with edges among its nodes", () => {
     const model = modelFor("ci", "maths");
-    const student = coursesOf(model).find((course) => course.properties.description === "Outil de l'élève")!;
+    const student = coursesOf(model)[0];
     const subgraph = courseSubgraph(model, student.id)!;
     expect(subgraph).not.toBeNull();
     expect(subgraph.course).toBe(student.id);
 
-    // the course itself + its 25 chapter LessonGroupings (at least) are present
+    // the course itself + its week LessonGroupings are present
     expect(subgraph.nodes.some((node) => node.id === student.id)).toBe(true);
     const groupings = subgraph.nodes.filter((node) => node.labels.includes("LessonGrouping"));
-    expect(groupings.length).toBeGreaterThanOrEqual(25);
+    expect(groupings.length).toBeGreaterThanOrEqual(23);
 
     // every returned edge connects two returned nodes (self-contained subgraph)
     const ids = new Set(subgraph.nodes.map((node) => node.id));
@@ -44,7 +45,7 @@ describe("coursesOf / courseSubgraph — generic Course readers", () => {
 
   it("does NOT follow usesRoutine — formatters/routines reach generation via the TLM, not the Course", () => {
     const model = modelFor("ci", "maths");
-    const student = coursesOf(model).find((course) => course.properties.description === "Outil de l'élève")!;
+    const student = coursesOf(model)[0];
 
     // Sanity: the fixture still has usesRoutine edges pointing OUT of this Course,
     // so "the walk doesn't follow them" is a real assertion, not a vacuous one.
@@ -85,13 +86,16 @@ describe("coursesOf / courseSubgraph — generic Course readers", () => {
     expect(standards.nodes.length).toBeLessThan(30);
   });
 
-  it("standardsFor returns empty nodes for a node wired to no standard (the placeholder student book)", () => {
+  it("standardsFor returns empty nodes for a node wired to no standard", () => {
     const model = modelFor("ci", "maths");
+    // The placeholder student-book lessons this used to pick went away with the
+    // Student's Book Course; any unaligned content node exercises the same path.
     const aligned = new Set(model.rawGraph!.relationships.filter((edge) => edge.type === "hasEducationalAlignment").map((edge) => edge.start));
-    const placeholder = model.rawGraph!.nodes.find(
-      (node) => (node.labels ?? []).includes("Lesson") && (node.properties?.metadata as { role?: string })?.role === "studentBookLesson" && !aligned.has(node.id),
+    const unaligned = model.rawGraph!.nodes.find(
+      (node) => (node.labels ?? []).includes("LessonGrouping") && !aligned.has(node.id),
     )!;
-    expect(standardsFor(model, placeholder.id)!.nodes).toEqual([]);
+    expect(unaligned, "the fixture should hold an unaligned grouping").toBeTruthy();
+    expect(standardsFor(model, unaligned.id)!.nodes).toEqual([]);
     expect(standardsFor(model, "no-such-id")).toBeNull();
   });
 });

@@ -18,8 +18,7 @@
 import { describe, it, expect, beforeAll, beforeEach, afterAll } from "vitest";
 import {
   seedStore, withActiveContext as inContext, fixtureContext, installFakeStorage,
-  CI_MATHS, CURATOR, APPROVER, SIGNED_IN_NO_ROLE as NO_ROLE,
-} from "../../__tests__/index.js";
+  CI_MATHS, CURATOR, APPROVER, SIGNED_IN_NO_ROLE as NO_ROLE, aContentGrouping } from "../../__tests__/index.js";
 import {
   __setKgStoreForTest, kgNamespace, runGraphMutation,
   __resetMutationsForTest, __resetDraftTokensForTest,
@@ -83,14 +82,7 @@ async function undoConfirmed(actor: Actor = CURATOR): Promise<Record<string, unk
   });
 }
 
-async function aChapter(): Promise<{ id: string; title: string }> {
-  const nodes = await store.listNodes(ns, "a");
-  const chapter = nodes.find((node) =>
-    (node.labels ?? []).includes("LessonGrouping") &&
-    (node.properties?.raw as Record<string, unknown> | undefined)?.groupName === "Chapitre")!;
-  expect(chapter, "the CI-maths fixture should hold at least one chapter").toBeTruthy();
-  return { id: chapter.id, title: String(chapter.properties?.title ?? "") };
-}
+const aChapter = (): Promise<{ id: string; title: string }> => aContentGrouping(store, ns);
 
 const titleOnDraft = async (nodeId: string): Promise<string> => {
   const nodes = await store.listNodes(ns, await draftSlot());

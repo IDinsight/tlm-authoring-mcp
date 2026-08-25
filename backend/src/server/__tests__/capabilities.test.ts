@@ -170,7 +170,7 @@ describe("draft.exists reflects the real pointer", () => {
     // Seed one apply as CURATOR — this lazy-creates the draft.
     await withActiveContext(CURATOR, async () => {
       const nodes = await store.listNodes(ns, "a");
-      const chapter = nodes.find((n) => n.type === "Chapitre")!;
+      const chapter = nodes.find((n) => (n.labels ?? []).includes("LessonGrouping"))!;
       const preview = await runGraphMutation({
         namespace: ns, mutation: reposition,
         args: { namespace: ns, nodeId: chapter.id, position: 7 },

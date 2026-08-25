@@ -13,7 +13,7 @@
  * they meant.
  */
 import { describe, it, expect, beforeAll, beforeEach, afterAll } from "vitest";
-import { seedStore, seededContexts, fakeStorage, CI_MATHS , withActiveContext as inContext } from "../../__tests__/index.js";
+import { seedStore, seededContexts, fakeStorage, CI_MATHS , withActiveContext as inContext, aContentGrouping } from "../../__tests__/index.js";
 import { newSessionState, runInSession } from "../../context/index.js";
 import { subjectDir, KG_FIXTURE } from "../../__tests__/index.js";
 import {
@@ -87,18 +87,11 @@ const titleOf = (node: { properties?: Record<string, unknown> }): string => {
 // CI maths every chapter shares its name with the lesson inside it, so the write
 // tests below pass the `id` — which is exactly how a caller answers a
 // `needsChoice`, and proves an id still resolves to itself.
-async function aChapter(): Promise<{ id: string; title: string }> {
-  const nodes = await store.listNodes(ns, "a");
-  const chapter = nodes.find((node) =>
-    (node.labels ?? []).includes("LessonGrouping") &&
-    (node.properties?.raw as Record<string, unknown> | undefined)?.groupName === "Chapitre")!;
-  expect(chapter, "the CI-maths fixture should hold at least one chapter").toBeTruthy();
-  return { id: chapter.id, title: titleOf(chapter) };
-}
+const aChapter = (): Promise<{ id: string; title: string }> => aContentGrouping(store, ns);
 
-// A title TWO nodes share. CI maths has these naturally — a chapter and the
-// lesson inside it are often named the same — which is exactly the ambiguity the
-// design note predicted an expert would hit.
+// A title TWO nodes share. CI maths has these naturally — a lesson and the
+// standard it aligns to carry the same wording — which is exactly the ambiguity
+// the design note predicted an expert would hit.
 async function sharedTitle(): Promise<string> {
   const nodes = await store.listNodes(ns, "a");
   const uses = new Map<string, number>();
@@ -171,8 +164,15 @@ describe("find_node — the expert types a name, never an id", () => {
 });
 
 describe("create_document — the TLM and its `covers` edge are one step", () => {
-  it("creates the document AND binds it to the chosen chapter", async () => {
+  it("creates the document AND binds it to the chosen grouping", async () => {
     const chapter = await aChapter();
+    // The refreshed fixture already ships TLMs, so the new document has to be
+    // identified rather than assumed to be the only one.
+    const existingDocuments = new Set(
+      (await store.listNodes(ns, "a"))
+        .filter((node) => (node.labels ?? []).includes("TeachingLearningMaterial"))
+        .map((node) => node.id),
+    );
     const applied = await withActiveContext(CURATOR, () =>
       confirmed(runCreateDocument as never, { name: "Fiche de révision", covers: chapter.id }));
 
@@ -183,16 +183,18 @@ describe("create_document — the TLM and its `covers` edge are one step", () =>
     const edges = await store.listEdges(ns, draftPointer!.draftSlot!);
     const nodes = await store.listNodes(ns, draftPointer!.draftSlot!);
 
-    const document = nodes.find((node) => (node.labels ?? []).includes("TeachingLearningMaterial"))!;
-    expect(document).toBeTruthy();
+    const document = nodes.find((node) => (node.labels ?? []).includes("TeachingLearningMaterial") && !existingDocuments.has(node.id))!;
+    expect(document, "create_document should have minted a new TLM").toBeTruthy();
     // The whole point of the verb: the edge cannot have been forgotten.
     expect(edges.some((edge) => edge.type === "covers" && edge.from === document.id && edge.to === chapter.id)).toBe(true);
   });
 
   it("refuses to guess when the covered content is ambiguous — and stages nothing", async () => {
-    const chapter = await aChapter();
+    // A week's title is its number, which nothing else shares; the ambiguity this
+    // asserts on needs a genuinely duplicated title.
+    const ambiguous = await sharedTitle();
     const result = await withActiveContext(CURATOR, () =>
-      runCreateDocument({ name: "Fiche", covers: chapter.title }));
+      runCreateDocument({ name: "Fiche", covers: ambiguous }));
 
     expect(result.needsChoice).toBe(true);
     expect((result.candidates as unknown[]).length).toBeGreaterThan(1);
@@ -204,7 +206,10 @@ describe("create_document — the TLM and its `covers` edge are one step", () =>
     // literal; the payload is English and the model translates, so a stray French
     // word here is a bug, not a feature.
     expect(String(result.message)).toContain("the content to cover");
-    expect(String(result.message)).not.toMatch(/\b(le|la|les|des|une)\b/);
+    // Check the SERVER's own prose, not the node title it quotes back — that
+    // title is the expert's French content and is supposed to be French.
+    const serverProse = String(result.message).replace(/«[^»]*»/g, "");
+    expect(serverProse).not.toMatch(/\b(le|la|les|des|une)\b/);
   });
 
   it("refuses to cover another document: only curriculum labels are searched", async () => {
@@ -236,6 +241,12 @@ describe("create_document — the TLM and its `covers` edge are one step", () =>
 describe("add_section — both axes, or the section is broken", () => {
   it("wires the section under its document AND onto the curriculum", async () => {
     const chapter = await aChapter();
+    // The fixture ships its own TLMs, so the created one has to be identified.
+    const existingDocuments = new Set(
+      (await store.listNodes(ns, "a"))
+        .filter((node) => (node.labels ?? []).includes("TeachingLearningMaterial"))
+        .map((node) => node.id),
+    );
     await withActiveContext(CURATOR, () =>
       confirmed(runCreateDocument as never, { name: "Manuel de l'élève", covers: chapter.id }));
 
@@ -247,7 +258,7 @@ describe("add_section — both axes, or the section is broken", () => {
     const nodes = await store.listNodes(ns, pointer!.draftSlot!);
     const edges = await store.listEdges(ns, pointer!.draftSlot!);
     const section = nodes.find((node) => (node.labels ?? []).includes("DocumentSection"))!;
-    const document = nodes.find((node) => (node.labels ?? []).includes("TeachingLearningMaterial"))!;
+    const document = nodes.find((node) => (node.labels ?? []).includes("TeachingLearningMaterial") && !existingDocuments.has(node.id))!;
 
     expect(edges.some((e) => e.type === "hasPart" && e.from === document.id && e.to === section.id)).toBe(true);
     expect(edges.some((e) => e.type === "covers" && e.from === section.id && e.to === chapter.id)).toBe(true);
@@ -281,9 +292,15 @@ describe("check_draft — mechanical wiring, in French", () => {
       confirmed(runCreateDocument as never, { name: "Manuel", covers: chapter.id }));
 
     // Unwire it the way a curator would — the very slip the rule exists to catch.
+    // The fixture already carries covers edges of its own, so take the one this
+    // draft added; deleting a published one would flag a different document.
+    const publishedCovers = new Set(
+      (await store.listEdges(ns, "a")).filter((edge) => edge.type === "covers").map((edge) => edge.id),
+    );
     const pointer = await store.readPointer(ns);
     const edges = await store.listEdges(ns, pointer!.draftSlot!);
-    const covers = edges.find((edge) => edge.type === "covers")!;
+    const covers = edges.find((edge) => edge.type === "covers" && !publishedCovers.has(edge.id))!;
+    expect(covers, "the draft should have staged a covers edge").toBeTruthy();
     await withActiveContext(CURATOR, async () => {
       const args = { edgeIds: [covers.id] };
       const preview = await runGraphMutation({ namespace: ns, mutation: deleteEdges, args });

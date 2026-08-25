@@ -460,8 +460,8 @@ describe("readback verification: a known session is present, well-formed, and at
   it("applies, createDraft, publish(self-authored), discard, force-cascade delete, recipe, and blocks all read back", async () => {
     await inTarget(APPROVER, async () => {
       const nodes = await store.listNodes(ns, "a");
-      const editTarget = nodes.find((n) => n.type === "Chapitre")!;
-      const chapterToDelete = nodes.find((n) => n.type === "Chapitre" && n.id !== editTarget.id)!;
+      const editTarget = nodes.find((n) => (n.labels ?? []).includes("LessonGrouping"))!;
+      const chapterToDelete = nodes.find((n) => (n.labels ?? []).includes("LessonGrouping") && n.id !== editTarget.id)!;
 
       // 1. apply (reposition) → lazily creates the draft (createDraft + apply).
       const repositionArgs = { namespace: ns, nodeId: editTarget.id, position: 7 };

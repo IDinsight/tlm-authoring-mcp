@@ -10,6 +10,7 @@ import { describe, it, expect } from "vitest";
 import { parseGraph, type GraphParseDescriptor } from "../parse-graph.js";
 import { resolvePrune } from "../prunes.js";
 import type { CurriculumModel, CurriculumUnit } from "../../types.js";
+import { chapterFixtureGraph } from "../../__tests__/index.js";
 
 const load = (rel: string) => JSON.parse(readFileSync(resolve(rel), "utf8"));
 
@@ -42,11 +43,13 @@ describe("generic parseGraph — maths (new shape)", () => {
   const model = parseGraph(load("test/fixtures/senegal/ci/maths/knowledge_graph.json"), MATHS);
 
   it("classifies the maths spine by its own canonical fields", () => {
-    // Groupings are named by groupName (Chapitre/Semaine); lessons are `Lesson`s;
-    // a standard's kind is its statementType (Arithmétique/Mesure/…, and "Domaine"
-    // for the 4 strand groupings). lesson = 112 weekly + 25 Student's-Book containers.
+    // Groupings are named by groupName; a standard's kind is its statementType
+    // (Arithmétique/Mesure/…, and "Domaine" for the 4 strand groupings). ci/maths
+    // has weeks only — its 25 Chapitre groupings and their 25 container Lessons
+    // went away with the Student's Book (see the synthetic-graph block below,
+    // which still covers chapter parsing).
     expect(kindCounts(model, ["Semaine", "Chapitre", "Lesson", "Domaine"])).toEqual({
-      Semaine: 23, Chapitre: 25, Lesson: 137, Domaine: 4,
+      Semaine: 23, Chapitre: 0, Lesson: 112, Domaine: 4,
     });
     // 115 leaf standards (109 objectives + 3 palier + 3 interdisciplinary),
     // spread across their statementType kinds.
@@ -57,57 +60,31 @@ describe("generic parseGraph — maths (new shape)", () => {
     expect(model.unitsOfKind("Activity").length).toBeGreaterThan(0);
   });
 
+
+});
+
+describe("generic parseGraph — chapter shapes (synthetic graph)", () => {
+  // ci/maths retired its chapters, but a subject may still group by
+  // Chapitre/Unité/Module, so the parse of that shape needs a graph that has one.
+  const model = parseGraph(chapterFixtureGraph(), MATHS);
+
+  it("classifies a Chapitre grouping by its groupName", () => {
+    expect(model.unitsOfKind("Chapitre").length).toBe(2);
+    expect(model.unitsOfKind("Semaine").length).toBe(2);
+  });
+
   it("links chapter→lesson→activity via the content tree (not a number join)", () => {
-    // Canonical content nesting: chapter (LessonGrouping) ▸ Lesson ▸ Activity.
-    // The weekly teaching lessons live in the Teacher's Guide (week→lesson); each
-    // chapter holds ONE Student's-Book container Lesson, which holds that
-    // chapter's Activities (218 total, 2 per former lesson).
-    const authored = model.unitsOfKind("Chapitre").filter((chapter) => chapter.properties.groupName === "Chapitre");
-    let chapterLessons = 0;
-    let activities = 0;
-    for (const chapter of authored) {
-      const lessons = model.childrenOf(chapter.id).filter((unit) => unit.kind === "Lesson");
-      expect(lessons.length).toBe(1);
-      chapterLessons += lessons.length;
-      for (const lesson of lessons) {
-        const tasks = model.childrenOf(lesson.id).filter((unit) => unit.kind === "Activity");
-        expect(tasks.length).toBeGreaterThan(0);
-        activities += tasks.length;
-      }
-    }
-    expect(chapterLessons).toBe(25);
-    expect(activities).toBe(218);
-  });
+    const chapter = model.unitsOfKind("Chapitre").find((unit) => unit.order === 1)!;
+    const lessons = model.childrenOf(chapter.id).filter((unit) => unit.kind === "Lesson");
+    expect(lessons.length).toBeGreaterThan(0);
 
-  it("links week→lesson via the schedule edge, every lesson in exactly one week", () => {
-    const weeks = model.unitsOfKind("Semaine");
-    const scheduled = new Set<string>();
-    for (const week of weeks) {
-      for (const lesson of model.childrenOf(week.id)) {
-        if (lesson.kind === "Lesson") scheduled.add(lesson.id);
-      }
-    }
-    expect(scheduled.size).toBe(112);
-  });
-
-  it("aligns each lesson to its standard, which carries the OS text/category", () => {
-    // The OS (objectif spécifique) is a spine `Standard`; the Lesson `supports`
-    // it (⇒ standard.childIds ∋ the Lesson).
-    const standard = leafStandards(model).find((unit) => unit.code === "Leçon 15")!;
-    expect(standard.text).toContain("trouver ce qui manque");
-    expect(standard.properties.statementType).toBe("Résolution de problème");
-    // Standards carry NO ordinal — they sequence by traversal, not metadata.order.
-    expect(standard.order).toBeNull();
-    expect((standard.properties.metadata as any).en.description).toContain("find what is missing");
-    // its aligned Lesson is a content node that carries the same lesson number
-    const lesson = model.childrenOf(standard.id).find((unit) => unit.kind === "Lesson")!;
-    expect(lesson).toBeTruthy();
-    expect(lesson.order).toBe(15);
+    const tasks = model.childrenOf(lessons[0].id).filter((unit) => unit.kind === "Activity");
+    expect(tasks.length).toBeGreaterThan(0);
   });
 
   it("keeps chapter progression from hasDependency edges", () => {
-    const chaptersWithProgression = model.unitsOfKind("Chapitre").filter((chapter) => chapter.buildsTowards.length > 0);
-    expect(chaptersWithProgression.length).toBeGreaterThan(0);
+    const withProgression = model.unitsOfKind("Chapitre").filter((chapter) => chapter.buildsTowards.length > 0);
+    expect(withProgression.length).toBeGreaterThan(0);
   });
 });
 

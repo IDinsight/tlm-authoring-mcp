@@ -13,7 +13,7 @@
  *   • role matrix + audit intact; parity green.
  */
 import { describe, it, expect, beforeAll, afterAll, beforeEach } from "vitest";
-import { seedStore, seededContexts, fakeStorage, CI_MATHS } from "../../__tests__/index.js";
+import { seedStore, seededContexts, fakeStorage, CI_MATHS, seedSyntheticChapters } from "../../__tests__/index.js";
 import { newSessionState, runInSession } from "../../context/index.js";
 import { subjectDir, KG_FIXTURE } from "../../__tests__/index.js";
 import { resolveAdapter } from "../../adapters/index.js";
@@ -129,7 +129,7 @@ describe("delete_nodes cascade", () => {
     const isContainment = (t: string) => t === "hasChild" || t === "hasPart";
     // Pick a chapter with lessons (and hence components/tasks below them).
     const chapterWithChildren = graph.nodes.find(
-      (n) => n.type === "Chapitre" && graph.edges.some((e) => isContainment(e.type) && e.from === n.id),
+      (n) => (n.labels ?? []).includes("LessonGrouping") && graph.edges.some((e) => isContainment(e.type) && e.from === n.id),
     )!;
 
     // Compute the expected removed set by hand: chapter → its containment subtree.
@@ -183,6 +183,9 @@ describe("delete_nodes cascade", () => {
   });
 
   it("force cascade drops a hasDependency edge to a surviving neighbour but does NOT delete the neighbour", async () => {
+    // ci/maths carries no hasDependency edges any more; the synthetic graph has
+    // one (chapter 1 builds towards chapter 2).
+    await seedSyntheticChapters(store, ns);
     const graph = await readPublished(ns);
     const dependencyEdge = graph.edges.find((e) => e.type === "hasDependency")!;
     const neighbour = dependencyEdge.to; // the chapter `from` builds towards
@@ -201,7 +204,7 @@ describe("delete_nodes cascade", () => {
 describe("force-delete respects the role gate + audit", () => {
   it("signed-in-no-role is denied a force delete (unauthorized, blocked audit, no state change)", async () => {
     const graph = await readPublished(ns);
-    const chapter = graph.nodes.find((n) => n.type === "Chapitre")!;
+    const chapter = graph.nodes.find((n) => (n.labels ?? []).includes("LessonGrouping"))!;
     const before = (await store.listAudit({ namespace: ns })).length;
     const pointerBefore = await store.readPointer(ns);
     const result = await runAsActor(SIGNED_IN_NO_ROLE, () =>
@@ -247,7 +250,7 @@ describe("parity — force work does not leak into published reads", () => {
     }
     const before = await reads();
     const graph = await readPublished(ns);
-    const chapter = graph.nodes.find((n) => n.type === "Chapitre" && graph.edges.some((e) => e.type === "hasPart" && e.from === n.id))!;
+    const chapter = graph.nodes.find((n) => (n.labels ?? []).includes("LessonGrouping") && graph.edges.some((e) => e.type === "hasPart" && e.from === n.id))!;
     await apply(deleteNode, { nodeId: chapter.id }); // draft only
     const after = await reads();
     expect(after).toEqual(before);

@@ -361,7 +361,7 @@ describe("staged profile is visible to the draft view and guards publish", () =>
   it("a profile edit that lands after a publish dry-run invalidates the publish token", async () => {
     // Curator stages a graph edit so there IS a draft to publish.
     await runAsActor(CURATOR, async () => {
-      const chapter = (await store.listNodes(ns, "a")).find((n) => n.type === "Chapitre")!;
+      const chapter = (await store.listNodes(ns, "a")).find((n) => (n.labels ?? []).includes("LessonGrouping"))!;
       const gp = await runGraphMutation({ namespace: ns, mutation: reposition, args: { namespace: ns, nodeId: chapter.id, position: 9 } });
       if (gp.phase !== "preview") throw new Error("expected preview");
       await runGraphMutation({ namespace: ns, mutation: reposition, args: { namespace: ns, nodeId: chapter.id, position: 9 }, confirm: true, token: gp.confirmationToken });
