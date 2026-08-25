@@ -28,6 +28,7 @@ import { activeWorkspace } from "../context/index.js";
 import { currentActor } from "../actor.js";
 import { authorize } from "../authz.js";
 import { kgNamespace, getKgStore, editProfileWithConfirm, type StoredConfig } from "../kg-store/index.js";
+import { PARKED_PAYLOAD_NOTE } from "./tool-notes.js";
 
 // The authored `guide` markdown from a stored config value, whatever its shape:
 // the new { core, guide } record carries it; a legacy flat profile (pre-2c seed)
@@ -158,7 +159,21 @@ function computeStructuralFacts(nodes: FactNode[], edges: FactEdge[]) {
       bucket[c.type] = (bucket[c.type] ?? 0) + 1;
       if (k.edge === "hasPart" && c.properties?.isAssessment === true) assessmentChildren++;
     }
-    containers.push({ id: pid, type: p.type, title: labelOf(p), hasPartChildrenByType, hasChildChildrenByType, assessmentChildren });
+    // Omit the axes a container has nothing on, and a zero assessment count:
+    // on ci/maths, 91 of 129 containers carry an empty hasChildChildrenByType
+    // and 112 carry assessmentChildren:0, which is a third of this payload.
+    // "Absent" and "empty" mean the same thing to the reviewing model.
+    const container: Record<string, unknown> = { id: pid, type: p.type, title: labelOf(p) };
+    if (Object.keys(hasPartChildrenByType).length > 0) {
+      container.hasPartChildrenByType = hasPartChildrenByType;
+    }
+    if (Object.keys(hasChildChildrenByType).length > 0) {
+      container.hasChildChildrenByType = hasChildChildrenByType;
+    }
+    if (assessmentChildren > 0) {
+      container.assessmentChildren = assessmentChildren;
+    }
+    containers.push(container);
   }
 
   const hasPartParents = new Map<string, number>();
@@ -174,7 +189,7 @@ function computeStructuralFacts(nodes: FactNode[], edges: FactEdge[]) {
   return { nodesByType, edgesByType, containers, contentMultiParent };
 }
 
-export async function reviewDraft(): Promise<Record<string, unknown>> {
+export async function reviewDraft(includeGuide = true): Promise<Record<string, unknown>> {
   const adapter = getActiveAdapter();
   const namespace = kgNamespace(activeWorkspace(), adapter.grade, adapter.subject);
 
@@ -204,10 +219,12 @@ export async function reviewDraft(): Promise<Record<string, unknown>> {
     namespace,
     reviewing,
     hasGuide: guide !== null,
-    guide,
+    // The guide is the SAME markdown get_graph_guide returns (~5k tokens), so a
+    // caller that already read it this session can skip the second copy.
+    ...(includeGuide ? { guide } : { guideOmitted: "includeGuide was false — reuse the guide you already read, or call get_graph_guide." }),
     structuralFacts,
     instruction:
-      `Review this ${reviewing} graph against the guide's coverage expectations (in \`guide\`). ` +
+      `Review this ${reviewing} graph against the guide's coverage expectations (${includeGuide ? "in `guide`" : "the guide you already read"}). ` +
       "Use `structuralFacts` (a subject-agnostic snapshot: node/edge counts; each container's child-type histogram per containment axis + its assessment-child count; and nodes with more than one content parent) to check the guide's prose expectations (e.g. 'each chapter has exactly one bilan', 'every teaching lesson is aligned', 'chapters are contiguous'). " +
       "Report each expectation the graph violates, citing node ids; if all hold, say so plainly. This is a review, not an edit — it changes nothing.",
   };
@@ -250,7 +267,7 @@ export function registerProfileTools(server: McpServer) {
     {
       title: "Edit the subject profile",
       description:
-        "Replace the active grade/subject's SUBJECT PROFILE record with a new one — the two-phase, curator-gated way to change the machine `core` (parsing) AND the authored `guide` markdown as DATA, with no redeploy (phase 2b/2c). Pass the WHOLE { core, guide } record (get_profile first, edit, pass it back); this replaces, it does not patch. A bare core (no guide) is accepted for back-compat. The core is validated against its schema and the guide length-checked AT THIS STEP — a malformed record is BLOCKED at dry-run (no token). A dry-run returns the before/after diff + any referential warnings (e.g. a rule naming a kind no node has) + a confirmationToken, changing nothing; confirm STAGES it onto the draft (a profile edit and curriculum edits share one draft). When the dry-run reports `payloadStored:true` (the record is held server-side), confirm with ONLY confirm:true + the token — do NOT re-send `profile`; otherwise re-send the same record. Nothing reaches generation until you publish_draft. firestore mode only — in bundle/dev mode the profile is the in-repo record, edited in the repo.",
+        "Replace the active grade/subject's SUBJECT PROFILE record with a new one — the two-phase, curator-gated way to change the machine `core` (parsing) AND the authored `guide` markdown as DATA, with no redeploy (phase 2b/2c). Pass the WHOLE { core, guide } record (get_profile first, edit, pass it back); this replaces, it does not patch. A bare core (no guide) is accepted for back-compat. The core is validated against its schema and the guide length-checked AT THIS STEP — a malformed record is BLOCKED at dry-run (no token). A dry-run returns the before/after diff + any referential warnings (e.g. a rule naming a kind no node has) + a confirmationToken, changing nothing; confirm STAGES it onto the draft (a profile edit and curriculum edits share one draft). " + PARKED_PAYLOAD_NOTE + " Nothing reaches generation until you publish_draft. firestore mode only — in bundle/dev mode the profile is the in-repo record, edited in the repo.",
       inputSchema: {
         profile: z.record(z.string(), z.unknown()).optional(),
         confirm: z.boolean().optional(),
@@ -268,9 +285,9 @@ export function registerProfileTools(server: McpServer) {
     {
       title: "Review the draft against the graph guide",
       description:
-        "Review the current DRAFT (or published, when no draft is open) against the subject's GRAPH GUIDE coverage expectations — a read-only pre-publish check. Returns the `guide` (the authored expectations), a subject-agnostic `structuralFacts` snapshot of the graph (node/edge counts; each container's child-type histogram + assessment-child count; content multi-parent nodes), and an `instruction`. YOU (the model) then reason over the facts against the guide's prose to find violations (e.g. an empty chapter, no bilan, an unaligned lesson, non-contiguous chapters) and report them — this tool computes the inputs, it does not itself render a verdict. (Coverage is no longer coded server-side rules; it lives entirely in the guide prose reviewed here.) Reviewing an open draft is curator/approver-gated. firestore mode only. Changes nothing.",
-      inputSchema: {},
+        "Review the current DRAFT (or published, when no draft is open) against the subject's GRAPH GUIDE coverage expectations — a read-only pre-publish check. Returns the `guide` (the authored expectations), a subject-agnostic `structuralFacts` snapshot of the graph (node/edge counts; each container's child-type histogram + assessment-child count; content multi-parent nodes), and an `instruction`. A container omits an axis it has no children on, and omits `assessmentChildren` when it is zero — absent means empty. `includeGuide` (default true) returns the guide inline; pass FALSE when you have already read it this session (it is the same markdown get_graph_guide returns, ~5k tokens) and review against the copy you have. YOU (the model) then reason over the facts against the guide's prose to find violations (e.g. an empty chapter, no bilan, an unaligned lesson, non-contiguous chapters) and report them — this tool computes the inputs, it does not itself render a verdict. (Coverage is no longer coded server-side rules; it lives entirely in the guide prose reviewed here.) Reviewing an open draft is curator/approver-gated. firestore mode only. Changes nothing.",
+      inputSchema: { includeGuide: z.boolean().optional() },
     },
-    guarded(async () => asJson(await reviewDraft())),
+    guarded(async (a: { includeGuide?: boolean }) => asJson(await reviewDraft(a.includeGuide ?? true))),
   );
 }

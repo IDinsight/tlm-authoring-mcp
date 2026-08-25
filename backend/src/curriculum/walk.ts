@@ -15,17 +15,11 @@
  * removal it replaces: docs/design-notes/graph-native-authoring.md.
  */
 import type { CurriculumModel, RawGraphSnapshot } from "../types.js";
+import { nodeOut, edgeOut, type NodeOut, type EdgeOut } from "./read-projection.js";
+import { responseBytes } from "../utils/index.js";
 
 type RawNode = RawGraphSnapshot["nodes"][number];
 type RawEdge = RawGraphSnapshot["relationships"][number];
-
-// A bare node/edge as returned to the caller — raw LC labels + properties, the
-// same shape get_standards surfaces.
-type NodeOut = { id: string; labels: string[]; properties: Record<string, unknown> };
-type EdgeOut = { id: string; type: string; start: string; end: string; properties: Record<string, unknown> };
-
-const nodeOut = (node: RawNode): NodeOut => ({ id: node.id, labels: node.labels ?? [], properties: node.properties ?? {} });
-const edgeOut = (edge: RawEdge): EdgeOut => ({ id: edge.id, type: edge.type, start: edge.start, end: edge.end, properties: edge.properties ?? {} });
 
 // Direction of travel from a node: "out" follows edges start→end (a course to
 // its parts), "in" follows end→start (a standard up to its framework root),
@@ -38,8 +32,8 @@ export type WalkArgs = {
   edgeTypes?: string[];   // follow only these edge types; empty/absent ⇒ all types
   nodeTypes?: string[];   // emit only nodes carrying one of these LC labels; empty/absent ⇒ all
   maxDepth?: number;      // hops from fromId; default 3, clamped to [1, MAX_DEPTH_CAP]
-  includeEdges?: boolean; // default true — return traversed edges so callers can rebuild the subgraph
-  limit?: number;         // page size; default 100, clamped to [1, MAX_LIMIT]
+  includeEdges?: boolean; // default FALSE — opt in when you actually need to rebuild the subgraph
+  limit?: number;         // page size; default DEFAULT_LIMIT, clamped to [1, MAX_LIMIT]
   cursor?: string;        // opaque, from a prior response's nextCursor
 };
 
@@ -209,10 +203,9 @@ function buildPage(
   return { nodes, edges };
 }
 
-// Serialized size of a candidate page, measured the way asJson serializes it
-// (pretty-printed), so the budget reflects the reader's real token cost.
-const pageBytes = (page: { nodes: NodeOut[]; edges?: EdgeOut[] }): number =>
-  Buffer.byteLength(JSON.stringify(page, null, 2), "utf8");
+// Serialized size of a candidate page, measured through the SAME serializer the
+// response uses, so the budget can't drift from what actually ships.
+const pageBytes = (page: { nodes: NodeOut[]; edges?: EdgeOut[] }): number => responseBytes(page);
 
 // Largest prefix length of `pageIds` whose built page fits `budget` bytes. Binary
 // search over prefix length (the page is a contiguous, size-monotonic window), so
@@ -267,7 +260,7 @@ export function walkGraph(model: CurriculumModel, args: WalkArgs): { error: stri
   const maxDepth = clamp(args.maxDepth ?? DEFAULT_DEPTH, 1, MAX_DEPTH_CAP);
   const limit = clamp(args.limit ?? DEFAULT_LIMIT, 1, MAX_LIMIT);
   const nodeTypeFilter = args.nodeTypes && args.nodeTypes.length > 0 ? new Set(args.nodeTypes) : null;
-  const includeEdges = args.includeEdges ?? true;
+  const includeEdges = args.includeEdges ?? false;
 
   const traversal = traverse(raw, args, maxDepth);
   const nodeById = new Map(raw.nodes.map((node) => [node.id, node]));

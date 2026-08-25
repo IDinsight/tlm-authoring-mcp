@@ -12,10 +12,7 @@
  * returns nothing.
  */
 import type { CurriculumModel, RawGraphSnapshot } from "../types.js";
-
-// A bare node/edge as returned to the caller — raw LC labels + properties.
-type NodeOut = { id: string; labels: string[]; properties: Record<string, unknown> };
-type EdgeOut = { id: string; type: string; start: string; end: string; properties: Record<string, unknown> };
+import { nodeOut, edgeOut, type NodeOut, type EdgeOut } from "./read-projection.js";
 
 // The edges the subtree walk follows out from a course: pure containment —
 // `hasPart` (content nesting) + `hasChild` (standards hierarchy). Deliberately NOT
@@ -26,8 +23,6 @@ type EdgeOut = { id: string; type: string; start: string; end: string; propertie
 // must ship WITH that data migration — see docs/technical-reference/tlm-phase4-migration.md.)
 const EXPAND_EDGES = new Set(["hasPart", "hasChild"]);
 
-const nodeOut = (n: RawGraphSnapshot["nodes"][number]): NodeOut => ({ id: n.id, labels: n.labels ?? [], properties: n.properties ?? {} });
-const edgeOut = (e: RawGraphSnapshot["relationships"][number]): EdgeOut => ({ id: e.id, type: e.type, start: e.start, end: e.end, properties: e.properties ?? {} });
 
 // Every Course node in the graph, as-is. [] when the graph has no Course node
 // (e.g. reading/nigeria until an expert authors one).
