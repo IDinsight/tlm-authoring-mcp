@@ -33,6 +33,8 @@ const SRC = resolve(dirname(fileURLToPath(import.meta.url)), "..", "src");
 // points, and tests are layering-up exempt regardless (see isTest below).
 const LAYERS = {
   server: 3, "index.ts": 3, "activate.ts": 3, "http.ts": 3, "consent.ts": 3, "kg-export.ts": 3, "__tests__": 3,
+  // The token bench drives the assembled server, so it sits in the app layer too.
+  "__bench__": 3,
   adapters: 2,
   storage: 1, curriculum: 1, "kg-store": 1, "kg-recipes": 1, workspaces: 1, identity: 1, translation: 1, glossary: 1,
   config: 0, "config.ts": 0, types: 0, "types.ts": 0, context: 0, utils: 0, "actor.ts": 0, "authz.ts": 0,
