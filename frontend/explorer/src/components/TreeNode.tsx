@@ -78,7 +78,7 @@ export function TreeNode(props: Props) {
         onClick={onRowClick}
       >
         <span
-          className={`flex w-4 flex-shrink-0 items-center justify-center rounded ${
+          className={`flex h-6 w-6 flex-shrink-0 items-center justify-center rounded ${
             hasKids ? "cursor-pointer text-muted hover:bg-line hover:text-txt" : ""
           } ${folded ? "text-task" : ""}`}
           onClick={(e) => {
@@ -89,7 +89,31 @@ export function TreeNode(props: Props) {
           }}
         >
           {hasKids &&
-            (open ? <ChevronDown size={13} /> : <ChevronRight size={13} />)}
+            (open ? <ChevronDown size={17} /> : <ChevronRight size={17} />)}
+        </span>
+
+        {/* Open-details sits in a fixed gutter beside the chevron, so the two
+            things you do while scanning are under one cursor position instead of
+            at opposite ends of the row. The slot is rendered even for a synthetic
+            grouping row, which has no details to open — otherwise every real row
+            would indent one notch further than the buckets above it. */}
+        <span className="flex h-6 w-6 flex-shrink-0 items-center justify-center">
+          {!synthetic && (
+            <button
+              type="button"
+              className={`flex h-6 w-6 items-center justify-center rounded text-muted hover:bg-line hover:text-txt ${
+                selected === id ? "opacity-100" : "opacity-0 group-hover:opacity-100"
+              }`}
+              title={t("view")}
+              aria-label={t("view")}
+              onClick={(e) => {
+                e.stopPropagation();
+                onOpen(id);
+              }}
+            >
+              <Eye size={17} />
+            </button>
+          )}
         </span>
 
         <span
@@ -149,23 +173,6 @@ export function TreeNode(props: Props) {
         >
           {label}
         </span>
-
-        {!synthetic && (
-          <button
-            type="button"
-            className={`flex h-5 w-5 flex-shrink-0 items-center justify-center rounded text-muted hover:bg-line hover:text-txt ${
-              selected === id ? "opacity-100" : "opacity-0 group-hover:opacity-100"
-            }`}
-            title={t("view")}
-            aria-label={t("view")}
-            onClick={(e) => {
-              e.stopPropagation();
-              onOpen(id);
-            }}
-          >
-            <Eye size={13} />
-          </button>
-        )}
 
         {hasKids && (
           <span className="flex-shrink-0 text-[11px] text-muted">{kids.length}</span>
