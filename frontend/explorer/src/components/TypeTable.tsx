@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type CSSProperties } from "react";
 import { ChevronDown, Layers } from "lucide-react";
 import { makeT, pick } from "../i18n";
 import type { Lang, TaxonomyEntry } from "../types";
@@ -69,7 +69,7 @@ export function TypeTable({ lang, rows }: Props) {
       </button>
 
       {open && (
-        <div className="absolute left-0 top-[calc(100%+6px)] z-50 max-h-[60vh] w-[300px] overflow-auto rounded-lg border border-line bg-panel p-1 shadow-xl">
+        <div className="absolute left-0 top-[calc(100%+6px)] z-50 max-h-[60vh] w-[300px] overflow-auto rounded-lg border border-line bg-panel p-1 shadow-[var(--shadow-pop)]">
           <TypeRows lang={lang} rows={rows} />
         </div>
       )}
@@ -87,8 +87,8 @@ export function TypeRows({ lang, rows }: Props) {
           <tr key={entry.key} className="hover:bg-panel2">
             <td className="w-4 py-1 pl-2">
               <span
-                className="block h-[9px] w-[9px] rounded-full"
-                style={{ background: entry.color }}
+                className="dot block h-[9px] w-[9px] rounded-full"
+                style={{ "--dot": entry.color } as CSSProperties}
               />
             </td>
             <td className="py-1 pl-2 pr-3 text-txt">{pick(lang, entry.label)}</td>

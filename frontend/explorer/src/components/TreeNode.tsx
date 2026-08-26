@@ -1,3 +1,4 @@
+import type { CSSProperties } from "react";
 import { ArrowDown, ArrowUp, ChevronDown, ChevronRight, Eye } from "lucide-react";
 import { isSynth, type GraphModel } from "../lib/graphModel";
 import { makeT } from "../i18n";
@@ -92,8 +93,8 @@ export function TreeNode(props: Props) {
         </span>
 
         <span
-          className="h-[9px] w-[9px] flex-shrink-0 rounded-full"
-          style={{ background: model.colorFor(id) }}
+          className="dot h-[9px] w-[9px] flex-shrink-0 rounded-full"
+          style={{ "--dot": model.colorFor(id) } as CSSProperties}
         />
 
         {/* A link this draft created gets the added colour on the relation badge

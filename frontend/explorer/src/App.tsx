@@ -15,6 +15,7 @@ import { useGraphData } from "./hooks/useGraphData";
 import { computeSearch } from "./lib/search";
 import { computeChangeFilter, countChangesByView, revealChanges } from "./lib/changes";
 import { EMPTY_URL_STATE, readUrlState, writeUrlState } from "./lib/urlState";
+import { applyTheme, initialTheme, type Theme } from "./lib/theme";
 import { makeT } from "./i18n";
 import type { GraphModel } from "./lib/graphModel";
 import type { Lang, ViewSpec } from "./types";
@@ -51,6 +52,9 @@ function allViewNodes(
 
 export default function App() {
   const [lang, setLang] = useState<Lang>("fr");
+  // Seeded from the same rules the inline script in index.html already applied,
+  // so the first render agrees with what is on screen and nothing flashes.
+  const [theme, setTheme] = useState<Theme>(initialTheme);
   const t = makeT(lang);
   const g = useGraphData(lang);
   const { data, model } = g;
@@ -129,6 +133,10 @@ export default function App() {
   useEffect(() => {
     document.documentElement.lang = lang;
   }, [lang]);
+
+  useEffect(() => {
+    applyTheme(theme);
+  }, [theme]);
 
   const spec = useMemo<ViewSpec | null>(() => {
     if (!data || !currentView) return null;
@@ -321,6 +329,8 @@ export default function App() {
         onRefresh={g.refresh}
         refreshing={refreshing}
         onToggleLang={() => setLang((l) => (l === "fr" ? "en" : "fr"))}
+        theme={theme}
+        onToggleTheme={() => setTheme((t) => (t === "dark" ? "light" : "dark"))}
         auth={
           g.account
             ? { email: g.account.email, onSignIn: g.promptLogin, onSignOut: g.logout }

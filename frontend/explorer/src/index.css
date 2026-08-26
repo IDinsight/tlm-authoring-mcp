@@ -1,6 +1,9 @@
 @import "tailwindcss";
 
-/* The explorer's dark palette, ported verbatim from the original single-file page.
+/* The explorer's palette, in two themes.
+   `@theme` holds the DARK values — the original single-file page's palette, and
+   still the default. Light is one override block below, keyed on
+   [data-theme="light"], which lib/theme.ts writes onto <html>.
    Exposing them as Tailwind theme tokens lets components write `bg-panel`,
    `text-muted`, `border-line`, etc. instead of repeating hex values. The taxonomy
    colours (per LC label) still come from the server as raw hex and are applied
@@ -14,6 +17,9 @@
   --color-muted: #9aa0ab;
   --color-accent: #5dcaa5;
   --color-err: #e0685a;
+
+  /* Text sitting ON a filled accent button — dark ink on the light-green fill. */
+  --color-on-accent: #08130e;
 
   /* Neutral fallbacks used by synthetic grouping rows and link badges. */
   --color-framework: #888780;
@@ -31,8 +37,61 @@
     Arial, sans-serif;
 }
 
-html {
+/* Non-palette theme values. Not in @theme because nothing generates utilities
+   from them — components reference them directly. */
+:root {
+  --scrim: rgba(6, 8, 12, 0.66);
+  --shadow-modal: 0 24px 60px rgba(0, 0, 0, 0.5);
+  --shadow-pop: 0 10px 30px rgba(0, 0, 0, 0.45);
+  /* Taxonomy dots render as-is on the dark ground. */
+  --dot-shift: 0%;
   color-scheme: dark;
+}
+
+/* ── Light ───────────────────────────────────────────────────────────────────
+   Only ONE block, with no prefers-color-scheme twin: theme.ts resolves the
+   system preference itself and always writes an explicit data-theme, so there is
+   no "no preference expressed" state for CSS to handle.
+
+   The lightness order inverts. In dark, bg is the darkest and panel/panel2 sit
+   ABOVE it; in light, bg is white and the panels are progressively greyer, so
+   "raised" still reads as "different from the page". */
+:root[data-theme="light"] {
+  --color-bg: #ffffff;
+  --color-panel: #f6f7f9;
+  --color-panel2: #eceef2;
+  --color-line: #d5dae1;
+  --color-txt: #16191f;
+  --color-muted: #5b6470;
+
+  /* Darkened so they carry on white: the dark theme's #5dcaa5 and #e0685a both
+     fall under 3:1 against a white ground. */
+  --color-accent: #0d7f5f;
+  --color-err: #b83a2b;
+  --color-on-accent: #ffffff;
+
+  --color-framework: #6b6a63;
+  --color-plan: #2c6fb5;
+  --color-task: #8f6410;
+
+  /* The draft tags render as 10px TEXT inside a panel2 badge, not just as
+     swatches, so they are pitched to clear 4.5:1 on panel2 — the tightest ground
+     they land on — rather than the 3:1 a graphic would need. */
+  --color-added: #277946;
+  --color-changed: #83680f;
+  --color-removed: #b0453a;
+
+  --scrim: rgba(23, 26, 33, 0.42);
+  --shadow-modal: 0 24px 60px rgba(15, 20, 30, 0.22);
+  --shadow-pop: 0 10px 30px rgba(15, 20, 30, 0.16);
+
+  /* The server's taxonomy hues are tuned for a dark ground; the palest of them
+     (#e5c477 for a rubric criterion) is close to invisible on white. Mixing each
+     toward black keeps every hue identifiable while lifting it off the page —
+     see `.dot` below, which is the only place graph colour is applied. */
+  --dot-shift: 26%;
+
+  color-scheme: light;
 }
 
 body {
@@ -42,6 +101,12 @@ body {
   font-family: var(--font-sans);
   font-size: 14px;
   line-height: 1.5;
+}
+
+/* A taxonomy swatch. The colour arrives per-element as --dot (server graph data),
+   and the theme decides how far to shift it for the current ground. */
+.dot {
+  background: color-mix(in srgb, var(--dot) calc(100% - var(--dot-shift)), #000);
 }
 
 /* The spinner keyframe — Tailwind ships `animate-spin`, but we keep the row-sized

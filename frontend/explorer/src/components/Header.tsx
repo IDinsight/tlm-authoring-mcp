@@ -1,6 +1,7 @@
-import { Languages, LogIn, LogOut, RefreshCw } from "lucide-react";
+import { Languages, LogIn, LogOut, Moon, RefreshCw, Sun } from "lucide-react";
 import { TypeTable, type TypeRow } from "./TypeTable";
 import { pick } from "../i18n";
+import type { Theme } from "../lib/theme";
 import type { Lang, NamespaceEntry } from "../types";
 
 // Pretty workspace name from its id slug: "burkina-faso" → "Burkina Faso".
@@ -30,6 +31,8 @@ type Props = {
   onRefresh: () => void;
   refreshing: boolean;
   onToggleLang: () => void;
+  theme: Theme;
+  onToggleTheme: () => void;
   // Absent when the server offers no Supabase config — then there is nothing to
   // sign in to and no affordance is drawn. `email` null = signed out.
   auth?: { email: string | null; onSignIn: () => void; onSignOut: () => void };
@@ -47,6 +50,8 @@ export function Header({
   onRefresh,
   refreshing,
   onToggleLang,
+  theme,
+  onToggleTheme,
   auth,
 }: Props) {
   // Group graphs by workspace so two workspaces sharing a grade/subject stay
@@ -116,6 +121,25 @@ export function Header({
         >
           <Languages size={13} />
           {lang === "fr" ? "EN" : "FR"}
+        </button>
+
+        {/* Shows the theme it would switch TO, matching the language button
+            beside it (which shows the language it switches to, not the current). */}
+        <button
+          className="flex flex-shrink-0 items-center rounded-lg border border-line bg-panel2 px-2.5 py-[5px] text-muted hover:border-accent hover:text-txt"
+          onClick={onToggleTheme}
+          title={
+            theme === "dark"
+              ? "Thème clair / Light theme"
+              : "Thème sombre / Dark theme"
+          }
+          aria-label={
+            theme === "dark"
+              ? "Thème clair / Light theme"
+              : "Thème sombre / Dark theme"
+          }
+        >
+          {theme === "dark" ? <Sun size={14} /> : <Moon size={14} />}
         </button>
 
         {auth && (auth.email ? (
