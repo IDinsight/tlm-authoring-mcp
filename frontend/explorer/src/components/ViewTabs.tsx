@@ -10,26 +10,51 @@ type Props = {
   views: TabSpec[];
   currentView: string | null;
   onSelect: (id: string) => void;
+  // Draft reads only: view id → how many changed nodes that view shows. The slot
+  // counts are graph-wide, so without this an edit to a Semaine reads as "1
+  // modifié" while you stare at an unchanged Standards tree.
+  changeCounts?: Record<string, number>;
+  changeCountTitle?: string;
 };
 
-// The view-shape tabs (Standards, Curriculum, Catalogue, By type, …), driven by the
-// graph's meta.viewConfig plus the injected Catalog tab — the set differs per graph.
-export function ViewTabs({ lang, views, currentView, onSelect }: Props) {
+export function ViewTabs({
+  lang,
+  views,
+  currentView,
+  onSelect,
+  changeCounts,
+  changeCountTitle,
+}: Props) {
   return (
     <div className="flex flex-wrap gap-1.5 px-3.5 pt-3">
       {views.map((v) => {
         const active = v.id === currentView;
+        const changes = changeCounts?.[v.id] ?? 0;
+
         return (
           <button
             key={v.id}
             onClick={() => onSelect(v.id)}
-            className={`rounded-t-lg border border-b-0 px-3.5 py-2 text-[13px] ${
+            className={`flex items-center gap-1.5 rounded-t-lg border border-b-0 px-3.5 py-2 text-[13px] ${
               active
                 ? "border-accent bg-panel text-accent"
                 : "border-line bg-panel2 text-muted hover:text-txt"
             }`}
           >
             {pick(lang, v.label)}
+
+            {changes > 0 && (
+              <span
+                title={changeCountTitle}
+                className="rounded-full px-1.5 text-[10px] font-semibold tabular-nums"
+                style={{
+                  background: "var(--color-changed)",
+                  color: "var(--color-bg)",
+                }}
+              >
+                {changes}
+              </span>
+            )}
           </button>
         );
       })}

@@ -1,10 +1,16 @@
+import { buildViewIndex, ancestorsOf } from "./viewIndex";
 import type { GraphModel } from "./graphModel";
 import type { ViewSpec } from "../types";
 
-export type SearchResult = {
+// What the tree renders when a filter is active: `keep` is pruned to, `hits` is
+// highlighted, and every kept branch is force-expanded. The draft change filter
+// (lib/changes.ts) produces the same shape, so the tree handles both unchanged.
+export type TreeFilter = {
   keep: Set<string>; // every node to render (matches + their ancestors)
   hits: Set<string>; // the nodes that actually matched (highlighted)
 };
+
+export type SearchResult = TreeFilter;
 
 // Filter the current view to nodes matching `query`, keeping each match's
 // ancestors so the path stays visible. Mirrors the original explorer's search:
@@ -20,18 +26,7 @@ export function computeSearch(
   const hits = new Set<string>();
   if (!q) return { keep, hits };
 
-  // Map every view node to its view-parent, so a match can reveal its ancestors.
-  const vparent: Record<string, string> = {};
-  const seen = new Set<string>();
-  const walk = (id: string) => {
-    if (seen.has(id)) return;
-    seen.add(id);
-    for (const c of model.viewChildren(spec, id, sourceOn)) {
-      vparent[c] = id;
-      walk(c);
-    }
-  };
-  model.viewRoots(spec).forEach(walk);
+  const index = buildViewIndex(model, spec, sourceOn);
 
   const matches = (id: string): boolean => {
     const n = model.N[id];
@@ -47,11 +42,7 @@ export function computeSearch(
     if (!matches(n.id)) return;
     hits.add(n.id);
     keep.add(n.id);
-    let p: string | undefined = vparent[n.id];
-    while (p) {
-      keep.add(p);
-      p = vparent[p];
-    }
+    ancestorsOf(index, n.id).forEach((ancestor) => keep.add(ancestor));
   });
 
   return { keep, hits };
