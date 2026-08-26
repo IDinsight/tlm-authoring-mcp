@@ -36,6 +36,10 @@ export type DisplayEdge = {
   r: string;
   rel: string;
   o: number;
+  // Draft reads only: this draft created the link. Set even when both endpoints
+  // are untouched nodes — attaching an existing routine to a lesson writes only
+  // an edge, so the node tags alone would show nothing at all.
+  chg?: "added";
 };
 
 export type TaxonomyEntry = { key: string; label: Bilingual; color: string };
@@ -101,7 +105,16 @@ export type GraphMeta = {
     open: boolean;
     note?: string;
     removed?: Array<{ id: string; label: string; desc: string }>;
-    counts?: { added: number; changed: number; removed: number };
+    // Links the draft deleted. Absent from the draft graph, so — exactly like a
+    // removed node — a list is the only place they can show.
+    unlinked?: Array<{ rel: string; from: string; to: string }>;
+    counts?: {
+      added: number;
+      changed: number;
+      removed: number;
+      linked: number;
+      unlinked: number;
+    };
   };
   counts?: { nodes: number; edges: number; byKind: Record<string, number> };
   sources: string[];

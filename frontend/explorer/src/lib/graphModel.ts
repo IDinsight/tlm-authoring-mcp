@@ -18,7 +18,7 @@ export type SynthMeta = {
 };
 
 // A node exposed to the tree can be a real node id or a synthetic grouping id.
-type OutEdge = { to: string; o: number; rel: string };
+type OutEdge = { to: string; o: number; rel: string; chg?: "added" };
 
 export const isSynth = (id: string): boolean =>
   id.startsWith("grp:") || id.startsWith("kind:");
@@ -47,7 +47,7 @@ export function createGraphModel(data: DisplayGraph) {
 
   data.edges.forEach((e) => {
     (outByRel[e.r] ||= {});
-    (outByRel[e.r][e.s] ||= []).push({ to: e.t, o: e.o || 0, rel: e.rel || e.r });
+    (outByRel[e.r][e.s] ||= []).push({ to: e.t, o: e.o || 0, rel: e.rel || e.r, chg: e.chg });
     if (e.r === "hasChild") inHasChild[e.t] = e.s;
     if (e.r === "buildsTowards") {
       (btOut[e.s] ||= []).push(e.t);
@@ -340,29 +340,30 @@ export function createGraphModel(data: DisplayGraph) {
   function relBetween(
     parentId: string,
     childId: string,
-  ): { rel: string; sourceIsParent: boolean } | null {
-    const lookup = (from: string, to: string): string | null => {
+  ): { rel: string; sourceIsParent: boolean; chg?: "added" } | null {
+    const lookup = (from: string, to: string): OutEdge | null => {
       for (const r in outByRel) {
         const hit = (outByRel[r][from] || []).find((x) => x.to === to);
-        if (hit) return hit.rel || r;
+        if (hit) return { ...hit, rel: hit.rel || r };
       }
       return null;
     };
     // Find the display edge either way round (a folded edge sits reversed to how
     // the tree shows it), tracking which endpoint the stored edge points from.
     let displaySource = parentId;
-    let rel = lookup(parentId, childId);
-    if (!rel) {
-      rel = lookup(childId, parentId);
-      if (rel) displaySource = childId;
+    let edge = lookup(parentId, childId);
+    if (!edge) {
+      edge = lookup(childId, parentId);
+      if (edge) displaySource = childId;
     }
-    if (!rel) return null;
+    if (!edge) return null;
+    const rel = edge.rel;
     const realSource = REVERSED_DISPLAY_RELS.has(rel)
       ? displaySource === parentId
         ? childId
         : parentId
       : displaySource;
-    return { rel, sourceIsParent: realSource === parentId };
+    return { rel, sourceIsParent: realSource === parentId, chg: edge.chg };
   }
 
   // Colour is driven entirely by the server taxonomy (node.cat); synthetic rows

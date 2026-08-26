@@ -96,7 +96,20 @@ const LABEL_DEFS: TaxonomyEntry[] = [
 // can tell a genuine hasChild from a folded supports/hasEducationalAlignment/hasPart
 // (or a metadata-derived "illustrates"). Keeping them separate is what makes the
 // tree walkable AND the badges honest.
-export type DisplayEdge = { s: string; t: string; r: string; rel: string; o: number };
+export type DisplayEdge = {
+  s: string;
+  t: string;
+  r: string;
+  rel: string;
+  o: number;
+  /**
+   * Draft reads only: this draft created the link. Set even when both endpoints
+   * are untouched nodes — `use_routine` attaching a routine to a lesson writes
+   * ONLY an edge, so without this the change has nothing to render on and the
+   * counts read 0/0/0 while the tree silently grows a branch.
+   */
+  chg?: "added";
+};
 
 export type GroupByLevel = { key: keyof DisplayNode | string; labelFr?: string; labelEn?: string };
 export type ViewSpec =
@@ -143,7 +156,18 @@ export type DisplayGraph = {
     /** Which slot this payload was read from — the explorer's slot switch. */
     reading?: "published" | "draft";
     /** Draft state, so the switch can be offered (or explained) without a second call. */
-    draft?: { open: boolean; note?: string; removed?: Array<{ id: string; label: string; desc: string }>; counts?: { added: number; changed: number; removed: number } };
+    draft?: {
+      open: boolean;
+      note?: string;
+      removed?: Array<{ id: string; label: string; desc: string }>;
+      /**
+       * Links this draft DELETED. Like removed nodes, a deleted edge is absent
+       * from the draft graph, so it cannot carry a tag and needs its own list —
+       * otherwise detaching a routine from a lesson looks like nothing happened.
+       */
+      unlinked?: Array<{ rel: string; from: string; to: string }>;
+      counts?: { added: number; changed: number; removed: number; linked: number; unlinked: number };
+    };
     counts: { nodes: number; edges: number; byKind: Record<string, number> };
     sources: string[];           // distinct srcKeys present → source-filter chips
     taxonomy: TaxonomyEntry[];   // graph-agnostic legend categories present, in canonical order
@@ -422,14 +446,28 @@ function buildViewConfig(nodes: DisplayNode[], edges: DisplayEdge[]): ViewConfig
 // Fold every stored edge to its display edge(s), threading the illustrates map
 // (activity → component it exemplifies) the fold needs to nest illustrative
 // activities under their component instead of beside their siblings.
-function projectDisplayEdges(nodes: DisplayNode[], storedEdges: StoredEdge[]): DisplayEdge[] {
+// `addedEdgeIds` (draft reads) names the stored edges this draft created. Tagging
+// happens HERE rather than over the finished display edges because the fold is
+// lossy in both directions: one stored edge can yield zero or two display edges,
+// and supports/hasEducationalAlignment come back with their endpoints reversed —
+// so after the fact there is no reliable way back to the stored edge.
+function projectDisplayEdges(
+  nodes: DisplayNode[],
+  storedEdges: StoredEdge[],
+  addedEdgeIds?: Set<string>,
+): DisplayEdge[] {
   const illustrates = new Map<string, { comp: string; order: number }>();
   for (const n of nodes) {
     const ic = n.props?.illustratesComponent as { id?: string; order?: number } | undefined;
     if (ic?.id) illustrates.set(n.id, { comp: ic.id, order: typeof ic.order === "number" ? ic.order : 0 });
   }
   const nodeIds = new Set(nodes.map((n) => n.id));
-  return storedEdges.flatMap((e) => toDisplayEdges(e, { illustrates, has: (id) => nodeIds.has(id) }));
+
+  return storedEdges.flatMap((e) => {
+    const projected = toDisplayEdges(e, { illustrates, has: (id) => nodeIds.has(id) });
+    if (!addedEdgeIds?.has(e.id)) return projected;
+    return projected.map((edge) => ({ ...edge, chg: "added" as const }));
+  });
 }
 
 // Wrap a set of already-projected display nodes/edges in the meta envelope the
@@ -502,7 +540,14 @@ export async function exportNamespace(
   // No subject-specific post-processing — nodes are coloured by LC label, the
   // hierarchy walks hasChild, and the generic view exposes every node + edge.
   const nodes = storedNodes.map(toDisplayNode);
-  const edges = projectDisplayEdges(nodes, storedEdges);
+
+  // The diff runs BEFORE the edges are projected: it is what tells projection
+  // which links are new, and the fold cannot be reversed afterwards.
+  const draftChanges = wantsDraft
+    ? await annotateDraftChanges(ns, pointer.publishedSlot, nodes, storedNodes, storedEdges)
+    : null;
+
+  const edges = projectDisplayEdges(nodes, storedEdges, draftChanges?.addedEdgeIds);
 
   const graph = assembleDisplayGraph(
     nodes,
@@ -510,12 +555,12 @@ export async function exportNamespace(
     ns,
     pointer.publishedSlot,
     wantsDraft
-      ? "Read-only view of the UNPUBLISHED draft. Nodes are tagged `chg` (added / changed) against the published version; nodes the draft removed are listed in meta.draft.removed."
+      ? "Read-only view of the UNPUBLISHED draft. Nodes are tagged `chg` (added / changed) and edges the draft created are tagged `chg:\"added\"`, both against the published version; nodes and links the draft removed are listed in meta.draft.removed / meta.draft.unlinked."
       : "Read-only, published slot only (no draft). Full Learning-Commons graph — the curriculum spine plus framework/derived nodes and supports/relatesTo cross-links.",
   );
   graph.meta.reading = wantsDraft ? "draft" : "published";
-  graph.meta.draft = wantsDraft
-    ? await annotateDraftChanges(ns, pointer.publishedSlot, nodes, storedNodes, storedEdges)
+  graph.meta.draft = draftChanges
+    ? draftChanges.meta
     : {
         open: Boolean(pointer.draftSlot),
         ...(opts.slot === "draft" && !pointer.draftSlot
@@ -525,19 +570,29 @@ export async function exportNamespace(
   return graph;
 }
 
+type DraftChanges = {
+  meta: NonNullable<DisplayGraph["meta"]["draft"]>;
+  /** Stored ids of the edges this draft created — projectDisplayEdges tags these. */
+  addedEdgeIds: Set<string>;
+};
+
 // Tag each draft node with how it differs from published, and report what the
 // draft REMOVED (those nodes are gone from the draft, so they cannot carry a tag
-// — they need their own list, or a deletion would be invisible).
+// — they need their own list, or a deletion would be invisible). Deleted EDGES
+// get the same treatment for the same reason.
 //
 // The comparison is diffGraphs — the very same one diff_draft and publish_draft
 // use — so the coloured tree and the textual diff can never disagree.
+//
+// Tags `nodes` in place and returns the edge ids for the caller to thread into
+// projectDisplayEdges.
 async function annotateDraftChanges(
   ns: string,
   publishedSlot: string,
   nodes: DisplayNode[],
   draftNodes: StoredNode[],
   draftEdges: StoredEdge[],
-): Promise<NonNullable<DisplayGraph["meta"]["draft"]>> {
+): Promise<DraftChanges> {
   const store = getKgStore();
   const [publishedNodes, publishedEdges] = await Promise.all([
     store.listNodes(ns, publishedSlot as StoredNode["slot"]),
@@ -566,10 +621,36 @@ async function annotateDraftChanges(
     .map(toDisplayNode)
     .map((node) => ({ id: node.id, label: node.label, desc: node.desc }));
 
+  // A deleted edge names ids; show the endpoints the way the tree does, falling
+  // back to the raw id for an endpoint the same draft also deleted.
+  const draftById = new Map(draftNodes.map((node) => [node.id, node]));
+  const nameOf = (id: string): string => {
+    const stored = draftById.get(id) ?? publishedById.get(id);
+    if (!stored) return id;
+    return toDisplayNode(stored).desc || id;
+  };
+
+  const unlinked = diff.edges.removed
+    .map((entry) => entry.before as StoredEdge | undefined)
+    .filter((edge): edge is StoredEdge => Boolean(edge))
+    .map((edge) => ({ rel: edge.type, from: nameOf(edge.from), to: nameOf(edge.to) }));
+
+  const addedEdgeIds = new Set(diff.edges.added.map((entry) => entry.id));
+
   return {
-    open: true,
-    counts: { added: added.size, changed: changed.size, removed: removed.length },
-    removed,
+    meta: {
+      open: true,
+      counts: {
+        added: added.size,
+        changed: changed.size,
+        removed: removed.length,
+        linked: addedEdgeIds.size,
+        unlinked: unlinked.length,
+      },
+      removed,
+      unlinked,
+    },
+    addedEdgeIds,
   };
 }
 

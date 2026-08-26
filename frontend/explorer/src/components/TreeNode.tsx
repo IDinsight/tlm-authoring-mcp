@@ -96,11 +96,24 @@ export function TreeNode(props: Props) {
           style={{ background: model.colorFor(id) }}
         />
 
+        {/* A link this draft created gets the added colour on the relation badge
+            itself. This is the only signal for an edge-only edit — attaching an
+            existing routine to a lesson leaves both nodes untagged. */}
         {link && (
           <span
             className={`inline-flex flex-shrink-0 items-center gap-0.5 rounded border px-1.5 py-px text-[10px] uppercase tracking-[0.04em] ${
-              folded ? "border-line bg-panel2 text-task" : "border-line text-muted"
+              link.chg === "added"
+                ? "bg-panel2"
+                : folded
+                  ? "border-line bg-panel2 text-task"
+                  : "border-line text-muted"
             }`}
+            style={
+              link.chg === "added"
+                ? { borderColor: "var(--color-added)", color: "var(--color-added)" }
+                : undefined
+            }
+            title={link.chg === "added" ? t("chgLinkedOne") : undefined}
           >
             {link.sourceIsParent ? <ArrowDown size={9} /> : <ArrowUp size={9} />}
             {link.rel}

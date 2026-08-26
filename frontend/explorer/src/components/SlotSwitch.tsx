@@ -45,6 +45,7 @@ export function SlotSwitch({
 
   const counts = meta?.draft?.counts;
   const removed = meta?.draft?.removed ?? [];
+  const unlinked = meta?.draft?.unlinked ?? [];
 
   const tab = (value: Slot, icon: React.ReactNode, label: string) => (
     <button
@@ -91,6 +92,23 @@ export function SlotSwitch({
               label={t("chgRemoved")}
             />
 
+            {/* Link counts, so an edit that only wires two existing nodes
+                together still reports something instead of reading 0/0/0.
+                `?? 0` covers a server that predates these fields. */}
+            <ChangeChip
+              color="var(--color-added)"
+              value={counts.linked ?? 0}
+              label={t("chgLinked")}
+              pressed={changesOnly}
+              title={t("chgOnlyTitle")}
+              onClick={() => onChangesOnly(!changesOnly)}
+            />
+            <ChangeChip
+              color="var(--color-removed)"
+              value={counts.unlinked ?? 0}
+              label={t("chgUnlinked")}
+            />
+
             {changesOnly && (
               <button
                 type="button"
@@ -127,6 +145,25 @@ export function SlotSwitch({
               <li key={node.id}>
                 <span className="text-[color:var(--color-removed)]">{node.desc || node.id}</span>{" "}
                 <span className="opacity-70">({node.label})</span>
+              </li>
+            ))}
+          </ul>
+        </details>
+      )}
+
+      {/* A deleted link has the same problem for the same reason: it is gone from
+          the draft, so no row can carry it. */}
+      {slot === "draft" && unlinked.length > 0 && (
+        <details className="mt-2 text-xs text-muted">
+          <summary className="cursor-pointer">
+            {t("chgUnlinkedList")} ({unlinked.length})
+          </summary>
+          <ul className="mt-1 ml-4 list-disc">
+            {unlinked.map((link, i) => (
+              <li key={`${link.rel}:${link.from}->${link.to}:${i}`}>
+                <span className="text-[color:var(--color-removed)]">{link.from}</span>{" "}
+                <span className="opacity-70">─{link.rel}→</span>{" "}
+                <span className="text-[color:var(--color-removed)]">{link.to}</span>
               </li>
             ))}
           </ul>

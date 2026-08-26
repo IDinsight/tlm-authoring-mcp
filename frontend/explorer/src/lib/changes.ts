@@ -15,14 +15,29 @@ import type { GraphModel } from "./graphModel";
 import type { TreeFilter } from "./search";
 import type { ViewSpec } from "../types";
 
-/** Nodes this draft added or changed, in the order the view walk reached them. */
+/**
+ * Rows this draft touched, in the order the view walk reached them.
+ *
+ * Two ways a row counts. The node itself differs from published (`chg`), OR the
+ * link that hangs it under its parent is new — `use_routine` attaching an
+ * existing routine to a lesson writes only an edge, so the routine's row is
+ * untagged yet is genuinely new *here*. Without the second test the filter and
+ * the tab counts would both miss it, which is the whole point of finding it.
+ */
 function changedRows(model: GraphModel, index: ViewIndex): string[] {
   const found: string[] = [];
 
   for (const id of index.rows) {
     if (model.N[id]?.chg) {
       found.push(id);
+      continue;
     }
+
+    const parent = index.parentOf[id];
+    if (!parent) continue;
+
+    const link = model.relBetween(parent, id);
+    if (link?.chg === "added") found.push(id);
   }
 
   return found;
