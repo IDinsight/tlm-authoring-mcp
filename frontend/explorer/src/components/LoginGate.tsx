@@ -107,7 +107,7 @@ export function LoginGate({ lang, onSubmit, onGoogle, onCancel }: Props) {
         />
 
         <button
-          className="mt-4 w-full rounded-md bg-accent px-3 py-2.5 text-sm font-semibold text-[#08130e] disabled:opacity-60"
+          className="mt-4 w-full rounded-md bg-accent px-3 py-2.5 text-sm font-semibold text-[color:var(--color-on-accent)] disabled:opacity-60"
           onClick={() => void attempt()}
           disabled={busy}
         >

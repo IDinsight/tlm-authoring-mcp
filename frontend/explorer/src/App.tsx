@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Header, type StatChip } from "./components/Header";
+import type { TypeRow } from "./components/TypeTable";
 import { Banner } from "./components/Banner";
 import { LoginGate } from "./components/LoginGate";
-import { Legend } from "./components/Legend";
 import { ViewTabs, type TabSpec } from "./components/ViewTabs";
 import { SlotSwitch } from "./components/SlotSwitch";
 import { SourceFilters } from "./components/SourceFilters";
@@ -13,8 +13,10 @@ import { TerminologyPanel } from "./components/TerminologyPanel";
 import { DetailModal } from "./components/DetailModal";
 import { useGraphData } from "./hooks/useGraphData";
 import { computeSearch } from "./lib/search";
+import { computeChangeFilter, countChangesByView, revealChanges } from "./lib/changes";
 import { EMPTY_URL_STATE, readUrlState, writeUrlState } from "./lib/urlState";
-import { makeT, pick } from "./i18n";
+import { applyTheme, initialTheme, type Theme } from "./lib/theme";
+import { makeT } from "./i18n";
 import type { GraphModel } from "./lib/graphModel";
 import type { Lang, ViewSpec } from "./types";
 
@@ -24,6 +26,11 @@ import type { Lang, ViewSpec } from "./types";
 // and renders its own panel instead of the tree.
 const CATALOG_TAB = "__catalog";
 const TERMINOLOGY_TAB = "__terminology";
+
+// Above this many changes in a view, opening every change's ancestors unfolds
+// most of the tree — which buries the changes rather than revealing them. A draft
+// that big is read with the "changes only" filter instead.
+const AUTO_REVEAL_LIMIT = 25;
 
 // Every node reachable in the current view (used by "expand all").
 function allViewNodes(
@@ -45,6 +52,9 @@ function allViewNodes(
 
 export default function App() {
   const [lang, setLang] = useState<Lang>("fr");
+  // Seeded from the same rules the inline script in index.html already applied,
+  // so the first render agrees with what is on screen and nothing flashes.
+  const [theme, setTheme] = useState<Theme>(initialTheme);
   const t = makeT(lang);
   const g = useGraphData(lang);
   const { data, model } = g;
@@ -55,6 +65,11 @@ export default function App() {
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
   const [selected, setSelected] = useState<string | null>(null);
   const [query, setQuery] = useState("");
+
+  // Draft view: prune the tree to what this draft touched. Survives a tab switch
+  // on purpose — flipping tabs with it on is how you find which view holds the
+  // change.
+  const [changesOnly, setChangesOnly] = useState(false);
 
   // Restore view/node/filters from the URL only on the FIRST graph we load (a
   // deep link or reload). Later graph switches from the dropdown start fresh at
@@ -99,6 +114,11 @@ export default function App() {
     }
     setExpanded(reveal);
     setQuery("");
+
+    // Keep the filter across a published→draft reload (the user just asked for
+    // the draft), but drop it on any read that isn't a draft — there is nothing
+    // to filter to and an empty tree would look broken.
+    if (data.meta.reading !== "draft") setChangesOnly(false);
   }, [data, model]);
 
   // Mirror the current graph/view/node/filters back into the address bar so the
@@ -113,6 +133,10 @@ export default function App() {
   useEffect(() => {
     document.documentElement.lang = lang;
   }, [lang]);
+
+  useEffect(() => {
+    applyTheme(theme);
+  }, [theme]);
 
   const spec = useMemo<ViewSpec | null>(() => {
     if (!data || !currentView) return null;
@@ -135,29 +159,61 @@ export default function App() {
     return [...views.slice(0, at), catalogTab, terminologyTab, ...views.slice(at)];
   }, [data, t]);
 
-  // Stats chips: visible node count, per-taxonomy counts, and edges among visibles.
-  const stats = useMemo<StatChip[]>(() => {
-    if (!data || !model) return [];
-    const vis = data.nodes.filter((n) => model.srcAllowed(n.id, sourceOn));
-    const visIds = new Set(vis.map((n) => n.id));
-    const byCat: Record<string, number> = {};
-    vis.forEach((n) => {
-      if (n.cat) byCat[n.cat] = (byCat[n.cat] || 0) + 1;
+  // Counts over the nodes the source filters currently allow, split two ways: the
+  // graph-wide totals stay inline in the header, the per-type breakdown goes
+  // behind the TypeTable button (it used to be sixteen more chips).
+  const counts = useMemo(() => {
+    if (!data || !model) return { stats: [] as StatChip[], types: [] as TypeRow[] };
+
+    const visible = data.nodes.filter((n) => model.srcAllowed(n.id, sourceOn));
+    const visibleIds = new Set(visible.map((n) => n.id));
+
+    const byCategory: Record<string, number> = {};
+    visible.forEach((n) => {
+      if (n.cat) byCategory[n.cat] = (byCategory[n.cat] || 0) + 1;
     });
-    const edges = data.edges.filter((e) => visIds.has(e.s) && visIds.has(e.t)).length;
-    const chips: StatChip[] = [{ value: vis.length, label: t("noeuds") }];
-    (data.meta.taxonomy || []).forEach((tx) => {
-      if (byCat[tx.key])
-        chips.push({ value: byCat[tx.key], label: pick(lang, tx.label) });
-    });
-    chips.push({ value: edges, label: t("relations") });
-    return chips;
-  }, [data, model, sourceOn, lang, t]);
+
+    const edgeCount = data.edges.filter(
+      (e) => visibleIds.has(e.s) && visibleIds.has(e.t),
+    ).length;
+
+    const stats: StatChip[] = [
+      { value: visible.length, label: t("noeuds") },
+      { value: edgeCount, label: t("relations") },
+    ];
+
+    // Keep the server's canonical taxonomy order rather than sorting by count:
+    // it stays stable across graphs, so a reader learns where to look.
+    const types: TypeRow[] = (data.meta.taxonomy || [])
+      .filter((tx) => byCategory[tx.key])
+      .map((tx) => ({ entry: tx, count: byCategory[tx.key] }));
+
+    return { stats, types };
+  }, [data, model, sourceOn, t]);
 
   const search = useMemo(() => {
     if (!model || !spec || !query.trim()) return null;
     return computeSearch(model, spec, query, sourceOn);
   }, [model, spec, query, sourceOn]);
+
+  const readingDraft = data?.meta.reading === "draft";
+
+  const changeFilter = useMemo(() => {
+    if (!model || !spec || !readingDraft || !changesOnly) return null;
+    return computeChangeFilter(model, spec, sourceOn);
+  }, [model, spec, sourceOn, readingDraft, changesOnly]);
+
+  // Per-tab counts, so the tab strip says which view the change is actually in.
+  // Only the real graph views are walkable — the synthetic Catalog / Terminology
+  // tabs have no spec and simply get no badge.
+  const changeCounts = useMemo(() => {
+    if (!model || !data || !readingDraft) return undefined;
+    return countChangesByView(model, data.meta.viewConfig.views, sourceOn);
+  }, [model, data, sourceOn, readingDraft]);
+
+  // Search wins when both could apply: the user typed it more recently, and the
+  // handlers below already clear one when the other turns on.
+  const treeFilter = search ?? changeFilter;
 
   // Open a node's detail panel and reveal its hasChild ancestors in the tree.
   const openNode = useCallback(
@@ -176,6 +232,33 @@ export default function App() {
     [model],
   );
 
+  // Open the tree to this draft's changes the first time we show a given
+  // (graph, view) as a draft — so clicking "Draft" lands you on the edit instead
+  // of on a collapsed root that looks identical to the published one.
+  //
+  // The ref makes it fire once per combination: re-running it on every render
+  // would re-open branches the user just collapsed.
+  const autoRevealedFor = useRef<string | null>(null);
+
+  useEffect(() => {
+    // Forget the last reveal while off the draft, so coming back from the
+    // Published tab (which reloads and collapses the tree) reveals again.
+    if (!readingDraft) {
+      autoRevealedFor.current = null;
+      return;
+    }
+    if (!model || !spec || !g.currentNs) return;
+
+    const combination = `${g.currentNs}:${spec.id}`;
+    if (autoRevealedFor.current === combination) return;
+    autoRevealedFor.current = combination;
+
+    const reveal = revealChanges(model, spec, sourceOn, AUTO_REVEAL_LIMIT);
+    if (reveal.size === 0) return;
+
+    setExpanded((prev) => new Set([...prev, ...reveal]));
+  }, [model, spec, sourceOn, readingDraft, g.currentNs]);
+
   const toggleNode = useCallback((id: string) => {
     setExpanded((prev) => {
       const next = new Set(prev);
@@ -189,6 +272,18 @@ export default function App() {
     setCurrentView(id);
     setQuery("");
     setExpanded(new Set());
+  }, []);
+
+  // The two filters are alternatives, not layers — turning one on clears the
+  // other so the tree is never pruned by a rule the user can't see.
+  const changeQuery = useCallback((next: string) => {
+    setQuery(next);
+    if (next.trim()) setChangesOnly(false);
+  }, []);
+
+  const toggleChangesOnly = useCallback((on: boolean) => {
+    setChangesOnly(on);
+    if (on) setQuery("");
   }, []);
 
   const expandAll = useCallback(() => {
@@ -226,13 +321,16 @@ export default function App() {
         lang={lang}
         title={t("title")}
         sub={t("sub")}
-        stats={ready ? stats : []}
+        stats={ready ? counts.stats : []}
+        types={ready ? counts.types : []}
         namespaces={g.namespaces}
         currentNs={g.currentNs}
         onSelectNs={g.selectNs}
         onRefresh={g.refresh}
         refreshing={refreshing}
         onToggleLang={() => setLang((l) => (l === "fr" ? "en" : "fr"))}
+        theme={theme}
+        onToggleTheme={() => setTheme((t) => (t === "dark" ? "light" : "dark"))}
         auth={
           g.account
             ? { email: g.account.email, onSignIn: g.promptLogin, onSignOut: g.logout }
@@ -270,13 +368,16 @@ export default function App() {
             meta={data.meta}
             notice={g.slotNotice}
             onSelect={g.selectSlot}
+            changesOnly={changesOnly}
+            onChangesOnly={toggleChangesOnly}
           />
-          <Legend lang={lang} taxonomy={data.meta.taxonomy || []} />
           <ViewTabs
             lang={lang}
             views={tabs}
             currentView={currentView}
             onSelect={selectView}
+            changeCounts={changeCounts}
+            changeCountTitle={t("chgInTab")}
           />
           {catalogActive ? (
             g.currentNs && <CatalogPanel lang={lang} ns={g.currentNs} />
@@ -295,10 +396,17 @@ export default function App() {
                 <Toolbar
                   lang={lang}
                   query={query}
-                  onQuery={setQuery}
+                  onQuery={changeQuery}
                   onExpandAll={expandAll}
                   onCollapseAll={() => setExpanded(new Set())}
                 />
+                {/* The filter is on but this tab holds none of the draft's
+                    changes — say so, or the empty tree reads as a load failure. */}
+                {changeFilter && changeFilter.hits.size === 0 && (
+                  <div className="px-3.5 pt-3 text-xs text-[color:var(--color-changed)]">
+                    {t("chgNoneInView")}
+                  </div>
+                )}
                 <Tree
                   lang={lang}
                   model={model}
@@ -308,7 +416,7 @@ export default function App() {
                   onToggle={toggleNode}
                   selected={selected}
                   onOpen={openNode}
-                  filter={search}
+                  filter={treeFilter}
                 />
               </>
             )

@@ -20,17 +20,32 @@ type Props = {
   meta: GraphMeta | null;
   notice: string | null;
   onSelect: (slot: Slot) => void;
+  // The added/changed counts double as the "show me where" control: clicking one
+  // prunes the tree to the changed branches. Removed nodes aren't in the draft at
+  // all, so that chip stays inert and the list below is their only home.
+  changesOnly: boolean;
+  onChangesOnly: (on: boolean) => void;
 };
 
 const TAB_BASE =
   "flex items-center gap-1.5 rounded-lg border px-2.5 py-[5px] text-xs font-semibold";
 
-export function SlotSwitch({ lang, slot, hasDraft, meta, notice, onSelect }: Props) {
+export function SlotSwitch({
+  lang,
+  slot,
+  hasDraft,
+  meta,
+  notice,
+  onSelect,
+  changesOnly,
+  onChangesOnly,
+}: Props) {
   const t = makeT(lang);
   if (!hasDraft && !notice) return null;
 
   const counts = meta?.draft?.counts;
   const removed = meta?.draft?.removed ?? [];
+  const unlinked = meta?.draft?.unlinked ?? [];
 
   const tab = (value: Slot, icon: React.ReactNode, label: string) => (
     <button
@@ -55,9 +70,54 @@ export function SlotSwitch({ lang, slot, hasDraft, meta, notice, onSelect }: Pro
 
         {slot === "draft" && counts && (
           <div className="flex flex-wrap items-center gap-2 text-xs text-muted">
-            <ChangeChip color="var(--color-added)" value={counts.added} label={t("chgAdded")} />
-            <ChangeChip color="var(--color-changed)" value={counts.changed} label={t("chgChanged")} />
-            <ChangeChip color="var(--color-removed)" value={counts.removed} label={t("chgRemoved")} />
+            <ChangeChip
+              color="var(--color-added)"
+              value={counts.added}
+              label={t("chgAdded")}
+              pressed={changesOnly}
+              title={t("chgOnlyTitle")}
+              onClick={() => onChangesOnly(!changesOnly)}
+            />
+            <ChangeChip
+              color="var(--color-changed)"
+              value={counts.changed}
+              label={t("chgChanged")}
+              pressed={changesOnly}
+              title={t("chgOnlyTitle")}
+              onClick={() => onChangesOnly(!changesOnly)}
+            />
+            <ChangeChip
+              color="var(--color-removed)"
+              value={counts.removed}
+              label={t("chgRemoved")}
+            />
+
+            {/* Link counts, so an edit that only wires two existing nodes
+                together still reports something instead of reading 0/0/0.
+                `?? 0` covers a server that predates these fields. */}
+            <ChangeChip
+              color="var(--color-added)"
+              value={counts.linked ?? 0}
+              label={t("chgLinked")}
+              pressed={changesOnly}
+              title={t("chgOnlyTitle")}
+              onClick={() => onChangesOnly(!changesOnly)}
+            />
+            <ChangeChip
+              color="var(--color-removed)"
+              value={counts.unlinked ?? 0}
+              label={t("chgUnlinked")}
+            />
+
+            {changesOnly && (
+              <button
+                type="button"
+                className="rounded-full border border-line px-2.5 py-1 text-muted hover:border-accent hover:text-txt"
+                onClick={() => onChangesOnly(false)}
+              >
+                {t("chgShowAll")}
+              </button>
+            )}
           </div>
         )}
       </div>
@@ -90,15 +150,66 @@ export function SlotSwitch({ lang, slot, hasDraft, meta, notice, onSelect }: Pro
           </ul>
         </details>
       )}
+
+      {/* A deleted link has the same problem for the same reason: it is gone from
+          the draft, so no row can carry it. */}
+      {slot === "draft" && unlinked.length > 0 && (
+        <details className="mt-2 text-xs text-muted">
+          <summary className="cursor-pointer">
+            {t("chgUnlinkedList")} ({unlinked.length})
+          </summary>
+          <ul className="mt-1 ml-4 list-disc">
+            {unlinked.map((link, i) => (
+              <li key={`${link.rel}:${link.from}->${link.to}:${i}`}>
+                <span className="text-[color:var(--color-removed)]">{link.from}</span>{" "}
+                <span className="opacity-70">─{link.rel}→</span>{" "}
+                <span className="text-[color:var(--color-removed)]">{link.to}</span>
+              </li>
+            ))}
+          </ul>
+        </details>
+      )}
     </div>
   );
 }
 
-function ChangeChip({ color, value, label }: { color: string; value: number; label: string }) {
-  return (
-    <span className="inline-flex items-center gap-1.5 rounded-full border border-line bg-panel2 px-2.5 py-1">
+type ChipProps = {
+  color: string;
+  value: number;
+  label: string;
+  // Given together to make the chip a filter toggle; omitted for a plain count.
+  pressed?: boolean;
+  title?: string;
+  onClick?: () => void;
+};
+
+function ChangeChip({ color, value, label, pressed, title, onClick }: ChipProps) {
+  const body = (
+    <>
       <span className="h-[9px] w-[9px] rounded-full" style={{ background: color }} />
       <b className="font-semibold text-txt">{value}</b> {label}
-    </span>
+    </>
+  );
+
+  const base = "inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1";
+
+  // A zero count has nothing to filter to, so it stays a plain chip even when the
+  // caller passed a handler — clicking it would empty the tree for no reason.
+  if (!onClick || value === 0) {
+    return <span className={`${base} border-line bg-panel2`}>{body}</span>;
+  }
+
+  return (
+    <button
+      type="button"
+      aria-pressed={pressed}
+      title={title}
+      className={`${base} cursor-pointer ${
+        pressed ? "border-accent bg-panel" : "border-line bg-panel2 hover:border-accent"
+      }`}
+      onClick={onClick}
+    >
+      {body}
+    </button>
   );
 }

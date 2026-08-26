@@ -4,6 +4,27 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Explorateur — Graphes de connaissances</title>
+    <!--
+      Set the theme BEFORE first paint. The React app would set the same value a
+      moment later, but by then a light-mode reader has already seen a dark frame.
+      Kept deliberately tiny and dependency-free; lib/theme.ts owns the same two
+      rules for the rest of the app's life.
+    -->
+    <script>
+      (function () {
+        try {
+          var saved = localStorage.getItem("kg-explorer-theme");
+          if (saved !== "light" && saved !== "dark") {
+            saved = window.matchMedia("(prefers-color-scheme: light)").matches
+              ? "light"
+              : "dark";
+          }
+          document.documentElement.dataset.theme = saved;
+        } catch (e) {
+          document.documentElement.dataset.theme = "dark";
+        }
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>

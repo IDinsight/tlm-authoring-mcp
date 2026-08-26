@@ -123,7 +123,7 @@ export function DetailModal({ lang, model, id, onClose, onOpen }: Props) {
 
   return (
     <div
-      className="fixed inset-0 z-[100] flex items-center justify-center bg-[rgba(6,8,12,0.66)] p-5 backdrop-blur-[3px]"
+      className="fixed inset-0 z-[100] flex items-center justify-center bg-[var(--scrim)] p-5 backdrop-blur-[3px]"
       onClick={(e) => {
         if (e.target === e.currentTarget) onClose();
       }}
@@ -131,7 +131,7 @@ export function DetailModal({ lang, model, id, onClose, onOpen }: Props) {
       <div
         role="dialog"
         aria-modal="true"
-        className="flex max-h-[86vh] w-full max-w-[640px] flex-col rounded-2xl border border-line bg-panel shadow-[0_24px_60px_rgba(0,0,0,0.5)]"
+        className="flex max-h-[86vh] w-full max-w-[640px] flex-col rounded-2xl border border-line bg-panel shadow-[var(--shadow-modal)]"
       >
         <div className="relative border-b border-line px-5 pb-3.5 pt-[18px]">
           <button

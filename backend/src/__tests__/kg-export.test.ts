@@ -486,7 +486,72 @@ describe("kg-export — the draft slot", () => {
 
     // A removed node is gone from the draft, so it can only be reported here.
     expect(draft.meta.draft?.removed?.map((n) => n.id)).toEqual(["crit"]);
-    expect(draft.meta.draft?.counts).toEqual({ added: 1, changed: 1, removed: 1 });
+    expect(draft.meta.draft?.counts).toEqual({
+      added: 1,
+      changed: 1,
+      removed: 1,
+      // Removing a node does NOT cascade its edges — rsec▸crit survives in the
+      // draft pointing at a node that is gone — so nothing counts as unlinked.
+      linked: 0,
+      unlinked: 0,
+    });
+  });
+
+  // An edge-only edit — use_routine / create_edges attach a node that already
+  // exists — used to be INVISIBLE: no node differs, so nothing carried a tag and
+  // the counts read 0/0/0 while the tree silently grew a branch.
+  it("tags a link the draft created, even though neither endpoint changed", async () => {
+    const store = getKgStore();
+    await store.discardDraft(docNs);   // the suite shares one store; start clean
+    await store.createDraft(docNs);
+    const draftSlot = (await store.readPointer(docNs))!.draftSlot!;
+
+    const meta: StoredMeta = { contentHash: "draft", seededAt: "1970-01-01T00:00:00Z", adapterId: "doc", nodeCount: 0, edgeCount: 0 };
+    await store.applyDelta(docNs, draftSlot, {
+      upsertNodes: [],
+      upsertEdges: [
+        { id: makeEdgeId("hasPart", "sec", "fmt"), type: "hasPart", from: "sec", to: "fmt", namespace: docNs, properties: {} },
+      ],
+      removeNodeIds: [],
+      removeEdgeIds: [],
+    }, meta);
+
+    const draft = (await exportNamespace(docNs, { slot: "draft" }))!;
+
+    expect(draft.nodes.every((n) => n.chg === undefined)).toBe(true);
+
+    const newLink = draft.edges.find((e) => e.s === "sec" && e.t === "fmt");
+    expect(newLink?.chg).toBe("added");
+    // Every pre-existing link stays untagged.
+    expect(draft.edges.filter((e) => e.chg === "added")).toHaveLength(1);
+
+    expect(draft.meta.draft?.counts).toEqual({
+      added: 0, changed: 0, removed: 0, linked: 1, unlinked: 0,
+    });
+  });
+
+  it("lists a link the draft deleted, naming both endpoints", async () => {
+    const store = getKgStore();
+    await store.discardDraft(docNs);   // the suite shares one store; start clean
+    await store.createDraft(docNs);
+    const draftSlot = (await store.readPointer(docNs))!.draftSlot!;
+
+    const meta: StoredMeta = { contentHash: "draft", seededAt: "1970-01-01T00:00:00Z", adapterId: "doc", nodeCount: 0, edgeCount: 0 };
+    await store.applyDelta(docNs, draftSlot, {
+      upsertNodes: [],
+      upsertEdges: [],
+      removeNodeIds: [],
+      removeEdgeIds: [makeEdgeId("hasPart", "tlm", "fmt")],
+    }, meta);
+
+    const draft = (await exportNamespace(docNs, { slot: "draft" }))!;
+
+    // The edge is absent from the draft graph, so the list is its only home.
+    expect(draft.edges.some((e) => e.s === "tlm" && e.t === "fmt")).toBe(false);
+    expect(draft.meta.draft?.unlinked).toEqual([
+      { rel: "hasPart", from: "Manuel de l'élève", to: "Style" },
+    ]);
+    expect(draft.meta.draft?.counts?.unlinked).toBe(1);
   });
 
   it("falls back to published, and says so, when no draft is open", async () => {

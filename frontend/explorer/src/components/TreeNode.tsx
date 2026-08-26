@@ -1,3 +1,4 @@
+import type { CSSProperties } from "react";
 import { ArrowDown, ArrowUp, ChevronDown, ChevronRight, Eye } from "lucide-react";
 import { isSynth, type GraphModel } from "../lib/graphModel";
 import { makeT } from "../i18n";
@@ -77,7 +78,7 @@ export function TreeNode(props: Props) {
         onClick={onRowClick}
       >
         <span
-          className={`flex w-4 flex-shrink-0 items-center justify-center rounded ${
+          className={`flex h-6 w-6 flex-shrink-0 items-center justify-center rounded ${
             hasKids ? "cursor-pointer text-muted hover:bg-line hover:text-txt" : ""
           } ${folded ? "text-task" : ""}`}
           onClick={(e) => {
@@ -88,19 +89,56 @@ export function TreeNode(props: Props) {
           }}
         >
           {hasKids &&
-            (open ? <ChevronDown size={13} /> : <ChevronRight size={13} />)}
+            (open ? <ChevronDown size={17} /> : <ChevronRight size={17} />)}
+        </span>
+
+        {/* Open-details sits in a fixed gutter beside the chevron, so the two
+            things you do while scanning are under one cursor position instead of
+            at opposite ends of the row. The slot is rendered even for a synthetic
+            grouping row, which has no details to open — otherwise every real row
+            would indent one notch further than the buckets above it. */}
+        <span className="flex h-6 w-6 flex-shrink-0 items-center justify-center">
+          {!synthetic && (
+            <button
+              type="button"
+              className={`flex h-6 w-6 items-center justify-center rounded text-muted hover:bg-line hover:text-txt ${
+                selected === id ? "opacity-100" : "opacity-0 group-hover:opacity-100"
+              }`}
+              title={t("view")}
+              aria-label={t("view")}
+              onClick={(e) => {
+                e.stopPropagation();
+                onOpen(id);
+              }}
+            >
+              <Eye size={17} />
+            </button>
+          )}
         </span>
 
         <span
-          className="h-[9px] w-[9px] flex-shrink-0 rounded-full"
-          style={{ background: model.colorFor(id) }}
+          className="dot h-[9px] w-[9px] flex-shrink-0 rounded-full"
+          style={{ "--dot": model.colorFor(id) } as CSSProperties}
         />
 
+        {/* A link this draft created gets the added colour on the relation badge
+            itself. This is the only signal for an edge-only edit — attaching an
+            existing routine to a lesson leaves both nodes untagged. */}
         {link && (
           <span
             className={`inline-flex flex-shrink-0 items-center gap-0.5 rounded border px-1.5 py-px text-[10px] uppercase tracking-[0.04em] ${
-              folded ? "border-line bg-panel2 text-task" : "border-line text-muted"
+              link.chg === "added"
+                ? "bg-panel2"
+                : folded
+                  ? "border-line bg-panel2 text-task"
+                  : "border-line text-muted"
             }`}
+            style={
+              link.chg === "added"
+                ? { borderColor: "var(--color-added)", color: "var(--color-added)" }
+                : undefined
+            }
+            title={link.chg === "added" ? t("chgLinkedOne") : undefined}
           >
             {link.sourceIsParent ? <ArrowDown size={9} /> : <ArrowUp size={9} />}
             {link.rel}
@@ -135,23 +173,6 @@ export function TreeNode(props: Props) {
         >
           {label}
         </span>
-
-        {!synthetic && (
-          <button
-            type="button"
-            className={`flex h-5 w-5 flex-shrink-0 items-center justify-center rounded text-muted hover:bg-line hover:text-txt ${
-              selected === id ? "opacity-100" : "opacity-0 group-hover:opacity-100"
-            }`}
-            title={t("view")}
-            aria-label={t("view")}
-            onClick={(e) => {
-              e.stopPropagation();
-              onOpen(id);
-            }}
-          >
-            <Eye size={13} />
-          </button>
-        )}
 
         {hasKids && (
           <span className="flex-shrink-0 text-[11px] text-muted">{kids.length}</span>

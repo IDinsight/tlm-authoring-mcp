@@ -14,6 +14,7 @@ export const UI = {
     expandAll: "Tout déplier",
     collapseAll: "Tout replier",
     noeuds: "nœuds",
+    nodeTypes: "Types de nœuds",
     relations: "relations",
     taches: "tâches",
     loading: "Chargement du graphe…",
@@ -83,7 +84,7 @@ export const UI = {
     slotPublished: "Publié",
     slotDraft: "Brouillon",
     draftHint:
-      "Vue du brouillon non publié : les éléments ajoutés et modifiés sont signalés dans l'arbre ; les éléments supprimés sont listés ci-dessous. Rien de tout cela n'est encore visible par la génération.",
+      "Vue du brouillon non publié : cliquez sur un compteur ci-dessus pour n'afficher que les modifications ; les éléments supprimés sont listés ci-dessous. Rien de tout cela n'est encore visible par la génération.",
     draftForbidden:
       "Vous n'avez pas les droits pour consulter le brouillon de ce graphe (rôle « curator » requis dans cet espace de travail). Affichage de la version publiée.",
     chgAdded: "ajoutés",
@@ -92,6 +93,15 @@ export const UI = {
     chgRemovedList: "Éléments supprimés par ce brouillon",
     chgAddedOne: "ajouté",
     chgChangedOne: "modifié",
+    chgLinked: "liens ajoutés",
+    chgUnlinked: "liens supprimés",
+    chgLinkedOne: "lien ajouté par ce brouillon",
+    chgUnlinkedList: "Liens supprimés par ce brouillon",
+    chgOnly: "Modifications seules",
+    chgOnlyTitle: "N'afficher que les nœuds modifiés par ce brouillon, avec leur chemin",
+    chgShowAll: "Tout afficher",
+    chgNoneInView: "Aucune modification dans cet onglet — essayez-en un autre.",
+    chgInTab: "modification(s) dans cet onglet",
   },
   en: {
     title: "Explorer — Knowledge graphs",
@@ -104,6 +114,7 @@ export const UI = {
     expandAll: "Expand all",
     collapseAll: "Collapse all",
     noeuds: "nodes",
+    nodeTypes: "Node types",
     relations: "relationships",
     taches: "tasks",
     loading: "Loading graph…",
@@ -173,7 +184,7 @@ export const UI = {
     slotPublished: "Published",
     slotDraft: "Draft",
     draftHint:
-      "Viewing the unpublished draft: added and changed nodes are tagged in the tree; removed ones are listed below. None of it is visible to generation yet.",
+      "Viewing the unpublished draft: click a count above to show only what changed; removed nodes are listed below. None of it is visible to generation yet.",
     draftForbidden:
       "You are not allowed to view this graph's draft (a 'curator' role in this workspace is required). Showing the published version.",
     chgAdded: "added",
@@ -182,6 +193,15 @@ export const UI = {
     chgRemovedList: "Nodes this draft removed",
     chgAddedOne: "added",
     chgChangedOne: "changed",
+    chgLinked: "links added",
+    chgUnlinked: "links removed",
+    chgLinkedOne: "link added by this draft",
+    chgUnlinkedList: "Links this draft removed",
+    chgOnly: "Changes only",
+    chgOnlyTitle: "Show only the nodes this draft touched, with their path",
+    chgShowAll: "Show all",
+    chgNoneInView: "No changes on this tab — try another one.",
+    chgInTab: "change(s) on this tab",
   },
 } satisfies Record<Lang, Record<string, string>>;
 
