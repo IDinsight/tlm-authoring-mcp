@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Header, type StatChip } from "./components/Header";
+import type { TypeRow } from "./components/TypeTable";
 import { Banner } from "./components/Banner";
 import { LoginGate } from "./components/LoginGate";
-import { Legend } from "./components/Legend";
 import { ViewTabs, type TabSpec } from "./components/ViewTabs";
 import { SlotSwitch } from "./components/SlotSwitch";
 import { SourceFilters } from "./components/SourceFilters";
@@ -15,7 +15,7 @@ import { useGraphData } from "./hooks/useGraphData";
 import { computeSearch } from "./lib/search";
 import { computeChangeFilter, countChangesByView, revealChanges } from "./lib/changes";
 import { EMPTY_URL_STATE, readUrlState, writeUrlState } from "./lib/urlState";
-import { makeT, pick } from "./i18n";
+import { makeT } from "./i18n";
 import type { GraphModel } from "./lib/graphModel";
 import type { Lang, ViewSpec } from "./types";
 
@@ -151,24 +151,37 @@ export default function App() {
     return [...views.slice(0, at), catalogTab, terminologyTab, ...views.slice(at)];
   }, [data, t]);
 
-  // Stats chips: visible node count, per-taxonomy counts, and edges among visibles.
-  const stats = useMemo<StatChip[]>(() => {
-    if (!data || !model) return [];
-    const vis = data.nodes.filter((n) => model.srcAllowed(n.id, sourceOn));
-    const visIds = new Set(vis.map((n) => n.id));
-    const byCat: Record<string, number> = {};
-    vis.forEach((n) => {
-      if (n.cat) byCat[n.cat] = (byCat[n.cat] || 0) + 1;
+  // Counts over the nodes the source filters currently allow, split two ways: the
+  // graph-wide totals stay inline in the header, the per-type breakdown goes
+  // behind the TypeTable button (it used to be sixteen more chips).
+  const counts = useMemo(() => {
+    if (!data || !model) return { stats: [] as StatChip[], types: [] as TypeRow[] };
+
+    const visible = data.nodes.filter((n) => model.srcAllowed(n.id, sourceOn));
+    const visibleIds = new Set(visible.map((n) => n.id));
+
+    const byCategory: Record<string, number> = {};
+    visible.forEach((n) => {
+      if (n.cat) byCategory[n.cat] = (byCategory[n.cat] || 0) + 1;
     });
-    const edges = data.edges.filter((e) => visIds.has(e.s) && visIds.has(e.t)).length;
-    const chips: StatChip[] = [{ value: vis.length, label: t("noeuds") }];
-    (data.meta.taxonomy || []).forEach((tx) => {
-      if (byCat[tx.key])
-        chips.push({ value: byCat[tx.key], label: pick(lang, tx.label) });
-    });
-    chips.push({ value: edges, label: t("relations") });
-    return chips;
-  }, [data, model, sourceOn, lang, t]);
+
+    const edgeCount = data.edges.filter(
+      (e) => visibleIds.has(e.s) && visibleIds.has(e.t),
+    ).length;
+
+    const stats: StatChip[] = [
+      { value: visible.length, label: t("noeuds") },
+      { value: edgeCount, label: t("relations") },
+    ];
+
+    // Keep the server's canonical taxonomy order rather than sorting by count:
+    // it stays stable across graphs, so a reader learns where to look.
+    const types: TypeRow[] = (data.meta.taxonomy || [])
+      .filter((tx) => byCategory[tx.key])
+      .map((tx) => ({ entry: tx, count: byCategory[tx.key] }));
+
+    return { stats, types };
+  }, [data, model, sourceOn, t]);
 
   const search = useMemo(() => {
     if (!model || !spec || !query.trim()) return null;
@@ -300,7 +313,8 @@ export default function App() {
         lang={lang}
         title={t("title")}
         sub={t("sub")}
-        stats={ready ? stats : []}
+        stats={ready ? counts.stats : []}
+        types={ready ? counts.types : []}
         namespaces={g.namespaces}
         currentNs={g.currentNs}
         onSelectNs={g.selectNs}
@@ -347,7 +361,6 @@ export default function App() {
             changesOnly={changesOnly}
             onChangesOnly={toggleChangesOnly}
           />
-          <Legend lang={lang} taxonomy={data.meta.taxonomy || []} />
           <ViewTabs
             lang={lang}
             views={tabs}

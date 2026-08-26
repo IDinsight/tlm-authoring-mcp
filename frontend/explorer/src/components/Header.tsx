@@ -1,4 +1,5 @@
 import { Languages, LogIn, LogOut, RefreshCw } from "lucide-react";
+import { TypeTable, type TypeRow } from "./TypeTable";
 import { pick } from "../i18n";
 import type { Lang, NamespaceEntry } from "../types";
 
@@ -19,7 +20,10 @@ type Props = {
   lang: Lang;
   title: string;
   sub: string;
+  // Only the two graph-wide totals now — the per-type counts moved into
+  // `types`, which renders as one button instead of sixteen chips.
   stats: StatChip[];
+  types: TypeRow[];
   namespaces: NamespaceEntry[];
   currentNs: string | null;
   onSelectNs: (ns: string) => void;
@@ -36,6 +40,7 @@ export function Header({
   title,
   sub,
   stats,
+  types,
   namespaces,
   currentNs,
   onSelectNs,
@@ -59,7 +64,7 @@ export function Header({
         <h1 className="text-lg font-semibold">{title}</h1>
         <div className="mt-[3px] text-[13px] text-muted">{sub}</div>
         {stats.length > 0 && (
-          <div className="mt-3 flex flex-wrap gap-2">
+          <div className="mt-3 flex flex-wrap items-center gap-2">
             {stats.map((chip) => (
               <span
                 key={chip.label}
@@ -68,6 +73,7 @@ export function Header({
                 <b className="font-semibold text-txt">{chip.value}</b> {chip.label}
               </span>
             ))}
+            <TypeTable lang={lang} rows={types} />
           </div>
         )}
       </div>
