@@ -38,6 +38,7 @@ import { parkWrapperContext, readWrapperContext, deleteWrapperContext } from "./
 // verbs (edit_node / add_nodes / create_edges) share for their `catalog` redirect.
 import { resolveCatalogTarget } from "./catalog-target.js";
 import { PARKED_PAYLOAD_NOTE } from "./tool-notes.js";
+import { displayName } from "../utils/index.js";
 
 // Read one catalog namespace's published slot as a plain MutationGraph. Empty when
 // that namespace has never been seeded (no pointer). Exported for tests.
@@ -264,7 +265,7 @@ const subjectSource = (): CatalogCopySource => ({
     const adapter = getActiveAdapter();
     return readActiveGraph(kgNamespace(activeWorkspace(), adapter.grade, adapter.subject));
   },
-  missing: (entryId) => `Entry '${entryId}' was not found in the active graph. Author it first (add_nodes: an InstructionalRoutine + its steps/materials), then add it to the catalog.`,
+  missing: (entryId) => `Entry '${entryId}' was not found in the active graph. Author it first (add_nodes: an InstructionalRoutine + its steps), then add it to the catalog.`,
 });
 
 // Both libraries at once — an entry id is unique across them, so duplicate_entry
@@ -277,10 +278,11 @@ const librarySource = (): CatalogCopySource => ({
   missing: (entryId) => `Catalog entry '${entryId}' was not found in the shared or workspace library. Call list_catalog for entry ids.`,
 });
 
-// The entry's display name — the field list_catalog reads (raw.description).
+// The entry's display name — line 1 of the field list_catalog reads
+// (raw.description), since a routine's whole authored text lives there.
 const entryName = (node: MutationNode | undefined): string =>
   typeof (node?.properties?.raw as Record<string, unknown> | undefined)?.description === "string"
-    ? String((node!.properties.raw as Record<string, unknown>).description)
+    ? displayName(String((node!.properties.raw as Record<string, unknown>).description))
     : "";
 
 // Rename a cloned entry's ROOT node in place. Only the root is renamed: the steps
@@ -424,7 +426,7 @@ const APPLY_INPUT = {
 export function registerCatalogTools(server: McpServer) {
   server.registerTool(
     "list_catalog",
-    { title: "List the catalog", description: "Browse the reusable-spec catalog — the instructional routines, formatters and evaluation rubrics a curator can apply to content. Reads BOTH the shared cross-tenant library and the active workspace's own; each entry carries its `scope` (shared | workspace) and `kind` (routine | formatter | rubric), plus id, name, cross-cutting summary, ordered steps (name + timing), and material count. A RUBRIC (an evaluation grid) additionally carries `scale` ('0-4' or 'oui-non') on the entry, and its `steps` are the grid's weighted SECTIONS — each with a `weight` ('20%') and its criteria in `materials`. Pass a routine's id to use_routine, a formatter's to use_formatter, or a rubric's to use_rubric, to copy it. For an entry's FULL authored spec, call get_catalog_entry. [] when nothing is seeded. EDITING an entry: this is also where the NODE IDS come from, because a catalog cannot be traversed (walk_graph reads the active subject only). `materials[]` on an entry lists its own Material children — a FORMATTER's spec lives there; `steps[i].materials[]` lists a nested step's Material children. Those ids are what `edit_node(nodeId, content, catalog)` takes. A flat routine step carries its text on the step node itself, so `steps[i].id` IS the editable id and its `materials` is empty.", inputSchema: {} },
+    { title: "List the catalog", description: "Browse the reusable-spec catalog — the instructional routines, formatters and evaluation rubrics a curator can apply to content. Reads BOTH the shared cross-tenant library and the active workspace's own; each entry carries its `scope` (shared | workspace) and `kind` (routine | formatter | rubric), plus id, name, cross-cutting summary, ordered steps (name + timing), and material count. A RUBRIC (an evaluation grid) additionally carries `scale` ('0-4' or 'oui-non') on the entry, and its `steps` are the grid's weighted SECTIONS — each with a `weight` ('20%') and its criteria in `materials`. Pass a routine's id to use_routine, a formatter's to use_formatter, or a rubric's to use_rubric, to copy it. For an entry's FULL authored spec, call get_catalog_entry. [] when nothing is seeded. EDITING an entry: this is also where the NODE IDS come from, because a catalog cannot be traversed (walk_graph reads the active subject only). `materials[]` on an entry lists its own Material children — a FORMATTER's spec and a RUBRIC's criteria live there, and those ids are what `edit_node(nodeId, content, catalog)` takes. A ROUTINE has no Materials at all: every step carries its own text in `description` (name on the first line, script below), so `steps[i].id` IS the editable id, its `materials` is empty, and you edit it with `edit_node(nodeId, description, catalog)`.", inputSchema: {} },
     guarded(async () => {
       const scopes = catalogScopes();
       const perScope = await Promise.all(scopes.map(async (s) => listCatalogEntries(await readCatalog(s.namespace), s.scope)));
@@ -436,7 +438,7 @@ export function registerCatalogTools(server: McpServer) {
     "get_catalog_entry",
     {
       title: "Read a catalog entry",
-      description: "Read ONE catalog entry's FULL authored spec, as markdown: a routine's summary + its ordered, timed steps AND each step's Material content; a formatter's spec Material; a rubric's scale plus its weighted sections and their named criteria (each with its measurable indicator). This is the detail list_catalog only COUNTS (materialCount) — the same content the `catalog://` browse resource serves, exposed as a TOOL so it works in every client (not only those with a resource browser). Pass the entry `id` from list_catalog; both libraries (shared + workspace) are searched. Each block of authored text is preceded by the NODE ID holding it (`edit_node nodeId: ...`), so a spec you find wrong here can be corrected straight away with edit_node(nodeId, content, catalog) — a catalog is not walkable, so this is where content and its id appear together. Read-only.",
+      description: "Read ONE catalog entry's FULL authored spec, as markdown: a routine's ordered, timed steps with each step's script (a routine keeps its summary and every step's text inline in `description`, not in Materials); a formatter's spec Material; a rubric's scale plus its weighted sections and their named criteria (each with its measurable indicator). This is the detail list_catalog only COUNTS (materialCount) — the same content the `catalog://` browse resource serves, exposed as a TOOL so it works in every client (not only those with a resource browser). Pass the entry `id` from list_catalog; both libraries (shared + workspace) are searched. Each block of authored text is preceded by the NODE ID holding it (`edit_node nodeId: ...`), so a spec you find wrong here can be corrected straight away with edit_node(nodeId, content, catalog) — a catalog is not walkable, so this is where content and its id appear together. Read-only.",
       inputSchema: { id: z.string() },
     },
     guarded(async (a: { id: string }) => {
@@ -484,7 +486,7 @@ export function registerCatalogTools(server: McpServer) {
     "add_to_catalog",
     {
       title: "Add a routine or formatter to the catalog",
-      description: "Publish a routine, formatter or rubric you AUTHORED (an InstructionalRoutine entry + its steps/materials, built in the active subject with add_nodes) INTO a catalog library, so list_catalog / use_routine / use_formatter / use_rubric can then reuse it. It clones the entry's whole subtree with fresh ids into the destination and files it under that library's root — the write inverse of use_routine. PREFER AUTHORING DIRECTLY INTO THE LIBRARY for a NEW entry: add_nodes with `catalog:'workspace'` writes there in one step, whereas building inside the subject and cloning here leaves a half-built entry stranded in the curriculum if the session is interrupted. Use add_to_catalog for an entry that already exists in a subject graph (it was authored inline, or applied there by use_routine and improved since). To start from an entry that already exists in a library, use duplicate_entry. DESTINATION: a workspace curator adds to their OWN workspace's library (omit targetWorkspace). A super_admin may target the shared cross-tenant library OR any workspace — pass `targetWorkspace` ('_shared' for the shared library, or a workspace id); call WITHOUT it to get back the list of catalogs to choose from. GATED by the destination — because it PUBLISHES, it needs an APPROVER of that workspace (or super_admin for the shared library). TWO-PHASE, and confirming does BOTH in one step: the dry-run returns the diff + confirmationToken + mintedIdMap. " + PARKED_PAYLOAD_NOTE + " Catalogs aren't enterable contexts, so there is no separate publish_draft.",
+      description: "Publish a routine, formatter or rubric you AUTHORED (an InstructionalRoutine entry + its steps — plus Materials for a formatter or rubric — built in the active subject with add_nodes) INTO a catalog library, so list_catalog / use_routine / use_formatter / use_rubric can then reuse it. It clones the entry's whole subtree with fresh ids into the destination and files it under that library's root — the write inverse of use_routine. PREFER AUTHORING DIRECTLY INTO THE LIBRARY for a NEW entry: add_nodes with `catalog:'workspace'` writes there in one step, whereas building inside the subject and cloning here leaves a half-built entry stranded in the curriculum if the session is interrupted. Use add_to_catalog for an entry that already exists in a subject graph (it was authored inline, or applied there by use_routine and improved since). To start from an entry that already exists in a library, use duplicate_entry. DESTINATION: a workspace curator adds to their OWN workspace's library (omit targetWorkspace). A super_admin may target the shared cross-tenant library OR any workspace — pass `targetWorkspace` ('_shared' for the shared library, or a workspace id); call WITHOUT it to get back the list of catalogs to choose from. GATED by the destination — because it PUBLISHES, it needs an APPROVER of that workspace (or super_admin for the shared library). TWO-PHASE, and confirming does BOTH in one step: the dry-run returns the diff + confirmationToken + mintedIdMap. " + PARKED_PAYLOAD_NOTE + " Catalogs aren't enterable contexts, so there is no separate publish_draft.",
       inputSchema: {
         entryId: z.string().optional(),   // required on dry-run; omitted on token-only confirm
         targetWorkspace: z.string().optional(),

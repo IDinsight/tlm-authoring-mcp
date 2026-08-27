@@ -31,6 +31,7 @@
 
 import { edgeId, kgNamespace, type GraphMutation, type MutationEdge, type MutationGraph, type MutationNode } from "../kg-store/index.js";
 import type { RawGraphSnapshot } from "../types.js";
+import { displayName, descriptionBody } from "../utils/index.js";
 
 // The catalog namespace for a given scope. The third segment is historically
 // "routines" (the catalog began routine-only); it now holds BOTH kinds, keyed by
@@ -123,6 +124,23 @@ const kindOf = (n: MutationNode): CatalogKind => {
   return "routine";
 };
 
+// An entry's cross-cutting rules. They used to sit in `metadata.summary`; a migrated
+// routine carries them below the name line of its own `description`. Read both so a
+// library migrated at a different moment than its subject graph still renders.
+const summaryOf = (n: MutationNode): string =>
+  str(metaOf(n).summary) || descriptionBody(str(rawOf(n).description));
+
+// One block of authored text with the id that holds it. A formatter's and a rubric's
+// bodies are still Material `content`; a routine step's is the body of its own
+// description (`content` covers a flat step authored before the migration).
+const bodiesOf = (n: MutationNode, materialChildren: MutationNode[]): Array<{ id: string; content: string }> => {
+  if (materialChildren.length > 0) {
+    return materialChildren.map((m) => ({ id: m.id, content: str(rawOf(m).content) }));
+  }
+  const own = str(rawOf(n).content) || descriptionBody(str(rawOf(n).description));
+  return own ? [{ id: n.id, content: own }] : [];
+};
+
 // A step's ordinal comes from raw.position or raw.metadata.order (CI maths writes
 // both); fall back to 0 so a malformed step still lists in a stable place.
 const orderOf = (n: MutationNode): number => num(rawOf(n).position) ?? num(metaOf(n).order) ?? 0;
@@ -166,7 +184,7 @@ function describeEntry(entry: MutationNode, byId: Map<string, MutationNode>, chi
   let materialCount = 0;
   const kind = kindOf(entry);
 
-  const asMaterial = (n: MutationNode): CatalogMaterial => ({ id: n.id, name: str(rawOf(n).description) });
+  const asMaterial = (n: MutationNode): CatalogMaterial => ({ id: n.id, name: displayName(str(rawOf(n).description)) });
 
   // The Material children directly under `parentId`. Empty for a FLAT step, whose
   // text lives on the step node itself — there, the step's own id is what edit_node
@@ -179,7 +197,7 @@ function describeEntry(entry: MutationNode, byId: Map<string, MutationNode>, chi
 
   const asStep = (n: MutationNode) => ({
     id: n.id,
-    name: str(rawOf(n).description),
+    name: displayName(str(rawOf(n).description)),
     order: orderOf(n),
     timeRequired: str(rawOf(n).timeRequired) || undefined,
     // Only a rubric SECTION carries a weight ("20%"); a routine step has none.
@@ -212,8 +230,8 @@ function describeEntry(entry: MutationNode, byId: Map<string, MutationNode>, chi
     id: entry.id,
     kind,
     scope,
-    name: str(rawOf(entry).description),
-    summary: str(metaOf(entry).summary),
+    name: displayName(str(rawOf(entry).description)),
+    summary: summaryOf(entry),
     scale: str(metaOf(entry).scale) || undefined,
     steps,
     materials,
@@ -224,7 +242,7 @@ function describeEntry(entry: MutationNode, byId: Map<string, MutationNode>, chi
 // One entry's FULL detail rendered as markdown, for the browse resource surface.
 // Where listCatalogEntries gives a shallow outline (step names + a material count),
 // this includes the load-bearing authored spec: a formatter's Material content, and
-// each routine step's Material content. Returns null when the id isn't a routine
+// each routine step's inline `description`. Returns null when the id isn't a routine
 // entry in this graph.
 export type RenderCatalogEntryOptions = {
   // Print `edit_node nodeId:` above each authored block. TRUE for the MCP surfaces,
@@ -252,8 +270,8 @@ export function renderCatalogEntry(
   // next to its content.
   const showEditHints = options.editHints ?? true;
   const editHint = (id: string) => (showEditHints ? [`\`edit_node\` nodeId: \`${id}\``, ""] : []);
-  const lines: string[] = [`# ${str(rawOf(entry).description) || entryId}`, "", `*${kind} · ${scope} catalog*`, ""];
-  const summary = str(metaOf(entry).summary);
+  const lines: string[] = [`# ${displayName(str(rawOf(entry).description)) || entryId}`, "", `*${kind} · ${scope} catalog*`, ""];
+  const summary = summaryOf(entry);
   if (summary) lines.push(summary, "");
 
   if (kind === "formatter") {
@@ -271,9 +289,9 @@ export function renderCatalogEntry(
     const sections = childrenOf(entry.id).filter(isRoutine).sort((a, b) => orderOf(a) - orderOf(b));
     for (const section of sections) {
       const weight = str(metaOf(section).weight);
-      lines.push(`## ${str(rawOf(section).description)}${weight ? `  (poids : ${weight})` : ""}`, "");
+      lines.push(`## ${displayName(str(rawOf(section).description))}${weight ? `  (poids : ${weight})` : ""}`, "");
       for (const criterion of childrenOf(section.id).filter(isMaterial).sort((a, b) => orderOf(a) - orderOf(b))) {
-        lines.push(`### ${str(rawOf(criterion).description)}`, "", ...editHint(criterion.id));
+        lines.push(`### ${displayName(str(rawOf(criterion).description))}`, "", ...editHint(criterion.id));
         const indicator = str(rawOf(criterion).content);
         if (indicator) lines.push(indicator, "");
       }
@@ -285,12 +303,10 @@ export function renderCatalogEntry(
     const steps = childrenOf(entry.id).filter((c) => isRoutine(c) || isMaterial(c)).sort((a, b) => orderOf(a) - orderOf(b));
     for (const step of steps) {
       const timing = str(rawOf(step).timeRequired);
-      lines.push(`## ${str(rawOf(step).description)}${timing ? `  (${timing})` : ""}`, "");
-      // A flat step holds its own text, so the step node IS what edit_node takes; a
-      // nested step's text sits in Material grandchildren, each with its own id.
-      const bodies = isMaterial(step)
-        ? [{ id: step.id, content: str(rawOf(step).content) }]
-        : childrenOf(step.id).filter(isMaterial).map((m) => ({ id: m.id, content: str(rawOf(m).content) }));
+      lines.push(`## ${displayName(str(rawOf(step).description))}${timing ? `  (${timing})` : ""}`, "");
+      // The step node itself holds the text now, so it IS what edit_node takes; a
+      // pre-migration nested step's text sits in Material grandchildren instead.
+      const bodies = bodiesOf(step, isMaterial(step) ? [] : childrenOf(step.id).filter(isMaterial));
       for (const body of bodies) {
         if (body.content) lines.push(...editHint(body.id), body.content, "");
       }

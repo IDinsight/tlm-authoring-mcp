@@ -118,6 +118,36 @@ describe("renderCatalogEntry", () => {
     expect(md.indexOf("Déclencheur")).toBeLessThan(md.indexOf("Modelage"));   // ordinal order
   });
 
+  it("renders a MIGRATED routine, whose text is inline in description and has no Materials", () => {
+    // The shape every routine has since migrate-routine-materials-inline.mjs: the
+    // entry's cross-cutting rules and each step's script sit below the name line of
+    // their own `description`. `content` is a Material property and a routine has no
+    // Material left, so the renderer has to read the description body instead.
+    const g: MutationGraph = {
+      nodes: [
+        routine("root", { description: "Routine library" }),
+        routine("entry", { description: "Fiche de leçon\n\nFrench only." }),
+        routine("s1", { description: "Déclencheur\n\nTrigger spec.", position: 1, timeRequired: "PT4M" }),
+        routine("s2", { description: "Modelage\n\nModel spec.", position: 2 }),
+      ],
+      edges: [hasPart("root", "entry"), hasPart("entry", "s1"), hasPart("entry", "s2")],
+    };
+    const md = renderCatalogEntry(g, "entry", "shared")!;
+
+    // Headings are the NAME only — the prose must not leak into them.
+    expect(md).toContain("# Fiche de leçon\n");
+    expect(md).toContain("## Déclencheur  (PT4M)");
+    // …and every body still reaches the reader.
+    expect(md).toContain("French only.");
+    expect(md).toContain("Trigger spec.");
+    expect(md).toContain("Model spec.");
+
+    // The listing agrees: short names, and the summary read from the description body.
+    const [entry] = listCatalogEntries(g, "shared");
+    expect(entry).toMatchObject({ name: "Fiche de leçon", summary: "French only.", materialCount: 0 });
+    expect(entry.steps.map((s) => s.name)).toEqual(["Déclencheur", "Modelage"]);
+  });
+
   it("renders a formatter entry's direct Material spec (no steps)", () => {
     const g: MutationGraph = {
       nodes: [

@@ -31,7 +31,7 @@ import {
   type CatalogEntry, type CatalogScope,
 } from "./kg-recipes/index.js";
 import { listAvailableContexts } from "./context/index.js";
-import { responseBytes } from "./utils/index.js";
+import { responseBytes, displayName } from "./utils/index.js";
 import { glossaryNamespace, readGlossaryEntries, type LexiconEntry } from "./glossary/index.js";
 
 // ── Display schema (what the explorer consumes) ──────────────────────────────
@@ -247,7 +247,9 @@ function toDisplayNode(n: StoredNode): DisplayNode {
     cat: label,
     code: str(p.code ?? r("statementCode") ?? r("identifier")),
     ord: typeof p.order === "number" ? (p.order as number) : (typeof m.order === "number" ? (m.order as number) : null),
-    desc: str(p.text ?? p.title ?? r("description") ?? r("osTexte")),
+    // The node LABEL, so line 1 only — a routine's full text still reaches the
+    // detail panel through the raw property bag below.
+    desc: displayName(str(p.text ?? p.title ?? r("description") ?? r("osTexte"))),
     desc_en: str(en("description") ?? en("os_texte")),
     nt: str(r("normalizedType") ?? r("normalizedStatementType") ?? r("contentType")),
     st: str(r("statementType")),

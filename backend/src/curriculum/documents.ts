@@ -223,7 +223,8 @@ export function documentSubgraph(model: CurriculumModel, tlmId: string): Documen
 const FORMATTER_LABELS = new Set(["Formatter", "FormatterSpec"]);
 const ROUTINE_EDGE = "usesRoutine";
 // A routine subtree hangs off its entry node by hasPart, like every other content
-// subtree (the routine's ordered steps + their materials).
+// subtree: the entry plus its ordered steps, each step carrying its own script in
+// `description` (no Material children — see migrate-routine-materials-inline.mjs).
 const ROUTINE_EDGE_CONTENT = "hasPart";
 
 // The induced subgraph over `ids`: those nodes plus every edge of the given types
@@ -332,7 +333,7 @@ export type SectionRoutine = {
   entryId: string;                                     // the InstructionalRoutine the edge points at
   resolvedFrom: string;                                // the node that carried the usesRoutine edge
   resolvedFromScope: "section" | "document" | "curriculum";
-  nodes: NodeOut[];                                    // the routine subtree (entry + its hasPart steps/materials)
+  nodes: NodeOut[];                                    // the routine subtree (entry + its hasPart steps, text inline)
   edges: EdgeOut[];
 };
 
