@@ -427,14 +427,21 @@ describe("kg-export — document / rendering layer", () => {
 describe("kg-export — LC ontology (reading)", () => {
   it("same LC labels; reading has standards + components + curriculum but no progression (no buildsTowards)", async () => {
     const graph = (await exportNamespace(readingNs))!;
-    expect(graph.meta.counts.byKind).toMatchObject({ StandardsFramework: 1, LessonGrouping: 127, Lesson: 462, LearningComponent: 1031 });
+    expect(graph.meta.counts.byKind).toMatchObject({ StandardsFramework: 1, LessonGrouping: 21, Lesson: 105, Activity: 462, LearningComponent: 1031 });
     expect(graph.meta.counts.byKind.StandardsFrameworkItem).toBeGreaterThan(0);
     expect(graph.meta.counts.byKind.Curriculum).toBeUndefined();
     expect(graph.nodes.every((n) => n.cat === n.label)).toBe(true);
-    // Reading has a content layer (LessonGrouping/Lesson) → a curriculum view, but
-    // no chapter prerequisites → no progression view.
-    expect(graph.meta.viewConfig.views.map((v) => v.id)).toEqual(["standards", "components", "curriculum", "generic"]);
-    expect(graph.meta.taxonomy.map((x) => x.key)).toEqual(["StandardsFramework", "StandardsFrameworkItem", "LessonGrouping", "Lesson", "LearningComponent"]);
+    // Reading has a content layer (LessonGrouping/Lesson) → a curriculum view, and
+    // a TLM with `covers` edges → a documents view; but no chapter prerequisites,
+    // so still no progression view.
+    expect(graph.meta.viewConfig.views.map((v) => v.id)).toEqual(["standards", "components", "curriculum", "documents", "generic"]);
+    // Everything maths has except `Assessment` (bilans are maths-only), plus the
+    // document/rubric labels reading carries: its guide is split into
+    // DocumentSections and both evaluation grids hang off it.
+    expect(graph.meta.taxonomy.map((x) => x.key)).toEqual([
+      "StandardsFramework", "StandardsFrameworkItem", "Course", "LessonGrouping", "Lesson", "Activity", "Material", "LearningComponent",
+      "TeachingLearningMaterial", "DocumentSection", "Formatter", "FormatterSpec", "Rubric", "RubricSection", "RubricCriterion", "InstructionalRoutine",
+    ]);
   });
 });
 

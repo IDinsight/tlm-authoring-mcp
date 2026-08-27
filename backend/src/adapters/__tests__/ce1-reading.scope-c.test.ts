@@ -65,11 +65,12 @@ async function runRecipe<A>(mutation: GraphMutation<A>, args: A) {
   return { preview, confirm };
 }
 
-function week1SessionLesson(graph: MutationGraph): string {
+// Week 1's first DAY — a `Lesson` titled "Jour 1", holding that day's session
+// Activities. It is the container these tests hang new content under.
+function week1DayLesson(graph: MutationGraph): string {
   const model = modelOf(graph);
   const week = model.unitsOfKind("Semaine").find((w) => w.order === 1)!;
-  const day = model.childrenOf(week.id).find((c) => c.kind === "Jour")!;
-  return model.childrenOf(day.id).find((c) => c.kind === "Lesson")!.id;
+  return model.childrenOf(week.id).find((c) => c.kind === "Lesson")!.id;
 }
 
 beforeAll(() => { __setStorageForTest(fakeStorage); });
@@ -84,9 +85,13 @@ afterAll(() => {
   __setKgStoreForTest(null);
 });
 
-describe("add_node — Activity under a session lesson", () => {
-  it("adds one Activity node + a hasPart edge; identity is derived from canonical LC (no example yet)", async () => {
-    const lessonId = week1SessionLesson(await readPublished());
+describe("add_node — Activity under a day lesson", () => {
+  it("adds one Activity node + a hasPart edge; identity is copied from the graph's own Activities", async () => {
+    const published = await readPublished();
+    const lessonId = week1DayLesson(published);
+    // The day already holds its seeded sessions, so a new Activity appends after
+    // them rather than landing at 1.
+    const sessionsBefore = modelOf(published).childrenOf(lessonId).length;
     const activityId = mintNodeId();
     const args = { namespace: ns, parentId: lessonId, label: "Activity", newNodeId: activityId, title: "Étape 1 : Découvrir le vocabulaire", properties: { studentGroupingType: "group", timeRequired: "10 mn", educationalUse: "Instruction" } };
 
@@ -101,13 +106,42 @@ describe("add_node — Activity under a session lesson", () => {
     expect(confirm.phase).toBe("apply");
 
     const node = (await readDraft()).nodes.find((n) => n.id === activityId)!;
-    expect(node.type).toBe("Activity");             // canonical fallback kind for label Activity
+    expect(node.type).toBe("Activity");             // kind copied from reading's seeded session Activities
     expect(node.labels).toContain("Activity");
     const raw = node.properties.raw as Record<string, unknown>;
     expect(raw.description).toBe("Étape 1 : Découvrir le vocabulaire");
     expect(raw.normalizedType).toBe("Activity");
-    expect(raw.position).toBe(1);                    // reading's ordinal path
+    expect(raw.position).toBe(sessionsBefore + 1);   // reading's ordinal path — appended after the day's sessions
     expect(raw.studentGroupingType).toBe("group");
+  });
+
+  // The canonical-defaults path (no node of that label to copy) needs a label the
+  // graph genuinely lacks. Reading has no Assessment — maths' bilans are the only
+  // ones anywhere — so this is the live example of "first of its kind".
+  it("falls back to canonical LC defaults for the first node of a label", async () => {
+    const published = await readPublished();
+    expect(published.nodes.some((n) => (n.labels ?? []).includes("Assessment"))).toBe(false);
+
+    const weekId = modelOf(published).unitsOfKind("Semaine").find((w) => w.order === 1)!.id;
+    const assessmentId = mintNodeId();
+    const { confirm } = await runRecipe(addNode, {
+      namespace: ns,
+      parentId: weekId,
+      label: "Assessment",
+      newNodeId: assessmentId,
+      title: "Évaluation de fin de semaine",
+      properties: { educationalUse: "Assessment" },
+    });
+    expect(confirm?.phase).toBe("apply");
+
+    const node = (await readDraft()).nodes.find((n) => n.id === assessmentId)!;
+    expect(node.labels).toContain("Assessment");
+    expect(node.type).toBe("Assessment");  // FALLBACK_KIND, not a lowercased label
+    const raw = node.properties.raw as Record<string, unknown>;
+    expect(raw.normalizedType).toBe("Assessment");
+    expect(raw.educationalUse).toBe("Assessment");
+    // hasPart, because an Assessment is a content label — LessonGrouping may hold one.
+    expect((await readDraft()).edges.map((e) => e.id)).toContain(makeEdgeId(HAS_PART, weekId, assessmentId));
   });
 
   it("blocks when the parent does not exist", async () => {
@@ -122,7 +156,7 @@ describe("add_node — Activity under a session lesson", () => {
 
 describe("add_node — Material + set_content; the slice surfaces them", () => {
   it("hangs a Material off an Activity with content in raw.content; buildSlice shows it", async () => {
-    const lessonId = week1SessionLesson(await readPublished());
+    const lessonId = week1DayLesson(await readPublished());
     const activityId = mintNodeId();
     await runRecipe(addNode, { namespace: ns, parentId: lessonId, label: "Activity", newNodeId: activityId, title: "Étape 3 : Écouter le texte" });
     const materialId = mintNodeId();
@@ -140,14 +174,14 @@ describe("add_node — Material + set_content; the slice surfaces them", () => {
     // the generic course subtree via walk_graph / courseSubgraph, not a cooked slice).
     // Resolve the lesson ONCE: week1SessionLesson re-parses the whole ~2000-node
     // graph, so calling it inside the predicate below made this O(edges x parse).
-    const draftLessonId = week1SessionLesson(draft);
-    expect(draft.edges.some((e) => e.id === makeEdgeId(HAS_PART, draftLessonId, activityId))).toBe(true);
+    const draftDayId = week1DayLesson(draft);
+    expect(draft.edges.some((e) => e.id === makeEdgeId(HAS_PART, draftDayId, activityId))).toBe(true);
   });
 
   it("allows a Material directly on a week grouping and on a lesson (any container)", async () => {
     const published = await readPublished();
     const weekId = modelOf(published).unitsOfKind("Semaine").find((w) => w.order === 1)!.id;
-    const lessonId = week1SessionLesson(published);
+    const lessonId = week1DayLesson(published);
 
     expect((await runRecipe(addNode, { namespace: ns, parentId: weekId, label: "Material", newNodeId: mintNodeId(), properties: { content: "[week opening scene]", materialType: "Reference" } })).confirm?.phase).toBe("apply");
     expect((await runRecipe(addNode, { namespace: ns, parentId: lessonId, label: "Material", newNodeId: mintNodeId(), properties: { content: "[shared reading text]" } })).confirm?.phase).toBe("apply");
@@ -159,7 +193,7 @@ describe("add_node — Material + set_content; the slice surfaces them", () => {
   });
 
   it("set_content replaces an existing node's content, preserving everything else", async () => {
-    const lessonId = week1SessionLesson(await readPublished());
+    const lessonId = week1DayLesson(await readPublished());
     const materialId = mintNodeId();
     await runRecipe(addNode, { namespace: ns, parentId: lessonId, label: "Material", newNodeId: materialId, title: "Jukki", properties: { content: "old" } });
 

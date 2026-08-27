@@ -101,8 +101,9 @@ export const edgeId = (type: string, from: string, to: string) => `${type}:${fro
 // the FLOOR for link_nodes' known-edge-type gate: an edge type is creatable when
 // it is canonical OR already present in the namespace. Without this, a namespace
 // could never create the FIRST edge of a type it doesn't yet have (e.g. reading
-// had zero `usesRoutine` edges, so `usesRoutine` was rejected there while
-// ci/maths accepted it). The gate still rejects invented types like "hasLesson".
+// has zero `hasDependency` edges, so `hasDependency` would be rejected there while
+// a namespace that already has one accepts it). The gate still rejects invented
+// types like "hasLesson".
 export const CANONICAL_EDGE_TYPES: ReadonlySet<string> = new Set([
   "hasChild",                 // standards tree: SFI parent → child
   "hasPart",                  // content tree: compositional nesting

@@ -196,21 +196,23 @@ describe("link_nodes", () => {
   });
 
   it("accepts a canonical edge type the namespace has none of yet (bootstrap)", async () => {
-    // ce1/reading carries zero `usesRoutine` edges, so the old observed-only
-    // gate rejected the FIRST one. `usesRoutine` is canonical LC, so the gate's
+    // ce1/reading carries zero `hasDependency` edges, so the old observed-only
+    // gate rejected the FIRST one. `hasDependency` is canonical LC, so the gate's
     // canonical floor now lets it through even with no example to observe.
+    // (`usesRoutine` used to be reading's example of a type it had none of; it now
+    // has 462 of them, so the bootstrap case needs a type it still genuinely lacks.)
     const readingNs = kgNamespace("ce1", "reading");
     const graph = await readSlotGraph(readingNs, (await store.readPointer(readingNs))!.publishedSlot);
-    expect(graph.edges.some((e) => e.type === "usesRoutine")).toBe(false); // precondition: none present
+    expect(graph.edges.some((e) => e.type === "hasDependency")).toBe(false); // precondition: none present
     const [from, to] = [graph.nodes[0], graph.nodes[1]];
 
     const preview = await runGraphMutation({
       namespace: readingNs, mutation: linkNodes,
-      args: { edgeType: "usesRoutine", fromId: from.id, toId: to.id, properties: {}, namespace: readingNs },
+      args: { edgeType: "hasDependency", fromId: from.id, toId: to.id, properties: {}, namespace: readingNs },
     });
     // The point of the test: not blocked on the known-edge-type check.
     if (preview.phase !== "preview") throw new Error(`expected preview, got ${preview.phase}`);
-    const newId = makeEdgeId("usesRoutine", from.id, to.id);
+    const newId = makeEdgeId("hasDependency", from.id, to.id);
     expect(preview.diff.edges.added.map((e) => e.id)).toContain(newId);
   });
 

@@ -111,28 +111,33 @@ describe("generic parseGraph — reading (Scope B — daily sessions)", () => {
     expect(week.title).toBe("3");
   });
 
-  it("holds Jour 1–5 day groupings, each with its sessions; all-but-Remédiation aligned to a standard", () => {
+  it("holds Jour 1–5 days, each with its sessions; all-but-Remédiation aligned to a standard", () => {
+    // A week holds five DAYS and each day its SESSIONS. Both are content leaves,
+    // so they are keyed by their LC label: the day is a `Lesson` ("Jour 1"…"Jour 5"),
+    // the session an `Activity` ("Expression Orale", "Lecture"…). There is no `Jour`
+    // grouping kind — that was the pre-Course shape.
     const week = model.unitsOfKind("Semaine").find((unit) => unit.order === 3)!;
-    const days = model.childrenOf(week.id).filter((unit) => unit.kind === "Jour");
+    const days = model.childrenOf(week.id).filter((unit) => unit.kind === "Lesson");
     expect(days.length).toBe(5); // Jour 1–5
+    expect(days.map((day) => day.text)).toEqual(["Jour 1", "Jour 2", "Jour 3", "Jour 4", "Jour 5"]);
 
-    const lessons = days.flatMap((day) => model.childrenOf(day.id).filter((unit) => unit.kind === "Lesson"));
-    expect(lessons.length).toBe(22); // the week's full daily timetable, across the 5 days
+    const sessions = days.flatMap((day) => model.childrenOf(day.id).filter((unit) => unit.kind === "Activity"));
+    expect(sessions.length).toBe(22); // the week's full daily timetable, across the 5 days
 
     // session supports its standard ⇒ standard.childIds ∋ the session.
     const standardForSession = new Map<string, string>();
     for (const standard of leafStandards(model)) {
       for (const child of model.childrenOf(standard.id)) {
-        if (child.kind === "Lesson") standardForSession.set(child.id, standard.id);
+        if (child.kind === "Activity") standardForSession.set(child.id, standard.id);
       }
     }
-    const aligned = lessons.filter((lesson) => standardForSession.has(lesson.id));
-    const unaligned = lessons.filter((lesson) => !standardForSession.has(lesson.id));
+    const aligned = sessions.filter((session) => standardForSession.has(session.id));
+    const unaligned = sessions.filter((session) => !standardForSession.has(session.id));
     expect(aligned.length).toBe(21); // every session but Remédiation
     expect(unaligned).toHaveLength(1);
     expect((unaligned[0].properties.metadata as { session_category?: string }).session_category).toBe("remediation");
 
-    const withComponents = aligned.filter((lesson) => model.childrenOf(standardForSession.get(lesson.id)!).some((child) => child.kind === "LearningComponent"));
+    const withComponents = aligned.filter((session) => model.childrenOf(standardForSession.get(session.id)!).some((child) => child.kind === "LearningComponent"));
     expect(withComponents.length).toBeGreaterThan(0);
   });
 });
@@ -186,14 +191,17 @@ describe("content-reachable-from-roots prune (scope-from-Course)", () => {
     postParse: resolvePrune({ strategy: "content-reachable-from-roots", rootKinds }),
   });
 
-  it("generalising the closure keeps the SAME reading set with or without the Course rootKind", () => {
-    // The reading fixture has no Course yet, so ["Course","Semaine"] must prune to
-    // exactly what ["Semaine"] did — the transition adds nothing until a Course exists.
+  it("adding the Course rootKind reaches the same reading set, plus the Course node itself", () => {
+    // Every reading week hangs under the Course by hasPart, so a week is reachable
+    // either way — naming "Course" as a root only pulls in the Course node, not new
+    // subtrees. Guards against the closure quietly widening or narrowing.
     const raw = load("test/fixtures/senegal/ce1/reading/knowledge_graph.json");
     const semaineOnly = parseGraph(raw, prune(["Semaine"]));
     const withCourse = parseGraph(raw, prune(["Course", "Semaine"]));
-    expect(withCourse.byId.size).toBe(semaineOnly.byId.size);
-    expect(withCourse.byId.size).toBeGreaterThan(0);
+
+    const addedByCourseRoot = [...withCourse.byId.keys()].filter((id) => !semaineOnly.byId.has(id));
+    expect(addedByCourseRoot.map((id) => withCourse.byId.get(id)!.kind)).toEqual(["Course"]);
+    expect(semaineOnly.byId.size).toBeGreaterThan(0);
     expect(withCourse.unitsOfKind("Semaine").length).toBe(semaineOnly.unitsOfKind("Semaine").length);
   });
 
