@@ -49,8 +49,12 @@ move along ONE axis; the other containment edge is left intact.
 
 ## The bilan
 
-A chapter's assessment (the "bilan") is a `Lesson` with `educationalUse: "Assessment"`
-— it is data, not a title heuristic. Each chapter should have exactly one bilan.
+A chapter's assessment (the "bilan") is an **`Assessment`** node — LC's first-class
+label for it — still carrying `educationalUse: "Assessment"`. It is data, not a title
+heuristic. Each chapter should have exactly one bilan. A bilan hangs under its grouping
+by `hasPart` exactly like a lesson, and aligns to the OS it assesses; unlike a lesson it
+carries no `position` (canonical `Assessment` has no ordinal — its place in the week
+comes from `metadata.order`).
 
 ## Authoring conventions
 
@@ -88,8 +92,8 @@ an edit, `diff_draft`, or publish — `review_draft` checks all of them against 
 draft and reports any it finds:
 
 - **No empty chapter** — every `Chapitre` has at least one `Lesson`.
-- **Exactly one bilan per chapter** — each `Chapitre` has exactly one `Lesson`
-  flagged `educationalUse: "Assessment"` (the bilan).
+- **Exactly one bilan per chapter** — each `Chapitre` has exactly one `Assessment`
+  node (the bilan).
 - **One chapter per lesson** — a `Lesson` has exactly one `Chapitre` parent (via
   `hasPart`). Its `Semaine` parent (via `hasChild`) is a separate axis and does
   not count against this.

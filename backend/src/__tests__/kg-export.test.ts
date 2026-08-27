@@ -121,7 +121,7 @@ describe("kg-export — LC ontology (maths)", () => {
     // One Course and 23 week groupings: the Student's Book Course, its 25
     // chapters, their container Lessons and 218 placeholder Activities all went
     // away when it became a TeachingLearningMaterial.
-    expect(graph.meta.counts.byKind).toMatchObject({ StandardsFramework: 1, Course: 1, LessonGrouping: 23, Lesson: 112, Activity: 104, LearningComponent: 32 });
+    expect(graph.meta.counts.byKind).toMatchObject({ StandardsFramework: 1, Course: 1, LessonGrouping: 23, Lesson: 87, Assessment: 25, Activity: 104, LearningComponent: 32 });
     expect(graph.meta.counts.byKind.StandardsFrameworkItem).toBeGreaterThan(0);
     expect(graph.meta.counts.byKind.Curriculum).toBeUndefined(); // canonical: relabeled to Activity/LessonGrouping
     expect(graph.meta.counts.byKind.Course).toBe(1);             // one content Course since the TLM migration
@@ -129,7 +129,7 @@ describe("kg-export — LC ontology (maths)", () => {
     expect(graph.nodes.every((n) => n.cat === n.label && n.kind === n.label)).toBe(true);
     // + Material and InstructionalRoutine: the shared "fiche de leçon" routine
     // (Phase 1); + the document layer the TLM migration added.
-    expect(graph.meta.taxonomy.map((x) => x.key)).toEqual(["StandardsFramework", "StandardsFrameworkItem", "Course", "LessonGrouping", "Lesson", "Activity", "Material", "LearningComponent", "TeachingLearningMaterial", "Formatter", "FormatterSpec", "InstructionalRoutine"]);
+    expect(graph.meta.taxonomy.map((x) => x.key)).toEqual(["StandardsFramework", "StandardsFrameworkItem", "Course", "LessonGrouping", "Lesson", "Assessment", "Activity", "Material", "LearningComponent", "TeachingLearningMaterial", "Formatter", "FormatterSpec", "InstructionalRoutine"]);
     expect(graph.meta.taxonomy.every((x) => /^#[0-9a-f]{6}$/i.test(x.color) && x.label.fr && x.label.en)).toBe(true);
   });
 
@@ -239,6 +239,7 @@ describe("kg-export — LC ontology (maths)", () => {
     // containers that align nothing), so both seed the tail.
     expect(view.params.alignmentTail).toEqual([
       { from: "Lesson", rel: "hasEducationalAlignment", dir: "in" },
+      { from: "Assessment", rel: "hasEducationalAlignment", dir: "in" },
       { from: "Activity", rel: "hasEducationalAlignment", dir: "in" },
       { from: "StandardsFrameworkItem", rel: "supports", dir: "out" },
     ]);

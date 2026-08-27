@@ -143,11 +143,11 @@
     {
       "id": "0243e7a3-2f64-571c-a977-64a42f83ea62",
       "labels": [
-        "Lesson"
+        "Assessment"
       ],
       "properties": {
         "identifier": "0243e7a3-2f64-571c-a977-64a42f83ea62",
-        "normalizedType": "Lesson",
+        "normalizedType": "Assessment",
         "description": "Bilan du chapitre 6 — se situer et situer des objets dans un espace réel ou représenté",
         "metadata": {
           "order": 38
@@ -158,8 +158,7 @@
         "license": "https://creativecommons.org/licenses/by/4.0/",
         "attributionStatement": "Node/edge types follow the Learning Commons ontology (CC BY-4.0). Curriculum content and vocabulary are taken verbatim from source documents: the CI Planification annuelle (authoritative), the NRD Résultats Essentiels en Calcul Élémentaire (Genesis Analytics / NRD, 2025), and the Rwanda REB Mathematics Primary 1 pupil's book (2023, borrowed — tasks and provisional geometry/measurement components only).",
         "provider": "Learning Commons ontology (generated)",
-        "educationalUse": "Assessment",
-        "position": 38
+        "educationalUse": "Assessment"
       }
     },
     {
@@ -1252,11 +1251,11 @@
     {
       "id": "18544209-99c0-589a-a539-7ab02a4cca6e",
       "labels": [
-        "Lesson"
+        "Assessment"
       ],
       "properties": {
         "identifier": "18544209-99c0-589a-a539-7ab02a4cca6e",
-        "normalizedType": "Lesson",
+        "normalizedType": "Assessment",
         "description": "Bilan du chapitre 17 — je découvre le sens de la soustraction, la notion de double et de moitié",
         "metadata": {
           "order": 67
@@ -1267,8 +1266,7 @@
         "license": "https://creativecommons.org/licenses/by/4.0/",
         "attributionStatement": "Node/edge types follow the Learning Commons ontology (CC BY-4.0). Curriculum content and vocabulary are taken verbatim from source documents: the CI Planification annuelle (authoritative), the NRD Résultats Essentiels en Calcul Élémentaire (Genesis Analytics / NRD, 2025), and the Rwanda REB Mathematics Primary 1 pupil's book (2023, borrowed — tasks and provisional geometry/measurement components only).",
         "provider": "Learning Commons ontology (generated)",
-        "educationalUse": "Assessment",
-        "position": 67
+        "educationalUse": "Assessment"
       }
     },
     {
@@ -1523,11 +1521,11 @@
     {
       "id": "1e6470fe-e16a-5610-950e-2fb0bb95c989",
       "labels": [
-        "Lesson"
+        "Assessment"
       ],
       "properties": {
         "identifier": "1e6470fe-e16a-5610-950e-2fb0bb95c989",
-        "normalizedType": "Lesson",
+        "normalizedType": "Assessment",
         "description": "Bilan du chapitre 24",
         "metadata": {
           "order": 110
@@ -1538,8 +1536,7 @@
         "license": "https://creativecommons.org/licenses/by/4.0/",
         "attributionStatement": "Node/edge types follow the Learning Commons ontology (CC BY-4.0). Curriculum content and vocabulary are taken verbatim from source documents: the CI Planification annuelle (authoritative), the NRD Résultats Essentiels en Calcul Élémentaire (Genesis Analytics / NRD, 2025), and the Rwanda REB Mathematics Primary 1 pupil's book (2023, borrowed — tasks and provisional geometry/measurement components only).",
         "provider": "Learning Commons ontology (generated)",
-        "educationalUse": "Assessment",
-        "position": 110
+        "educationalUse": "Assessment"
       }
     },
     {
@@ -1879,11 +1876,11 @@
     {
       "id": "23799eba-0cb1-5218-acaf-910bc42ec16c",
       "labels": [
-        "Lesson"
+        "Assessment"
       ],
       "properties": {
         "identifier": "23799eba-0cb1-5218-acaf-910bc42ec16c",
-        "normalizedType": "Lesson",
+        "normalizedType": "Assessment",
         "description": "Bilan du chapitre 16",
         "metadata": {
           "order": 75
@@ -1894,8 +1891,7 @@
         "license": "https://creativecommons.org/licenses/by/4.0/",
         "attributionStatement": "Node/edge types follow the Learning Commons ontology (CC BY-4.0). Curriculum content and vocabulary are taken verbatim from source documents: the CI Planification annuelle (authoritative), the NRD Résultats Essentiels en Calcul Élémentaire (Genesis Analytics / NRD, 2025), and the Rwanda REB Mathematics Primary 1 pupil's book (2023, borrowed — tasks and provisional geometry/measurement components only).",
         "provider": "Learning Commons ontology (generated)",
-        "educationalUse": "Assessment",
-        "position": 75
+        "educationalUse": "Assessment"
       }
     },
     {
@@ -2109,11 +2105,11 @@
     {
       "id": "27930bbb-9212-51d6-be6b-8db24a2ea118",
       "labels": [
-        "Lesson"
+        "Assessment"
       ],
       "properties": {
         "identifier": "27930bbb-9212-51d6-be6b-8db24a2ea118",
-        "normalizedType": "Lesson",
+        "normalizedType": "Assessment",
         "description": "Bilan du chapitre 8 — J'applique les règles logiques",
         "metadata": {
           "order": 45
@@ -2124,8 +2120,7 @@
         "license": "https://creativecommons.org/licenses/by/4.0/",
         "attributionStatement": "Node/edge types follow the Learning Commons ontology (CC BY-4.0). Curriculum content and vocabulary are taken verbatim from source documents: the CI Planification annuelle (authoritative), the NRD Résultats Essentiels en Calcul Élémentaire (Genesis Analytics / NRD, 2025), and the Rwanda REB Mathematics Primary 1 pupil's book (2023, borrowed — tasks and provisional geometry/measurement components only).",
         "provider": "Learning Commons ontology (generated)",
-        "educationalUse": "Assessment",
-        "position": 45
+        "educationalUse": "Assessment"
       }
     },
     {
@@ -2497,11 +2492,11 @@
     {
       "id": "2ece8e3f-3141-5d69-aa76-f6256791dfdd",
       "labels": [
-        "Lesson"
+        "Assessment"
       ],
       "properties": {
         "identifier": "2ece8e3f-3141-5d69-aa76-f6256791dfdd",
-        "normalizedType": "Lesson",
+        "normalizedType": "Assessment",
         "description": "Bilan du chapitre 19",
         "metadata": {
           "order": 94
@@ -2512,8 +2507,7 @@
         "license": "https://creativecommons.org/licenses/by/4.0/",
         "attributionStatement": "Node/edge types follow the Learning Commons ontology (CC BY-4.0). Curriculum content and vocabulary are taken verbatim from source documents: the CI Planification annuelle (authoritative), the NRD Résultats Essentiels en Calcul Élémentaire (Genesis Analytics / NRD, 2025), and the Rwanda REB Mathematics Primary 1 pupil's book (2023, borrowed — tasks and provisional geometry/measurement components only).",
         "provider": "Learning Commons ontology (generated)",
-        "educationalUse": "Assessment",
-        "position": 94
+        "educationalUse": "Assessment"
       }
     },
     {
@@ -2690,11 +2684,11 @@
     {
       "id": "33b2b74a-7353-5272-9229-d94ccaf0f395",
       "labels": [
-        "Lesson"
+        "Assessment"
       ],
       "properties": {
         "identifier": "33b2b74a-7353-5272-9229-d94ccaf0f395",
-        "normalizedType": "Lesson",
+        "normalizedType": "Assessment",
         "description": "Bilan du chapitre 25",
         "metadata": {
           "order": 101
@@ -2705,8 +2699,7 @@
         "license": "https://creativecommons.org/licenses/by/4.0/",
         "attributionStatement": "Node/edge types follow the Learning Commons ontology (CC BY-4.0). Curriculum content and vocabulary are taken verbatim from source documents: the CI Planification annuelle (authoritative), the NRD Résultats Essentiels en Calcul Élémentaire (Genesis Analytics / NRD, 2025), and the Rwanda REB Mathematics Primary 1 pupil's book (2023, borrowed — tasks and provisional geometry/measurement components only).",
         "provider": "Learning Commons ontology (generated)",
-        "educationalUse": "Assessment",
-        "position": 101
+        "educationalUse": "Assessment"
       }
     },
     {
@@ -3453,11 +3446,11 @@
     {
       "id": "40aad05f-9174-5cb6-85a7-29b14814da87",
       "labels": [
-        "Lesson"
+        "Assessment"
       ],
       "properties": {
         "identifier": "40aad05f-9174-5cb6-85a7-29b14814da87",
-        "normalizedType": "Lesson",
+        "normalizedType": "Assessment",
         "description": "Bilan du chapitre 13",
         "metadata": {
           "order": 61
@@ -3468,8 +3461,7 @@
         "license": "https://creativecommons.org/licenses/by/4.0/",
         "attributionStatement": "Node/edge types follow the Learning Commons ontology (CC BY-4.0). Curriculum content and vocabulary are taken verbatim from source documents: the CI Planification annuelle (authoritative), the NRD Résultats Essentiels en Calcul Élémentaire (Genesis Analytics / NRD, 2025), and the Rwanda REB Mathematics Primary 1 pupil's book (2023, borrowed — tasks and provisional geometry/measurement components only).",
         "provider": "Learning Commons ontology (generated)",
-        "educationalUse": "Assessment",
-        "position": 61
+        "educationalUse": "Assessment"
       }
     },
     {
@@ -3565,11 +3557,11 @@
     {
       "id": "432d66df-741f-557c-a26e-aaa83cbe9da4",
       "labels": [
-        "Lesson"
+        "Assessment"
       ],
       "properties": {
         "identifier": "432d66df-741f-557c-a26e-aaa83cbe9da4",
-        "normalizedType": "Lesson",
+        "normalizedType": "Assessment",
         "description": "Bilan du chapitre 15",
         "metadata": {
           "order": 79
@@ -3580,8 +3572,7 @@
         "license": "https://creativecommons.org/licenses/by/4.0/",
         "attributionStatement": "Node/edge types follow the Learning Commons ontology (CC BY-4.0). Curriculum content and vocabulary are taken verbatim from source documents: the CI Planification annuelle (authoritative), the NRD Résultats Essentiels en Calcul Élémentaire (Genesis Analytics / NRD, 2025), and the Rwanda REB Mathematics Primary 1 pupil's book (2023, borrowed — tasks and provisional geometry/measurement components only).",
         "provider": "Learning Commons ontology (generated)",
-        "educationalUse": "Assessment",
-        "position": 79
+        "educationalUse": "Assessment"
       }
     },
     {
@@ -4100,11 +4091,11 @@
     {
       "id": "4d887821-e5ac-59cf-aae8-8efb17ae11c4",
       "labels": [
-        "Lesson"
+        "Assessment"
       ],
       "properties": {
         "identifier": "4d887821-e5ac-59cf-aae8-8efb17ae11c4",
-        "normalizedType": "Lesson",
+        "normalizedType": "Assessment",
         "description": "Bilan du chapitre 20",
         "metadata": {
           "order": 95
@@ -4115,8 +4106,7 @@
         "license": "https://creativecommons.org/licenses/by/4.0/",
         "attributionStatement": "Node/edge types follow the Learning Commons ontology (CC BY-4.0). Curriculum content and vocabulary are taken verbatim from source documents: the CI Planification annuelle (authoritative), the NRD Résultats Essentiels en Calcul Élémentaire (Genesis Analytics / NRD, 2025), and the Rwanda REB Mathematics Primary 1 pupil's book (2023, borrowed — tasks and provisional geometry/measurement components only).",
         "provider": "Learning Commons ontology (generated)",
-        "educationalUse": "Assessment",
-        "position": 95
+        "educationalUse": "Assessment"
       }
     },
     {
@@ -5237,11 +5227,11 @@
     {
       "id": "628ff6ee-d5b9-52c9-a7d2-0de71a43ea82",
       "labels": [
-        "Lesson"
+        "Assessment"
       ],
       "properties": {
         "identifier": "628ff6ee-d5b9-52c9-a7d2-0de71a43ea82",
-        "normalizedType": "Lesson",
+        "normalizedType": "Assessment",
         "description": "Bilan du chapitre 18",
         "metadata": {
           "order": 78
@@ -5252,8 +5242,7 @@
         "license": "https://creativecommons.org/licenses/by/4.0/",
         "attributionStatement": "Node/edge types follow the Learning Commons ontology (CC BY-4.0). Curriculum content and vocabulary are taken verbatim from source documents: the CI Planification annuelle (authoritative), the NRD Résultats Essentiels en Calcul Élémentaire (Genesis Analytics / NRD, 2025), and the Rwanda REB Mathematics Primary 1 pupil's book (2023, borrowed — tasks and provisional geometry/measurement components only).",
         "provider": "Learning Commons ontology (generated)",
-        "educationalUse": "Assessment",
-        "position": 78
+        "educationalUse": "Assessment"
       }
     },
     {
@@ -5881,11 +5870,11 @@
     {
       "id": "6cc3ff7c-ae43-5d30-a131-e764e02bf23b",
       "labels": [
-        "Lesson"
+        "Assessment"
       ],
       "properties": {
         "identifier": "6cc3ff7c-ae43-5d30-a131-e764e02bf23b",
-        "normalizedType": "Lesson",
+        "normalizedType": "Assessment",
         "description": "Bilan du chapitre 12",
         "metadata": {
           "order": 60
@@ -5896,8 +5885,7 @@
         "license": "https://creativecommons.org/licenses/by/4.0/",
         "attributionStatement": "Node/edge types follow the Learning Commons ontology (CC BY-4.0). Curriculum content and vocabulary are taken verbatim from source documents: the CI Planification annuelle (authoritative), the NRD Résultats Essentiels en Calcul Élémentaire (Genesis Analytics / NRD, 2025), and the Rwanda REB Mathematics Primary 1 pupil's book (2023, borrowed — tasks and provisional geometry/measurement components only).",
         "provider": "Learning Commons ontology (generated)",
-        "educationalUse": "Assessment",
-        "position": 60
+        "educationalUse": "Assessment"
       }
     },
     {
@@ -6198,11 +6186,11 @@
     {
       "id": "74f9a7b6-49b3-50b3-aa05-ede813840678",
       "labels": [
-        "Lesson"
+        "Assessment"
       ],
       "properties": {
         "identifier": "74f9a7b6-49b3-50b3-aa05-ede813840678",
-        "normalizedType": "Lesson",
+        "normalizedType": "Assessment",
         "description": "Bilan du chapitre 4 — Je lis les images",
         "metadata": {
           "order": 25
@@ -6213,8 +6201,7 @@
         "license": "https://creativecommons.org/licenses/by/4.0/",
         "attributionStatement": "Node/edge types follow the Learning Commons ontology (CC BY-4.0). Curriculum content and vocabulary are taken verbatim from source documents: the CI Planification annuelle (authoritative), the NRD Résultats Essentiels en Calcul Élémentaire (Genesis Analytics / NRD, 2025), and the Rwanda REB Mathematics Primary 1 pupil's book (2023, borrowed — tasks and provisional geometry/measurement components only).",
         "provider": "Learning Commons ontology (generated)",
-        "educationalUse": "Assessment",
-        "position": 25
+        "educationalUse": "Assessment"
       }
     },
     {
@@ -6791,11 +6778,11 @@
     {
       "id": "7e8e774f-1003-5300-b6f2-b399ad16c467",
       "labels": [
-        "Lesson"
+        "Assessment"
       ],
       "properties": {
         "identifier": "7e8e774f-1003-5300-b6f2-b399ad16c467",
-        "normalizedType": "Lesson",
+        "normalizedType": "Assessment",
         "description": "Bilan du chapitre 10",
         "metadata": {
           "order": 63
@@ -6806,8 +6793,7 @@
         "license": "https://creativecommons.org/licenses/by/4.0/",
         "attributionStatement": "Node/edge types follow the Learning Commons ontology (CC BY-4.0). Curriculum content and vocabulary are taken verbatim from source documents: the CI Planification annuelle (authoritative), the NRD Résultats Essentiels en Calcul Élémentaire (Genesis Analytics / NRD, 2025), and the Rwanda REB Mathematics Primary 1 pupil's book (2023, borrowed — tasks and provisional geometry/measurement components only).",
         "provider": "Learning Commons ontology (generated)",
-        "educationalUse": "Assessment",
-        "position": 63
+        "educationalUse": "Assessment"
       }
     },
     {
@@ -7737,11 +7723,11 @@
     {
       "id": "8cccbc2b-5745-55e9-8d98-b2144b1a742f",
       "labels": [
-        "Lesson"
+        "Assessment"
       ],
       "properties": {
         "identifier": "8cccbc2b-5745-55e9-8d98-b2144b1a742f",
-        "normalizedType": "Lesson",
+        "normalizedType": "Assessment",
         "description": "Bilan du chapitre 2 — Je me repère avec mon corps",
         "metadata": {
           "order": 18
@@ -7752,8 +7738,7 @@
         "license": "https://creativecommons.org/licenses/by/4.0/",
         "attributionStatement": "Node/edge types follow the Learning Commons ontology (CC BY-4.0). Curriculum content and vocabulary are taken verbatim from source documents: the CI Planification annuelle (authoritative), the NRD Résultats Essentiels en Calcul Élémentaire (Genesis Analytics / NRD, 2025), and the Rwanda REB Mathematics Primary 1 pupil's book (2023, borrowed — tasks and provisional geometry/measurement components only).",
         "provider": "Learning Commons ontology (generated)",
-        "educationalUse": "Assessment",
-        "position": 18
+        "educationalUse": "Assessment"
       }
     },
     {
@@ -8029,11 +8014,11 @@
     {
       "id": "90fd0772-d690-5d96-8a75-89b36f190219",
       "labels": [
-        "Lesson"
+        "Assessment"
       ],
       "properties": {
         "identifier": "90fd0772-d690-5d96-8a75-89b36f190219",
-        "normalizedType": "Lesson",
+        "normalizedType": "Assessment",
         "description": "Bilan du chapitre 3 — J'estime et je compare des longueurs et des tailles",
         "metadata": {
           "order": 19
@@ -8044,8 +8029,7 @@
         "license": "https://creativecommons.org/licenses/by/4.0/",
         "attributionStatement": "Node/edge types follow the Learning Commons ontology (CC BY-4.0). Curriculum content and vocabulary are taken verbatim from source documents: the CI Planification annuelle (authoritative), the NRD Résultats Essentiels en Calcul Élémentaire (Genesis Analytics / NRD, 2025), and the Rwanda REB Mathematics Primary 1 pupil's book (2023, borrowed — tasks and provisional geometry/measurement components only).",
         "provider": "Learning Commons ontology (generated)",
-        "educationalUse": "Assessment",
-        "position": 19
+        "educationalUse": "Assessment"
       }
     },
     {
@@ -8347,11 +8331,11 @@
     {
       "id": "97fa4cfb-e753-5dd5-9ce6-fd70dcee270e",
       "labels": [
-        "Lesson"
+        "Assessment"
       ],
       "properties": {
         "identifier": "97fa4cfb-e753-5dd5-9ce6-fd70dcee270e",
-        "normalizedType": "Lesson",
+        "normalizedType": "Assessment",
         "description": "Bilan du chapitre 7",
         "metadata": {
           "order": 34
@@ -8362,8 +8346,7 @@
         "license": "https://creativecommons.org/licenses/by/4.0/",
         "attributionStatement": "Node/edge types follow the Learning Commons ontology (CC BY-4.0). Curriculum content and vocabulary are taken verbatim from source documents: the CI Planification annuelle (authoritative), the NRD Résultats Essentiels en Calcul Élémentaire (Genesis Analytics / NRD, 2025), and the Rwanda REB Mathematics Primary 1 pupil's book (2023, borrowed — tasks and provisional geometry/measurement components only).",
         "provider": "Learning Commons ontology (generated)",
-        "educationalUse": "Assessment",
-        "position": 34
+        "educationalUse": "Assessment"
       }
     },
     {
@@ -8605,11 +8588,11 @@
     {
       "id": "a1279999-3401-5396-b396-a81247b7990f",
       "labels": [
-        "Lesson"
+        "Assessment"
       ],
       "properties": {
         "identifier": "a1279999-3401-5396-b396-a81247b7990f",
-        "normalizedType": "Lesson",
+        "normalizedType": "Assessment",
         "description": "Bilan du chapitre 1 : Les ensembles",
         "metadata": {
           "order": 12
@@ -8620,8 +8603,7 @@
         "license": "https://creativecommons.org/licenses/by/4.0/",
         "attributionStatement": "Node/edge types follow the Learning Commons ontology (CC BY-4.0). Curriculum content and vocabulary are taken verbatim from source documents: the CI Planification annuelle (authoritative), the NRD Résultats Essentiels en Calcul Élémentaire (Genesis Analytics / NRD, 2025), and the Rwanda REB Mathematics Primary 1 pupil's book (2023, borrowed — tasks and provisional geometry/measurement components only).",
         "provider": "Learning Commons ontology (generated)",
-        "educationalUse": "Assessment",
-        "position": 12
+        "educationalUse": "Assessment"
       }
     },
     {
@@ -9048,11 +9030,11 @@
     {
       "id": "acc10d25-644c-52d6-8aae-e18fd7d70bb4",
       "labels": [
-        "Lesson"
+        "Assessment"
       ],
       "properties": {
         "identifier": "acc10d25-644c-52d6-8aae-e18fd7d70bb4",
-        "normalizedType": "Lesson",
+        "normalizedType": "Assessment",
         "description": "Bilan du chapitre 21",
         "metadata": {
           "order": 77
@@ -9063,8 +9045,7 @@
         "license": "https://creativecommons.org/licenses/by/4.0/",
         "attributionStatement": "Node/edge types follow the Learning Commons ontology (CC BY-4.0). Curriculum content and vocabulary are taken verbatim from source documents: the CI Planification annuelle (authoritative), the NRD Résultats Essentiels en Calcul Élémentaire (Genesis Analytics / NRD, 2025), and the Rwanda REB Mathematics Primary 1 pupil's book (2023, borrowed — tasks and provisional geometry/measurement components only).",
         "provider": "Learning Commons ontology (generated)",
-        "educationalUse": "Assessment",
-        "position": 77
+        "educationalUse": "Assessment"
       }
     },
     {
@@ -11904,11 +11885,11 @@
     {
       "id": "e5728a78-5fcf-54a8-8019-ddc28dab25dc",
       "labels": [
-        "Lesson"
+        "Assessment"
       ],
       "properties": {
         "identifier": "e5728a78-5fcf-54a8-8019-ddc28dab25dc",
-        "normalizedType": "Lesson",
+        "normalizedType": "Assessment",
         "description": "Bilan du chapitre 5 — Je compare des ensembles et des sous-ensembles",
         "metadata": {
           "order": 26
@@ -11919,8 +11900,7 @@
         "license": "https://creativecommons.org/licenses/by/4.0/",
         "attributionStatement": "Node/edge types follow the Learning Commons ontology (CC BY-4.0). Curriculum content and vocabulary are taken verbatim from source documents: the CI Planification annuelle (authoritative), the NRD Résultats Essentiels en Calcul Élémentaire (Genesis Analytics / NRD, 2025), and the Rwanda REB Mathematics Primary 1 pupil's book (2023, borrowed — tasks and provisional geometry/measurement components only).",
         "provider": "Learning Commons ontology (generated)",
-        "educationalUse": "Assessment",
-        "position": 26
+        "educationalUse": "Assessment"
       }
     },
     {
@@ -12010,11 +11990,11 @@
     {
       "id": "e6f59a8e-1161-5e33-b655-669942a3068e",
       "labels": [
-        "Lesson"
+        "Assessment"
       ],
       "properties": {
         "identifier": "e6f59a8e-1161-5e33-b655-669942a3068e",
-        "normalizedType": "Lesson",
+        "normalizedType": "Assessment",
         "description": "Bilan du chapitre 9",
         "metadata": {
           "order": 47
@@ -12025,8 +12005,7 @@
         "license": "https://creativecommons.org/licenses/by/4.0/",
         "attributionStatement": "Node/edge types follow the Learning Commons ontology (CC BY-4.0). Curriculum content and vocabulary are taken verbatim from source documents: the CI Planification annuelle (authoritative), the NRD Résultats Essentiels en Calcul Élémentaire (Genesis Analytics / NRD, 2025), and the Rwanda REB Mathematics Primary 1 pupil's book (2023, borrowed — tasks and provisional geometry/measurement components only).",
         "provider": "Learning Commons ontology (generated)",
-        "educationalUse": "Assessment",
-        "position": 47
+        "educationalUse": "Assessment"
       }
     },
     {
@@ -12922,11 +12901,11 @@
     {
       "id": "f4d12abc-81b0-5dc8-896f-f5fbb4981c2f",
       "labels": [
-        "Lesson"
+        "Assessment"
       ],
       "properties": {
         "identifier": "f4d12abc-81b0-5dc8-896f-f5fbb4981c2f",
-        "normalizedType": "Lesson",
+        "normalizedType": "Assessment",
         "description": "Bilan du chapitre 22",
         "metadata": {
           "order": 103
@@ -12937,8 +12916,7 @@
         "license": "https://creativecommons.org/licenses/by/4.0/",
         "attributionStatement": "Node/edge types follow the Learning Commons ontology (CC BY-4.0). Curriculum content and vocabulary are taken verbatim from source documents: the CI Planification annuelle (authoritative), the NRD Résultats Essentiels en Calcul Élémentaire (Genesis Analytics / NRD, 2025), and the Rwanda REB Mathematics Primary 1 pupil's book (2023, borrowed — tasks and provisional geometry/measurement components only).",
         "provider": "Learning Commons ontology (generated)",
-        "educationalUse": "Assessment",
-        "position": 103
+        "educationalUse": "Assessment"
       }
     },
     {
@@ -13046,11 +13024,11 @@
     {
       "id": "f807bcb2-2591-5cb7-a689-9ebafa113d9b",
       "labels": [
-        "Lesson"
+        "Assessment"
       ],
       "properties": {
         "identifier": "f807bcb2-2591-5cb7-a689-9ebafa113d9b",
-        "normalizedType": "Lesson",
+        "normalizedType": "Assessment",
         "description": "se repérer dans la semaine : les jours de la semaine",
         "metadata": {
           "order": 104
@@ -13061,8 +13039,7 @@
         "license": "https://creativecommons.org/licenses/by/4.0/",
         "attributionStatement": "Node/edge types follow the Learning Commons ontology (CC BY-4.0). Curriculum content and vocabulary are taken verbatim from source documents: the CI Planification annuelle (authoritative), the NRD Résultats Essentiels en Calcul Élémentaire (Genesis Analytics / NRD, 2025), and the Rwanda REB Mathematics Primary 1 pupil's book (2023, borrowed — tasks and provisional geometry/measurement components only).",
         "provider": "Learning Commons ontology (generated)",
-        "educationalUse": "Assessment",
-        "position": 104
+        "educationalUse": "Assessment"
       }
     },
     {
@@ -13182,11 +13159,11 @@
     {
       "id": "fb1e5be2-e25d-5ac8-ab83-7489dfcc3f27",
       "labels": [
-        "Lesson"
+        "Assessment"
       ],
       "properties": {
         "identifier": "fb1e5be2-e25d-5ac8-ab83-7489dfcc3f27",
-        "normalizedType": "Lesson",
+        "normalizedType": "Assessment",
         "description": "Bilan du chapitre 29",
         "metadata": {
           "order": 112
@@ -13197,8 +13174,7 @@
         "license": "https://creativecommons.org/licenses/by/4.0/",
         "attributionStatement": "Node/edge types follow the Learning Commons ontology (CC BY-4.0). Curriculum content and vocabulary are taken verbatim from source documents: the CI Planification annuelle (authoritative), the NRD Résultats Essentiels en Calcul Élémentaire (Genesis Analytics / NRD, 2025), and the Rwanda REB Mathematics Primary 1 pupil's book (2023, borrowed — tasks and provisional geometry/measurement components only).",
         "provider": "Learning Commons ontology (generated)",
-        "educationalUse": "Assessment",
-        "position": 112
+        "educationalUse": "Assessment"
       }
     },
     {
@@ -13320,11 +13296,11 @@
     {
       "id": "fc3f01d5-8a34-5fd7-9ad3-ac06e6cb0caa",
       "labels": [
-        "Lesson"
+        "Assessment"
       ],
       "properties": {
         "identifier": "fc3f01d5-8a34-5fd7-9ad3-ac06e6cb0caa",
-        "normalizedType": "Lesson",
+        "normalizedType": "Assessment",
         "description": "Bilan du chapitre 11",
         "metadata": {
           "order": 59
@@ -13335,8 +13311,7 @@
         "license": "https://creativecommons.org/licenses/by/4.0/",
         "attributionStatement": "Node/edge types follow the Learning Commons ontology (CC BY-4.0). Curriculum content and vocabulary are taken verbatim from source documents: the CI Planification annuelle (authoritative), the NRD Résultats Essentiels en Calcul Élémentaire (Genesis Analytics / NRD, 2025), and the Rwanda REB Mathematics Primary 1 pupil's book (2023, borrowed — tasks and provisional geometry/measurement components only).",
         "provider": "Learning Commons ontology (generated)",
-        "educationalUse": "Assessment",
-        "position": 59
+        "educationalUse": "Assessment"
       }
     },
     {
