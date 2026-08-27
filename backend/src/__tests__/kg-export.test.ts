@@ -129,7 +129,7 @@ describe("kg-export — LC ontology (maths)", () => {
     expect(graph.nodes.every((n) => n.cat === n.label && n.kind === n.label)).toBe(true);
     // + Material and InstructionalRoutine: the shared "fiche de leçon" routine
     // (Phase 1); + the document layer the TLM migration added.
-    expect(graph.meta.taxonomy.map((x) => x.key)).toEqual(["StandardsFramework", "StandardsFrameworkItem", "Course", "LessonGrouping", "Lesson", "Assessment", "Activity", "Material", "LearningComponent", "TeachingLearningMaterial", "Formatter", "FormatterSpec", "InstructionalRoutine"]);
+    expect(graph.meta.taxonomy.map((x) => x.key)).toEqual(["StandardsFramework", "StandardsFrameworkItem", "Course", "LessonGrouping", "Lesson", "Assessment", "Activity", "LearningComponent", "TeachingLearningMaterial", "Formatter", "FormatterSpec", "InstructionalRoutine"]);
     expect(graph.meta.taxonomy.every((x) => /^#[0-9a-f]{6}$/i.test(x.color) && x.label.fr && x.label.en)).toBe(true);
   });
 
@@ -439,7 +439,7 @@ describe("kg-export — LC ontology (reading)", () => {
     // document/rubric labels reading carries: its guide is split into
     // DocumentSections and both evaluation grids hang off it.
     expect(graph.meta.taxonomy.map((x) => x.key)).toEqual([
-      "StandardsFramework", "StandardsFrameworkItem", "Course", "LessonGrouping", "Lesson", "Activity", "Material", "LearningComponent",
+      "StandardsFramework", "StandardsFrameworkItem", "Course", "LessonGrouping", "Lesson", "Activity", "LearningComponent",
       "TeachingLearningMaterial", "DocumentSection", "Formatter", "FormatterSpec", "Rubric", "RubricSection", "RubricCriterion", "InstructionalRoutine",
     ]);
   });

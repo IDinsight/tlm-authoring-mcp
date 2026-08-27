@@ -554,13 +554,16 @@ describe("diff relies on copy-on-write recipes", () => {
     const edges = (await store.listEdges(ns, "a")).map(({ slot: _s, ...e }) => e);
     const before: MutationGraph = { nodes, edges };
 
-    const material = nodes.find((n) => (n.labels ?? []).includes("Material"));
-    expect(material, "the CI-maths fixture should hold a Material").toBeTruthy();
+    // Any content leaf will do — the point is the copy-on-write diff, not the label.
+    // (It used to reach for a Material; routines carry their text inline now, so
+    // ci/maths has none.)
+    const target = nodes.find((n) => (n.labels ?? []).includes("Activity"));
+    expect(target, "the CI-maths fixture should hold an Activity").toBeTruthy();
 
-    const after = setContent.apply(before, { namespace: ns, nodeId: material!.id, content: "nouveau contenu" });
+    const after = setContent.apply(before, { namespace: ns, nodeId: target!.id, content: "nouveau contenu" });
     const diff = diffGraphs(before, after);
 
-    expect(diff.nodes.changed.map((c) => c.id)).toEqual([material!.id]);
+    expect(diff.nodes.changed.map((c) => c.id)).toEqual([target!.id]);
     expect(diff.nodes.added).toHaveLength(0);
     expect(diff.nodes.removed).toHaveLength(0);
   });

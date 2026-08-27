@@ -19,6 +19,7 @@
  * near miss.
  */
 import type { CurriculumModel } from "../types.js";
+import { displayName } from "../utils/index.js";
 
 /**
  * The least a graph must look like to be searched: nodes with labels + display
@@ -89,7 +90,9 @@ function displayTitle(node: FindableNode): string {
   const properties = (node.properties ?? {}) as Record<string, unknown>;
   const raw = (properties.raw ?? {}) as Record<string, unknown>;
   for (const candidate of [properties.title, properties.text, properties.description, raw.description]) {
-    if (typeof candidate === "string" && candidate.length > 0) return candidate;
+    // Line 1 only: a routine's description carries its name there and its whole
+    // authored text below, and an expert searches by the name.
+    if (typeof candidate === "string" && candidate.length > 0) return displayName(candidate);
   }
   return "";
 }

@@ -28,3 +28,22 @@ export const normalizeEmail = (s: string) => s.trim().toLowerCase();
 // real login is harmless, whereas a clever regex that rejects a valid address
 // blocks a real person.
 export const looksLikeEmail = (s: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(s);
+
+// A node's display NAME out of its `description`. A routine carries its whole
+// authored text there (its name on the first line, the prose below), so anything
+// showing a name — the catalog listing, find_node, the explorer's node label —
+// takes line 1. For the single-line descriptions every other node has, this
+// returns the string unchanged.
+export const displayName = (s: string): string => {
+  const end = s.indexOf("\n");
+  return (end === -1 ? s : s.slice(0, end)).trim();
+};
+
+// The other half of `displayName`: everything BELOW the name line. A routine's
+// summary (on the entry) or a step's script (on the step) lives there now, so the
+// catalog renderer reads a body from here instead of from a Material's `content`.
+// Empty for the single-line descriptions every other node has.
+export const descriptionBody = (s: string): string => {
+  const end = s.indexOf("\n");
+  return end === -1 ? "" : s.slice(end + 1).trim();
+};
