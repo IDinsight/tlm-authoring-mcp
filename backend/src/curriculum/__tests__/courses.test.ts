@@ -10,9 +10,9 @@ import { subjectDir, KG_FIXTURE } from "../../__tests__/index.js";
 import { resolveAdapter } from "../../adapters/index.js";
 import { coursesOf, courseSubgraph, standardsFor } from "../courses.js";
 
-const modelFor = (grade: string, subject: string) => {
-  const raw = JSON.parse(readFileSync(resolve(subjectDir("senegal", grade, subject), KG_FIXTURE), "utf8"));
-  return resolveAdapter("senegal", grade, subject)!.parse(raw);
+const modelFor = (grade: string, subject: string, workspace = "senegal") => {
+  const raw = JSON.parse(readFileSync(resolve(subjectDir(workspace, grade, subject), KG_FIXTURE), "utf8"));
+  return resolveAdapter(workspace, grade, subject)!.parse(raw);
 };
 
 describe("coursesOf / courseSubgraph — generic Course readers", () => {
@@ -70,7 +70,11 @@ describe("coursesOf / courseSubgraph — generic Course readers", () => {
   });
 
   it("returns [] for a subject whose graph has no Course node", () => {
-    expect(coursesOf(modelFor("ce1", "reading"))).toEqual([]);
+    // Nigeria is the spine-only case: a standards framework and nothing else, which
+    // is where every new workspace starts. (Reading used to stand here — it has had
+    // its own content Course since the reading-Course migration.)
+    expect(coursesOf(modelFor("primary-1-3", "maths", "nigeria"))).toEqual([]);
+    expect(coursesOf(modelFor("ce1", "reading"))).toHaveLength(1);
   });
 
   it("standardsFor reaches the spine from a lesson: the aligned SFI + its components + illustrative activities", () => {
