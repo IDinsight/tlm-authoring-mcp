@@ -13024,11 +13024,11 @@
     {
       "id": "f807bcb2-2591-5cb7-a689-9ebafa113d9b",
       "labels": [
-        "Assessment"
+        "Lesson"
       ],
       "properties": {
         "identifier": "f807bcb2-2591-5cb7-a689-9ebafa113d9b",
-        "normalizedType": "Assessment",
+        "normalizedType": "Lesson",
         "description": "se repérer dans la semaine : les jours de la semaine",
         "metadata": {
           "order": 104
@@ -13039,7 +13039,8 @@
         "license": "https://creativecommons.org/licenses/by/4.0/",
         "attributionStatement": "Node/edge types follow the Learning Commons ontology (CC BY-4.0). Curriculum content and vocabulary are taken verbatim from source documents: the CI Planification annuelle (authoritative), the NRD Résultats Essentiels en Calcul Élémentaire (Genesis Analytics / NRD, 2025), and the Rwanda REB Mathematics Primary 1 pupil's book (2023, borrowed — tasks and provisional geometry/measurement components only).",
         "provider": "Learning Commons ontology (generated)",
-        "educationalUse": "Assessment"
+        "educationalUse": "Instruction",
+        "position": 104
       }
     },
     {
