@@ -73,10 +73,20 @@ const routineParentOf = (id) =>
     .map((rel) => nodeById.get(rel.start))
     .find(isRoutine);
 
-// A root is a routine no other routine contains.
-const routineRoots = graph.nodes.filter((node) => isRoutine(node) && routineParentOf(node.id) === undefined);
-const targets = routineRoots.filter((root) => kindOf(root) === "routine");
-const skipped = routineRoots.filter((root) => kindOf(root) !== "routine");
+// Where the entries are. A subject graph holds its routines at the top, so an entry
+// is a routine nothing contains. A CATALOG holds one library container
+// ("catalog-root") above them, so there the entries are its children — treating the
+// container as the entry would read every entry as a step and every step as a
+// nested step. Formatters and rubrics live in that same container, which is why kind
+// is tested per ENTRY and not on whatever sits at the top.
+const CATALOG_ROOT_ID = "catalog-root";
+const libraryRoot = graph.nodes.find((node) => node.id === CATALOG_ROOT_ID);
+const entries = libraryRoot
+  ? childrenOf(libraryRoot.id).filter(isRoutine)
+  : graph.nodes.filter((node) => isRoutine(node) && routineParentOf(node.id) === undefined);
+
+const targets = entries.filter((entry) => kindOf(entry) === "routine");
+const skipped = entries.filter((entry) => kindOf(entry) !== "routine");
 
 // ── Plan the whole change before touching anything ──────────────────────────
 const problems = [];
@@ -181,9 +191,17 @@ const afterFix = [];
 for (const root of targets) {
   if (metaOf(root).summary !== undefined) afterFix.push(`"${describe(root)}" still carries metadata.summary`);
 }
+// Only the entries we migrated must be Material-free: a formatter's spec and a
+// rubric's criteria are Materials under a routine BY DESIGN and must survive.
+const migratedIds = new Set();
+for (const root of targets) {
+  migratedIds.add(root.id);
+  for (const child of childrenOf(root.id)) migratedIds.add(child.id);
+}
 for (const node of graph.nodes.filter(isMaterial)) {
-  if (routineParentOf(node.id) !== undefined) {
-    afterFix.push(`"${describe(node)}" is still a Material under a routine`);
+  const parent = routineParentOf(node.id);
+  if (parent !== undefined && migratedIds.has(parent.id)) {
+    afterFix.push(`"${describe(node)}" is still a Material under a migrated routine`);
   }
 }
 for (const rel of graph.relationships) {
