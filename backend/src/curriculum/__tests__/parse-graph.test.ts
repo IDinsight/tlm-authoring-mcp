@@ -48,16 +48,20 @@ describe("generic parseGraph — maths (new shape)", () => {
     // has weeks only — its 25 Chapitre groupings and their 25 container Lessons
     // went away with the Student's Book (see the synthetic-graph block below,
     // which still covers chapter parsing).
-    // The 25 end-of-chapter bilans are `Assessment` nodes, so they parse as their
-    // own kind rather than swelling the Lesson count (112 = 87 lessons + 25 bilans).
+    // The 24 end-of-chapter bilans are `Assessment` nodes, so they parse as their
+    // own kind rather than swelling the Lesson count (112 = 88 lessons + 24 bilans).
     expect(kindCounts(model, ["Semaine", "Chapitre", "Lesson", "Assessment", "Domaine"])).toEqual({
-      Semaine: 23, Chapitre: 0, Lesson: 87, Assessment: 25, Domaine: 4,
+      Semaine: 23, Chapitre: 0, Lesson: 88, Assessment: 24, Domaine: 4,
     });
     // A bilan keeps its educationalUse, so the isAssessment flag survives the
     // relabel — and its ordinal comes from metadata.order, not the dropped `position`.
     const bilans = model.unitsOfKind("Assessment");
     expect(bilans.every((u) => u.isAssessment)).toBe(true);
     expect(bilans.every((u) => typeof u.order === "number")).toBe(true);
+    // Every bilan is titled for the chapter it closes. One teaching lesson used to sit
+    // here because its source record carried educationalUse "Assessment" (order 104,
+    // "se repérer dans la semaine"); the title is what gave it away.
+    expect(bilans.every((u) => u.text?.startsWith("Bilan"))).toBe(true);
     // 115 leaf standards (109 objectives + 3 palier + 3 interdisciplinary),
     // spread across their statementType kinds.
     expect(leafStandards(model).length).toBe(115);
