@@ -72,6 +72,9 @@ const LABEL_DEFS: TaxonomyEntry[] = [
   { key: "Course",                 label: { fr: "Cours",              en: "Course" },               color: "#b5651d" },
   { key: "LessonGrouping",         label: { fr: "Regroupement",       en: "Lesson grouping" },      color: "#7f77dd" },
   { key: "Lesson",                 label: { fr: "Leçon",              en: "Lesson" },               color: "#1d9e75" },
+  // A bilan is a leaf beside a Lesson, so it takes a darker shade of the Lesson green
+  // rather than a hue of its own — related, still tellable apart at a glance.
+  { key: "Assessment",             label: { fr: "Bilan",              en: "Assessment" },           color: "#0f7a63" },
   { key: "Activity",               label: { fr: "Activité",           en: "Activity" },             color: "#c98a1a" },
   { key: "Material",               label: { fr: "Matériel",           en: "Material" },             color: "#888780" },
   { key: "LearningComponent",      label: { fr: "Composant",          en: "Learning component" },   color: "#d4537e" },
@@ -361,7 +364,7 @@ function toDisplayEdges(e: StoredEdge, ctx: FoldContext): DisplayEdge[] {
 const STANDARDS_LABELS = ["StandardsFramework", "StandardsFrameworkItem"];
 // InstructionalRoutine + Material carry the shared "fiche de leçon" routine; it folds
 // into the content tree under the Course only (see toDisplayEdges' usesRoutine case).
-const CONTENT_LABELS = ["Course", "LessonGrouping", "Lesson", "Activity", "Material", "InstructionalRoutine"];
+const CONTENT_LABELS = ["Course", "LessonGrouping", "Lesson", "Assessment", "Activity", "Material", "InstructionalRoutine"];
 // The document / rendering / evaluation layer, nested by hasPart (folded onto the
 // hasChild display axis): TLM ▸ DocumentSection · TLM ▸ Formatter ▸ FormatterSpec ·
 // TLM ▸ Rubric ▸ RubricSection ▸ RubricCriterion.
@@ -408,6 +411,7 @@ function buildViewConfig(nodes: DisplayNode[], edges: DisplayEdge[]): ViewConfig
         includeLabels: CONTENT_LABELS, expandEdge: "hasChild", rootKinds: ["Course", "LessonGrouping"],
         alignmentTail: [
           { from: "Lesson", rel: "hasEducationalAlignment", dir: "in" },
+          { from: "Assessment", rel: "hasEducationalAlignment", dir: "in" },
           { from: "Activity", rel: "hasEducationalAlignment", dir: "in" },
           { from: "StandardsFrameworkItem", rel: "supports", dir: "out" },
         ],

@@ -98,10 +98,13 @@ Documented so they don't get mistaken for canon:
    `GROUPING_LABELS`, `deriveTemplate`) and chapters are keyed off the canonical
    `groupName`. (CE1 reading's content groupings still carry them — the parser is
    backward-compatible, so it's a safe follow-up when reading is next re-seeded.)
-5. **Bilan via `educationalUse: "Assessment"` on a `Lesson`** rather than a dedicated
-   **`Assessment`** node. `educationalUse` does allow `Assessment` (it's in
-   `EducationalUseENUM`), so this is valid-ish, but LC also has a first-class
-   `Assessment` label we don't use.
+5. ~~**Bilan via `educationalUse: "Assessment"` on a `Lesson`** rather than a dedicated
+   **`Assessment`** node.~~ **RESOLVED** — the 25 CI-maths bilans are now first-class
+   **`Assessment`** nodes. They keep `educationalUse: "Assessment"` (canon says an
+   Assessment's `educationalUse` is *typically* `Assessment`, and `parseGraph` reads
+   `isAssessment` from it), hang under their `Semaine` by `hasPart` and align to their
+   OS by `hasEducationalAlignment` — all canonical. Canonical `Assessment` carries no
+   ordinal, so `position` was dropped; maths sequences from `metadata.order`.
 6. **`metadata.illustratesComponent`** encodes an Activity→LearningComponent link
    that **has no canonical edge** (LC defines none). This is an intentional sidecar
    extension, surfaced display-only by the explorer.

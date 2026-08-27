@@ -14,7 +14,7 @@ import type { MutationGraph, MutationNode } from "../kg-store/index.js";
 
 // LC content-tree labels — nested by `hasPart` (Course ▸ LessonGrouping ▸ Lesson
 // ▸ Activity ▸ Material). The standards tree nests by `hasChild`.
-const CONTENT_LABELS = new Set(["Course", "LessonGrouping", "Lesson", "Activity", "Material"]);
+const CONTENT_LABELS = new Set(["Course", "LessonGrouping", "Lesson", "Assessment", "Activity", "Material"]);
 const STANDARDS_LABELS = new Set(["StandardsFramework", "StandardsFrameworkItem"]);
 // Canonical LC labels that sit outside the content and standards trees but are
 // still first-class nodes a curator may author — currently the reusable
@@ -69,7 +69,7 @@ export const POSITION = "order";
 // label here also stops the `label.toLowerCase()` default from mangling a
 // PascalCase kind (an "instructionalroutine" wouldn't match a seeded routine).
 const FALLBACK_KIND: Record<string, string> = {
-  Lesson: "Lesson", Activity: "Activity", Material: "Material",
+  Lesson: "Lesson", Assessment: "Assessment", Activity: "Activity", Material: "Material",
   LessonGrouping: "LessonGrouping", Course: "Course",
   InstructionalRoutine: "InstructionalRoutine",
   // Document-layer labels: kind = label (like a content leaf), so the PascalCase

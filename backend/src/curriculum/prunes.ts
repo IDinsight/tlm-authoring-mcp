@@ -61,8 +61,11 @@ function contentReachableFromRoots(rootKinds: Set<string>): PostParse {
     // folds so the standard's childIds ∋ the session), then those standards' components.
     // The aligned content leaf is a `Lesson` in the maths shape but an `Activity` in the
     // canonicalised reading shape (a day is the Lesson, a session the Activity) — accept
-    // either so a standard is kept whenever a kept session aligns to it.
-    const isAlignedContentLeaf = (u: CurriculumUnit | undefined) => u?.kind === "Lesson" || u?.kind === "Activity";
+    // either so a standard is kept whenever a kept session aligns to it. An `Assessment`
+    // aligns exactly like a Lesson (maths' end-of-chapter bilan), so a standard only a
+    // bilan teaches is kept too.
+    const ALIGNED_CONTENT_KINDS = new Set(["Lesson", "Assessment", "Activity"]);
+    const isAlignedContentLeaf = (u: CurriculumUnit | undefined) => u != null && ALIGNED_CONTENT_KINDS.has(u.kind);
     for (const ex of units) {
       if (!isLeafStandard(ex)) continue;
       if (ex.childIds.some((cid) => isAlignedContentLeaf(byId.get(cid)) && keep.has(cid))) keep.add(ex.id);
