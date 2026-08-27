@@ -131,3 +131,16 @@ Documented so they don't get mistaken for canon:
    problem and never was: LC allows `Course`/`Lesson`/`Activity → InstructionalRoutine`
    (see [`relationships.md`](relationships.md) and [`node-types.md`](node-types.md)), so
    a genuine pedagogy routine attached to a `Lesson` is canonical.)*
+8. ~~**CE1 reading: `hasChild` crossing between the two trees, both ways.**~~
+   **RESOLVED** — reading held the last off-canon `hasChild` edges: 21
+   `Palier ─hasChild→ Semaine` (weeks pinned under a standards item) and 3
+   `LessonGrouping ─hasChild→ SFI`. The weeks predate reading's content `Course`;
+   once that landed, every week hung under it by `hasPart` and the old edge carried
+   nothing but "this week belongs to palier N" — so it was reversed into the
+   canonical bridge, `Semaine ─hasEducationalAlignment→ Palier`. The other three all
+   came from **one mislabelled node**: `"1 à 8"`, a référentiel row covering weeks
+   1–8 that lists three standards, filed as a `LessonGrouping` with
+   `groupName "Semaine"`. Relabelling it `StandardsFrameworkItem` made its own parent
+   edge, all three child edges, and its place in the standards tree canonical at once
+   — and removed a phantom empty 23rd week from the teacher's guide. Migration:
+   [`backend/scripts/migrate-reading-off-canon-edges.mjs`](../../../backend/scripts/migrate-reading-off-canon-edges.mjs).
