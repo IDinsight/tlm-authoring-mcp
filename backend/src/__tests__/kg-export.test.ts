@@ -121,7 +121,7 @@ describe("kg-export — LC ontology (maths)", () => {
     // One Course and 23 week groupings: the Student's Book Course, its 25
     // chapters, their container Lessons and 218 placeholder Activities all went
     // away when it became a TeachingLearningMaterial.
-    expect(graph.meta.counts.byKind).toMatchObject({ StandardsFramework: 1, Course: 1, LessonGrouping: 23, Lesson: 88, Assessment: 24, Activity: 104, LearningComponent: 32 });
+    expect(graph.meta.counts.byKind).toMatchObject({ StandardsFramework: 1, Course: 1, LessonGrouping: 23, Lesson: 84, Assessment: 28, Activity: 104, LearningComponent: 32 });
     expect(graph.meta.counts.byKind.StandardsFrameworkItem).toBeGreaterThan(0);
     expect(graph.meta.counts.byKind.Curriculum).toBeUndefined(); // canonical: relabeled to Activity/LessonGrouping
     expect(graph.meta.counts.byKind.Course).toBe(1);             // one content Course since the TLM migration

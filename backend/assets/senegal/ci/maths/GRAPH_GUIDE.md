@@ -44,7 +44,7 @@ a lesson "knows" its objective. A `LearningComponent` `supports` the SFI it belo
 ## One lesson, one parent — its week
 
 A lesson sits under exactly ONE container: its `Semaine` grouping, by `hasPart` (the
-edge carries `axis:"schedule"`). All 88 lessons and all 24 bilans have a single
+edge carries `axis:"schedule"`). All 84 lessons and all 28 bilans have a single
 parent. An earlier shape of this graph also hung a lesson under a `Chapitre` on a
 second axis — that is gone. A node with two containment parents is now a mistake to
 report, not a design to preserve.
@@ -56,21 +56,28 @@ It is a run of the course-wide ordinal:
 
 - every `Lesson` and `Assessment` carries `metadata.order`, unique and gapless from
   1 to 112 across the whole course;
-- sort by it; each run ENDING at an `Assessment` (the bilan) is one chapter — 24 of
-  them, covering every lesson with none left over.
+- sort by it; each run ENDING at a **chapter bilan** is one chapter — 25 of them,
+  covering every lesson with none left over.
 
-So to assemble a chapter: find its bilan, then take the lessons whose
-`metadata.order` sits between the previous bilan's and this one's. Two consequences
-worth knowing before you plan a document:
+**Not every bilan closes a chapter.** Of the 28 `Assessment`s, 25 are chapter bilans
+("Bilan du chapitre N") and **3 are palier-integration bilans** ("Bilan des chapitres
+1 et 5 (intégration du palier 1)", at orders 27, 43 and 80). A palier bilan assesses
+across chapters that have already ended, so it sits INSIDE a chapter's run and must
+not be treated as a boundary — split on it and one chapter wrongly swallows the next
+one's lessons. The title is what separates them; nothing else in the data does.
 
-- **The ordinal is course-wide, not per-week.** 12 of the 24 chapters span more than
-  one week, and 12 of the 23 weeks hold parts of more than one chapter. A chapter and
+So to assemble a chapter: find its chapter bilan, then take the lessons whose
+`metadata.order` sits between the previous chapter bilan's and this one's. Three
+consequences worth knowing before you plan a document:
+
+- **The ordinal is course-wide, not per-week.** 13 of the 25 chapters span more than
+  one week, and 13 of the 23 weeks hold parts of more than one chapter. A chapter and
   a week are different slices of the same lessons.
-- **Chapter NUMBERS come from the source Planification and are not sequential.** Every
-  bilan is titled "Bilan du chapitre N", but those N run 1–29 out of order and with
-  gaps (…7, 6, …11, 12, 13, 10…). Trust the run for what belongs together; use the
+- **Chapter NUMBERS come from the source Planification and are not sequential.** They
+  run 1–29 out of order and with gaps (…7, 6, …11, 12, 13, 10…), and **two different
+  chapters are both numbered 25**. Trust the run for what belongs together; use the
   bilan's `description` verbatim for what the chapter is called. Never renumber a
-  chapter to close a gap.
+  chapter to close a gap, and never assume a number identifies a chapter uniquely.
 
 Seven runs currently hold a bilan and no lessons — their lessons are not authored
 yet. That is a gap in the data, not a rule.
@@ -83,15 +90,18 @@ heuristic. A bilan hangs under its **week** by `hasPart` exactly like a lesson, 
 aligns to the OS it assesses; unlike a lesson it carries no `position` (canonical
 `Assessment` has no ordinal — its place in the sequence comes from `metadata.order`).
 
-A bilan aligns to a spine standard **titled "Bilan du chapitre N"**; a lesson aligns
-to an ordinary objective. That, not the node's own title, is what tells them apart —
-one lesson was mislabelled `Assessment` for exactly this reason and was caught by the
-alignment disagreeing.
+A bilan aligns to a spine standard **titled "Bilan …"**; a lesson aligns to an
+ordinary objective. The spine holds 28 such standards and each has exactly one content
+node, so that pairing is what tells the two apart — not the node's own title. Both
+mislabellings this graph had were caught by it: a lesson wrongly labelled `Assessment`
+(its alignment pointed at an ordinary objective) and four bilans wrongly labelled
+`Lesson` (their alignments pointed at bilan standards). When a node's own title and its
+alignment DISAGREE, that is the interesting case — stop and look, don't relabel.
 
 The bilan is what CLOSES a chapter, so there is exactly one per chapter by
-construction. It is NOT one per week: 17 of the 23 weeks hold a bilan — 11 hold one,
-5 hold two, 1 holds three — and 6 weeks hold none. Don't add a bilan to "complete" a
-week.
+construction. It is NOT one per week: 18 of the 23 weeks hold at least one bilan —
+10 hold one, 7 hold two, 1 holds four — and 5 weeks hold none. Don't add a bilan to
+"complete" a week.
 
 ## Authoring conventions
 
@@ -135,10 +145,12 @@ draft and reports any it finds:
 - **The course ordinal is intact** — `metadata.order` across all `Lesson`s and
   `Assessment`s is unique and gapless from 1. It is what chapters are derived from,
   so a gap or a duplicate silently redraws a chapter boundary.
-- **Every chapter ends in a bilan** — sorted by `metadata.order`, the LAST item is an
-  `Assessment`, so no lessons trail past the final chapter.
-- **No empty chapter** — each run between bilans holds at least one `Lesson`. Seven
-  runs fail this today (bilan, no lessons); that is known unfinished authoring.
+- **Every chapter ends in a bilan** — sorted by `metadata.order`, the LAST item is a
+  chapter bilan, so no lessons trail past the final chapter.
+- **Every bilan standard has exactly one content node** — the spine's 28 "Bilan …"
+  standards each pair with one `Assessment`. A `Lesson` aligned to one is mislabelled.
+- **No empty chapter** — each run between chapter bilans holds at least one `Lesson`.
+  Seven fail this today (bilan, no lessons); that is known unfinished authoring.
 - **Every teaching lesson is aligned** — each `Lesson` has a
   `hasEducationalAlignment` edge to the OS it teaches. A lesson with no alignment
   is unmoored from the curriculum.

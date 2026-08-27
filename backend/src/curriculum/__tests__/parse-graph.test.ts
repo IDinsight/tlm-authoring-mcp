@@ -48,20 +48,22 @@ describe("generic parseGraph — maths (new shape)", () => {
     // has weeks only — its 25 Chapitre groupings and their 25 container Lessons
     // went away with the Student's Book (see the synthetic-graph block below,
     // which still covers chapter parsing).
-    // The 24 end-of-chapter bilans are `Assessment` nodes, so they parse as their
-    // own kind rather than swelling the Lesson count (112 = 88 lessons + 24 bilans).
+    // The 28 bilans are `Assessment` nodes, so they parse as their own kind rather
+    // than swelling the Lesson count (112 = 84 lessons + 28 bilans). Of the 28, 25
+    // close a chapter and 3 are palier-integration bilans that sit inside one.
     expect(kindCounts(model, ["Semaine", "Chapitre", "Lesson", "Assessment", "Domaine"])).toEqual({
-      Semaine: 23, Chapitre: 0, Lesson: 88, Assessment: 24, Domaine: 4,
+      Semaine: 23, Chapitre: 0, Lesson: 84, Assessment: 28, Domaine: 4,
     });
     // A bilan keeps its educationalUse, so the isAssessment flag survives the
     // relabel — and its ordinal comes from metadata.order, not the dropped `position`.
     const bilans = model.unitsOfKind("Assessment");
     expect(bilans.every((u) => u.isAssessment)).toBe(true);
     expect(bilans.every((u) => typeof u.order === "number")).toBe(true);
-    // Every bilan is titled for the chapter it closes. One teaching lesson used to sit
-    // here because its source record carried educationalUse "Assessment" (order 104,
-    // "se repérer dans la semaine"); the title is what gave it away.
+    // Every bilan is titled as one, and nothing else is. Both mislabellings this graph
+    // had broke one of these halves: a teaching lesson labelled Assessment (order 104,
+    // "se repérer dans la semaine") and four bilans left as Lesson.
     expect(bilans.every((u) => u.text?.startsWith("Bilan"))).toBe(true);
+    expect(model.unitsOfKind("Lesson").some((u) => u.text?.startsWith("Bilan"))).toBe(false);
     // 115 leaf standards (109 objectives + 3 palier + 3 interdisciplinary),
     // spread across their statementType kinds.
     expect(leafStandards(model).length).toBe(115);
