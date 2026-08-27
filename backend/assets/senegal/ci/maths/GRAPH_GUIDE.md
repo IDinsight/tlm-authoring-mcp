@@ -11,10 +11,12 @@ graph; read this to know the conventions and intent before you walk or edit it.
   what it is: `Objectif spécifique` (the OS — a taught objective) and domain values
   (`Arithmétique`, `Mesure`, …). An SFI holds its sub-skills as `LearningComponent`
   children.
-- **Content layer** — the authored teaching material. A `Course` (there are two: the
-  Teacher's Guide and the Student's Book) holds `LessonGrouping`s. A grouping's
-  `groupName` names its axis: `Chapitre` (content) or `Semaine` (schedule). A
-  `Lesson` is one taught lesson.
+- **Content layer** — the authored teaching material. ONE `Course` (`description`
+  "Planification") holds 23 `LessonGrouping`s, every one a school week
+  (`groupName: "Semaine"`). A `Lesson` is one taught lesson, hanging under its week.
+  There is no `Chapitre` grouping — see "Chapters are derived, not stored" below.
+  The weeks are numbered 1–25 with 10 and 18 missing, so week `position`s have gaps
+  by design; don't renumber them.
 
 ## Querying the graph
 
@@ -27,8 +29,9 @@ graph; read this to know the conventions and intent before you walk or edit it.
 - Common recipes:
     * All SFIs in a domain: fromId=<domainId>, direction='out',
       edgeTypes=['hasChild'], nodeTypes=['StandardsFrameworkItem'].
-    * All lessons in a course: fromId=<courseId>, direction='out',
-      edgeTypes=['hasPart','hasChild'], nodeTypes=['Lesson'].
+    * All lessons in the course: fromId=<courseId>, direction='out',
+      edgeTypes=['hasPart'], nodeTypes=['Lesson','Assessment'] — content nests by
+      `hasPart` only; `hasChild` is the standards tree.
     * A lesson's current alignments: fromId=<lessonId>, direction='out',
       edgeTypes=['hasEducationalAlignment'], maxDepth=1.
 
@@ -38,28 +41,59 @@ A `Lesson` aligns to the OS it teaches with a `hasEducationalAlignment` edge to 
 `StandardsFrameworkItem` — the alignment, not a copy of the objective's text, is how
 a lesson "knows" its objective. A `LearningComponent` `supports` the SFI it belongs to.
 
-## A lesson has two parents — by design
+## One lesson, one parent — its week
 
-A CI-maths lesson legitimately sits under TWO containers:
-- its **chapter** (a `Chapitre` grouping) via `hasPart` — the content axis;
-- its **week** (a `Semaine` grouping) via `hasChild` — the schedule axis.
+A lesson sits under exactly ONE container: its `Semaine` grouping, by `hasPart` (the
+edge carries `axis:"schedule"`). All 87 lessons and all 25 bilans have a single
+parent. An earlier shape of this graph also hung a lesson under a `Chapitre` on a
+second axis — that is gone. A node with two containment parents is now a mistake to
+report, not a design to preserve.
 
-Both are correct. Do not "fix" a lesson that has two parents. When you re-parent,
-move along ONE axis; the other containment edge is left intact.
+## Chapters are derived, not stored
+
+The Student's Book is written chapter by chapter, but a chapter is **not a node**.
+It is a run of the course-wide ordinal:
+
+- every `Lesson` and `Assessment` carries `metadata.order`, unique and gapless from
+  1 to 112 across the whole course;
+- sort by it; each run ENDING at an `Assessment` (the bilan) is one chapter — 25 of
+  them, covering every lesson with none left over.
+
+So to assemble a chapter: find its bilan, then take the lessons whose
+`metadata.order` sits between the previous bilan's and this one's. Two consequences
+worth knowing before you plan a document:
+
+- **The ordinal is course-wide, not per-week.** 12 of the 25 chapters span more than
+  one week, and 12 of the 23 weeks hold parts of more than one chapter. A chapter and
+  a week are different slices of the same lessons.
+- **Chapter NUMBERS come from the source Planification and are not sequential.** The
+  bilan titles name chapters 1–29, out of order and with gaps (…7, 6, …11, 12, 13,
+  10…), and one bilan names no chapter at all. Trust the run for what belongs
+  together; use the bilan's `description` verbatim for what the chapter is called.
+  Never renumber a chapter to close a gap.
+
+Eight runs currently hold a bilan and no lessons — their lessons are not authored
+yet. That is a gap in the data, not a rule.
 
 ## The bilan
 
 A chapter's assessment (the "bilan") is an **`Assessment`** node — LC's first-class
 label for it — still carrying `educationalUse: "Assessment"`. It is data, not a title
-heuristic. Each chapter should have exactly one bilan. A bilan hangs under its grouping
-by `hasPart` exactly like a lesson, and aligns to the OS it assesses; unlike a lesson it
-carries no `position` (canonical `Assessment` has no ordinal — its place in the week
-comes from `metadata.order`).
+heuristic. A bilan hangs under its **week** by `hasPart` exactly like a lesson, and
+aligns to the OS it assesses; unlike a lesson it carries no `position` (canonical
+`Assessment` has no ordinal — its place in the sequence comes from `metadata.order`).
+
+The bilan is what CLOSES a chapter, so there is exactly one per chapter by
+construction. It is NOT one per week: 17 of the 23 weeks hold a bilan — 11 hold one,
+4 hold two, 2 hold three — and 6 weeks hold none. Don't add a bilan to "complete" a
+week.
 
 ## Authoring conventions
 
-- **Add a lesson:** create a `Lesson` under its `Chapitre` (`hasPart`), give it a
-  `position`, and align it to the OS it teaches (`hasEducationalAlignment`).
+- **Add a lesson:** create a `Lesson` under its `Semaine` (`hasPart`), give it a
+  `position` within the week AND a `metadata.order` in the course-wide sequence (the
+  ordinal chapters are derived from), and align it to the OS it teaches
+  (`hasEducationalAlignment`).
 - **Ordinals** live in `position`; membership is the edge, so repositioning a node
   never cascades to its siblings.
 - **Kinds are the graph's own words** — a grouping's `groupName`, an SFI's
@@ -76,11 +110,11 @@ comes from `metadata.order`).
   each node, every descendant whose parents are ALL in the deleted set, and every
   edge incident to a removed node. The dry-run WARNS with the FULL set that will
   vanish — read it before confirming; seeing the cascade is the safety (no force flag).
-- **The two-parent rule changes what cascades.** A lesson hangs under BOTH its
-  `Chapitre` (`hasPart`) and its `Semaine` (`hasChild`), so deleting the `Chapitre`
-  alone does NOT take its lessons — they still hang under their week, and only the
-  chapter's `hasPart` edges drop. To remove a lesson, delete the `Lesson` itself
-  (its own `Activity` tasks, which have only that parent, cascade with it).
+- **A week is a lesson's ONLY parent, so deleting one takes everything under it.**
+  There is no second axis holding the lessons up any more: `delete_nodes` on a
+  `Semaine` removes that week's lessons, its bilan, and their `Activity` tasks. Read
+  the dry-run's cascade before confirming. To remove a single lesson, delete the
+  `Lesson` itself (its `Activity` tasks cascade with it).
 - **To keep a subtree, detach first:** `delete_edges` the containment edge into the
   node, then `delete_nodes` it — the now-detached children survive.
 - Both are DRAFT edits — nothing is live until `publish_draft`.
@@ -91,30 +125,36 @@ A well-formed chapter satisfies these. There are no automatic coverage warnings 
 an edit, `diff_draft`, or publish — `review_draft` checks all of them against the
 draft and reports any it finds:
 
-- **No empty chapter** — every `Chapitre` has at least one `Lesson`.
-- **Exactly one bilan per chapter** — each `Chapitre` has exactly one `Assessment`
-  node (the bilan).
-- **One chapter per lesson** — a `Lesson` has exactly one `Chapitre` parent (via
-  `hasPart`). Its `Semaine` parent (via `hasChild`) is a separate axis and does
-  not count against this.
-- **Every teaching lesson is aligned** — each non-bilan `Lesson` has a
+- **One week per lesson** — every `Lesson` and `Assessment` has exactly one
+  containment parent, a `Semaine`, via `hasPart`. Two parents, or none, is wrong.
+- **The course ordinal is intact** — `metadata.order` across all `Lesson`s and
+  `Assessment`s is unique and gapless from 1. It is what chapters are derived from,
+  so a gap or a duplicate silently redraws a chapter boundary.
+- **Every chapter ends in a bilan** — sorted by `metadata.order`, the LAST item is an
+  `Assessment`, so no lessons trail past the final chapter.
+- **No empty chapter** — each run between bilans holds at least one `Lesson`. Eight
+  runs fail this today (bilan, no lessons); that is known unfinished authoring.
+- **Every teaching lesson is aligned** — each `Lesson` has a
   `hasEducationalAlignment` edge to the OS it teaches. A lesson with no alignment
   is unmoored from the curriculum.
-- **Chapters are contiguous** — `Chapitre` `position`s run from 1 with no gaps or
-  duplicates, so the book has no missing or double-numbered chapter.
+- **Every bilan is aligned too** — each `Assessment` aligns to the OS it assesses.
 
 ## Generating documents from the graph
 
 The graph gives you the curriculum; the **routines** give you each document's section
-structure; the **formatters** on each `Course` give you the look. What follows is the
-**authoring judgment** that sits on top — the part that is neither structure nor style.
+structure; the **formatters** hanging off each **TLM** (by `hasPart`) give you the
+look. What follows is the **authoring judgment** that sits on top — the part that is
+neither structure nor style.
 
-There are two deliverables, each its own `Course` (find it in `namespace_stats.roots`
-by its `description`):
-- the **Student's Book** — the `Course` whose `description` is **"Outil de l'élève"**
+There are two deliverables, each its own **`TeachingLearningMaterial`** (a TLM — find
+it in `namespace_stats.roots` by filtering `labels` for `TeachingLearningMaterial`):
+- the **Student's Book** — the TLM whose `description` is **"Outil de l'élève"**
   (the illustrated pupil manual, one chapter at a time);
-- the **Teacher's Guide** — the `Course` whose `description` is **"Guide de
+- the **Teacher's Guide** — the TLM whose `description` is **"Guide de
   l'enseignant"** (the lesson sheets — *fiches de leçon* — for a chapter).
+
+Both `covers` the SAME single `Course`; the deliverable is the TLM, and the Course is
+the curriculum they each render differently. Read a TLM with `walk_document(tlmId)`.
 
 Read a lesson's objective and sub-skills with `get_standards(lessonId)`: the aligned
 `StandardsFrameworkItem` `description` is the OS text, and its `LearningComponent`s are
@@ -140,8 +180,9 @@ So you no longer assemble the routine and the style by hand — one call hands y
 for the exact slot you are generating.
 
 **Find (or author) the section first.** List a TLM's slots with
-`walk_document(tlmId).sections`. If the piece you want has **no section yet** (the TLM
-still resolves by the `covers → Course` fallback — `scope: "course"`), author it as the
+`walk_document(tlmId).sections`. Neither maths TLM has a spine yet — both still
+resolve by the `covers → Course` fallback (`scope: "course"`) — so today this is
+always the authoring path, not the lookup path. Author the slot as the
 first step of generating that piece: `add_nodes` a `DocumentSection` (give it a
 `position`), then `create_edges` a `hasPart` from the TLM to it and a `covers` from it to
 the chapter/lesson it renders — publish, and `walk_document_section` now drives the piece.
