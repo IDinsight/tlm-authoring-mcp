@@ -95,6 +95,37 @@ describe("documentSubgraph — the section-spine document", () => {
     expect(doc.sections[2].covers).toEqual(["les-2"]);
   });
 
+  it("names each section's parent, so a caller can rebuild the nesting", () => {
+    expect(doc.sections.every((s) => s.parent === "tlm-manual")).toBe(true);
+  });
+
+  it("returns nested sections in reading order — a part followed by its own children, not by its uncles", () => {
+    // « Partie 1 » is the document's last section and holds two sheets of its own,
+    // whose positions (1, 2) only mean something among themselves — flat sorting by
+    // position would scatter them among the top-level sections.
+    const nested = {
+      rawGraph: {
+        nodes: [
+          ...NODES,
+          node("part-1", ["DocumentSection"], { position: 3, description: "Partie 1" }),
+          node("sheet-a", ["DocumentSection"], { position: 1, description: "Fiche A" }),
+          node("sheet-b", ["DocumentSection"], { position: 2, description: "Fiche B" }),
+        ],
+        relationships: [
+          ...EDGES,
+          edge("hasPart", "tlm-manual", "part-1"),
+          edge("hasPart", "part-1", "sheet-a"),
+          edge("hasPart", "part-1", "sheet-b"),
+          edge("covers", "sheet-a", "les-1"),
+        ],
+      },
+    } as CurriculumModel;
+
+    const spine = documentSubgraph(nested, "tlm-manual")!.sections;
+    expect(spine.map((s) => s.id)).toEqual(["sec-cover", "sec-1", "sec-2", "part-1", "sheet-a", "sheet-b"]);
+    expect(spine.find((s) => s.id === "sheet-a")!.parent).toBe("part-1");
+  });
+
   it("includes the whole rendering stack (doc-wide + per-section) in the document subtree", () => {
     const docIds = ids(doc.document.nodes);
     for (const id of ["tlm-manual", "sec-cover", "sec-1", "sec-2", "fmt-art", "spec-art", "fmt-sec", "spec-sec"]) {

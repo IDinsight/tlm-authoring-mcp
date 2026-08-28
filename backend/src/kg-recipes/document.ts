@@ -10,8 +10,9 @@
  * Both pass that test. A TeachingLearningMaterial without its `covers` edge is a
  * perfectly valid graph write and a broken document: nothing errors, and
  * generation simply reads an empty document — the expert finds out at the end.
- * A DocumentSection needs TWO edges on TWO axes (its `hasPart` from the document,
- * its `covers` to the curriculum), and forgetting either fails just as quietly.
+ * A DocumentSection needs TWO edges on TWO axes (its `hasPart` from whatever holds
+ * it — the document, or a parent section — and its `covers` to the curriculum), and
+ * forgetting either fails just as quietly.
  * Making the pair atomic is the whole content of these verbs.
  *
  * A hypothetical create_lesson would NOT pass: add_nodes with `alignTo` is
@@ -37,6 +38,14 @@ const labelsOf = (node: MutationNode | undefined): string[] => node?.labels ?? [
 const DOCUMENT_LAYER = new Set([TLM_LABEL, SECTION_LABEL, "Formatter", "FormatterSpec", "Rubric", "RubricSection", "RubricCriterion"]);
 const isDocumentLayer = (node: MutationNode | undefined): boolean =>
   labelsOf(node).some((label) => DOCUMENT_LAYER.has(label));
+
+// What a section may hang under: the document itself, or another section. Sections
+// nest because documents do — a « Partie » holding « Chapitre 1..5 », each holding
+// its own lesson sheets — and the readers walk the whole hasPart chain, so the
+// depth costs nothing. Anything else (a chapter, a formatter) is a mis-resolved
+// name, and that is what this refuses.
+const canHoldSections = (node: MutationNode | undefined): boolean =>
+  labelsOf(node).some((label) => label === TLM_LABEL || label === SECTION_LABEL);
 
 // The `covers` edge both verbs must not forget: document/section → curriculum.
 const linkCovers = (graph: MutationGraph, fromId: string, toId: string, namespace: string): MutationGraph =>
@@ -92,9 +101,9 @@ export const createDocument: GraphMutation<CreateDocumentArgs> = {
 
 export type AddSectionArgs = RecipeCommon & {
   newNodeId: string;
-  documentId: string;                     // the TLM this section belongs to
+  parentId: string;                       // the TLM, or the DocumentSection, this section hangs under
   name: string;
-  position?: number;                      // order within the document; defaults to appending
+  position?: number;                      // order within the parent; defaults to appending
   coversId?: string;                      // the curriculum this section renders; omitted for front matter
   properties?: Record<string, unknown>;   // metadata.assemblyGuide, …
 };
@@ -102,7 +111,7 @@ export type AddSectionArgs = RecipeCommon & {
 export const addSection: GraphMutation<AddSectionArgs> = {
   name: "addSection",
   describe: (args) =>
-    `add the section '${args.name}' to document '${args.documentId}'${args.coversId ? ` covering '${args.coversId}'` : " (front matter — covers nothing)"}`,
+    `add the section '${args.name}' under '${args.parentId}'${args.coversId ? ` covering '${args.coversId}'` : " (front matter — covers nothing)"}`,
 
   validate: (base, _after, args) => {
     const errors: string[] = [];
@@ -110,11 +119,11 @@ export const addSection: GraphMutation<AddSectionArgs> = {
       errors.push("add_section: 'name' is required.");
     }
 
-    const document = nodeById(base, args.documentId);
-    if (!document) {
-      errors.push(`add_section: document '${args.documentId}' does not exist in the draft.`);
-    } else if (!labelsOf(document).includes(TLM_LABEL)) {
-      errors.push(`add_section: '${args.documentId}' is a ${labelsOf(document).join(", ") || "node"}, not a document. Sections hang under a TeachingLearningMaterial — create one with create_document first.`);
+    const parent = nodeById(base, args.parentId);
+    if (!parent) {
+      errors.push(`add_section: '${args.parentId}' does not exist in the draft.`);
+    } else if (!canHoldSections(parent)) {
+      errors.push(`add_section: '${args.parentId}' is a ${labelsOf(parent).join(", ") || "node"}, not a document or a section of one. A section hangs under a TeachingLearningMaterial, or under another DocumentSection when a document has parts within parts — create the document with create_document first.`);
     }
 
     if (args.coversId) {
@@ -133,13 +142,13 @@ export const addSection: GraphMutation<AddSectionArgs> = {
   },
 
   apply: (base, args) => {
-    if (!nodeById(base, args.documentId)) return base;
+    if (!nodeById(base, args.parentId)) return base;
     if (args.coversId && !nodeById(base, args.coversId)) return base;
 
     const withSection = addNode.apply(base, {
       namespace: args.namespace,
       label: SECTION_LABEL,
-      parentId: args.documentId,
+      parentId: args.parentId,
       newNodeId: args.newNodeId,
       title: args.name,
       position: args.position,

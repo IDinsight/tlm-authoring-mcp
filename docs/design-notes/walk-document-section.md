@@ -78,16 +78,20 @@ document       the owning TLM: id, assemblyGuide, audience/mediumType         (w
 covers         the curriculum node(s) this section renders                    (its covers targets; [] ⇒ front-matter)
 curriculum     the covered subtree as raw nodes+edges                         (pure hasPart/hasChild from the covers targets)
 routine        the InstructionalRoutine that applies, nearest-wins:           (see resolution below)
-                 section's own usesRoutine → else the owning TLM's → else the covered Course's
-formatters     the owning TLM's Formatter/FormatterSpec stack + any per-section formatters
+                 section's own usesRoutine → else the sections it is nested in → else the owning TLM's → else the covered Course's
+formatters     every Formatter/FormatterSpec stack on the section's own path: its own, its parent sections', the TLM's doc-wide one
 ```
 
 Resolution rules, all now **document-scoped by construction** (the section fixes the document):
 
-- **Formatters** — the section's own `hasPart` Formatter stack, unioned with the owning
-  TLM's doc-wide stack. No TLM iteration; the owning TLM is a single `hasPart` walk up.
+- **Formatters** — the stacks on the section's OWN path: its own `hasPart` Formatter
+  stack, those of the sections it is nested in, and the owning TLM's doc-wide stack. Each
+  walk stops at a `DocumentSection` boundary, so a sibling's stack never leaks in —
+  sections are walls. No TLM iteration; the ancestry is a single `hasPart` walk up.
 - **Routine** — nearest-wins along a *document-first* chain: the section's own
-  `usesRoutine`, else the owning **TLM's**, else (compat with today) the covered Course's.
+  `usesRoutine`, else that of the sections it is **nested in** (nearest first), else the
+  owning **TLM's**, else (compat with today) the covered Course's. A parent section still
+  reports as the `section` tier; `resolvedFrom` names the node that carried the edge.
   This is where a document-specific routine finally has a home — on the section or its TLM,
   not the shared Course.
 - **Curriculum** — pure `hasPart`/`hasChild` from the `covers` targets, identical to

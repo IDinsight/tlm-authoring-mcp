@@ -41,7 +41,11 @@ const CURRICULUM_LABELS = ["Course", "LessonGrouping", "Lesson", "StandardsFrame
 // What the caller was trying to name, for the "did you mean" message. Named
 // constants rather than inline strings so the three call sites cannot drift.
 const CURRICULUM_TO_COVER = "the content to cover";
-const THE_DOCUMENT = "the document";
+const THE_PARENT = "the document (or the section) to add this section to";
+
+// What a new section may hang under — a document, or a section of one (documents
+// nest: a « Partie » holds chapters, each holding its own sheets).
+const SECTION_PARENT_LABELS = ["TeachingLearningMaterial", "DocumentSection"];
 
 // A "did you mean" answer: no state change, no token, and the candidates the
 // model reads back to the user.
@@ -128,7 +132,7 @@ export async function runCreateDocument(a: CreateDocumentToolArgs): Promise<Reco
 // ── add_section ──────────────────────────────────────────────────────────────
 
 type AddSectionToolArgs = {
-  document?: string;
+  document?: string;                      // the document, OR a section of it to nest under
   name?: string;
   position?: number;
   covers?: string;
@@ -146,7 +150,7 @@ export async function runAddSection(a: AddSectionToolArgs): Promise<Record<strin
   if (a.confirm && !a.name) {
     return runBatchMutation({
       namespace, mutation: addSection,
-      args: { namespace, newNodeId: "", documentId: "", name: "" },
+      args: { namespace, newNodeId: "", parentId: "", name: "" },
       confirm: true, token: a.confirmationToken,
       returnMode: a.returnMode ?? "summary",
       idempotencyKey: a.idempotencyKey,
@@ -154,11 +158,11 @@ export async function runAddSection(a: AddSectionToolArgs): Promise<Record<strin
     });
   }
 
-  if (!a.document) return { error: "`document` is required: the name of the document this section belongs to." };
+  if (!a.document) return { error: "`document` is required: the name of the document this section belongs to — or of the section it sits inside, for a section within a section." };
   if (!a.name) return { error: "`name` is required: the section's title." };
 
-  const document = await resolveOne(namespace, a.document, ["TeachingLearningMaterial"], THE_DOCUMENT);
-  if ("answer" in document) return document.answer;
+  const parent = await resolveOne(namespace, a.document, SECTION_PARENT_LABELS, THE_PARENT);
+  if ("answer" in parent) return parent.answer;
 
   let coversId: string | undefined;
   if (a.covers) {
@@ -168,7 +172,7 @@ export async function runAddSection(a: AddSectionToolArgs): Promise<Record<strin
   }
 
   const newNodeId = a.confirm ? (a.mintedNodeId ?? "") : mintNodeId();
-  const args = { namespace, newNodeId, documentId: document.id, name: a.name, position: a.position, coversId, properties: a.properties };
+  const args = { namespace, newNodeId, parentId: parent.id, name: a.name, position: a.position, coversId, properties: a.properties };
 
   return runBatchMutation({
     namespace, mutation: addSection, args,
@@ -210,10 +214,11 @@ export function registerDocumentAuthoringTools(server: McpServer) {
       title: "Add a section to a document",
       description:
         "Add a SECTION to a document AND bind it to the curriculum that section renders — in ONE atomic step. A section needs two links on two different axes (it belongs to the document, and it covers a piece of curriculum); wiring them separately lets either go missing silently. " +
-        "`document` and `covers` are given BY NAME (« Guide de l'enseignant », « chapter 5 » — in the user's own words); the server resolves them and returns `needsChoice` + `candidates` when a name is ambiguous — ask the user which, then re-call with that candidate's `id`. Don't guess. `position` orders the section within the document (defaults to appending). OMIT `covers` only for FRONT MATTER — a cover page, a table of contents, an introduction that renders no curriculum. " +
-        "REQUIRES CONFIRMATION: the dry-run returns a summary + confirmationToken + the section's id in `mintedNodeIds`; confirm with confirm:true + the token (re-send the same fields + `mintedNodeId` unless `payloadStored:true`). DRAFT edit — publish_draft to make it live. Generation reads one section at a time via walk_document_section, so a document's sections are the real unit of work.",
+        "`document` names WHAT THIS SECTION SITS IN: the document itself, or — for a section within a section — an existing section of it. Sections nest to any depth, so a « Partie 1 » section can hold « Chapitre 1 »…« Chapitre 5 » sections, each holding its own lesson sheets. " +
+        "`document` and `covers` are given BY NAME (« Guide de l'enseignant », « chapter 5 » — in the user's own words); the server resolves them and returns `needsChoice` + `candidates` when a name is ambiguous — ask the user which, then re-call with that candidate's `id`. Don't guess. `position` orders the section within its parent (defaults to appending). OMIT `covers` only for FRONT MATTER — a cover page, a table of contents, an introduction that renders no curriculum — or for a section that exists purely to group the sections beneath it. " +
+        "REQUIRES CONFIRMATION: the dry-run returns a summary + confirmationToken + the section's id in `mintedNodeIds`; confirm with confirm:true + the token (re-send the same fields + `mintedNodeId` unless `payloadStored:true`). DRAFT edit — publish_draft to make it live. Generation reads one section at a time via walk_document_section, so a document's sections are the real unit of work; a nested section inherits the routine and the formatters of the sections above it.",
       inputSchema: {
-        document: z.string().optional(),
+        document: z.string().optional(),   // the document, or a section of it to nest under
         name: z.string().optional(),
         position: z.number().optional(),
         covers: z.string().optional(),

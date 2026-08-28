@@ -6,7 +6,8 @@
  *   • check_draft      — the wiring lint, role-gated on an open draft.
  *   • start_here       — orientation with and without an active context.
  *   • create_document  — the TLM and its `covers` edge, atomically.
- *   • add_section      — both of a section's axes, atomically.
+ *   • add_section      — both of a section's axes, atomically (under the document,
+ *                         or under one of its sections: sections nest).
  *
  * The thread running through all of it is the one thing the design note insists
  * on: the expert never supplies an id, and the server never guesses which node
@@ -274,7 +275,26 @@ describe("add_section — both axes, or the section is broken", () => {
     expect(applied.ok).toBe(true);
   });
 
-  it("refuses a section under something that is not a document", async () => {
+  it("nests a section under another section", async () => {
+    const chapter = await aChapter();
+    await withActiveContext(CURATOR, () =>
+      confirmed(runCreateDocument as never, { name: "Manuel imbriqué", covers: chapter.id }));
+    const part = await withActiveContext(CURATOR, () =>
+      confirmed(runAddSection as never, { document: "Manuel imbriqué", name: "Partie 1" }));
+    const partId = (part.mintedNodeIds as string[])[0];
+
+    const applied = await withActiveContext(CURATOR, () =>
+      confirmed(runAddSection as never, { document: partId, name: "Fiche 1", covers: chapter.id }));
+    expect(applied.ok).toBe(true);
+    const sheetId = (applied.mintedNodeIds as string[])[0];
+
+    const pointer = await store.readPointer(ns);
+    const edges = await store.listEdges(ns, pointer!.draftSlot!);
+    expect(edges.some((e) => e.type === "hasPart" && e.from === partId && e.to === sheetId)).toBe(true);
+    expect(edges.some((e) => e.type === "covers" && e.from === sheetId && e.to === chapter.id)).toBe(true);
+  });
+
+  it("refuses a section under something that is neither a document nor a section", async () => {
     const chapter = await aChapter();
     const blocked = await withActiveContext(CURATOR, () =>
       runAddSection({ document: chapter.id, name: "Partie 1" }));
