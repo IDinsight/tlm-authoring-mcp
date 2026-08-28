@@ -16,6 +16,9 @@
  *   3. the CURRICULUM to render, resolved by the section-spine-or-Course rule: a
  *      DocumentSection spine when the TLM has one (walk the ordered sections, each
  *      `covers` its curriculum node(s)), otherwise the Course the TLM `covers`.
+ *      Sections NEST — a « Partie » holding « Chapitre 1..5 », each holding its own
+ *      lesson sheets — so the spine comes back in reading order (depth-first,
+ *      siblings by position) with each entry naming the `parent` it sits in.
  *
  * Like the Course readers it does NO projection — it surfaces raw Learning-Commons
  * nodes + edges and lets the caller (the LLM) assemble the material. It also does
@@ -96,10 +99,49 @@ function descendants(raw: RawGraphSnapshot, roots: string[], edgeTypes: Set<stri
   return inSet;
 }
 
-// One DocumentSection in the document's spine: its id, its ordinal, and the
-// curriculum node(s) it renders (`covers` targets). An EMPTY `covers` marks a
-// front-matter section (cover, table of contents, intro) with no curriculum node.
-export type DocumentSectionOut = { id: string; position: number; covers: string[] };
+// One DocumentSection in the document's spine: its id, its ordinal, the node it
+// hangs under (the TLM, or the section it is nested in), and the curriculum
+// node(s) it renders (`covers` targets). An EMPTY `covers` marks a front-matter
+// section (cover, table of contents, intro) — or a section that exists only to
+// group the sections beneath it.
+export type DocumentSectionOut = { id: string; position: number; parent: string; covers: string[] };
+
+// The document's section spine in READING order: depth-first through the hasPart
+// tree, siblings ordered by position. Sections nest (a « Partie » holding
+// « Chapitre 1..5 », each holding its lesson sheets), and a nested section's
+// position only means something among its own siblings — sorting every section of
+// the document into one flat list by position would interleave a part with its
+// own children. Cycle-guarded: this is authored data.
+function sectionSpine(
+  raw: RawGraphSnapshot,
+  rootId: string,
+  coversTargets: (fromId: string) => string[],
+): DocumentSectionOut[] {
+  const byId = new Map(raw.nodes.map((n) => [n.id, n]));
+  const childrenOf = new Map<string, string[]>();
+  for (const e of raw.relationships) {
+    if (e.type !== DOCUMENT_EDGE) continue;
+    (childrenOf.get(e.start) ?? childrenOf.set(e.start, []).get(e.start)!).push(e.end);
+  }
+
+  const spine: DocumentSectionOut[] = [];
+  const seen = new Set<string>([rootId]);
+
+  const walk = (parentId: string): void => {
+    const children = (childrenOf.get(parentId) ?? [])
+      .map((id) => byId.get(id))
+      .filter((n): n is RawNode => n !== undefined && labelsOf(n).includes(SECTION_LABEL))
+      .sort((a, b) => positionOf(a) - positionOf(b));
+    for (const section of children) {
+      if (seen.has(section.id)) continue;
+      seen.add(section.id);
+      spine.push({ id: section.id, position: positionOf(section), parent: parentId, covers: coversTargets(section.id) });
+      walk(section.id);
+    }
+  };
+  walk(rootId);
+  return spine;
+}
 
 // The resolved curriculum inlined when it fits, or a self-bounding marker (its
 // node/edge counts + how to fetch it in bounded pieces) when it would blow the
@@ -164,11 +206,9 @@ export function documentSubgraph(model: CurriculumModel, tlmId: string): Documen
   const coversTargets = (fromId: string): string[] =>
     coversEdges.filter((e) => e.start === fromId).map((e) => e.end);
 
-  // 2. Ordered DocumentSection spine (by position), each with its covers targets.
-  const sections: DocumentSectionOut[] = raw.nodes
-    .filter((n) => docIds.has(n.id) && labelsOf(n).includes(SECTION_LABEL))
-    .map((n) => ({ id: n.id, position: positionOf(n), covers: coversTargets(n.id) }))
-    .sort((a, b) => a.position - b.position);
+  // 2. The DocumentSection spine in reading order, each with its covers targets —
+  //    nested sections included, each naming the `parent` it sits in.
+  const sections = sectionSpine(raw, tlmId, coversTargets);
 
   // 3. Resolve the curriculum to render: the section spine when present (the union
   //    of the sections' covers targets, front-matter sections contributing none),
@@ -262,35 +302,45 @@ function ancestorsNearestFirst(raw: RawGraphSnapshot, roots: string[]): string[]
   return ordered;
 }
 
-// The nearest TLM above a section — the document the section belongs to. A section
-// hangs under exactly one TLM by hasPart, so climb inbound hasPart to the first
-// TeachingLearningMaterial. null if the section is not under any document yet.
-function owningTlm(raw: RawGraphSnapshot, sectionId: string): RawNode | null {
+// What sits ABOVE a section on the document axis, nearest first: the sections it is
+// nested inside (a « Chapitre » inside a « Partie »), then the document itself.
+// Climbing the whole chain — rather than jumping straight to the TLM — is what lets
+// a nested section inherit its parent section's routine and formatters before the
+// document's. `tlm` is null when the section hangs under no document yet.
+type DocumentAncestry = { sections: string[]; tlm: RawNode | null };
+
+function documentAncestry(raw: RawGraphSnapshot, sectionId: string): DocumentAncestry {
+  const byId = new Map(raw.nodes.map((n) => [n.id, n]));
   const parentsOf = new Map<string, string[]>();
   for (const e of raw.relationships) {
     if (e.type !== DOCUMENT_EDGE) continue;
     (parentsOf.get(e.end) ?? parentsOf.set(e.end, []).get(e.end)!).push(e.start);
   }
 
-  const stack = [...(parentsOf.get(sectionId) ?? [])];
-  const seen = new Set<string>(stack);
-  while (stack.length) {
-    const parentId = stack.pop()!;
-    const parent = raw.nodes.find((n) => n.id === parentId);
+  const sections: string[] = [];
+  let tlm: RawNode | null = null;
+  // Level order (shift, not pop) so the nearest ancestor is reported first.
+  const queue = [...(parentsOf.get(sectionId) ?? [])];
+  const seen = new Set<string>(queue);
+  while (queue.length) {
+    const parent = byId.get(queue.shift()!);
     if (!parent) continue;
-    if (labelsOf(parent).includes(TLM_LABEL)) return parent;
+    if (labelsOf(parent).includes(TLM_LABEL)) { tlm ??= parent; continue; }   // top of the chain
+    if (labelsOf(parent).includes(SECTION_LABEL)) sections.push(parent.id);
     for (const grandparent of parentsOf.get(parent.id) ?? []) {
-      if (!seen.has(grandparent)) { seen.add(grandparent); stack.push(grandparent); }
+      if (!seen.has(grandparent)) { seen.add(grandparent); queue.push(grandparent); }
     }
   }
-  return null;
+  return { sections, tlm };
 }
 
-// The Formatter/FormatterSpec ids of a document's DOC-WIDE stack: those reachable
-// from `rootId` by hasPart WITHOUT descending into any DocumentSection. Walking the
-// whole TLM subtree would sweep in sibling sections' per-section formatters too, so
-// sections are walls — their own stacks belong to those sections, not the document.
-function docWideFormatterIds(raw: RawGraphSnapshot, rootId: string): Set<string> {
+// The Formatter/FormatterSpec ids belonging to ONE node's own stack: those reachable
+// from `rootId` by hasPart WITHOUT descending into any DocumentSection. Sections are
+// WALLS — a section's stack belongs to that section, not to the document above it
+// nor to a sibling — so this is what "the TLM's doc-wide stack" and "this section's
+// own stack" both mean, and applying it up the ancestry chain gives a nested section
+// exactly the stacks on its own path.
+function ownFormatterIds(raw: RawGraphSnapshot, rootId: string): Set<string> {
   const childrenOf = new Map<string, string[]>();
   for (const e of raw.relationships) {
     if (e.type !== DOCUMENT_EDGE) continue;
@@ -313,22 +363,13 @@ function docWideFormatterIds(raw: RawGraphSnapshot, rootId: string): Set<string>
   return found;
 }
 
-// The Formatter/FormatterSpec ids hung directly under one node (a section's own
-// per-section stack), via hasPart.
-function ownFormatterIds(raw: RawGraphSnapshot, rootId: string): Set<string> {
-  const ids = descendants(raw, [rootId], new Set([DOCUMENT_EDGE]));
-  ids.delete(rootId);
-  return new Set([...ids].filter((id) => {
-    const node = raw.nodes.find((n) => n.id === id);
-    return node !== undefined && labelsOf(node).some((l) => FORMATTER_LABELS.has(l));
-  }));
-}
-
 // The routine that applies to a section, resolved NEAREST-WINS along a
-// document-first chain: the section's own usesRoutine, else the owning TLM's, else
-// (compat with a spine-less Course) the nearest routine up the covered curriculum's
-// ancestry. `resolvedFromScope` records which tier won. null when nothing in the
-// chain uses a routine.
+// document-first chain: the section's own usesRoutine, else the sections it is
+// nested in (nearest first), else the owning TLM's, else (compat with a spine-less
+// Course) the nearest routine up the covered curriculum's ancestry.
+// `resolvedFromScope` records which tier won — a parent section is still the
+// "section" tier, and `resolvedFrom` names which node actually carried the edge.
+// null when nothing in the chain uses a routine.
 export type SectionRoutine = {
   entryId: string;                                     // the InstructionalRoutine the edge points at
   resolvedFrom: string;                                // the node that carried the usesRoutine edge
@@ -340,17 +381,18 @@ export type SectionRoutine = {
 function resolveSectionRoutine(
   raw: RawGraphSnapshot,
   sectionId: string,
-  tlmId: string | null,
+  ancestry: DocumentAncestry,
   coversTargets: string[],
 ): SectionRoutine | null {
   const routineTargetOf = (nodeId: string): string | null =>
     raw.relationships.find((e) => e.type === ROUTINE_EDGE && e.start === nodeId)?.end ?? null;
 
-  // The nearest-wins chain, document-first: section, then its TLM, then the covered
-  // curriculum's ancestry (a covered lesson climbs to its Course-level routine).
+  // The nearest-wins chain, document-first: the section, the sections it is nested
+  // in, then its TLM, then the covered curriculum's ancestry (a covered lesson
+  // climbs to its Course-level routine).
   const chain: Array<{ id: string; scope: SectionRoutine["resolvedFromScope"] }> = [
-    { id: sectionId, scope: "section" },
-    ...(tlmId ? [{ id: tlmId, scope: "document" as const }] : []),
+    ...[sectionId, ...ancestry.sections].map((id) => ({ id, scope: "section" as const })),
+    ...(ancestry.tlm ? [{ id: ancestry.tlm.id, scope: "document" as const }] : []),
     ...ancestorsNearestFirst(raw, coversTargets).map((id) => ({ id, scope: "curriculum" as const })),
   ];
 
@@ -384,8 +426,10 @@ export function documentSectionSubgraph(model: CurriculumModel, sectionId: strin
   const section = raw.nodes.find((n) => n.id === sectionId);
   if (!section || !labelsOf(section).includes(SECTION_LABEL)) return null;
 
-  // The document the section belongs to (nearest TLM up hasPart).
-  const tlm = owningTlm(raw, sectionId);
+  // Everything above the section on the document axis: the sections it is nested
+  // in (nearest first) and the document at the top.
+  const ancestry = documentAncestry(raw, sectionId);
+  const tlm = ancestry.tlm;
   const document = tlm
     ? { id: tlm.id, assemblyGuide: assemblyGuideOf(tlm), node: nodeOut(tlm) }
     : null;
@@ -396,14 +440,15 @@ export function documentSectionSubgraph(model: CurriculumModel, sectionId: strin
   const curriculumIds = descendants(raw, covers, CURRICULUM_EDGES);
   const curriculum = inducedSubgraph(raw, curriculumIds, CURRICULUM_EDGES);
 
-  const routine = resolveSectionRoutine(raw, sectionId, tlm?.id ?? null, covers);
+  const routine = resolveSectionRoutine(raw, sectionId, ancestry, covers);
 
-  // Formatters: this section's own per-section stack, unioned with the owning TLM's
-  // doc-wide stack (sibling sections' stacks excluded).
-  const formatterIds = new Set<string>([
-    ...ownFormatterIds(raw, sectionId),
-    ...(tlm ? docWideFormatterIds(raw, tlm.id) : []),
-  ]);
+  // Formatters: every stack on this section's OWN path — its own, those of the
+  // sections it is nested in, and the owning TLM's doc-wide stack. Sibling sections'
+  // stacks are excluded, because each walk walls at a section boundary.
+  const formatterIds = new Set<string>(
+    [sectionId, ...ancestry.sections, ...(tlm ? [tlm.id] : [])]
+      .flatMap((id) => [...ownFormatterIds(raw, id)]),
+  );
   const formatters = inducedSubgraph(raw, formatterIds, new Set([DOCUMENT_EDGE]));
 
   return { section: nodeOut(section), document, covers, curriculum, routine, formatters };

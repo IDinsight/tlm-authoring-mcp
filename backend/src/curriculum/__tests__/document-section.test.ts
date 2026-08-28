@@ -6,9 +6,11 @@
  * the owning TLM's, else the covered curriculum's ancestry), and the formatters
  * (the TLM's doc-wide stack ∪ the section's own — sibling sections excluded).
  *
- * Two synthetic graphs: model A gives the TLM NO routine, so a routine-less section
- * falls through to the covered Course's routine (curriculum tier); model B adds a
- * TLM routine to prove the document tier wins over that Course default.
+ * Three synthetic graphs: model A gives the TLM NO routine, so a routine-less
+ * section falls through to the covered Course's routine (curriculum tier); model B
+ * adds a TLM routine to prove the document tier wins over that Course default; model
+ * C nests a section inside another section, which must inherit from the section
+ * above it before the document.
  */
 import { describe, it, expect } from "vitest";
 import { documentSectionSubgraph } from "../documents.js";
@@ -139,6 +141,54 @@ describe("documentSectionSubgraph — the document tier wins over the Course def
     expect(scope.routine!.entryId).toBe("tlm-routine");
     expect(scope.routine!.resolvedFrom).toBe("tlm");
     expect(scope.routine!.resolvedFromScope).toBe("document");
+  });
+});
+
+describe("documentSectionSubgraph — a section nested inside another section", () => {
+  // A document with parts within parts: « Partie 1 » holds « Fiche leçon 1 », and
+  // carries a routine + a formatter of its own. The nested section must inherit BOTH
+  // from the part above it — the part is nearer than the document.
+  const modelC = {
+    rawGraph: {
+      nodes: [
+        ...CURRICULUM, ...DOCUMENT,
+        node("part-1", ["DocumentSection"], { position: 1, description: "Partie 1" }),
+        node("part-routine", ["InstructionalRoutine"], { description: "Routine de la partie 1" }),
+        node("fmt-part", ["Formatter"], { description: "Encart de la partie 1" }),
+        node("tlm-routine", ["InstructionalRoutine"], { description: "Routine du document" }),
+      ],
+      relationships: [
+        ...CURRICULUM_EDGES, ...DOCUMENT_EDGES,
+        edge("hasPart", "tlm", "part-1"),
+        edge("hasPart", "part-1", "part-routine"),
+        edge("usesRoutine", "part-1", "part-routine"),
+        edge("hasPart", "part-1", "fmt-part"),
+        edge("usesRoutine", "tlm", "tlm-routine"),
+        // sec-1 moves inside the part instead of hanging off the TLM directly.
+        edge("hasPart", "part-1", "sec-1"),
+      ],
+    },
+  } as CurriculumModel;
+
+  const scope = documentSectionSubgraph(modelC, "sec-1")!;
+
+  it("still resolves the owning document, two hasPart levels up", () => {
+    expect(scope.document!.id).toBe("tlm");
+  });
+
+  it("takes the parent section's routine over the document's", () => {
+    expect(scope.routine!.entryId).toBe("part-routine");
+    expect(scope.routine!.resolvedFrom).toBe("part-1");
+    expect(scope.routine!.resolvedFromScope).toBe("section");
+  });
+
+  it("unions the stacks on its own path — its own, the part's, the document's — and no sibling's", () => {
+    expect(ids(scope.formatters.nodes)).toEqual(new Set(["fmt-doc", "spec-doc", "fmt-part", "fmt-sec"]));
+  });
+
+  it("keeps the part's own stack out of a SIBLING section's formatters", () => {
+    const sibling = documentSectionSubgraph(modelC, "sec-2")!;
+    expect(ids(sibling.formatters.nodes)).toEqual(new Set(["fmt-doc", "spec-doc"]));
   });
 });
 

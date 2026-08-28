@@ -60,6 +60,7 @@ TeachingLearningMaterial (TLM)              ← the document / deliverable (a ne
   ├─ covers ─▶ Course                        ← coarse scope: the curriculum this doc is for (optional hint)
   ├─ hasPart ─▶ DocumentSection              ← the doc's OWN spine (opt-in; ordered by position)
   │               ├─ covers ─▶ Lesson         ← what this section renders (or LessonGrouping/Activity; or NOTHING = front-matter)
+  │               ├─ hasPart ─▶ DocumentSection   ← sections NEST: a « Partie » holding its own sheets
   │               └─ hasPart ─▶ Formatter → FormatterSpec   ← per-section formatting
   └─ hasPart ─▶ Formatter                     ← a doc-wide rendering concern (art style, layout, …)
                   └─ hasPart ─▶ FormatterSpec  ← one concrete rule within that concern
@@ -71,7 +72,15 @@ TeachingLearningMaterial (TLM)              ← the document / deliverable (a ne
   document's descriptive fields (see below) and its authored assembly logic.
 - **`DocumentSection`** — one piece of the document (a page / spread / section), when
   the document's structure diverges from the curriculum's. **Opt-in** — see
-  [The section spine](#the-section-spine--optional-per-document) below. Named
+  [The section spine](#the-section-spine--optional-per-document) below. Sections
+  **nest** (`DocumentSection ─hasPart→ DocumentSection`): real documents have parts
+  within parts, and `add_section` takes the document *or* one of its sections as the
+  parent. The readers follow the whole chain — `walk_document`'s spine comes back in
+  reading order (depth-first, siblings by `position`) with each entry naming its
+  `parent`, and `walk_document_section` resolves a nested section's routine and
+  formatters **nearest-wins up its own path**: its own, then the sections it sits in,
+  then the TLM's doc-wide stack. A sibling section's stack never leaks in — sections
+  are walls. Named
   `DocumentSection`, **not `Unit`**: maths already uses `Unité`/`Module`/`Chapitre` as
   curriculum `LessonGrouping` `groupName`s, so a document "Unit" would collide with a
   curriculum "unité" in every reader's head.
