@@ -12,6 +12,7 @@
  *   draft.createdBy      ← store.listAudit()             (from #7)
  *   editable.recipes     ← RECIPES                       (the generic edit verbs)
  *   rules.structural     ← STRUCTURAL_RULES              (from #6)
+ *   rules.confirmation   ← CONFIRMATION_RULE            (from shared.ts, the gate)
  *
  * Any calculation of "who can do what" done here would be a copy that could
  * drift. The mirror-property test asserts every actions.* value matches
@@ -19,7 +20,7 @@
  */
 
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-import { asJson, guarded } from "./shared.js";
+import { asJson, guarded, CONFIRMATION_RULE } from "./shared.js";
 import { getActiveAdapter } from "../adapters/index.js";
 import { activeWorkspace } from "../context/index.js";
 import { currentActor } from "../actor.js";
@@ -188,7 +189,7 @@ export async function buildCapabilitiesReport(): Promise<Record<string, unknown>
     structural: [...STRUCTURAL_RULES],
     confirmation:
       "Every write is two-phase: call the tool once without confirm to get a diff and a confirmationToken (no state change), then call again with confirm:true and the token to actually apply. Publish/discard tokens are checked against the current draft state — if the draft moved since the dry-run, the confirm is rejected. " +
-      "WHAT THE TWO-PHASE STEP IS AND IS NOT: it guarantees that nothing changes until a second, deliberate call quoting a token bound to the exact diff you were shown — it does NOT prove a human approved. This client does not support elicitation, so the only channel to the user runs through you; anything the dry-run hands over, you could hand back. The gate is therefore YOUR cooperation: show the user the diff, in their language, and get an explicit yes before you confirm. What does not depend on your cooperation is identity (roles are read from a signed token you cannot forge), reversibility (a graph edit stages to a draft — undo_last takes one back, discard_draft drops them all, and nothing reaches generation until an approver publishes), and the audit trail (every apply and every denial is recorded with who did it). Weigh a write by which of those it has: the writes with NO draft behind them are publish_draft, the catalog writes (the `catalog` argument and add_to_catalog), the glossary writes, and the document/history writes — those are live the moment they are confirmed.",
+      "WHAT THE TWO-PHASE STEP IS AND IS NOT: it guarantees that nothing changes until a second, deliberate call quoting a token bound to the exact diff you were shown — it does NOT prove a human approved. " + CONFIRMATION_RULE + " Anything the dry-run hands over, you could hand back. The gate is therefore YOUR cooperation: show the user the diff, in their language, and get an explicit yes before you confirm. What does not depend on your cooperation is identity (roles are read from a signed token you cannot forge), reversibility (a graph edit stages to a draft — undo_last takes one back, discard_draft drops them all, and nothing reaches generation until an approver publishes), and the audit trail (every apply and every denial is recorded with who did it). Weigh a write by which of those it has: the writes with NO draft behind them are publish_draft, the catalog writes (the `catalog` argument and add_to_catalog), the glossary writes, and the document/history writes — those are live the moment they are confirmed.",
   };
 
   // ── preview: advertise the draft-resolved preview generation surface, so

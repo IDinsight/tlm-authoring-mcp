@@ -65,9 +65,8 @@ describe("ping (health) tool", () => {
     const res = await client.callTool({ name: "ping", arguments: {} });
     const body = parse(res as { content: { type: string; text: string }[] });
 
-    // The test client declares no capabilities, so every flag must read false —
-    // which is exactly the signal we want in production: a client that never
-    // advertised elicitation is one whose users never saw a confirmation dialog.
+    // The test client declares no capabilities, so every flag must read false.
+    // These are reported for diagnosis only — no tool branches on them.
     expect(body.client.name).toBe("test-client");
     expect(body.client.supportsElicitation).toBe(false);
     expect(body.client.supportsSampling).toBe(false);
