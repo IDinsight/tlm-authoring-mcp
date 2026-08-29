@@ -129,6 +129,16 @@ Six things are already true, and each removes most of the cost from a phase belo
   otherwise. **Measured 2026-08-23: the client reports `supportsElicitation: false`, so
   only the fallback has ever run.** The negotiation code is sound; the capability is
   simply not there (Phase 2, and risk 2 — this has consequences beyond UX).
+
+  > **Superseded 2026-08-29.** The negotiation code was *not* sound. When Claude Code
+  > 2.1.251 began advertising `elicitation: { form: {} }`, the branch fired for the first
+  > time — and hung: it awaited `elicitInput()` with no timeout and read `confirm` only
+  > afterwards, so every `create_upload_url` / `log_generation` call blocked until the
+  > caller's 60s timeout, with `confirm:true` unable to short-circuit it. (It was also
+  > called outside the tool handler, so with no `relatedRequestId` the request is dropped
+  > in silence when no standalone SSE stream is open.) The branch was **deleted**;
+  > confirmation is now unconditionally agent-mediated. Rung 3 stays struck, and the
+  > reasoning in risk 2 below is unchanged — it never depended on the dialog existing.
 - **`add_nodes` already takes a `catalog` argument**
   ([`authoring.ts`](../../backend/src/server/authoring.ts)). Authoring an entry
   **directly into a library** needs no new plumbing — only guidance that stops routing
@@ -217,6 +227,12 @@ covers — so the model cannot quietly fill in a plausible wrong value.
 capabilities, and a real session returns `Anthropic/ClaudeAI 1.0.0` with
 `supportsElicitation: false`. `requireConfirmation`'s dialog branch has therefore never
 run in production; every confirmation has gone through the agent-mediated fallback.
+
+**Struck harder, 2026-08-29.** A later client (Claude Code 2.1.251) *did* advertise the
+capability, and the branch's first-ever execution hung the two document write tools for
+60s apiece. The branch is deleted: the server now issues no elicitation at all, so this
+rung is closed by construction rather than by measurement. Reopening it requires a
+bounded timeout and a `relatedRequestId`, not just a client that advertises support.
 
 Rung 3 is struck. Its job — getting a trustworthy value from the expert — passes to the
 server-side name resolution described under Rung 4's consequence.

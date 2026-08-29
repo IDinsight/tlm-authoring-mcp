@@ -7,7 +7,6 @@
  * re-exported here so each tool group imports all its helpers from one place
  * ("./shared.js").
  */
-import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { asJson, asMarkdown, asText, buildConfirmEnvelope, classifyError, toolError, isDebug, type ToolResult } from "../utils/index.js";
 import { ContextNotSetError } from "../context/index.js";
 
@@ -47,47 +46,27 @@ export const guarded = <A>(fn: (a: A) => ToolResult | Promise<ToolResult>) => as
   }
 };
 
-// Guard a capability-specific tool: returns an explanatory ToolResult when the
-// active subject's adapter doesn't enable the capability, else null so the
-// tool runs. Keeps capability-only tools from returning misleading empty data
-// for subjects they don't apply to.
-// Human confirmation for outward-facing / state-changing tools (file uploads,
-// history writes, and the graph-mutation framework). Returns a ToolResult (→
-// caller does NO side effect) unless the user has approved, in which case it
-// returns null (→ proceed). "Best available" gate across clients:
-//   • Client supports MCP elicitation → ask the USER directly via a dialog the
-//     agent cannot forge.
-//   • Otherwise → fall back to the agent-mediated two-step: no side effect until
-//     the tool is re-called with confirm:true (the agent is told to ask first).
+// The sentence get_capabilities reports as rules.confirmation. It lives HERE, in
+// the module that guarantees it, so the tool text cannot drift from the gate's
+// actual behavior the way it did while it claimed "this client does not support
+// elicitation" — a client-side fact that stopped being true.
+export const CONFIRMATION_RULE =
+  "This server never opens a confirmation dialog of its own: it issues no MCP elicitation, whatever the client advertises. The only channel to the user runs through you.";
+
+// Human confirmation for the live document/history writes — create_upload_url,
+// log_generation, record_document_content. Returns a ToolResult (→ caller does NO
+// side effect) when the caller has not approved, or null (→ proceed) when it passed
+// confirm:true.
 //
-// MEASURED 2026-08-23: the client our experts use (Anthropic/ClaudeAI 1.0.0)
-// reports `supportsElicitation: false` — visible on any `ping`. So the dialog
-// branch has NEVER run in production, and every confirmed upload, history write
-// and graph mutation to date was approved by the agent choosing to send
-// confirm:true after asking in chat. That is still a real checkpoint (the agent
-// is instructed to ask, and a human does answer), but it rests on the agent's
-// cooperation, not on a dialog it cannot fake. Do not describe the fallback as
-// equivalent, and weigh that honestly before relying on it for the destructive
-// verbs (delete_nodes, publish_draft). See docs/design-notes/self-serve-authoring.md,
-// risk 2.
-export async function requireConfirmation(server: McpServer, confirm: boolean | undefined, action: string): Promise<ToolResult | null> {
-  const caps = server.server.getClientCapabilities();
-  if (caps?.elicitation) {
-    try {
-      const res = await server.server.elicitInput({
-        message: `Confirm before proceeding — about to ${action}. Proceed?`,
-        requestedSchema: {
-          type: "object",
-          properties: { confirm: { type: "boolean", title: "Proceed?", description: `Approve: ${action}` } },
-          required: ["confirm"],
-        },
-      });
-      return res.action === "accept" && res.content?.confirm === true
-        ? null
-        : asJson({ confirmed: false, message: `The user did not confirm (${res.action}); no action was taken.` });
-    } catch {
-      // Client advertised elicitation but the request failed — fall back below.
-    }
-  }
+// Deliberately AGENT-MEDIATED, with no elicitation branch. There used to be one, and
+// it was the bug: it awaited elicitInput() with no timeout and only read `confirm`
+// afterwards, so the day a client began advertising the capability, every
+// create_upload_url call hung until the caller's 60s timeout — and confirm:true could
+// not short-circuit it. Write safety here rests on identity (roles from a signed
+// token), reversibility, and the audit trail, never on a dialog. Restoring a dialog is
+// deliberate work, not a flag flip: it needs a bounded timeout AND the tool handler's
+// relatedRequestId, or the request is dropped in silence whenever no standalone SSE
+// stream is open. See docs/design-notes/self-serve-authoring.md, risk 2.
+export function requireConfirmation(confirm: boolean | undefined, action: string): ToolResult | null {
   return confirm ? null : asJson(buildConfirmEnvelope(action));
 }

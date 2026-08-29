@@ -190,7 +190,7 @@ export function registerDocumentTools(server: McpServer) {
   server.registerTool("create_upload_url", { title: "Create document upload URL", description: "Get a short-lived signed URL to upload a generated .docx to the bucket. Upload with an HTTP PUT, Content-Type application/vnd.openxmlformats-officedocument.wordprocessingml.document. relPath is like 'chapitre_05/Manuel - Chapitre 5.docx'. After uploading, call log_generation with the same relPath. REQUIRES CONFIRMATION: called without confirm:true it only returns a needsConfirmation notice — ask the user to approve the upload, then call again with confirm:true. Requires a ROLE in the active workspace (any role): this writes to live storage/history, unlike the open curriculum reads.", inputSchema: { relPath: z.string(), confirm: z.boolean().optional() } },
     guarded(async (a: { relPath: string; confirm?: boolean }) => {
       const denied = await denyNonMember("writeDocuments"); if (denied) return denied;
-      const needConfirm = await requireConfirmation(server, a.confirm, `issue an upload URL for '${a.relPath}' — this writes NOW to the live documents bucket (no draft, no undo)`);
+      const needConfirm = requireConfirmation(a.confirm, `issue an upload URL for '${a.relPath}' — this writes NOW to the live documents bucket (no draft, no undo)`);
       return needConfirm ?? asJson(await getStorageAdapter().createUploadUrl(a.relPath));
     }));
 
@@ -217,7 +217,7 @@ export function registerDocumentTools(server: McpServer) {
     guarded(async (a: { nodeId: string; relPath: string; content: any; confirm?: boolean }) => {
       const denied = await denyNonMember("writeDocuments"); if (denied) return denied;
       const err = scopeNodeError(a.nodeId); if (err) return asJson({ error: err });
-      const needConfirm = await requireConfirmation(server, a.confirm, `record content into history for node ${a.nodeId} — this writes NOW to the live history (no draft, no undo)`);
+      const needConfirm = requireConfirmation(a.confirm, `record content into history for node ${a.nodeId} — this writes NOW to the live history (no draft, no undo)`);
       return needConfirm ?? asJson(await recordContent("parsed", { nodeId: a.nodeId, relPath: a.relPath, content: a.content }));
     }));
 
@@ -225,7 +225,7 @@ export function registerDocumentTools(server: McpServer) {
     guarded(async (a: { nodeId: string; relPath: string; content: any; confirm?: boolean }) => {
       const denied = await denyNonMember("writeDocuments"); if (denied) return denied;
       const err = scopeNodeError(a.nodeId); if (err) return asJson({ error: err });
-      const needConfirm = await requireConfirmation(server, a.confirm, `log the generated document for node ${a.nodeId} into history — this writes NOW to the live history (no draft, no undo)`);
+      const needConfirm = requireConfirmation(a.confirm, `log the generated document for node ${a.nodeId} into history — this writes NOW to the live history (no draft, no undo)`);
       return needConfirm ?? asJson(await recordContent("pipeline", { nodeId: a.nodeId, relPath: a.relPath, content: a.content }));
     }));
 }
