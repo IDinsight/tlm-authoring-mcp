@@ -3,11 +3,11 @@ import { stripUndefined } from "../firestore.js";
 
 // Guards the fix for parked-payload writes: Firestore rejects any `undefined` in
 // a document, and a parked confirm payload is the raw tool args, where an omitted
-// optional (edit_node's `position`/`title`/…) is a literal `undefined`. Dropping
+// optional (edit_nodes' `position`/`title`/…) is a literal `undefined`. Dropping
 // those keys must be loss-free — an absent key reads back as `undefined`, which is
 // what the downstream `args.x !== undefined` checks already expect.
 describe("stripUndefined", () => {
-  it("drops undefined-valued keys, like the edit_node args that hit Firestore", () => {
+  it("drops undefined-valued keys, like the edit_nodes args that hit Firestore", () => {
     const editNodeArgs = { nodeId: "n1", content: "hello", position: undefined, title: undefined, title_en: undefined };
     expect(stripUndefined(editNodeArgs)).toEqual({ nodeId: "n1", content: "hello" });
   });

@@ -1,6 +1,6 @@
 # Token-only confirm — parking large payloads instead of re-sending
 
-> **Status: Live.** Framework substrate + `edit_profile` + `edit_node` shipped
+> **Status: Live.** Framework substrate + `edit_profile` + `edit_nodes` shipped
 > first; `add_nodes` / `create_edges` and the catalog `use_routine` /
 > `use_formatter` / `add_to_catalog` were then added via a wrapper-layer park
 > ([`server/wrapper-park.ts`](../../../backend/src/server/wrapper-park.ts)).
@@ -67,8 +67,8 @@ double-apply. Two ordering consequences fell out of this and are load-bearing:
 2. `edit_profile` keeps a **defensive match check**: if a caller *does* re-send a
    record in stored mode, it must still hash to the token's `pv` — a differing
    re-send is `ARGS_MISMATCH`, never a silent apply of the previewed record. (The
-   graph path can't do this — a token-only `edit_node` confirm legitimately
-   carries only a partial arg shape, e.g. `nodeId` without `content` — so it
+   graph path can't do this — a token-only `edit_nodes` confirm legitimately
+   carries only a partial arg shape, e.g. `items` omitted entirely — so it
    ignores the re-sent args and trusts the parked payload + nonce + CAS.)
 
 The dry-run response carries `payloadStored: true|false` and a tailored
@@ -83,8 +83,6 @@ The switch is `storePayload` on `runGraphMutation` (and always-on inside
 
 - **`edit_profile`** — parks the `{ core, guide }` record; confirm needs only the
   token. `profile` is now optional on the tool.
-- **`edit_node`** — parks a large `content` edit; confirm needs only `nodeId` +
-  the token (content is the big field).
 
 **Wrapper layer** ([`wrapper-park.ts`](../../../backend/src/server/wrapper-park.ts))
 — for tools that rebuild args and mint/echo ids around the framework call:
@@ -94,6 +92,10 @@ The switch is `storePayload` on `runGraphMutation` (and always-on inside
   only the token, and the response still carries the real minted ids
   (reconstructed from the parked context).
 - **`create_edges`** — same wrapper path; large edge batches confirm token-only.
+- **`edit_nodes`** — same wrapper path (it moved here from the framework layer
+  when the single-node `edit_node` became a batch): a bulk pass of rewritten
+  `content` is exactly the payload worth parking, and the confirm carries only
+  the token.
 - **`use_routine` / `use_formatter`** — `applyCatalogEntry` parks the cloned
   subtree + id-map; large clones confirm without re-sending
   `entryId` / `targetId` / `mintedIdMap`.

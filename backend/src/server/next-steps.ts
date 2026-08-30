@@ -60,7 +60,7 @@ const AFTER_APPLY: Record<string, string[]> = {
 /**
  * The steps that usually follow this write. `stage` is the two-phase phase the
  * response is in; `mutation` is the mutation's name (`addNodes`, `createEdges`,
- * `editNode`, `createDocument`, …).
+ * `editNodes`, `createDocument`, …).
  */
 export function nextSteps(mutation: string, stage: "preview" | "apply"): string[] {
   if (stage === "preview") return AFTER_PREVIEW;

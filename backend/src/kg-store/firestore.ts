@@ -79,7 +79,7 @@ function initFirebase(): void {
 // Firestore rejects a document that carries `undefined` anywhere in its shape
 // (it has no `undefined` type). Most of our writes are internally constructed and
 // never carry one, but a PARKED CONFIRM PAYLOAD is the raw tool args — where an
-// optional field the caller left out (edit_node's `position`, `title`, …) is a
+// optional field the caller left out (edit_nodes' `position`, `title`, …) is a
 // literal `undefined` — so it must be scrubbed before the write. Dropping a
 // key whose value is `undefined` is loss-free here: it reads back absent, which
 // downstream `args.x !== undefined` checks treat identically. The confirm-side

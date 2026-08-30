@@ -19,7 +19,7 @@ import {
   runGraphMutation, mintNodeId, edgeId as makeEdgeId,
   __resetMutationsForTest, __resetDraftTokensForTest,
 } from "../../kg-store/index.js";
-import { addNode, moveNode, reposition, setContent, editNode } from "../index.js";
+import { addNode, moveNode, reposition, setContent, editNode, editNodes } from "../index.js";
 import { __setStorageForTest } from "../../storage/index.js";
 import { __setActorForTest, type Actor } from "../../actor.js";
 import type { MutationGraph, GraphMutation, StoredMeta, KgNodeStore } from "../../kg-store/index.js";
@@ -248,7 +248,7 @@ describe("move_node + reposition + set_content", () => {
   });
 });
 
-describe("edit_node (composite field edit — replaced reposition + set_content, adds title)", () => {
+describe("edit-node (the per-node engine behind edit_nodes — replaced reposition + set_content, adds title)", () => {
   it("edits content + position + title in ONE apply / one audit record", async () => {
     const { lessonId } = pick(await readPublished());
     const { confirm } = await runRecipe(editNode, { namespace: ns, nodeId: lessonId, content: "new body", position: 42, title: "Nouveau titre" });
@@ -322,5 +322,78 @@ describe("edit_node (composite field edit — replaced reposition + set_content,
     expect(emptyContent.preview.phase).toBe("blocked");
     const missing = await runRecipe(editNode, { namespace: ns, nodeId: "does-not-exist", title: "x" });
     expect(missing.preview.phase).toBe("blocked");
+  });
+});
+
+describe("edit_nodes (the batch tool — one dry-run, one confirm, one audit record)", () => {
+  it("applies a DIFFERENT edit to each node in one apply / one audit record", async () => {
+    const { lessonId, chapterId } = pick(await readPublished());
+    const { confirm } = await runRecipe(editNodes, {
+      namespace: ns,
+      items: [
+        { nodeId: lessonId, content: "corps réécrit", position: 7 },
+        { nodeId: chapterId, title: "Semaine renommée" },
+      ],
+    });
+    expect(confirm?.phase).toBe("apply");
+
+    const draft = (await readDraft())!;
+    const lesson = draft.nodes.find((candidate) => candidate.id === lessonId)!;
+    expect((lesson.properties.raw as any).content).toBe("corps réécrit");
+    expect(lesson.properties.order).toBe(7);
+    // A grouping's display name lives in `title`, a leaf's in `text` — each item
+    // is routed by its OWN node's label, not by the batch.
+    expect(draft.nodes.find((candidate) => candidate.id === chapterId)!.properties.title).toBe("Semaine renommée");
+
+    // The whole batch is ONE mutation, so it leaves exactly one apply record.
+    expect((await store.listAudit({ namespace: ns, eventType: "apply" })).length).toBe(1);
+  });
+
+  it("applies the SAME edit across several nodes (the bulk pass)", async () => {
+    const published = await readPublished();
+    const model = modelOf(published);
+    const lessonIds = model.unitsOfKind("Lesson").slice(0, 3).map((lesson) => lesson.id);
+    expect(lessonIds.length).toBe(3);
+
+    const { confirm } = await runRecipe(editNodes, {
+      namespace: ns,
+      items: lessonIds.map((nodeId) => ({ nodeId, properties: { "metadata.assemblyGuide": "Même consigne partout." } })),
+    });
+    expect(confirm?.phase).toBe("apply");
+
+    const draft = (await readDraft())!;
+    for (const id of lessonIds) {
+      const raw = draft.nodes.find((candidate) => candidate.id === id)!.properties.raw as Record<string, any>;
+      expect(raw.metadata.assemblyGuide).toBe("Même consigne partout.");
+      expect(raw.metadata.order).toBeDefined();   // nested-merge, per node
+    }
+  });
+
+  it("blocks the WHOLE batch when any one item is invalid — no partial apply", async () => {
+    const { lessonId } = pick(await readPublished());
+    const { preview } = await runRecipe(editNodes, {
+      namespace: ns,
+      items: [
+        { nodeId: lessonId, title: "Titre valide" },
+        { nodeId: "does-not-exist", title: "x" },
+      ],
+    });
+    expect(preview.phase).toBe("blocked");
+    // The item index says which one failed, without the single-node tool prefix.
+    expect((preview as any).errors.join(" ")).toContain("edit_nodes[1]:");
+    expect(await readDraft()).toBeNull();
+  });
+
+  it("blocks an empty batch and a node named twice", async () => {
+    const { lessonId } = pick(await readPublished());
+    const empty = await runRecipe(editNodes, { namespace: ns, items: [] });
+    expect(empty.preview.phase).toBe("blocked");
+
+    const twice = await runRecipe(editNodes, {
+      namespace: ns,
+      items: [{ nodeId: lessonId, title: "Un" }, { nodeId: lessonId, content: "Deux" }],
+    });
+    expect(twice.preview.phase).toBe("blocked");
+    expect((twice.preview as any).errors.join(" ")).toContain("edited twice");
   });
 });

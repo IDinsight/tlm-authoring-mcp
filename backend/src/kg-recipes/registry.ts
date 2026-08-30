@@ -4,9 +4,9 @@
  * One descriptor per GENERIC verb. get_capabilities renders THIS array, never a
  * hand-written copy — so the tool list Claude sees can't drift from the verbs
  * actually wired up. Node CREATION is add_nodes (server/authoring.ts); the two
- * verbs here act on a node that already exists — edit_node for its FIELDS
+ * verbs here act on nodes that already exist — edit_nodes for their FIELDS
  * (content/position/title are the same concept for every label), move_node for
- * its PLACE.
+ * one node's PLACE.
  *
  * A verb belongs here only once it is REGISTERED as a tool in server/recipes.ts:
  * this array is what get_capabilities advertises, so an entry for an unwired
@@ -22,16 +22,17 @@ export type RecipeDescriptor = {
 
 export const RECIPES: readonly RecipeDescriptor[] = [
   {
-    name: "edit_node",
-    summary: "Edit a node's fields in one atomic draft edit: content (canonical LC Material.content), position (ordinal among siblings — never cascades), title (display name), title_en (English mirror), summary (a routine/formatter's cross-cutting blurb → raw.metadata.summary), and/or properties (a freeform bag amending any other canonical LC prop → raw.<key>, e.g. metadata.assemblyGuide). Pass at least one. Replaced set_content + reposition and added title editing.",
+    name: "edit_nodes",
+    summary: "Edit one node's fields or MANY nodes' in one atomic draft edit (it replaced the single-node edit_node). Each `items[i]` names a `nodeId` and its own values: content (canonical LC Material.content), position (ordinal among siblings — never cascades), title (display name), title_en (English mirror), summary (a routine/formatter's cross-cutting blurb → raw.metadata.summary), and/or properties (a freeform bag amending any other canonical LC prop → raw.<key>, e.g. metadata.assemblyGuide). Each item needs at least one field; a node may appear only once per batch. All-or-nothing: any item error blocks the whole batch.",
     params: [
-      { name: "nodeId", required: true },
-      { name: "content", required: false },
-      { name: "position", required: false },
-      { name: "title", required: false },
-      { name: "title_en", required: false },
-      { name: "summary", required: false },
-      { name: "properties", required: false, note: "amend any other canonical LC prop → raw.<key>; refuses identity + mirrored paths (use position/title/content for those)" },
+      { name: "items", required: true, note: "one entry per node: { nodeId, content?, position?, title?, title_en?, summary?, properties? }" },
+      { name: "items[].nodeId", required: true },
+      { name: "items[].content", required: false },
+      { name: "items[].position", required: false },
+      { name: "items[].title", required: false },
+      { name: "items[].title_en", required: false },
+      { name: "items[].summary", required: false },
+      { name: "items[].properties", required: false, note: "amend any other canonical LC prop → raw.<key>; refuses identity + mirrored paths (use position/title/content for those)" },
     ],
   },
   {

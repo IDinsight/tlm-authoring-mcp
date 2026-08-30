@@ -159,7 +159,7 @@ The live surface is mirrored by `get_capabilities`; this is the map.
 - **Orientation & context:** `ping`, `start_here`, `set_context`, `get_context`, `get_capabilities`, `namespace_stats`.
 - **Graph reads (generic):** `walk_graph` (directional, filtered, paginated BFS — the traversal primitive), `find_node` (a name → node ids, with the path that tells two same-named nodes apart), `get_standards`, `export_graph_view`.
 - **Generation reads:** `walk_document`, `walk_document_section`, `get_terminology`.
-- **Authoring (role-gated):** `add_nodes`, `create_edges`, `edit_node`, `delete_nodes`, `delete_edges`, plus the two task verbs `create_document` and `add_section`.
+- **Authoring (role-gated):** `add_nodes`, `create_edges`, `edit_nodes`, `delete_nodes`, `delete_edges`, plus the two task verbs `create_document` and `add_section`.
 - **Draft lifecycle (role-gated):** `diff_draft`, `check_draft` (mechanical wiring lint), `review_draft` (bundles the guide's expectations for the calling model to judge), `undo_last`, `request_review`, `publish_draft`, `discard_draft`, `read_audit`.
 - **Subject profile & guide:** `get_profile`, `edit_profile`, `get_graph_guide`.
 - **Catalog — reusable routines, formatters & rubrics:** `list_catalog`, `get_catalog_entry`, `add_to_catalog`, `duplicate_entry`, `use_routine`, `use_formatter`, `use_rubric`.

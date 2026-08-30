@@ -82,7 +82,7 @@ export type CatalogKind = "routine" | "formatter" | "rubric";
 // One catalog entry as listed to a browsing curator — the entry's identity, its
 // kind, which scope it came from, plus a shallow outline (its steps) so the pick is
 // informed without reading materials.
-// One Material node under an entry: the id `edit_node` takes, plus its display name.
+// One Material node under an entry: the id `edit_nodes` takes, plus its display name.
 // These ids are surfaced HERE because a catalog cannot be traversed — walk_graph
 // reads a parsed CurriculumModel and a catalog namespace has no subject profile to
 // parse it with, so list_catalog / get_catalog_entry are the ONLY place a curator
@@ -187,7 +187,7 @@ function describeEntry(entry: MutationNode, byId: Map<string, MutationNode>, chi
   const asMaterial = (n: MutationNode): CatalogMaterial => ({ id: n.id, name: displayName(str(rawOf(n).description)) });
 
   // The Material children directly under `parentId`. Empty for a FLAT step, whose
-  // text lives on the step node itself — there, the step's own id is what edit_node
+  // text lives on the step node itself — there, the step's own id is what edit_nodes
   // takes, so no separate material entry is needed.
   const materialsUnder = (parentId: string): CatalogMaterial[] =>
     (children.get(parentId) ?? [])
@@ -245,7 +245,7 @@ function describeEntry(entry: MutationNode, byId: Map<string, MutationNode>, chi
 // each routine step's inline `description`. Returns null when the id isn't a routine
 // entry in this graph.
 export type RenderCatalogEntryOptions = {
-  // Print `edit_node nodeId:` above each authored block. TRUE for the MCP surfaces,
+  // Print `edit_nodes nodeId:` above each authored block. TRUE for the MCP surfaces,
   // whose caller can act on it; FALSE for the explorer, a read-only human viewer
   // where a tool-call instruction is noise that implies an edit it cannot make.
   editHints?: boolean;
@@ -269,7 +269,7 @@ export function renderCatalogEntry(
   // catalog is not walkable, so this markdown is the only place the id appears
   // next to its content.
   const showEditHints = options.editHints ?? true;
-  const editHint = (id: string) => (showEditHints ? [`\`edit_node\` nodeId: \`${id}\``, ""] : []);
+  const editHint = (id: string) => (showEditHints ? [`\`edit_nodes\` nodeId: \`${id}\``, ""] : []);
   const lines: string[] = [`# ${displayName(str(rawOf(entry).description)) || entryId}`, "", `*${kind} · ${scope} catalog*`, ""];
   const summary = summaryOf(entry);
   if (summary) lines.push(summary, "");
@@ -304,7 +304,7 @@ export function renderCatalogEntry(
     for (const step of steps) {
       const timing = str(rawOf(step).timeRequired);
       lines.push(`## ${displayName(str(rawOf(step).description))}${timing ? `  (${timing})` : ""}`, "");
-      // The step node itself holds the text now, so it IS what edit_node takes; a
+      // The step node itself holds the text now, so it IS what edit_nodes takes; a
       // pre-migration nested step's text sits in Material grandchildren instead.
       const bodies = bodiesOf(step, isMaterial(step) ? [] : childrenOf(step.id).filter(isMaterial));
       for (const body of bodies) {

@@ -183,7 +183,7 @@ describe("list_catalog", () => {
     expect(byId["cat-flat"]).toMatchObject({ kind: "routine", materialCount: 2 });
     expect(byId["cat-flat"].steps).toEqual([
       // `materials` is empty because a flat step HOLDS its text — the step id is
-      // itself what edit_node takes, so there is no separate Material to name.
+      // itself what edit_nodes takes, so there is no separate Material to name.
       { id: "cat-flat-1", name: "Révision", order: 1, timeRequired: "PT5M", materials: [] },
       { id: "cat-flat-2", name: "Intégration", order: 2, timeRequired: undefined, materials: [] },
     ]);
@@ -221,17 +221,17 @@ describe("list_catalog", () => {
     // A formatter renders its spec flat, with no heading to identify it — the id
     // line is the only thing tying the text to an editable node.
     const formatter = renderCatalogEntry(graph, "cat-fmt", "shared")!;
-    expect(formatter).toContain("`edit_node` nodeId: `cat-fmt-spec`");
+    expect(formatter).toContain("`edit_nodes` nodeId: `cat-fmt-spec`");
     expect(formatter).toContain("palette + fonts + page setup");
 
     // A nested routine names the grandchild Material, not the step routine.
     const routine = renderCatalogEntry(graph, "cat-entry", "shared")!;
-    expect(routine).toContain("`edit_node` nodeId: `cat-m1`");
-    expect(routine).not.toContain("`edit_node` nodeId: `cat-s1`");
+    expect(routine).toContain("`edit_nodes` nodeId: `cat-m1`");
+    expect(routine).not.toContain("`edit_nodes` nodeId: `cat-s1`");
 
     // A flat routine's step IS the Material, so its own id is the one printed.
     const flat = renderCatalogEntry(graph, "cat-flat", "shared")!;
-    expect(flat).toContain("`edit_node` nodeId: `cat-flat-1`");
+    expect(flat).toContain("`edit_nodes` nodeId: `cat-flat-1`");
     expect(flat).toContain("corps révision");
   });
 
@@ -241,7 +241,7 @@ describe("list_catalog", () => {
     const graph = await readCatalog(SHARED_CATALOG_NAMESPACE);
     for (const id of ["cat-fmt", "cat-entry", "cat-flat"]) {
       const plain = renderCatalogEntry(graph, id, "shared", { editHints: false })!;
-      expect(plain).not.toContain("edit_node");
+      expect(plain).not.toContain("edit_nodes");
       expect(plain).not.toContain("nodeId");
     }
     // Only the hints go: the spec itself, its headings and its summary all remain.
@@ -302,8 +302,8 @@ describe("catalog browse resources", () => {
     expect(md).toContain("### Exactitude");
     expect(md).toContain("Les contenus sont-ils exacts ?");
     // …and each criterion names the node holding it, so a wrong indicator in a master
-    // can be corrected with edit_node(nodeId, content, catalog).
-    expect(md).toContain("`edit_node` nodeId: `cat-rub-a1`");
+    // can be corrected with edit_nodes(items:[{nodeId, content}], catalog).
+    expect(md).toContain("`edit_nodes` nodeId: `cat-rub-a1`");
     expect(md.indexOf("### Exactitude")).toBeLessThan(md.indexOf("### Progression"));
   });
 });

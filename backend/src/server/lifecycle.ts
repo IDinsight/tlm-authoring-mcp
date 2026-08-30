@@ -13,7 +13,7 @@
  * convention as namespace_stats, walk_graph, etc.) — no explicit namespace
  * arg. authorize() runs inside each underlying function, so denials never
  * leak the diff and never issue tokens. (Curriculum EDITS are the generic
- * graph verbs — add_nodes from the authoring tool group, edit_node / move_node
+ * graph verbs — add_nodes from the authoring tool group, edit_nodes / move_node
  * from the recipes one.)
  */
 

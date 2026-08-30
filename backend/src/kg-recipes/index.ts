@@ -1,7 +1,7 @@
 /*
  * kg-recipes · public surface
  *
- * The generic curriculum verbs (add_node / move_node / reposition / set_content)
+ * The generic curriculum verbs (add_nodes / edit_nodes / move_node / …)
  * that compose kg-store's structural primitives, plus the get_capabilities
  * mirror. External callers (server/*) import the verbs from here.
  *
@@ -16,6 +16,7 @@ export { moveNode, type MoveNodeArgs } from "./move-node.js";
 export { reposition, type RepositionArgs } from "./reposition.js";
 export { setContent, type SetContentArgs } from "./set-content.js";
 export { editNode, type EditNodeArgs } from "./edit-node.js";
+export { editNodes, type EditNodesArgs, type EditNodesItem } from "./edit-nodes.js";
 export { createDocument, addSection, type CreateDocumentArgs, type AddSectionArgs } from "./document.js";
 export { RECIPES, type RecipeDescriptor, type RecipeParam } from "./registry.js";
 export {

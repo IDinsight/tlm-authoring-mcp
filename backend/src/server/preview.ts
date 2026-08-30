@@ -125,7 +125,7 @@ export async function previewGeneration(nodeId: string): Promise<Record<string, 
       noDraft: true,
       message:
         `No draft exists for '${ns}' to preview. A preview reflects UNPUBLISHED draft edits, so with no draft there is nothing to preview. ` +
-        `Stage an edit first (add_nodes / edit_node / add_section / …), then call preview_generation again.`,
+        `Stage an edit first (add_nodes / edit_nodes / add_section / …), then call preview_generation again.`,
     };
   }
 

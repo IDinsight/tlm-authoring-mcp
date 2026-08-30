@@ -1,7 +1,7 @@
 /*
  * Module: server · aiming the generic write verbs at a CATALOG namespace
  *
- * edit_node / add_nodes / create_edges normally write to the active subject's
+ * edit_nodes / add_nodes / create_edges normally write to the active subject's
  * namespace. A catalog library ("senegal/_catalog/routines", the shared
  * "_shared/_catalog/routines") is an ordinary graph too — but it is not an
  * enterable context (activate.ts filters catalog partitions out of set_context),
@@ -87,7 +87,7 @@ export async function resolveCatalogTarget(target: string | undefined): Promise<
  * move_node in #200).
  */
 export const CATALOG_WRITE_VERBS: readonly string[] = [
-  "edit_node", "move_node", "add_nodes", "create_edges", "delete_edges", "delete_nodes",
+  "edit_nodes", "move_node", "add_nodes", "create_edges", "delete_edges", "delete_nodes",
 ];
 
 
@@ -96,7 +96,7 @@ export const CATALOG_WRITE_VERBS: readonly string[] = [
 export type CatalogWrite = { namespace: string; scope: CatalogScope; workspace: string };
 
 // The result every write verb produces, whether it came back from
-// runGraphMutation (edit_node) or runBatchMutation (add_nodes / create_edges).
+// runGraphMutation (move_node) or runBatchMutation (edit_nodes / add_nodes / create_edges).
 // Deliberately untyped beyond "an object": this module only reads `phase` and
 // `ok` — enough to tell a dry-run from a successful apply that needs publishing —
 // and passes everything else through to the caller unchanged.

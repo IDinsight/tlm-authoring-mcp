@@ -138,7 +138,7 @@ export function undoApply(record: AuditRecord): GraphMutation<UndoLastArgs> {
       return {
         errors: [
           `This edit can no longer be taken back on its own — a later edit touched the same thing: ${conflicts.join("; ")}. ` +
-          `Undo the later edit(s) first, or fix the node directly with edit_node; discard_draft drops the whole draft.`,
+          `Undo the later edit(s) first, or fix the node directly with edit_nodes; discard_draft drops the whole draft.`,
         ],
         warnings: [],
       };
