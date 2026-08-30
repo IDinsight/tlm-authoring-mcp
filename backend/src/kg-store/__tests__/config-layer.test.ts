@@ -299,7 +299,7 @@ describe("token-only confirm — large payloads are parked, not re-sent", () => 
     }
   });
 
-  it("edit_node (graph path): a large content edit is parked; confirm applies token-only", async () => {
+  it("graph path (the editNode engine): a large content edit is parked; confirm applies token-only", async () => {
     await runAsActor(CURATOR, async () => {
       const target = (await store.listNodes(ns, "a"))[0];
       const bigContent = "x".repeat(6000);  // over the 4 KB store threshold
@@ -320,7 +320,7 @@ describe("token-only confirm — large payloads are parked, not re-sent", () => 
     });
   });
 
-  it("edit_node (graph path): storePayload off keeps the re-send path even for a big edit", async () => {
+  it("graph path (the editNode engine): storePayload off keeps the re-send path even for a big edit", async () => {
     await runAsActor(CURATOR, async () => {
       const target = (await store.listNodes(ns, "a"))[0];
       const preview = await runGraphMutation({

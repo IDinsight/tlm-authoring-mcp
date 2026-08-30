@@ -1,5 +1,5 @@
 // ── the `catalog` redirect on the generic write verbs ──────────────────────────
-// edit_node / move_node / add_nodes / create_edges / delete_nodes / delete_edges normally write to the active subject's
+// edit_nodes / move_node / add_nodes / create_edges / delete_nodes / delete_edges normally write to the active subject's
 // namespace. With `catalog` they write to a catalog LIBRARY instead, so a master
 // entry that drifted from the copies use_formatter made can be corrected in place
 // (before this, a stale "[p X]" in one spec meant re-filing a whole new entry).
@@ -21,14 +21,12 @@ import { SHARED_CATALOG_NAMESPACE, catalogNamespace, listCatalogEntries } from "
 import { readCatalog } from "../catalog.js";
 import { runAddNodes } from "../authoring.js";
 import { runCreateEdges, runDeleteNodes, runDeleteEdges } from "../structural.js";
-import { runMoveNode } from "../recipes.js";
+import { runMoveNode, runEditNodes } from "../recipes.js";
 import { __setStorageForTest } from "../../storage/index.js";
 import { __setActorForTest, type Actor } from "../../actor.js";
 import { __setWorkspaceStoreForTest, createMemoryWorkspaceStore } from "../../workspaces/index.js";
 import { activateContext } from "../../activate.js";
-import { runGraphMutation } from "../../kg-store/index.js";
-import { editNode } from "../../kg-recipes/index.js";
-import { runCatalogWrite, type WriteOutcome } from "../catalog-target.js";
+import { type WriteOutcome } from "../catalog-target.js";
 import type { StoredMeta, KgNodeStore, StoredNode, StoredEdge } from "../../kg-store/index.js";
 import type { StorageAdapter, HistoryFile } from "../../types.js";
 
@@ -84,18 +82,14 @@ async function inCtx(actor: Actor, fn: () => Promise<void>): Promise<void> {
   });
 }
 
-// edit_node's tool body is registered inline on the MCP server, so drive the same
-// two pieces it composes: the editNode mutation, routed by runCatalogWrite.
+// A one-item edit_nodes call — the single-node shape the catalog cases exercise.
+// Drives the tool's real exported core, so the routing under test is the routing
+// that ships.
 function runEditNode(a: { nodeId: string; title?: string; content?: string; catalog?: string; confirm?: boolean; confirmationToken?: string }): Promise<WriteOutcome> {
-  const editInNamespace = async (namespace: string): Promise<WriteOutcome> => {
-    const result = await runGraphMutation({
-      namespace, mutation: editNode,
-      args: { namespace, nodeId: a.nodeId, title: a.title, content: a.content },
-      confirm: a.confirm, token: a.confirmationToken, storePayload: true,
-    });
-    return result as WriteOutcome;
-  };
-  return runCatalogWrite(a.catalog!, a.confirm, editInNamespace);
+  return runEditNodes({
+    items: [{ nodeId: a.nodeId, title: a.title, content: a.content }],
+    catalog: a.catalog, confirm: a.confirm, confirmationToken: a.confirmationToken,
+  });
 }
 
 const sharedEntryName = async (): Promise<string | undefined> =>
@@ -117,7 +111,7 @@ afterAll(() => {
   __setWorkspaceStoreForTest(null);
 });
 
-describe("edit_node with `catalog` — fixing a stale master entry", () => {
+describe("edit_nodes with `catalog` — fixing a stale master entry", () => {
   it("renames a shared-library entry and publishes it live on confirm", async () => {
     await inCtx(SUPER, async () => {
       const dry = await runEditNode({ nodeId: SHARED_ENTRY, title: "Entrée corrigée", catalog: "shared" });

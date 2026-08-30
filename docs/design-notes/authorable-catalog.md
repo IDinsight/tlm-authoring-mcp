@@ -73,11 +73,11 @@ FormatterSpec was to re-file the whole entry under a new id — and every later
 
 The fix is **addressing, not a new verb**. The generic write verbs were already
 subject-agnostic; only their tool registrations hard-bound the namespace to the active
-adapter. `edit_node`, `move_node`, `add_nodes`, `create_edges`, `delete_nodes` and
+adapter. `edit_nodes`, `move_node`, `add_nodes`, `create_edges`, `delete_nodes` and
 `delete_edges` now take an optional **`catalog`** argument — `"workspace"` (your own library), `"shared"`, or a workspace id — which routes
 the write to that library instead. A deliberate *tool* was rejected: `edit_catalog_entry`
 would have covered field edits only, leaving "this entry is missing a spec" (an
-`add_nodes` job) still unfixable, and would have duplicated `edit_node`'s protected-path
+`add_nodes` job) still unfixable, and would have duplicated `edit_nodes`' protected-path
 and ordinal-mirror rules.
 
 Routing lives in `src/server/catalog-target.ts::runCatalogWrite`, shared by every one of
@@ -127,7 +127,7 @@ Instead the ids are surfaced where a catalog is already read (`kg-recipes/catalo
 - `CatalogEntry.steps[i].materials[]` — a **nested** step's `Material` grandchildren, which
   `materialCount` counted without ever listing. A **flat** step holds its own text, so its
   `materials` is empty and `steps[i].id` is itself the editable id.
-- `renderCatalogEntry` prints `` `edit_node` nodeId: `<id>` `` above each block of authored
+- `renderCatalogEntry` prints `` `edit_nodes` nodeId: `<id>` `` above each block of authored
   text, so reading a spec and correcting it no longer needs a second lookup.
 
 `materials` is populated for every kind rather than only for formatters — kind-dependent
@@ -186,7 +186,7 @@ later needs no code change.
 (The `upsert_property` wording-edit tool and its `wordingAliases` surface — which
 this reader had briefly kept working through a `normalizedStatementType` fallback —
 were subsequently **removed** entirely. A node's text and ordinal are now edited
-only through the generic verb `edit_node`; there is no separate
+only through the generic verb `edit_nodes`; there is no separate
 wording tool, and the profile no longer declares a wording surface.)
 
 Two consequences: kinds are now the graph's own words (`Chapitre`, `Objectif
@@ -250,7 +250,7 @@ The Phase 2b profile is **configuration for deterministic server code** — the
 parser, the coverage checker, the deliverable classifier. But the larger part of
 "how to interpret this subject's graph" has no home yet: the guidance an
 **authoring or generating LLM** needs when it reads and edits the graph through
-the generic tools (`walk_graph`, `add_nodes`, `create_edges`, `edit_node`). That
+the generic tools (`walk_graph`, `add_nodes`, `create_edges`, `edit_nodes`). That
 LLM flies largely blind today — it infers a subject's conventions from the graph
 and from `CLAUDE.md`. Phase 2c gives it an authored **graph guide**: a markdown
 document, per subject, that narrates the ontology, the vocabulary, the intended

@@ -266,7 +266,7 @@ describe("editable and rules come from the real sources (no hand-copied literals
     // tools" case in server/__tests__/recipes.test.ts, which pins the mirror to
     // the server's real tool list (move_node was advertised here while no tool
     // by that name existed).
-    expect(caps.editable.recipes.list.map((r: { name: string }) => r.name)).toEqual(["edit_node", "move_node"]);
+    expect(caps.editable.recipes.list.map((r: { name: string }) => r.name)).toEqual(["edit_nodes", "move_node"]);
   });
 
   it("catalog.editVerbs IS the set of tools that actually take a `catalog` argument", async () => {

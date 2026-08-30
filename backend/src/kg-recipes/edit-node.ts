@@ -1,10 +1,14 @@
 /*
- * Recipe: edit_node (generic)
+ * Recipe: edit_node (generic, single-node)
  *
- * The single field-edit verb: change a node's `content`, `position`, display
- * `title`, and/or ANY OTHER canonical LC property (via the freeform `properties`
- * bag) in ONE atomic draft edit. It consolidated the separate set_content +
- * reposition tools and adds title editing. The dedicated fields are applied by
+ * The per-node ENGINE behind the `edit_nodes` tool (edit-nodes.ts folds one item
+ * through it per node); it is not registered as a tool itself. It changes a node's
+ * `content`, `position`, display `title`, and/or ANY OTHER canonical LC property
+ * (via the freeform `properties` bag) in one pass. It consolidated the separate
+ * set_content + reposition tools and adds title editing.
+ *
+ * Its messages name `edit_nodes` — the surface that shows them — and the batch
+ * strips that prefix in favour of the item index (edit_nodes[2]: …). The dedicated fields are applied by
  * the SAME primitives the old verbs used — `reposition` for the ordinal (mirrors
  * order into the node's raw path[s]), `setContent` for MATERIAL_CONTENT_PATH — so
  * their behaviour is unchanged; only the surface consolidated.
@@ -111,41 +115,41 @@ export const editNode: GraphMutation<EditNodeArgs> = {
   validate: (base, _after, args) => {
     const errors: string[] = [];
     if (!nodeById(base, args.nodeId)) {
-      errors.push(`edit_node: node '${args.nodeId}' does not exist in the draft.`);
+      errors.push(`edit_nodes: node '${args.nodeId}' does not exist in the draft.`);
     }
 
     const bagKeys = args.properties ? Object.keys(args.properties) : [];
     const editsSomething = args.content !== undefined || args.position !== undefined || args.title !== undefined || args.title_en !== undefined || args.summary !== undefined || bagKeys.length > 0;
     if (!editsSomething) {
-      errors.push(`edit_node: provide at least one of content / position / title / title_en / summary / properties to edit.`);
+      errors.push(`edit_nodes: provide at least one of content / position / title / title_en / summary / properties to edit.`);
     }
 
     // The freeform bag must be a plain key→value object, and no key may collide
     // with a protected raw path (LC identity, or a mirrored field with its own arg).
     if (args.properties !== undefined) {
       if (typeof args.properties !== "object" || args.properties === null || Array.isArray(args.properties)) {
-        errors.push(`edit_node: 'properties' must be an object mapping canonical LC prop names to values.`);
+        errors.push(`edit_nodes: 'properties' must be an object mapping canonical LC prop names to values.`);
       } else {
         for (const key of bagKeys) {
           if (key.length === 0) {
-            errors.push(`edit_node: 'properties' has an empty key.`);
+            errors.push(`edit_nodes: 'properties' has an empty key.`);
           } else if (isProtectedRawKey(key)) {
-            errors.push(`edit_node: 'properties.${key}' is a protected path (LC identity, or a mirrored field — edit the ordinal via 'position', the title via 'title', the content via 'content').`);
+            errors.push(`edit_nodes: 'properties.${key}' is a protected path (LC identity, or a mirrored field — edit the ordinal via 'position', the title via 'title', the content via 'content').`);
           }
         }
       }
     }
     if (args.content !== undefined && (typeof args.content !== "string" || args.content.length === 0)) {
-      errors.push(`edit_node: 'content' must be a non-empty string (to remove content, delete the node instead).`);
+      errors.push(`edit_nodes: 'content' must be a non-empty string (to remove content, delete the node instead).`);
     }
     if (args.position !== undefined && (typeof args.position !== "number" || !Number.isFinite(args.position))) {
-      errors.push(`edit_node: 'position' must be a number.`);
+      errors.push(`edit_nodes: 'position' must be a number.`);
     }
     if (args.title !== undefined && (typeof args.title !== "string" || args.title.length === 0)) {
-      errors.push(`edit_node: 'title' must be a non-empty string.`);
+      errors.push(`edit_nodes: 'title' must be a non-empty string.`);
     }
     if (args.summary !== undefined && (typeof args.summary !== "string" || args.summary.length === 0)) {
-      errors.push(`edit_node: 'summary' must be a non-empty string.`);
+      errors.push(`edit_nodes: 'summary' must be a non-empty string.`);
     }
     return { errors, warnings: [] };
   },

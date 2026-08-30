@@ -1,7 +1,7 @@
 /*
- * add_nodes / create_edges tool cores — returnMode, idempotency, two-phase integrity
+ * add_nodes / create_edges / edit_nodes tool cores — returnMode, idempotency, two-phase integrity
  *
- * Drives the exported cores (runAddNodes / runCreateEdges) against the seeded
+ * Drives the exported cores (runAddNodes / runCreateEdges / runEditNodes) against the seeded
  * CI-maths store, exercising the tool-layer behaviour the framework tests don't:
  *   • returnMode — "summary" omits the diff and carries counts; "full" adds the diff.
  *   • idempotency — a keyed confirm replays instead of REPLAY; a reused key with a
@@ -21,6 +21,7 @@ import { __setActorForTest, type Actor } from "../../actor.js";
 import { activateContext } from "../../activate.js";
 import { runAddNodes } from "../authoring.js";
 import { runCreateEdges } from "../structural.js";
+import { runEditNodes } from "../recipes.js";
 import { namespaceStats } from "../graph.js";
 import { __resetIdempotencyForTest, __setIdempotencyNowForTest } from "../idempotency.js";
 import type { KgNodeStore, StoredMeta } from "../../kg-store/index.js";
@@ -99,6 +100,18 @@ describe("returnMode", () => {
     const diff = result.diff as { nodes: { added: unknown[] }; edges: { added: unknown[] } };
     expect(diff.nodes.added.length).toBe(3);
     expect(result.counts).toEqual({ nodesAdded: 3, edgesAdded: 3, nodesChanged: 0, nodesRemoved: 0, edgesRemoved: 0 });
+  });
+
+  it("edit_nodes summary counts every node the batch changed", async () => {
+    const result = await withActiveContext(async () => {
+      const lessonIds = (await store.listNodes(ns, "a"))
+        .filter((node) => (node.labels ?? []).includes("Lesson"))
+        .slice(0, 3)
+        .map((node) => node.id);
+      return runEditNodes({ items: lessonIds.map((nodeId) => ({ nodeId, summary: "Résumé commun." })) });
+    });
+    expect(result.diff).toBeUndefined();
+    expect(result.counts).toMatchObject({ nodesChanged: 3, nodesAdded: 0, nodesRemoved: 0 });
   });
 
   it("create_edges summary carries counts and no diff", async () => {
@@ -256,6 +269,24 @@ describe("token-only confirm — batch wrapper parking", () => {
     expect((outcome.confirm.mintedNodeIds as string[]).length).toBe(8);
     expect(outcome.confirm.ok).toBe(true);
     expect((outcome.confirm.counts as { nodesAdded: number }).nodesAdded).toBe(8);
+  });
+
+  it("edit_nodes: a bulk content rewrite is parked; confirm applies token-only (no items)", async () => {
+    const outcome = await withActiveContext(async () => {
+      const lessonIds = (await store.listNodes(ns, "a"))
+        .filter((node) => (node.labels ?? []).includes("Lesson"))
+        .slice(0, 8)
+        .map((node) => node.id);
+      // Long rewritten bodies — the payload the parking mechanism exists for.
+      const items = lessonIds.map((nodeId, index) => ({ nodeId, content: `Corps ${index + 1} — ${"x".repeat(600)}` }));
+      const preview = await runEditNodes({ items });
+      const confirm = await runEditNodes({ confirm: true, confirmationToken: preview.confirmationToken as string });
+      return { preview, confirm, count: lessonIds.length };
+    });
+    expect(outcome.count).toBe(8);
+    expect(outcome.preview.payloadStored).toBe(true);
+    expect(outcome.confirm.ok).toBe(true);
+    expect((outcome.confirm.counts as { nodesChanged: number }).nodesChanged).toBe(8);
   });
 
   it("add_nodes: a small batch stays on the re-send path (payloadStored:false)", async () => {

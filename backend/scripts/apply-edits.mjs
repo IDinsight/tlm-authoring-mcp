@@ -1,9 +1,10 @@
 #!/usr/bin/env node
 /*
  * Apply a batch of node field-edits from a JSON file to a namespace's DRAFT, via
- * the same two-phase `editNode` mutation the edit_node tool uses (so every edit is
- * validated + audited through runGraphMutation). A bulk, reviewable alternative to
- * dozens of edit_node MCP calls — the edits live in a data file, not in tool calls.
+ * the same two-phase `editNode` mutation the `edit_nodes` tool folds per item (so
+ * every edit is validated + audited through runGraphMutation). The offline twin of
+ * that tool: same engine, but the edits live in a reviewable data file rather than
+ * in a tool call, and each one is applied (and skipped) individually.
  *
  * It STAGES a draft (lazily created) and does NOT publish — review with diff_draft
  * and publish with publish_draft afterwards. Idempotent: an edit whose target value

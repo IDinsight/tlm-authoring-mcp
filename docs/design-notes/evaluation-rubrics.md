@@ -94,7 +94,7 @@ grids — a general quality rubric plus an approval checklist — and all of the
 reported.
 
 Copy-on-use applies here too: the copy is independent, so correcting a master with
-`edit_node(..., catalog)` does **not** reach copies already made.
+`edit_nodes(..., catalog)` does **not** reach copies already made.
 
 Three labels are added to the non-canonical document layer (`Rubric`,
 `RubricSection`, `RubricCriterion`). Canonical LC has no rubric concept, so this
