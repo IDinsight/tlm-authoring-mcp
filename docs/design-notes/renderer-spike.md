@@ -236,10 +236,25 @@ to the image and seconds to a cold start, and every other tool works without the
 of the measurement**, not a nicety: substituting another face changes glyph advances, which changes
 line counts, which changes the number this exists to report.
 
-> **Unverified end to end.** The two poppler parsers are tested against captured output, and the
-> "no layout engine" path is tested for real — but no LibreOffice was available on the machine this
-> was written on, and the Docker daemon was not running, so the conversion itself has never been
-> executed. First run with `WITH_LAYOUT_ENGINE=1` should check a known sheet against a known count.
+### Verified, 3 September 2026
+
+Built with `--build-arg WITH_LAYOUT_ENGINE=1` and run against the twenty golden sheets:
+
+> **20/20 at their documented page count, on A4.** Nine lessons at two pages, lesson 5 — the block's
+> only single-séance lesson — at one.
+
+That is the whole chain executing for the first time: the apt recipe resolving, Andika installing
+(4 faces), `soffice --convert-to pdf`, and both poppler parsers reading real output rather than a
+captured sample. The engine costs a MEASURED **149 MB** (108 → 257 MB), not the "roughly half a
+gigabyte" the Dockerfile used to guess.
+
+**And it found a limitation in `freeBelowCm`.** `pdftotext -bbox` emits words, never images, so a
+page ending in a picture reports the gap below the last line of TEXT rather than below the last mark
+— overstating the room left, which is the dangerous direction for a number whose job is to say how
+close a sheet is to overflowing. This run reports 3.89–9.83 cm where the production note records
+1.4–9.9 cm: the upper bounds agree closely, the lower does not, and these sheets end in full-width
+image bands. Use it to compare pages with each other; use the PAGE COUNT to decide whether a sheet
+fits.
 
 ### Reading a correction back (WP6)
 
