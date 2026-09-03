@@ -363,6 +363,43 @@ describe("deriving Wolof from the French the tree carries", () => {
   });
 });
 
+describe("counting the pages", () => {
+  // No LibreOffice in this environment, which is the case worth pinning: the
+  // tool must report that it could not measure rather than fill the gap in.
+  it("reports that it could not measure, and never invents a count", async () => {
+    const out = await withCtx(CURATOR, async () => {
+      await stageRenderBag(RENDER_BAG);
+      return renderDocument({ nodeId: sectionId, document: TREE, measure: true });
+    });
+    const file = (out.files as Array<Record<string, unknown>>)[0];
+    const measurement = file.measurement as { available: boolean; reason?: string };
+    expect(measurement).toBeDefined();
+    expect(measurement.available).toBe(false);
+    expect(measurement.reason).toMatch(/LibreOffice|pdfinfo/);
+    expect(file.pages).toBeUndefined();
+    expect(file.fits).toBeUndefined();
+  });
+
+  it("does not measure unless asked — laying a file out is not free", async () => {
+    const out = await withCtx(CURATOR, async () => {
+      await stageRenderBag(RENDER_BAG);
+      return renderDocument({ nodeId: sectionId, document: TREE });
+    });
+    expect((out.files as Array<Record<string, unknown>>)[0].measurement).toBeUndefined();
+  });
+
+  it("still produces the document when it cannot be measured", async () => {
+    // A missing page count is not a failed render. The file is the deliverable.
+    const out = await withCtx(CURATOR, async () => {
+      await stageRenderBag(RENDER_BAG);
+      return renderDocument({ nodeId: sectionId, document: TREE, measure: true });
+    });
+    expect(out.error).toBeUndefined();
+    expect(uploads).toHaveLength(1);
+    expect(uploads[0].body.length).toBeGreaterThan(500);
+  });
+});
+
 describe("render_document refuses rather than guesses", () => {
   it("refuses a tree carrying geometry — that is the formatter's half", async () => {
     const out = await withCtx(CURATOR, async () => {

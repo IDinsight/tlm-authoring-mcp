@@ -83,6 +83,11 @@ const typeSchema = z.object({
  * derives them from `type` instead of reading them here will repeat that error.
  */
 const budgetSchema = z.object({
+  // What the sheet must fit into. The number the whole tightening exercise was
+  // about — "les dix fiches tiennent en DEUX PAGES" — and the only thing that
+  // turns a measurement into a verdict: without it a renderer can report five
+  // pages and has no basis to call that wrong.
+  maxPages: z.number().int().positive().optional(),
   linesPerPage: positive.optional(),
   lineHeightCm: positive.optional(),
   maxCharsPerLine: positive.optional(),

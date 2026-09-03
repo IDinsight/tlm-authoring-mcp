@@ -143,7 +143,7 @@ describe("acceptance — both live formatters are expressible", () => {
 const CI_MATHS_TEACHER_SHEET_MEASURED = {
   page: { size: "A4", orientation: "portrait", marginsCm: { top: 2.5, right: 2.5, bottom: 2.5, left: 2.5 } },
   type: { family: "Andika", sizePt: 12, leadingPt: 15.5, leadingRule: "exact" },
-  budget: { linesPerPage: 45, lineHeightCm: 0.547, maxCharsPerLine: 72, maxCharsBesideImage: 52 },
+  budget: { maxPages: 2, linesPerPage: 45, lineHeightCm: 0.547, maxCharsPerLine: 72, maxCharsBesideImage: 52 },
   blocks: {
     weekCell: { fill: "2EAEE5" },
     lessonCell: { fill: "57BC49" },

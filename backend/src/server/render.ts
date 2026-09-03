@@ -33,7 +33,7 @@ import { getKgStore, kgNamespace, toAuditActor, nextAuditSeq } from "../kg-store
 import { currentActor } from "../actor.js";
 import { getStorageAdapter } from "../storage/index.js";
 import { formatterStackFor } from "../curriculum/index.js";
-import { documentSchema, renderDocx, resolveRenderSpec, splitByVariant, deriveVariant, hasVariant, type DocumentTree } from "../render/index.js";
+import { documentSchema, renderDocx, resolveRenderSpec, splitByVariant, deriveVariant, hasVariant, measureDocx, type DocumentTree } from "../render/index.js";
 import { translate } from "../translation/index.js";
 import { effectiveTerms, filterByText } from "./glossary-read.js";
 import { denyUnlessMember } from "./membership.js";
@@ -46,6 +46,8 @@ type RenderArgs = {
   relPath?: string;
   /** Variant id to fill in by translating, e.g. "wo". */
   translateInto?: string;
+  /** Lay each file out and count its pages. Slow; off by default. */
+  measure?: boolean;
 };
 
 /** A default name for the output, so a caller need not invent one. */
@@ -172,8 +174,22 @@ export async function renderDocument(a: RenderArgs): Promise<Record<string, unkn
   const relPath = a.relPath ?? defaultRelPath(a.nodeId);
   const files: Record<string, unknown>[] = [];
 
+  const maxPages = spec.spec.budget?.maxPages;
+
   for (const variant of variants) {
     const bytes = renderDocx(variant.tree, spec.spec);
+
+    /*
+     * Counting happens on the RENDER, which is the project's own rule and was
+     * paid for: a count derived from the source once put a document at 2.5
+     * pages that rendered at eleven. It is opt-in because laying a file out
+     * starts a whole office suite, and it reports `available: false` rather
+     * than a guess when the environment has no layout engine.
+     */
+    const measurement = a.measure ? await measureDocx(bytes) : null;
+    const fits = measurement?.available && maxPages !== undefined
+      ? measurement.pages <= maxPages
+      : null;
     const signed = await storage.createPreviewUpload(suffixed(relPath, variant.fileSuffix));
     // The server holds the bytes, so it does its own PUT rather than handing
     // the caller a URL — there is nothing left for the caller to upload.
@@ -192,6 +208,8 @@ export async function renderDocument(a: RenderArgs): Promise<Record<string, unkn
       objectKey: signed.objectKey,
       expiresAt: signed.expiresAt,
       bytes: bytes.length,
+      ...(measurement ? { measurement } : {}),
+      ...(fits === null ? {} : { fits, maxPages }),
     });
   }
 
@@ -234,12 +252,14 @@ export function registerRenderTools(server: McpServer) {
         "YOU decide what is on the page — which banner, in what order, where it turns; the FORMATTER decides what it looks like. So the tree carries NO geometry: no colour, no point size, no centimetre. A block names a `style` and a picture names a `role`, both defined by the formatter; a page break says only `pageBreak:'before'` and the formatter's `pagination.pageBreakCarrier` decides how it is written. The tree shape is in get_capabilities section:'document'; call preview_generation first for the section's curriculum, routine and formatter prose. " +
         "Unknown keys are REFUSED rather than ignored, and nothing is rendered when the tree or the stack is invalid — the response names the path. " +
         "ONE SOURCE, ONE FILE PER LANGUAGE. When the formatter's `language.strategy` is 'per-file', each declared variant gets its own document: lines marked `inAllFiles` print in every one, a line tagged with a variant prints only in that variant's file, and `files[]` comes back with one entry each. Pass `translateInto` (a variant id, e.g. 'wo') to have the server DERIVE that language from the one the tree already carries, translating line by line through the subject's MOHEBS glossary so the wording matches materials already in classrooms — a tree that already has those lines is left alone. Translation spends a metered backend, so it needs a ROLE in the workspace. " +
+        "Pass `measure:true` to lay each file out and COUNT ITS PAGES — page counts are measured on the render, never estimated from the source (an estimate once put a document at 2.5 pages that rendered at eleven). Each file then carries `measurement` with the page count, the page size actually produced, and the whitespace left below the last line of each page; with `budget.maxPages` declared it also carries `fits`. Measuring starts a whole office suite, so it is off by default, and where the deployment has no layout engine it reports `available:false` rather than a guess. " +
         "Output goes to the SEGREGATED previews/ prefix: short-lived, invisible to list_documents and reconcile, and never to be recorded via log_generation. Reads the UNPUBLISHED draft; curators and approvers only.",
       inputSchema: {
         nodeId: z.string(),
         document: z.unknown(),
         relPath: z.string().optional(),
         translateInto: z.string().optional(),
+        measure: z.boolean().optional(),
       },
     },
     guarded(async (a: RenderArgs) => asJson(await renderDocument(a))),

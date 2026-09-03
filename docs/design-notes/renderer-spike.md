@@ -2,8 +2,8 @@
 
 **Status:** Live. The renderer and its contract are in **`backend/src/render/`**, reachable as the
 **`render_document`** tool; the golden-file comparisons that proved them stay in
-`backend/src/__spike__/`. Still missing before WP4 is done: writing the CANONICAL bucket and history
-(output is preview-only today) and page counting.
+`backend/src/__spike__/`. Still missing before WP4 is done: writing the CANONICAL bucket and history (output is preview-only
+today). Page counting is built but **unverified end to end** — see below.
 
 ## Why a spike rather than a decision
 
@@ -215,6 +215,31 @@ be able to derive a variant without spending a metered call. `render_document` s
 from the wording of materials already in classrooms. It is members-only for the same reason
 `translate` is, and a tree that already carries the language is left alone: re-translating what an
 author wrote by hand is the one thing this must never do.
+
+### Counting the pages
+
+« Le nombre de pages se compte sur le RENDU, en PDF, jamais à la lecture d'un guide. » The rule was
+earned: an estimate that counted the lines a guide declares put one document at 2.5 pages, and it
+rendered at eleven.
+
+So `measureDocx` lays the file out — LibreOffice to PDF, then poppler for the count, the page size
+actually produced, and the whitespace below the last line of each page. `render_document` takes
+`measure:true` and reports it per file, with `fits` when the formatter declares `budget.maxPages`.
+
+**When it cannot measure, it says so.** No arithmetic dressed up as a count: a wrong page count gets
+believed, a missing one gets chased. The render itself is unaffected — a file with no page count is
+still the deliverable.
+
+Measuring is off by default and the layout engine is opt-in at build time
+(`--build-arg WITH_LAYOUT_ENGINE=1`), because LibreOffice and the fonts add roughly half a gigabyte
+to the image and seconds to a cold start, and every other tool works without them. **Andika is part
+of the measurement**, not a nicety: substituting another face changes glyph advances, which changes
+line counts, which changes the number this exists to report.
+
+> **Unverified end to end.** The two poppler parsers are tested against captured output, and the
+> "no layout engine" path is tested for real — but no LibreOffice was available on the machine this
+> was written on, and the Docker daemon was not running, so the conversion itself has never been
+> executed. First run with `WITH_LAYOUT_ENGINE=1` should check a known sheet against a known count.
 
 ### Merging the stack
 
