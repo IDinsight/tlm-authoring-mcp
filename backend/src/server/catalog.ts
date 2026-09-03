@@ -38,7 +38,7 @@ import { parkWrapperContext, readWrapperContext, deleteWrapperContext } from "./
 // verbs (edit_nodes / add_nodes / create_edges) share for their `catalog` redirect.
 import { resolveCatalogTarget } from "./catalog-target.js";
 import { PARKED_PAYLOAD_NOTE } from "./tool-notes.js";
-import { displayName, responseBytes } from "../utils/index.js";
+import { displayName, takeWithinBudget, trimmedBySizeHint } from "../utils/index.js";
 
 // Read one catalog namespace's published slot as a plain MutationGraph. Empty when
 // that namespace has never been seeded (no pointer). Exported for tests.
@@ -454,8 +454,7 @@ const MAX_CATALOG_LIMIT = 200;
 
 // A page's byte budget, well under the 100 KB response cap so the envelope and
 // the scope list always fit. `detail:'full'` entries average ~2.5 KB, so a page
-// of them reaches this long before it reaches `limit` — the page is trimmed and
-// says so, the way walk_graph reports `truncatedBySize`.
+// of them reaches this long before it reaches `limit`.
 const CATALOG_PAGE_MAX_BYTES = 60 * 1024;
 
 // Stable total order, so a cursor means the same thing on the next call: scope,
@@ -481,21 +480,6 @@ function decodeCursor(cursor: string): string | null {
   }
 }
 
-// Take entries until either `limit` or the byte budget is reached. Returns what
-// fits plus whether the BUDGET (not the limit) is what stopped it — the two need
-// different advice: a limit is raised, a byte overflow is narrowed.
-function takeWithinBudget<T>(entries: T[], limit: number): { page: T[]; trimmedBySize: boolean } {
-  const page: T[] = [];
-  for (const entry of entries.slice(0, limit)) {
-    const withEntry = [...page, entry];
-    if (page.length > 0 && responseBytes(withEntry) > CATALOG_PAGE_MAX_BYTES) {
-      return { page, trimmedBySize: true };
-    }
-    page.push(entry);
-  }
-  return { page, trimmedBySize: false };
-}
-
 // The core behind list_catalog, exported so tests drive the real logic (the same
 // shape buildCapabilitiesReport and findActiveNodes use).
 export async function listCatalog(args: ListCatalogArgs = {}): Promise<Record<string, unknown>> {
@@ -518,7 +502,7 @@ export async function listCatalog(args: ListCatalogArgs = {}): Promise<Record<st
   const remaining = matching.slice(startIndex);
 
   const projected: Array<CatalogEntry | CatalogEntryName> = detail === "full" ? remaining : remaining.map(namesOnly);
-  const { page, trimmedBySize } = takeWithinBudget(projected, limit);
+  const { page, trimmedBySize } = takeWithinBudget(projected, limit, CATALOG_PAGE_MAX_BYTES);
 
   const lastOnPage = page[page.length - 1];
   const hasMore = page.length < remaining.length;
@@ -531,7 +515,7 @@ export async function listCatalog(args: ListCatalogArgs = {}): Promise<Record<st
     total: matching.length,
     nextCursor: hasMore && lastOnPage ? encodeCursor(lastOnPage.id) : null,
     ...(trimmedBySize
-      ? { truncatedBySize: true, hint: "This page was trimmed to fit a byte budget, so it holds fewer entries than `limit` — raising `limit` will not help. Filter by `kind`/`scope`, or use the default detail:'names', then page with cursor:<nextCursor>." }
+      ? { truncatedBySize: true, hint: trimmedBySizeHint("Filter by `kind`/`scope`, or use the default detail:'names', then page with cursor:<nextCursor>.") }
       : {}),
     ...(detail === "names"
       ? { note: "Names only — id, name, kind, scope and counts, which is what choosing an entry needs. For one entry's full authored spec (and the NODE IDS to edit it) call get_catalog_entry; for the whole list in full pass detail:'full', which is large." }

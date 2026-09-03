@@ -6,3 +6,6 @@ export { asJson, asResource, asMarkdown, asText, buildConfirmEnvelope, CodedErro
 export type { ToolResult, ConfirmationEnvelope, ToolErrorCode } from "./server.js";
 export { installProcessGuards } from "./process.js";
 export { timed, timedSync, note } from "./timing.js";
+
+// The read-side projection convention: cheapest shape by default.
+export { DETAIL_LEVELS, DEFAULT_DETAIL, takeWithinBudget, trimmedBySizeHint, type DetailLevel } from "./projection.js";

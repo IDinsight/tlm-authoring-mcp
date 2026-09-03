@@ -16,6 +16,7 @@ import { kgNamespace } from "../kg-store/index.js";
 import { getStorageAdapter, extractDocxText, listEntries, recordContent, reconcile } from "../storage/index.js";
 import type { HistoryEntry } from "../types.js";
 import { WORKSPACE_ROLE_NOTE } from "./tool-notes.js";
+import { DETAIL_LEVELS, DEFAULT_DETAIL, takeWithinBudget, trimmedBySizeHint, type DetailLevel } from "../utils/index.js";
 
 // A file is identified by its path, and a node holds as many as it needs. Both
 // write tools say so, because the mental model they replaced was the opposite.
@@ -55,6 +56,7 @@ const MAX_PAGE = 100;
 // convenience, by the chapter/week ordinal (CI maths: chapter number) — the
 // ordinal is resolved from the scope node in the active graph, not stored.
 export const listDocumentsShape = {
+  detail: z.enum(DETAIL_LEVELS).optional().describe("How much of each entry to return: 'names' (default — identity + when it was recorded), 'summary' (adds source and content COUNTS), 'full' (the whole content record — large)."),
   cursor: z.string().optional().describe("Opaque cursor from a prior page's nextCursor. Omit to start at the first document."),
   limit: z.number().int().min(1).max(MAX_PAGE).optional().describe(`Page size, 1..${MAX_PAGE} (default ${DEFAULT_PAGE}).`),
   nodeId: z.string().optional().describe("Filter to every file covering one curriculum node — a CI-maths lesson has four."),
@@ -68,6 +70,52 @@ export const listDocumentsShape = {
 // being unique the moment a lesson could have four documents, and a non-unique
 // cursor silently skips or repeats rows at a page boundary.
 type DocCursor = { unit: number | null; nodeId: string; relPath: string };
+
+/*
+ * How much of an entry each detail level returns.
+ *
+ * The weight is entirely in `content` — a summary, the characters, the concepts,
+ * the terminology. On the live history that is about 8.5 KB per entry, which is
+ * why thirty of them was 255,216 bytes and refused outright by the response cap.
+ * The identity fields are a few hundred bytes.
+ *
+ * `summary` reports content as COUNTS rather than a truncated copy: a caller can
+ * see an entry has a record and how rich it is, and truncated prose would be
+ * both misleading and still expensive.
+ */
+type DocumentRow = Record<string, unknown>;
+
+const contentCounts = (entry: HistoryEntry) => ({
+  hasSummary: Boolean(entry.content?.summary),
+  characters: entry.content?.characters?.length ?? 0,
+  exampleDomains: entry.content?.exampleDomains?.length ?? 0,
+  conceptsCovered: entry.content?.conceptsCovered?.length ?? 0,
+  terminologyUsed: entry.content?.terminologyUsed?.length ?? 0,
+});
+
+function projectDocument(entry: HistoryEntry, detail: DetailLevel): DocumentRow {
+  // Enough to CHOOSE: which file, what it covers, which document and rendering
+  // it is, and when it was last recorded.
+  const names: DocumentRow = {
+    relPath: entry.relPath,
+    nodeId: entry.nodeId,
+    updated: entry.updated,
+    ...(entry.documentId !== undefined ? { documentId: entry.documentId } : {}),
+    ...(entry.variant !== undefined ? { variant: entry.variant } : {}),
+  };
+  if (detail === "names") {
+    return names;
+  }
+  if (detail === "summary") {
+    return { ...names, source: entry.source, md5: entry.md5, recordedAt: entry.recordedAt, content: contentCounts(entry) };
+  }
+  return entry as unknown as DocumentRow;   // 'full' — today's payload, unchanged
+}
+
+// Well under the 100 KB response cap, leaving room for the envelope. At 'full'
+// a page reaches this long before it reaches `limit`, and is trimmed with a
+// cursor rather than refused.
+const DOCUMENTS_PAGE_MAX_BYTES = 60 * 1024;
 
 // A node with no ordinal (or gone from the graph) sorts after every numbered one.
 const unitRank = (u: number | null | undefined): number => (u == null ? Infinity : u);
@@ -112,8 +160,8 @@ const isAfterCursor = (ord: number | null, entry: HistoryEntry, c: DocCursor): b
 export function pageDocuments(
   all: HistoryEntry[],
   ordinalOf: (nodeId: string) => number | null,
-  args: { cursor?: string; limit?: number; nodeId?: string; unit?: number; documentId?: string; variant?: string }
-): { entries: HistoryEntry[]; count: number; total: number; totalUnfiltered: number; nextCursor: string | null } | { error: string } {
+  args: { cursor?: string; limit?: number; nodeId?: string; unit?: number; documentId?: string; variant?: string; detail?: DetailLevel }
+): { entries: DocumentRow[]; detail: DetailLevel; count: number; total: number; totalUnfiltered: number; nextCursor: string | null; truncatedBySize?: true; hint?: string } | { error: string } {
   const cursor = args.cursor != null ? decodeCursor(args.cursor) : null;
   if (args.cursor != null && cursor == null) {
     return { error: "Invalid cursor — pass a cursor returned by a prior list_documents page, or omit it to start from the first document." };
@@ -135,12 +183,32 @@ export function pageDocuments(
     && (args.documentId == null || e.documentId === args.documentId)
     && (args.variant == null || e.variant === args.variant));
   const rows = cursor ? filtered.filter(({ e, ord }) => isAfterCursor(ord, e, cursor)) : filtered;
-  const page = rows.slice(0, limit);
+
+  // Project BEFORE trimming, so the byte budget is measured against what is
+  // actually sent — trimming the full entries and projecting after would leave a
+  // 'names' page far smaller than it needed to be.
+  const detail = args.detail ?? DEFAULT_DETAIL;
+  const projected = rows.map(({ e, ord }) => ({ ord, e, row: projectDocument(e, detail) }));
+  // Measure only the projected row: `ord` and the full entry ride alongside for
+  // the cursor and are never sent.
+  const { page, trimmedBySize } = takeWithinBudget(projected, limit, DOCUMENTS_PAGE_MAX_BYTES, (row) => row.row);
+
   const last = page[page.length - 1];
-  const nextCursor = rows.length > limit && last
+  const nextCursor = projected.length > page.length && last
     ? encodeCursor({ unit: last.ord ?? null, nodeId: last.e.nodeId, relPath: last.e.relPath })
     : null;
-  return { entries: page.map((x) => x.e), count: page.length, total: filtered.length, totalUnfiltered: all.length, nextCursor };
+
+  return {
+    entries: page.map((x) => x.row),
+    detail,
+    count: page.length,
+    total: filtered.length,
+    totalUnfiltered: all.length,
+    nextCursor,
+    ...(trimmedBySize
+      ? { truncatedBySize: true as const, hint: trimmedBySizeHint("Use the default detail:'names', narrow with nodeId/documentId/variant/unit, then page with cursor:<nextCursor>.") }
+      : {}),
+  };
 }
 
 // SUBJECT-SPECIFIC (CI-maths-leaning). The structured content recorded per
@@ -209,7 +277,7 @@ export function registerDocumentTools(server: McpServer) {
   server.registerTool("reconcile", { title: "Reconcile bucket with history", description: "List the .docx documents in Firebase Storage and diff against history BY relPath: tracked docs (present + unchanged), UNTRACKED docs needing a link ('new' = no history entry, 'changed' = bytes differ from the recorded entry), and entries dropped because their object is gone. It no longer classifies filenames — link each untracked doc to the node it covers with record_document_content(nodeId, relPath, content). Link each untracked doc to the node it covers with record_document_content — several files may cover the same node, so the whole list can be walked. `dropped` lists the relPath of each entry whose object is gone. " + WORKSPACE_ROLE_NOTE + "", inputSchema: {} },
     guarded(async () => (await denyNonMember("readDocuments")) ?? asJson(await reconcile())));
 
-  server.registerTool("list_documents", { title: "List tracked documents", description: "Current history: one entry per FILE, keyed by its relPath, with its known content, ordered by unit ordinal then covered node then path. A node holds several files (a CI-maths lesson has four), so filtering by `nodeId` returns all of them; narrow further with `documentId` (which document produced it) or `variant` ('FR'/'WO'). Paginated: pass limit (default 25, max 100) and an opaque cursor. Optional filters: nodeId (one scope node) and unit (a chapter/week ordinal). Returns { entries, count, total, totalUnfiltered, nextCursor }; nextCursor is null on the last page — pass it back to fetch the next page. " + WORKSPACE_ROLE_NOTE + "", inputSchema: listDocumentsShape },
+  server.registerTool("list_documents", { title: "List tracked documents", description: "Current history: one entry per FILE, keyed by its relPath, ordered by unit ordinal then covered node then path. `detail` defaults to 'names' (relPath, nodeId, updated, plus documentId/variant when known) — the content record is what made this tool unusable, at ~8.5 KB an entry; 'summary' adds source and content COUNTS; 'full' returns the whole record and is trimmed to a byte budget with a cursor rather than refused. A node holds several files (a CI-maths lesson has four), so filtering by `nodeId` returns all of them; narrow further with `documentId` (which document produced it) or `variant` ('FR'/'WO'). Paginated: pass limit (default 25, max 100) and an opaque cursor. Optional filters: nodeId (one scope node) and unit (a chapter/week ordinal). Returns { entries, count, total, totalUnfiltered, nextCursor }; nextCursor is null on the last page — pass it back to fetch the next page. " + WORKSPACE_ROLE_NOTE + "", inputSchema: listDocumentsShape },
     guarded(async (a: { cursor?: string; limit?: number; nodeId?: string; unit?: number }) => {
       const denied = await denyNonMember("readDocuments"); if (denied) return denied;
       const byId = getActiveAdapter().model().byId;
