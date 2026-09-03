@@ -26,7 +26,7 @@ import { registerCapabilityTools } from "./capabilities.js";
 import { registerAuditTools } from "./audit.js";
 import { registerHealthTools } from "./health.js";
 import { registerStartHereTools } from "./start-here.js";
-import { registerCheckTools } from "./check.js";
+import { registerCheckTools, registerContentLintTools } from "./check.js";
 import { registerDocumentAuthoringTools } from "./document-authoring.js";
 import { registerAuthoringPrompts } from "./prompts.js";
 import { registerUndoTools } from "./undo.js";
@@ -48,6 +48,7 @@ export function buildServer(): McpServer {
   registerUndoTools(server);         // undo_last (take back ONE staged edit — the per-edit counterpart to discard_draft)
   registerReviewTools(server);       // request_review (the curator→approver handoff, derived from the audit trail)
   registerCheckTools(server);        // check_draft (structural WIRING lint in French — review_draft's mechanical sibling)
+  registerContentLintTools(server);  // lint_content (CONSISTENCY lint — the third checker, beside check_draft and review_draft)
   registerStructuralTools(server);   // create_edges, delete_edges, delete_nodes (edge + deletion verbs)
   registerRecipeTools(server);       // edit_nodes (content / position / title edits on one node or many — replaced edit_node), move_node (re-parent along one containment axis)
   registerAuthoringTools(server);    // add_nodes (the single node-creation tool — one or many; replaced the per-label typed adds)

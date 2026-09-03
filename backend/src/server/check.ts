@@ -15,6 +15,7 @@
  */
 
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import { z } from "zod";
 import { randomUUID } from "node:crypto";
 import { asJson, guarded } from "./shared.js";
 import { getActiveAdapter } from "../adapters/index.js";
@@ -22,6 +23,9 @@ import { activeWorkspace } from "../context/index.js";
 import {
   getKgStore, kgNamespace, lintGraph, toAuditActor, diffGraphs,
   type LintFinding, type MutationGraph, type StoredNode, type StoredEdge, type Slot, nextAuditSeq,} from "../kg-store/index.js";
+import { lintContent, lintableRules, CONTENT_RULES } from "../curriculum/index.js";
+import { readCatalog } from "./catalog.js";
+import { SHARED_CATALOG_NAMESPACE, catalogNamespace } from "../kg-recipes/index.js";
 import { authorize } from "../authz.js";
 import { currentActor } from "../actor.js";
 
@@ -144,5 +148,86 @@ export function registerCheckTools(server: McpServer) {
       inputSchema: {},
     },
     guarded(async () => asJson(await checkDraft())),
+  );
+}
+
+// ── lint_content ──────────────────────────────────────────────────────────────
+// The third checker. check_draft asks "is it connected?", review_draft "does it
+// teach what the guide expects?", this one "does what is written contradict
+// itself?" — a total that disagrees with its parts, a cited id that resolves to
+// nothing, declared values that contradict the prose beside them.
+//
+// It reads the CATALOG as well as the active subject, because that is where the
+// reusable routines and grids live and where the live defects are. References
+// are resolved against BOTH, so a catalog entry citing a subject node is not
+// reported as dangling.
+
+export type LintContentArgs = { scope?: "subject" | "catalog" | "all"; rules?: string[]; slot?: Slot | "draft" | "published" };
+
+// The core, exported so tests drive the real logic (the shape every tool group
+// here uses).
+export async function runLintContent(args: LintContentArgs = {}): Promise<Record<string, unknown>> {
+  const scope = args.scope ?? "all";
+  const namespace = activeNamespace();
+  const store = getKgStore();
+
+  // Read the subject's published graph, plus both catalog libraries.
+  const pointer = await store.readPointer(namespace);
+  const subject: MutationGraph = pointer
+    ? asGraph(await store.listNodes(namespace, pointer.publishedSlot), await store.listEdges(namespace, pointer.publishedSlot))
+    : { nodes: [], edges: [] };
+
+  const catalogNamespaces = [SHARED_CATALOG_NAMESPACE, catalogNamespace(activeWorkspace())]
+    .filter((ns, index, all) => all.indexOf(ns) === index);
+  const catalogs = await Promise.all(catalogNamespaces.map((ns) => readCatalog(ns)));
+
+  // Everything that exists anywhere the caller can see — so a cross-library
+  // reference resolves instead of being reported as broken.
+  const knownIds = new Set<string>([
+    ...subject.nodes.map((node) => node.id),
+    ...catalogs.flatMap((graph) => graph.nodes.map((node) => node.id)),
+  ]);
+
+  const checked: Array<{ where: string; graph: MutationGraph }> = [];
+  if (scope === "subject" || scope === "all") {
+    checked.push({ where: namespace, graph: subject });
+  }
+  if (scope === "catalog" || scope === "all") {
+    catalogNamespaces.forEach((ns, index) => checked.push({ where: ns, graph: catalogs[index] }));
+  }
+
+  const findings = checked.flatMap(({ where, graph }) =>
+    lintContent({ graph, knownIds }, { rules: args.rules }).map((finding) => ({ ...finding, where })));
+
+  return {
+    findings,
+    count: findings.length,
+    checked: checked.map(({ where, graph }) => ({ where, nodes: graph.nodes.length })),
+    rulesRun: lintableRules().map((rule) => rule.id),
+    // What is NOT checked yet, so the gap is visible rather than assumed closed.
+    rulesPending: CONTENT_RULES.filter((rule) => rule.requires !== "graph").map((rule) => ({ id: rule.id, needs: rule.requires, summary: rule.summary })),
+    note:
+      findings.length === 0
+        ? "No contradictions found in the content checked. This checks CONSISTENCY only — check_draft covers wiring and review_draft covers coverage; run all three before publishing."
+        : "Each finding is a statement in the authored data that contradicts another statement in it. Relay them in the expert's own language, with what to do about each. None of them blocks a publish.",
+  };
+}
+
+export function registerContentLintTools(server: McpServer) {
+  server.registerTool(
+    "lint_content",
+    {
+      title: "Check authored content for contradictions",
+      description:
+        "The CONSISTENCY checker — the third beside check_draft (wiring) and review_draft (coverage). It reports statements in the authored data that contradict each other: a routine whose declared duration disagrees with the sum of its steps, a routine that times itself but not its steps, a weighted grid whose sections do not total 100%, an id cited in prose that resolves to nothing, and a formatter whose declared `render` values disagree with its own prose. " +
+        "It reads the active subject AND both catalog libraries by default (`scope`: 'subject' | 'catalog' | 'all'), resolving references across both so a cross-library citation is not reported as broken. Narrow with `rules`. " +
+        "Each finding carries the rule, the node, what is wrong and what to do — English, like every payload here; relay them in the expert's language. Nothing blocks a publish. A finding that is deliberate is silenced ON THE NODE with metadata.lintIgnore: [\"rule-id\"], which needs no deploy. " +
+        "`rulesPending` lists the rules that cannot run yet because they need a rendered page — read it rather than assuming everything is checked. Read-only.",
+      inputSchema: {
+        scope: z.enum(["subject", "catalog", "all"]).optional(),
+        rules: z.array(z.string()).optional(),
+      },
+    },
+    guarded(async (a: LintContentArgs) => asJson(await runLintContent(a))),
   );
 }

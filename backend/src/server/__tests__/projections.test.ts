@@ -21,6 +21,7 @@ import { SHARED_CATALOG_NAMESPACE } from "../../kg-recipes/index.js";
 import { edgeId as makeEdgeId } from "../../kg-store/index.js";
 import { listCatalog } from "../catalog.js";
 import { buildCapabilitiesReport, projectCapabilities, CAPABILITY_SECTIONS } from "../capabilities.js";
+import { runLintContent } from "../check.js";
 import { findActiveNodes } from "../graph.js";
 import { responseBytes } from "../../utils/index.js";
 import type { Actor } from "../../actor.js";
@@ -239,5 +240,58 @@ describe("find_node resolves a batch of names against one graph load", () => {
   it("refuses a call with neither query nor queries", async () => {
     const result = await asCurator(() => findActiveNodes({}));
     expect(String(result.error)).toContain("find_node needs");
+  });
+});
+
+// ── lint_content, through the real tool against a seeded catalog ─────────────
+// The rules are unit-tested in kg-recipes; what matters here is the WIRING —
+// that the tool reads the catalog the server actually has, resolves references
+// across both libraries, and reports where each finding came from.
+
+describe("lint_content reads the real catalog", () => {
+  // Give the seeded catalog a routine with the live defect: a total in its name
+  // and steps that do not add up to it.
+  beforeEach(async () => {
+    const nodes = [
+      catalogNode("lint-root", "InstructionalRoutine", { description: "Catalog library" }),
+      catalogNode("lint-entry", "InstructionalRoutine", { description: "Fiche de leçon — enseignement explicite (30 min)" }),
+      catalogNode("lint-s1", "InstructionalRoutine", { description: "Étape 1", timeRequired: "PT20M" }),
+      catalogNode("lint-s2", "InstructionalRoutine", { description: "Étape 2", timeRequired: "PT15M" }),
+    ];
+    const edges = [catalogEdge("lint-root", "lint-entry"), catalogEdge("lint-entry", "lint-s1"), catalogEdge("lint-entry", "lint-s2")];
+    const meta = { contentHash: "lint", seededAt: "1970-01-01T00:00:00Z", adapterId: "catalog", nodeCount: nodes.length, edgeCount: edges.length };
+    await store.writeSlot(SHARED_CATALOG_NAMESPACE, "a", { nodes, edges, meta });
+    await store.ensurePointer(SHARED_CATALOG_NAMESPACE, "a");
+  });
+
+  it("finds the mismatch in the catalog and says which library it is in", async () => {
+    const result = await asCurator(() => runLintContent({ scope: "catalog" }));
+    const findings = result.findings as Array<Record<string, unknown>>;
+
+    const mismatch = findings.find((f) => f.rule === "routine-duration-mismatch");
+    expect(mismatch).toBeDefined();
+    expect(String(mismatch!.message)).toContain("35");
+    expect(String(mismatch!.where)).toContain("_catalog");
+  });
+
+  it("reports which rules ran and which are still waiting on a rendered page", async () => {
+    const result = await asCurator(() => runLintContent());
+
+    expect(result.rulesRun).toContain("routine-duration-mismatch");
+    expect(Array.isArray(result.rulesPending)).toBe(true);
+  });
+
+  it("narrows to one rule when asked", async () => {
+    const result = await asCurator(() => runLintContent({ scope: "catalog", rules: ["rubric-weights-sum"] }));
+
+    expect(result.rulesRun).toBeDefined();
+    expect((result.findings as unknown[]).every((f) => (f as { rule: string }).rule === "rubric-weights-sum")).toBe(true);
+  });
+
+  it("does not report the subject graph's own ids as dangling", async () => {
+    // The subject fixture cites nothing, but this pins the cross-scope resolution:
+    // a finding here would mean the known-id set was built from one graph only.
+    const result = await asCurator(() => runLintContent({ scope: "all", rules: ["dangling-reference"] }));
+    expect(result.findings).toEqual([]);
   });
 });

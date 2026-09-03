@@ -30,6 +30,7 @@ import {
   kgNamespace, getKgStore, STRUCTURAL_RULES,
 } from "../kg-store/index.js";
 import { RECIPES, SHARED_CATALOG_NAMESPACE, catalogNamespace, renderSpecSchema } from "../kg-recipes/index.js";
+import { lintableRules, CONTENT_RULES } from "../curriculum/index.js";
 import { KIND_PROPERTIES } from "./authoring.js";
 import { CATALOG_WRITE_VERBS } from "./catalog-target.js";
 
@@ -378,6 +379,22 @@ export async function buildCapabilitiesReport(): Promise<Record<string, unknown>
   // draft it reads published and is open to anyone who can read.
   const checks = {
     tool: "check_draft",
+    // The three checkers, and the line between them. Stated here because the
+    // commonest mistake is to run one and believe the draft is checked.
+    checkers: {
+      check_draft: "WIRING — is it connected? Mechanical, subject-agnostic.",
+      lint_content: "CONSISTENCY — do the authored statements contradict each other? A declared total against the sum of its parts, a cited id that resolves to nothing, declared values against the prose beside them.",
+      review_draft: "COVERAGE — does it teach what the subject guide expects? A judgement the model makes, not the server.",
+    },
+    contentLint: {
+      tool: "lint_content",
+      rules: lintableRules().map((rule) => ({ id: rule.id, summary: rule.summary })),
+      // What cannot run yet, so a caller does not assume everything is checked.
+      pending: CONTENT_RULES.filter((rule) => rule.requires !== "graph").map((rule) => ({ id: rule.id, needs: rule.requires })),
+      scopes: ["subject", "catalog", "all"],
+      defaultScope: "all",
+      suppression: "metadata.lintIgnore: [\"rule-id\"] on the node silences one rule there — data, so it needs no deploy",
+    },
     availableOnDraft: actions.canReadDraft,
     // The rules, named so a caller can anticipate them. They are WIRING only —
     // "is this connected?" — never a judgment about what the subject teaches.
