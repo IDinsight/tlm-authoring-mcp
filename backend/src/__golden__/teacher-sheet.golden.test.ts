@@ -1,9 +1,12 @@
 /*
- * WP4 spike — does this runtime produce the sheets the project already ships?
+ * Does this renderer still produce the sheets the project actually ships?
  *
- * The renderer's source was lost, so WP4 is a rebuild whichever language it
- * lands in. That makes the choice an empirical one: build one sheet here, hold
- * it against the real file, and see what fights back.
+ * This began as the WP4 spike — the renderer's source was lost, so the rebuild
+ * had to be settled empirically: build one sheet here, hold it against the real
+ * file, and see what fights back. It stopped being a spike the moment the
+ * answer was yes. It is now the ONLY check that the renderer reproduces the
+ * shipped documents, which is why it does not live in a folder named for
+ * throwaway work.
  *
  * The target is `Guide-Lecon-1-ensembles-FR.docx` from the 2 September run — two
  * pages, nine pictures, ten banner colours, 15.5 pt exact leading, the page
@@ -13,7 +16,14 @@
  * The golden file is not in the repo — a megabyte per sheet, twenty sheets — so
  * these tests SKIP unless GOLDEN_DIR names the folder holding them:
  *
- *     GOLDEN_DIR="…/Guide d'utilisation de l'outil de l'élève/Outputs" npm test
+ *     GOLDEN_DIR="…/Maths CI new lessons/Guide d'utilisation de l'outil de l'élève/Outputs" npm test
+ *
+ * Both corpora at once, from the folder they actually live in:
+ *
+ *     BASE="$HOME/Desktop/Maths CI new lessons"
+ *     GOLDEN_DIR="$BASE/Guide d'utilisation de l'outil de l'élève/Outputs" \
+ *     PUPIL_DIR="$BASE/Outil de l'élève/Inputs/Previously generated/lecon_01" \
+ *       npx vitest run src/__golden__          # 19 passed, 2026-09-03
  *
  * That the corpus lives on one laptop and nowhere else is a real risk, not a
  * packaging detail. See docs/design-notes/renderer-spike.md.

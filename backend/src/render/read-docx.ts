@@ -16,7 +16,7 @@
  *     finding, not an absence.
  *
  * This reads OUR OWN output. Reverse-engineering a foreign document is a
- * different job with different assumptions (see __spike__/golden.ts).
+ * different job with different assumptions (see __golden__/golden.ts).
  */
 import { unzip } from "./zip.js";
 
