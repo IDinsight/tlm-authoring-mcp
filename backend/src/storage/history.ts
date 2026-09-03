@@ -25,9 +25,26 @@ const EMPTY: HistoryFile = { version: 4, entries: [] };
 // guessed from the file's path, and classifying documents by filename is exactly
 // what this module moved away from; they fill in when a file is next recorded.
 function migrateFromNodeKeyed(raw: { entries: HistoryEntry[] }): HistoryFile {
+  // The v3 key was the covered node, so nothing stopped two nodes recording the
+  // SAME file — one teacher sheet linked to a lesson and to its chapter, say.
+  // Re-keying by relPath would then mint two entries sharing one key: upsert
+  // would reach only the first, listEntries would report the file twice, and
+  // getEntry would answer with whichever happened to be first. Collapse them,
+  // keeping the most recently recorded, so the new key is genuinely unique.
+  const byPath = new Map<string, HistoryEntry>();
+  for (const entry of raw.entries) {
+    const existing = byPath.get(entry.relPath);
+    if (!existing || entry.recordedAt > existing.recordedAt) {
+      byPath.set(entry.relPath, entry);
+    }
+  }
+  const dropped = raw.entries.length - byPath.size;
+  if (dropped > 0) {
+    console.error(`[history] ${dropped} migrated entry/entries shared a relPath with another; kept the most recently recorded of each`);
+  }
   return {
     version: 4,
-    entries: raw.entries.map((entry) => ({ ...entry, id: entry.relPath })),
+    entries: [...byPath.values()].map((entry) => ({ ...entry, id: entry.relPath })),
   };
 }
 

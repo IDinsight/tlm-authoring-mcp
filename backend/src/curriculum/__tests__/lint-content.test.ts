@@ -308,3 +308,82 @@ describe("entries whose steps are flat Materials", () => {
     expect(lintContent({ graph: formatter })).toEqual([]);
   });
 });
+
+// ── Which nodes are ENTRIES ──────────────────────────────────────────────────
+// Found in review. The catalog nests root → entry → step, all three carrying the
+// same label, so "has a routine parent" also matches a STEP — and a step's
+// Material body was then read as an untimed step of it. Every fixture above
+// gives its steps no children, which is exactly why this stayed hidden.
+
+describe("telling an entry apart from a step", () => {
+  const material = (id: string, raw: Record<string, unknown>) => node(id, raw, ["Material"]);
+
+  // The shape this module's own comments call normal: the step's text lives in
+  // a Material grandchild.
+  const nestedWithBody: MutationGraph = {
+    nodes: [
+      node("root", { description: "Catalog" }),
+      node("entry", { description: "Fiche — 30 min" }),
+      node("step", { description: "Une étape", timeRequired: "PT30M" }),
+      material("body", { description: "Le corps", content: "…" }),
+    ],
+    edges: [edge("root", "entry"), edge("entry", "step"), edge("step", "body")],
+  };
+
+  it("does not report a step's own body as an untimed step", () => {
+    expect(lintContent({ graph: nestedWithBody })).toEqual([]);
+  });
+
+  it("still reports the ENTRY when its steps are untimed", () => {
+    const untimedStep: MutationGraph = {
+      nodes: [
+        node("root", { description: "Catalog" }),
+        node("entry", { description: "Fiche — 30 min" }),
+        node("step", { description: "Une étape" }),
+        material("body", { description: "Le corps" }),
+      ],
+      edges: [edge("root", "entry"), edge("entry", "step"), edge("step", "body")],
+    };
+    const findings = lintContent({ graph: untimedStep });
+
+    expect(findings).toHaveLength(1);
+    expect(findings[0].nodeId).toBe("entry");   // the entry, never the step
+  });
+
+  it("sums a nested entry's step timings against its declared total", () => {
+    const mismatched: MutationGraph = {
+      nodes: [
+        node("root", { description: "Catalog" }),
+        node("entry", { description: "Fiche — 30 min" }),
+        node("s1", { description: "Étape 1", timeRequired: "PT20M" }),
+        node("s2", { description: "Étape 2", timeRequired: "PT15M" }),
+        material("b1", { description: "corps 1" }),
+        material("b2", { description: "corps 2" }),
+      ],
+      edges: [edge("root", "entry"), edge("entry", "s1"), edge("entry", "s2"), edge("s1", "b1"), edge("s2", "b2")],
+    };
+    const findings = lintContent({ graph: mismatched });
+
+    expect(findings).toHaveLength(1);
+    expect(findings[0].rule).toBe("routine-duration-mismatch");
+    expect(findings[0].message).toContain("35");
+  });
+});
+
+// ── A grid whose sections are flat ───────────────────────────────────────────
+// Also found in review: the weights rule read only the nested shape, so a grid
+// authored with add_nodes was skipped — and skipping looks exactly like passing.
+
+describe("weighted grids in the flat shape", () => {
+  it("checks a grid whose sections are direct Materials", () => {
+    const flatGrid = catalog([{
+      entry: node("annexe", { description: "Annexe 7 — Grille", metadata: { catalogKind: "rubric" } }),
+      steps: [20, 15, 10, 15, 10, 10].map((weight, i) =>
+        node(`sec-${i}`, { description: `Section ${i}`, metadata: { weight: `${weight}%` } }, ["Material"])),
+    }]);
+    const findings = lintContent({ graph: flatGrid });
+
+    expect(rulesOf(findings)).toContain("rubric-weights-sum");
+    expect(findings[0].message).toContain("80%");
+  });
+});

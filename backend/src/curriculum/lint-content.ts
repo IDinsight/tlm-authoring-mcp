@@ -166,19 +166,47 @@ function stepsOf(graph: MutationGraph, entry: MutationNode): MutationNode[] {
   return kindOf(entry) === "routine" ? children.filter(isMaterial) : [];
 }
 
+/**
+ * A grid's weighted SECTIONS, in either shape — the same two a routine's steps
+ * come in. A grid authored with add_nodes holds its sections as direct Material
+ * children, and reading only the nested shape would skip it silently: no
+ * sections found means no weights found means nothing reported, which is
+ * indistinguishable from a grid that adds up.
+ */
+function sectionsOf(graph: MutationGraph, entry: MutationNode): MutationNode[] {
+  const children = childrenOf(graph, entry.id);
+  const nested = children.filter(isRoutine);
+  return nested.length > 0 ? nested : children.filter(isMaterial);
+}
+
 /*
  * A routine ENTRY, as opposed to the library root or an individual step.
  *
  * The catalog nests three deep — root ─hasPart→ entry ─hasPart→ step — and all
- * three carry the same label, so "has a routine parent and routine children" is
- * what identifies the middle tier without hard-coding the root's id.
+ * three carry the same label, so the tier has to be derived rather than read off
+ * the node. An entry is a routine whose parent is a ROOT: a routine that has no
+ * routine parent of its own. That is the same middle tier `listCatalogEntries`
+ * selects, and deriving it this way hard-codes no id.
+ *
+ * "Has a routine parent" is NOT enough, and getting that wrong is not academic:
+ * a nested step also has a routine parent, so it would be treated as an entry,
+ * and its Material body — the step's text — would be read as an untimed step of
+ * it. On the shape this module's own comments call normal, that reported "1 of
+ * this routine's 1 steps carry no duration" against a step's body.
  */
 function routineEntries(graph: MutationGraph): MutationNode[] {
   const routineIds = new Set(graph.nodes.filter(isRoutine).map((node) => node.id));
   const hasRoutineParent = new Set(
     graph.edges.filter((edge) => edge.type === CONTAINMENT && routineIds.has(edge.from)).map((edge) => edge.to),
   );
-  return graph.nodes.filter((node) => isRoutine(node) && hasRoutineParent.has(node.id));
+
+  const rootIds = new Set(
+    graph.nodes.filter((node) => isRoutine(node) && !hasRoutineParent.has(node.id)).map((node) => node.id),
+  );
+  const childrenOfRoots = new Set(
+    graph.edges.filter((edge) => edge.type === CONTAINMENT && rootIds.has(edge.from)).map((edge) => edge.to),
+  );
+  return graph.nodes.filter((node) => isRoutine(node) && childrenOfRoots.has(node.id));
 }
 
 // ── Rule: a declared total must equal the sum of its parts ───────────────────
@@ -271,7 +299,7 @@ const weightsSum: ContentRule = {
       if (ignoredRules(entry).has("rubric-weights-sum")) {
         continue;
       }
-      const sections = childrenOf(graph, entry.id).filter(isRoutine);
+      const sections = sectionsOf(graph, entry);
       const weights = sections.map((section) => {
         const declared = /(\d+)\s*%/.exec(str(metaOf(section).weight));
         return declared ? Number(declared[1]) : null;

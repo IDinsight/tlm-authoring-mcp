@@ -193,6 +193,24 @@ describe("migrating the node-keyed history", () => {
     expect(files.map((f) => f.relPath).sort()).toEqual([PUPIL_FR, PUPIL_WO].sort());
   });
 
+  it("collapses two v3 entries that recorded the SAME file, keeping the newest", async () => {
+    // v3 was keyed by the node, so two nodes could record one file — a teacher
+    // sheet linked to a lesson and to its chapter. Re-keying by path without
+    // collapsing would mint two entries sharing one key.
+    __setStorageForTest(statefulStorage({
+      version: 3,
+      entries: [
+        { id: LESSON, nodeId: LESSON, relPath: PUPIL_FR, md5: "m", updated: "x", source: "pipeline", recordedAt: "2026-08-01T00:00:00Z", content: { summary: "older" } },
+        { id: OTHER_LESSON, nodeId: OTHER_LESSON, relPath: PUPIL_FR, md5: "m", updated: "x", source: "parsed", recordedAt: "2026-09-01T00:00:00Z", content: { summary: "newer" } },
+      ] as unknown as HistoryEntry[],
+    }));
+
+    const entries = await inSession(() => listEntries());
+    expect(entries).toHaveLength(1);
+    expect(entries[0].content.summary).toBe("newer");
+    expect(entries[0].nodeId).toBe(OTHER_LESSON);
+  });
+
   it("still discards a pre-node-keyed (v2) history, which cannot be mapped", async () => {
     __setStorageForTest(statefulStorage({ version: 2, entries: [{ unit: 1, deliverable: "manual" }] }));
     expect(await inSession(() => listEntries())).toEqual([]);
