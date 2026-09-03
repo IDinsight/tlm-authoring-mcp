@@ -228,10 +228,10 @@ Measured against the live `senegal` catalog and the repo, on 2026-09-03.
 | 26 entries | ✅ — 16 routines, 8 formatters, 2 rubrics; 5 shared, 21 workspace |
 | `detail:'names'` under 8 KB | ✅ achievable — the projection (id, name, kind, scope, materialCount, stepCount) measures **4,789 B**. The bulk today is `summary`, up to 3.4 KB on a single entry, so `names` must drop it |
 | `get_capabilities` ≈ 8,000 tokens | ✅ measured **7,181** on the fixture |
-| Annexe 7 weights sum to 80% | ✅ 20+15+10+15+10+10 |
+| Annexe 7 weights sum to 80% | ⚠ arithmetic ✅ (20+15+10+15+10+10), but **not a defect** — Karimou confirms sections were deliberately removed pending human review. See §10 |
 | "enseignement explicite (30 min)" steps sum to 35 min | ✅ declared 30, steps sum 35 |
-| `timeRequired` missing on 10 of 21 routines | ⚠ **11 of 16 routines** have ≥1 step with no `timeRequired`; 8 of 16 have it on *no* step. The denominator is 16 routines (26 entries total). The defect is proportionally worse than stated, and the duration is indeed carried in the entry *name* (`… — 30 min`) |
-| CGP remediation points at a non-existent id; the real one is `edf2c696-…` | ✅ — and **there are three dangling references, not one**. The entry's summary cites `3e43c5d3-…` (should be `edf2c696-db65-4d14-a19d-8c43fc674061`), `b3f4d5bc-…` and `6931f41c-…` (probably `6313dea1-…`, "Je fais / Nous faisons / Tu fais"). All three are written as **truncated prefixes with an ellipsis**, so WP5's "every referenced id must resolve" rule has to match prefixes, not whole UUIDs |
+| `timeRequired` missing on 10 of 21 routines | ⚠ **11 of 16 routines** have ≥1 step with no `timeRequired`; 8 of 16 have it on *no* step (26 entries total, 16 of them routines). And the roadmap's "several with the duration in the step *name*" is wrong: **zero** step names carry one. Only the entry TOTAL is in the name (`… — 30 min`), so the gap is not mechanically recoverable |
+| CGP remediation points at a non-existent id; the real one is `edf2c696-…` | ✅ — and there were **seven dangling references across four entries**, not one (fixed: see §10). The entry's summary cites `3e43c5d3-…` (should be `edf2c696-db65-4d14-a19d-8c43fc674061`), `b3f4d5bc-…` and `6931f41c-…` (probably `6313dea1-…`, "Je fais / Nous faisons / Tu fais"). All three are written as **truncated prefixes with an ellipsis**, so WP5's "every referenced id must resolve" rule has to match prefixes, not whole UUIDs |
 | Both scopes named `…/_catalog/routines` | ✅ `_shared/_catalog/routines` and `senegal/_catalog/routines` |
 | Annexe 7 shared / Annexe 8 workspace | ✅ |
 | `formatter-art-style` shared, dependants workspace | ✅ `formatter-art-style` is shared; `02491108` (placeholders) and `4429c8e0` (représentation/inclusion) are workspace |
@@ -269,3 +269,54 @@ Measured against the live `senegal` catalog and the repo, on 2026-09-03.
 4. **The open draft on `senegal/ci/maths`** (140 elements, edited today) — publish or discard?
 5. **`4429c8e0` vs Annexe 8 sections A and B** (roadmap WP8, last bullet) — which is canonical? This
    one is a content decision I should not make.
+
+---
+
+## 10. WP8 outcome (2026-09-03) — what was fixed, and what it means for WP5
+
+**Done, live in `senegal/_catalog/routines`** (audit `0f748d54-…`, publish `39116844-…`): five broken
+cross-references corrected, each resolving to exactly one entry by name.
+
+| was | now | in |
+|---|---|---|
+| `3e43c5d3-…` | `edf2c696-…` (Séance de remédiation d'intégration) | CGP remédiation |
+| `6931f41c-…` | `6313dea1-…` (formatter « Je fais / Nous faisons / Tu fais ») | CGP remédiation · Écriture L1 · Mots fréquents L2 |
+| `b946e7f4-…` | `32559627-…` (Grille de caractéristiques du texte narratif) | Production d'écrits |
+
+Verified after publishing: dangling references 7 → 2, exactly those four entries changed, the other
+22 byte-identical, entry count unchanged at 26.
+
+**Deliberately not fixed, and why.**
+
+- **The two remaining dangling references are missing CONTENT, not typos.** `b3f4d5bc-…` is cited as
+  « formatter des moyens matériels » and `ecf3e912-…` as the « grille descriptive » (*jukki melool*)
+  — and no catalog entry of either description exists in any scope. Someone wrote the rule expecting
+  a companion entry that was never authored. The « grille descriptive » gap is the sharper one: the
+  production-d'écrits routine tells the teacher to pick the descriptive grid over the narrative one
+  when the objective is descriptive, and *"ne jamais appliquer la grille narrative à un objectif
+  descriptif faute de mieux"* — which is exactly what will happen, because the descriptive grid is
+  not there.
+- **Annexe 7's 80% is intentional.** Sections were removed pending human review. This is the
+  roadmap's WP8 bullet 1 and a planned WP5 rule, and it is not a defect.
+- **The 30-vs-35-minute total** needs a pedagogical call (which step loses five minutes), not a data
+  fix. The CI-maths format is built on 30-minute lessons, so the total is probably right.
+- **The 45 missing step `timeRequired` values** are not recoverable from the data: no step name
+  carries a duration. They have to be authored.
+- **The four structural items** (both scopes named `…/_catalog/routines`; the shared/workspace split;
+  two id conventions; `4429c8e0` restating Annexe 8 sections A–B) are policy decisions or a
+  namespace migration, not data fixes. The namespace name in particular is load-bearing — it is the
+  storage key, and `catalog.ts` keeps it deliberately (*"Kept as-is so the already-seeded shared
+  library isn't orphaned"*).
+
+**Three consequences for WP5, all learned the hard way here:**
+
+1. **The "weighted rubric sections must sum to 100%" rule would fire a FALSE POSITIVE on Annexe 7**
+   on the day it ships. Either the rule needs a per-entry opt-out, or the entry has to record why it
+   is 80%. A linter whose first finding is wrong is a linter people learn to skim past.
+2. **"Every referenced id must resolve" has to match TRUNCATED prefixes.** Every reference in this
+   catalog is written `3e43c5d3-…`, with an ellipsis. A full-UUID regex over the whole catalog finds
+   **zero** references and reports a clean bill of health — I ran exactly that scan first and it
+   found nothing.
+3. **The rule should distinguish a wrong id from a missing entry.** Five of these seven were typos
+   with an obvious fix; two are content that does not exist. The same finding, with very different
+   work behind it.
