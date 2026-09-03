@@ -49,6 +49,9 @@ Three files, about 500 lines, no new dependency.
 | `renderer.ts` | Document model + `RenderSpec` → `.docx` bytes. |
 | `golden.ts` | A produced sheet → the same document model, so the comparison is not the renderer marking its own homework. Doubles as a sketch of WP6a. |
 
+`render.spike.test.ts` checks the teacher sheet (`GOLDEN_DIR`); `pupil.spike.test.ts` checks whether
+the same code carries a second document type (`PUPIL_DIR`).
+
 `render.spike.test.ts` reads `Guide-Lecon-1-ensembles-FR.docx` into the model, renders it again from
 scratch, and compares. It skips unless `GOLDEN_DIR` names the folder holding the sheets.
 
@@ -103,22 +106,43 @@ schema exists to make impossible.
    and nowhere in the schema to put them. Left in the document model and recorded here rather than
    widening the schema a second time in one pass.
 
-## Genericity — the thing to keep watching
+## Genericity — asked, and answered with a qualified no
 
 Nothing in `renderer.ts` knows what a maths lesson looks like. It knows banners, lines, pictures and
 spacers; which banner is turquoise, how tall a band may stand and which colour marks French are all
-read out of the `RenderSpec`. The first `if (subject === …)` in a renderer is a bug report against
-the WP3 abstraction, whatever the output looks like.
+read out of the `RenderSpec`. But one document type can always be matched by accident, so the same
+renderer was pointed at the pupil tool — 42 picture placements against nine, grids of images in
+table cells rather than banners of text, three type sizes, a page break standing on its own —
+**with no new code**. `pupil.spike.test.ts` records what happened.
 
-The claim is not proven yet. One document type can always be matched by accident. **The test that
-would prove it is the same renderer producing the pupil tool with no new code** — 28 pictures,
-different geometry, a page break carried by a paragraph instead of a banner. That is the next step,
-and it is cheap: the pupil corpus is complete in the bucket, 60 lessons in two languages.
+**The spec generalised. The content model did not.**
+
+Carried over, from a spec with the same keys and different values: page size and all four margins,
+the block fill (a palette of one instead of ten), and the declared image heights.
+
+Lost:
+
+| | |
+|---|---|
+| **All 42 pictures.** | Not most — every one. A pupil page *is* a grid of pictures, and a banner cell in this model holds a string. The teacher sheet hid this: its pictures sit in paragraphs, which the model has. |
+| **The page break.** | The spec offers three carriers; this document uses `paragraph` and the renderer acts only on `banner-property`. The value is declared and read, and nothing honours it. |
+| **`blocks.*.sizePt`.** | Declared in the schema, consumed by nothing. Only shows up on a document with more than one type size. |
+| **Per-block bullet markers.** | `blocks.bullet.marker` exists; the model carries one marker and puts it on every line, so the page title gets bulleted. |
+| **Cells with several paragraphs.** | The instruction box holds three numbered questions; a cell is one string, so they come out concatenated. |
+
+Every one of those is a missing way to **describe** the document, not a missing render knob. That is
+the WP3 line holding up rather than breaking: geometry belongs in `properties.render` and it fitted
+both types; structure is authored per section, and the spike stubs structure out with a model shaped
+around one document.
+
+**So WP4's real work is the content model, not the schema.** A cell must be able to hold blocks
+rather than a string, blocks must nest, and the renderer must honour all three page-break carriers
+and a block's own type size. None of that is a new `properties.render` key.
 
 ## Not attempted
 
 Emphasis within a line (the golden bolds the odd word; this model treats a line as one colour) —
-that belongs in the document model, not the spec. Translation. Page counting, which needs a layout
+that belongs in the document model, alongside the five gaps the pupil-tool test found. Translation. Page counting, which needs a layout
 engine. And **Andika is not installed on the machine this ran on**, so nothing rendered here is at
 true metrics: geometry, colour and structure are read from the file and unaffected, but no page
 count from this environment means anything.
