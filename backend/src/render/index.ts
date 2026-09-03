@@ -9,4 +9,5 @@ export { documentSchema, blockSchema, validateDocumentTree } from "./document.js
 export type { Block, Cell, Run, ImageRun, DocumentTree } from "./document.js";
 export { renderDocx } from "./docx.js";
 export { resolveRenderSpec, type ResolvedSpec, type SpecCarrier } from "./resolve-spec.js";
+export { splitByVariant, deriveVariant, hasVariant, type Variant, type TranslateText } from "./variants.js";
 export { zip, unzip, type ZipEntry } from "./zip.js";

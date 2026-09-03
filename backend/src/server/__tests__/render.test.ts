@@ -17,7 +17,7 @@
  * Plus the isolation preview_generation already has: output to the segregated
  * previews/ prefix, never the canonical bucket or history.
  */
-import { describe, it, expect, beforeAll, beforeEach, afterAll } from "vitest";
+import { describe, it, expect, beforeAll, beforeEach, afterAll, vi } from "vitest";
 import { seedStore, seededContexts, CE1_READING, CURATOR, SIGNED_IN_NO_ROLE } from "../../__tests__/index.js";
 import { newSessionState, runInSession, previewKey } from "../../context/index.js";
 import { __setKgStoreForTest, __resetMutationsForTest } from "../../kg-store/index.js";
@@ -27,13 +27,29 @@ import { activateContext } from "../../activate.js";
 import { runEditNodes } from "../recipes.js";
 import { renderDocument } from "../render.js";
 import { unzip } from "../../render/index.js";
+import { CONFIG } from "../../config.js";
 import type { StorageAdapter, HistoryFile } from "../../types.js";
+
+// Gemini is stubbed: the point under test is the WIRING — that a missing
+// language reaches the translator, comes back grounded in the glossary, and
+// lands in its own file — not that Gemini translates. A real call here would
+// spend metered budget on every test run.
+const translated: { text: string; direction: string; glossaryTerms: number }[] = [];
+vi.mock("../../translation/index.js", () => ({
+  translate: async (input: { text: string; direction: string; glossary?: unknown[] }) => {
+    translated.push({ text: input.text, direction: input.direction, glossaryTerms: (input.glossary ?? []).length });
+    return { translation: `wo:${input.text}`, sourceLanguage: "French", targetLanguage: "Wolof", model: "stub", glossaryTermsUsed: 0 };
+  },
+}));
 
 const emptyHistory: HistoryFile = { version: 4, entries: [] };
 let canonicalUploads = 0;
 let historyWrites = 0;
-// Captures what the server PUT, so the test can open the produced file.
+// Captures every PUT, keyed by object key, so the test can open each produced
+// file — a per-file document writes more than one.
 let uploaded: Buffer | null = null;
+const uploads: { key: string; body: Buffer }[] = [];
+let nextKey = "";
 
 const storage: StorageAdapter = {
   listDocuments: async () => [],
@@ -41,10 +57,13 @@ const storage: StorageAdapter = {
   downloadDocx: async () => Buffer.from(""),
   createUploadUrl: async () => { canonicalUploads++; return { url: "", objectKey: "", contentType: "", expiresAt: "" }; },
   createDownloadUrl: async () => ({ url: "", objectKey: "", expiresAt: "", exists: false }),
-  createPreviewUpload: async (relPath) => ({
-    uploadUrl: "https://signed/put", downloadUrl: "https://signed/get",
-    objectKey: previewKey(relPath), contentType: "docx", expiresAt: "1970-01-01T00:10:00Z",
-  }),
+  createPreviewUpload: async (relPath) => {
+    nextKey = previewKey(relPath);
+    return {
+      uploadUrl: "https://signed/put", downloadUrl: `https://signed/get/${relPath}`,
+      objectKey: nextKey, contentType: "docx", expiresAt: "1970-01-01T00:10:00Z",
+    };
+  },
   readHistory: async () => emptyHistory,
   writeHistory: async () => { historyWrites++; },
 };
@@ -109,6 +128,7 @@ async function stageRenderBag(bag: unknown, target = specId): Promise<void> {
 beforeAll(() => {
   globalThis.fetch = (async (_url: unknown, init?: { body?: unknown }) => {
     uploaded = Buffer.from(init?.body as Uint8Array);
+    uploads.push({ key: nextKey, body: uploaded });
     return { ok: true, status: 200, statusText: "OK" };
   }) as unknown as typeof fetch;
 });
@@ -118,7 +138,7 @@ beforeEach(async () => {
   __setKgStoreForTest(await seedStore({ only: [CE1_READING] }));
   __setStorageForTest(storage);
   __resetMutationsForTest();
-  canonicalUploads = 0; historyWrites = 0; uploaded = null;
+  canonicalUploads = 0; historyWrites = 0; uploaded = null; uploads.length = 0;
 
   // Find a section and a formatter spec on its stack, from the fixture itself,
   // so the suite breaks loudly if the document layer changes shape rather than
@@ -147,7 +167,7 @@ describe("render_document produces a document", () => {
     expect(out.error).toBeUndefined();
     expect(out.blocks).toBe(3);
     expect(out.formatters).toContain(specId);
-    expect(out.downloadUrl).toBe("https://signed/get");
+    expect(String(out.downloadUrl)).toContain("https://signed/get");
     expect(uploaded!.length).toBeGreaterThan(500);
   });
 
@@ -176,6 +196,170 @@ describe("render_document produces a document", () => {
     expect(String(out.objectKey)).not.toMatch(/^documents\//);
     expect(canonicalUploads).toBe(0);
     expect(historyWrites).toBe(0);
+  });
+});
+
+describe("one source, one file per language", () => {
+  // A tree carrying both languages: black lines belong in every file, the
+  // French and Wolof ones each in their own.
+  const BILINGUAL = {
+    blocks: [
+      { kind: "table", rows: [[{ style: "sessionBanner", blocks: [
+        { kind: "line", runs: [{ text: "Séance 1" }] },
+      ] }]] },
+      { kind: "line", variant: "commun", runs: [{ text: "E. pose des cailloux." }] },
+      { kind: "line", variant: "fr", runs: [{ text: "Nommez ces objets." }] },
+      { kind: "line", variant: "wo", runs: [{ text: "Tudd-leen yëf yii." }] },
+    ],
+  };
+
+  const WITH_WOLOF = {
+    ...RENDER_BAG,
+    language: { strategy: "per-file", variants: [
+      { id: "commun", lang: "fr", colour: "000000", inAllFiles: true },
+      { id: "fr", lang: "fr", colour: "C0504D", prefix: "[FR]", fileSuffix: "-FR" },
+      { id: "wo", lang: "wo", colour: "0070C0", prefix: "[WO]", fileSuffix: "-WO" },
+    ] },
+  };
+
+  it("writes two documents from one call, named by the formatter", async () => {
+    const out = await withCtx(CURATOR, async () => {
+      await stageRenderBag(WITH_WOLOF);
+      return renderDocument({ nodeId: sectionId, document: BILINGUAL, relPath: "lecon-1.docx" });
+    });
+    const files = out.files as Array<Record<string, unknown>>;
+    expect(files.map((f) => f.variant)).toEqual(["fr", "wo"]);
+    expect(files.map((f) => f.lang)).toEqual(["fr", "wo"]);
+    expect(uploads.map((u) => u.key)).toEqual([
+      expect.stringContaining("lecon-1-FR.docx"),
+      expect.stringContaining("lecon-1-WO.docx"),
+    ]);
+  });
+
+  it("puts each language only in its own file, and the shared lines in both", async () => {
+    await withCtx(CURATOR, async () => {
+      await stageRenderBag(WITH_WOLOF);
+      await renderDocument({ nodeId: sectionId, document: BILINGUAL, relPath: "lecon-1.docx" });
+    });
+    const [fr, wo] = uploads.map((u) => unzip(u.body).get("word/document.xml")!.toString("utf8"));
+
+    expect(fr).toContain("Nommez ces objets.");
+    expect(fr).not.toContain("Tudd-leen");
+    expect(wo).toContain("Tudd-leen yëf yii.");
+    expect(wo).not.toContain("Nommez ces objets.");
+
+    // The black line and the banner are in both — the second is structure, and
+    // a file that lost it would be missing its scaffolding, not a translation.
+    for (const doc of [fr, wo]) {
+      expect(doc).toContain("E. pose des cailloux.");
+      expect(doc).toContain("Séance 1");
+      expect(doc).toContain('w:fill="09A9E1"');
+    }
+  });
+
+  it("stays one file when the formatter declares one language", async () => {
+    const out = await withCtx(CURATOR, async () => {
+      await stageRenderBag(RENDER_BAG);   // fr + a shared variant, no Wolof
+      return renderDocument({ nodeId: sectionId, document: TREE });
+    });
+    expect((out.files as unknown[]).length).toBe(1);
+    // The single-file shape survives, so a monolingual caller need not index.
+    expect(out.downloadUrl).toBeDefined();
+  });
+
+  it("refuses to translate into a language the formatter never declared", async () => {
+    const out = await withCtx(CURATOR, async () => {
+      await stageRenderBag(RENDER_BAG);
+      return renderDocument({ nodeId: sectionId, document: TREE, translateInto: "en" });
+    });
+    expect(out.error).toContain("no variant 'en'");
+    expect(uploads).toHaveLength(0);
+  });
+
+  it("does not translate a tree that already carries the language", async () => {
+    // Deriving over the top would double every line, and re-translating what an
+    // author wrote by hand is the one thing this must never do. No Gemini key
+    // is configured here, so reaching the translator at all would error.
+    const out = await withCtx(CURATOR, async () => {
+      await stageRenderBag(WITH_WOLOF);
+      return renderDocument({ nodeId: sectionId, document: BILINGUAL, translateInto: "wo" });
+    });
+    expect((out.files as unknown[]).length).toBe(2);
+    expect(out.translatedInto).toBe("wo");
+  });
+});
+
+describe("deriving Wolof from the French the tree carries", () => {
+  const WITH_WOLOF = {
+    ...RENDER_BAG,
+    language: { strategy: "per-file", variants: [
+      { id: "commun", lang: "fr", colour: "000000", inAllFiles: true },
+      { id: "fr", lang: "fr", colour: "C0504D", prefix: "[FR]", fileSuffix: "-FR" },
+      { id: "wo", lang: "wo", colour: "0070C0", prefix: "[WO]", fileSuffix: "-WO" },
+    ] },
+  };
+
+  const FRENCH_ONLY = {
+    blocks: [
+      { kind: "table", rows: [[{ style: "sessionBanner", blocks: [
+        { kind: "line", runs: [{ text: "Séance 1" }] },
+      ] }]] },
+      { kind: "line", variant: "commun", runs: [{ text: "E. pose des cailloux." }] },
+      { kind: "line", variant: "fr", runs: [{ text: "Nommez ces objets." }] },
+    ],
+  };
+
+  beforeEach(() => { translated.length = 0; CONFIG.gemini.apiKey = "test-key"; });
+  afterAll(() => { CONFIG.gemini.apiKey = ""; });
+
+  it("produces the Wolof file from a tree that had no Wolof in it", async () => {
+    const out = await withCtx(CURATOR, async () => {
+      await stageRenderBag(WITH_WOLOF);
+      return renderDocument({ nodeId: sectionId, document: FRENCH_ONLY, relPath: "lecon-1.docx", translateInto: "wo" });
+    });
+
+    expect(out.translatedInto).toBe("wo");
+    expect((out.files as unknown[]).length).toBe(2);
+
+    const [fr, wo] = uploads.map((u) => unzip(u.body).get("word/document.xml")!.toString("utf8"));
+    expect(fr).toContain("Nommez ces objets.");
+    expect(fr).not.toContain("wo:");
+    expect(wo).toContain("wo:Nommez ces objets.");
+    expect(wo).not.toContain("&gt;Nommez ces objets.&lt;");
+  });
+
+  it("translates the spoken lines and nothing else", async () => {
+    // The banner is structure and the black line prints in both files as it is.
+    // Sending either through a translator would spend budget to produce a
+    // second copy of a line that was already correct.
+    await withCtx(CURATOR, async () => {
+      await stageRenderBag(WITH_WOLOF);
+      await renderDocument({ nodeId: sectionId, document: FRENCH_ONLY, translateInto: "wo" });
+    });
+    expect(translated.map((t) => t.text)).toEqual(["Nommez ces objets."]);
+    expect(translated[0].direction).toBe("fr>wo");
+  });
+
+  it("colours the derived lines as the formatter says, in their own file", async () => {
+    await withCtx(CURATOR, async () => {
+      await stageRenderBag(WITH_WOLOF);
+      await renderDocument({ nodeId: sectionId, document: FRENCH_ONLY, translateInto: "wo" });
+    });
+    const [fr, wo] = uploads.map((u) => unzip(u.body).get("word/document.xml")!.toString("utf8"));
+    expect(fr).toContain('<w:color w:val="C0504D"/>');    // French red
+    expect(fr).not.toContain('<w:color w:val="0070C0"/>');
+    expect(wo).toContain('<w:color w:val="0070C0"/>');    // Wolof blue
+    expect(wo).not.toContain('<w:color w:val="C0504D"/>');
+  });
+
+  it("says so plainly when the server has no translation key", async () => {
+    CONFIG.gemini.apiKey = "";
+    const out = await withCtx(CURATOR, async () => {
+      await stageRenderBag(WITH_WOLOF);
+      return renderDocument({ nodeId: sectionId, document: FRENCH_ONLY, translateInto: "wo" });
+    });
+    expect(out.error).toContain("GEMINI_API_KEY");
+    expect(uploads).toHaveLength(0);
   });
 });
 

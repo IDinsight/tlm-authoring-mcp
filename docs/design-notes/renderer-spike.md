@@ -3,7 +3,7 @@
 **Status:** Live. The renderer and its contract are in **`backend/src/render/`**, reachable as the
 **`render_document`** tool; the golden-file comparisons that proved them stay in
 `backend/src/__spike__/`. Still missing before WP4 is done: writing the CANONICAL bucket and history
-(output is preview-only today), translation, and page counting.
+(output is preview-only today) and page counting.
 
 ## Why a spike rather than a decision
 
@@ -190,6 +190,31 @@ Nothing renders when either half is wrong. An invalid tree or an unresolvable st
 naming the path — and the stack is checked BEFORE the tree is looked at, because a stack that will
 not resolve is the formatter author's problem and saying so with the formatter ids beats a page that
 is wrong for reasons nobody can trace.
+
+### One source, two documents
+
+CI maths composes a page ONCE and produces two files: black lines in both, red French only in the
+French file, blue Wolof only in the Wolof. That is `language.strategy: "per-file"`, and the renderer
+honoured its COLOURS from the start while ignoring the split — so each file came out carrying the
+other language too, which reads as a formatting oddity rather than as the wrong document.
+
+`splitByVariant` does the split, and it is pure: a tree and a spec in, one tree per file out.
+Anything that is not `per-file` stays one file. **Tables survive the split even when everything
+inside them is dropped** — a banner is structure, not speech, and a file missing its scaffolding is
+harder to spot than one missing a translation.
+
+A tree composed in French has no Wolof lines to split out, so `deriveVariant` produces them: every
+French line is duplicated as a Wolof one, keeping its style, its pictures and **its place** — the
+twin sits immediately after its source, because once the split drops the other language, position is
+the only thing that still lands a line between the right banner and the right picture. The page
+break stays on the source line; two lines both starting a page would leave a blank one.
+
+The translator is **injected, not imported**: `render/` must not know Gemini exists, and a test must
+be able to derive a variant without spending a metered call. `render_document` supplies the real one
+— glossary-grounded, the same term bank the `translate` tool uses, so a derived page does not drift
+from the wording of materials already in classrooms. It is members-only for the same reason
+`translate` is, and a tree that already carries the language is left alone: re-translating what an
+author wrote by hand is the one thing this must never do.
 
 ### Merging the stack
 
