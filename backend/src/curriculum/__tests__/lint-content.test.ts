@@ -120,6 +120,41 @@ describe("regression corpus — defects confirmed on the live catalog", () => {
     expect(finding.message).not.toContain("6313dea1");
   });
 
+  /*
+   * A catalog clone answers to TWO ids. `add_to_catalog` gives it a fresh `id`
+   * and stores the SOURCE node's id as its `identifier` — so an entry cloned out
+   * of ce1/reading carries prose citing reading's ids, which are exactly the
+   * identifiers its own clones hold. Resolving `id` alone called every one of
+   * those broken: of nine findings on the live catalog, four were citations that
+   * were perfectly good, and chasing them cost a morning.
+   */
+  it("resolves a citation against a node's `identifier`, not only its `id`", () => {
+    const clone = node("32559627-b1b6-4fac-a8e3-4735a5f8da48", {
+      description: "Grille de caractéristiques du texte narratif (formatter)",
+      identifier: "b946e7f4-85d3-4e23-8371-846b2561a539",   // the reading-graph node it was cloned from
+    });
+    const citing = catalog([{
+      entry: node("citing-entry", {
+        description: "Fiche de production d'écrits",
+        metadata: { summary: "Applique la grille narrative (`b946e7f4-…`)." },
+      }),
+      steps: [],
+    }]);
+    const graph: MutationGraph = { nodes: [...citing.nodes, clone], edges: citing.edges };
+
+    expect(lintContent({ graph }).filter((f) => f.rule === "dangling-reference")).toEqual([]);
+  });
+
+  it("tells the reader a citation may name a node in a namespace it cannot see", () => {
+    // The rule reads the active subject and the catalog libraries — nothing
+    // else. Saying "this was never authored" about a node in another subject's
+    // graph is how a real formatter got drafted a second time.
+    const [finding] = lintContent({ graph: danglingRefs, knownIds: existing });
+
+    expect(finding.fix).toMatch(/ANOTHER subject/);
+    expect(finding.fix).toMatch(/identifier/);
+  });
+
   it("would have found NOTHING with a full-UUID scan — which is why prefixes matter", () => {
     // The scan that was run first, and pronounced the catalog clean while seven
     // references were broken.

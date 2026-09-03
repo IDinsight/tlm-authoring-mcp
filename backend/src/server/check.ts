@@ -23,7 +23,7 @@ import { activeWorkspace } from "../context/index.js";
 import {
   getKgStore, kgNamespace, lintGraph, toAuditActor, diffGraphs,
   type LintFinding, type MutationGraph, type StoredNode, type StoredEdge, type Slot, nextAuditSeq,} from "../kg-store/index.js";
-import { lintContent, lintableRules, CONTENT_RULES } from "../curriculum/index.js";
+import { lintContent, lintableRules, CONTENT_RULES, resolvableIds } from "../curriculum/index.js";
 import { readCatalog } from "./catalog.js";
 import { SHARED_CATALOG_NAMESPACE, catalogNamespace } from "../kg-recipes/index.js";
 import { authorize } from "../authz.js";
@@ -182,10 +182,12 @@ export async function runLintContent(args: LintContentArgs = {}): Promise<Record
   const catalogs = await Promise.all(catalogNamespaces.map((ns) => readCatalog(ns)));
 
   // Everything that exists anywhere the caller can see — so a cross-library
-  // reference resolves instead of being reported as broken.
+  // reference resolves instead of being reported as broken. `resolvableIds`
+  // counts each node's `identifier` too, which is how a catalog clone answers
+  // to the id of the subject node it was cloned from.
   const knownIds = new Set<string>([
-    ...subject.nodes.map((node) => node.id),
-    ...catalogs.flatMap((graph) => graph.nodes.map((node) => node.id)),
+    ...resolvableIds(subject.nodes),
+    ...catalogs.flatMap((graph) => [...resolvableIds(graph.nodes)]),
   ]);
 
   const checked: Array<{ where: string; graph: MutationGraph }> = [];

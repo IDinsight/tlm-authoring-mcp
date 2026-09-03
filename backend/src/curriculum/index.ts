@@ -18,4 +18,4 @@ export { computeGraphStats, type GraphStats, type StatsRoot } from "./stats.js";
 export { readCachedModel, writeCachedModel, __clearModelCache, type ModelVersion } from "./model-cache.js";
 
 // The CONTENT lint — check_draft checks wiring, review_draft coverage, this consistency.
-export { lintContent, lintableRules, CONTENT_RULES, citedIds, minutesFromIso, minutesFromTitle, type ContentRule, type ContentLintInput, type ContentLintOptions } from "./lint-content.js";
+export { lintContent, lintableRules, CONTENT_RULES, citedIds, resolvableIds, minutesFromIso, minutesFromTitle, type ContentRule, type ContentLintInput, type ContentLintOptions } from "./lint-content.js";
