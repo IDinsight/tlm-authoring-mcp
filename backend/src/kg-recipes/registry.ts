@@ -23,16 +23,17 @@ export type RecipeDescriptor = {
 export const RECIPES: readonly RecipeDescriptor[] = [
   {
     name: "edit_nodes",
-    summary: "Edit one node's fields or MANY nodes' in one atomic draft edit (it replaced the single-node edit_node). Each `items[i]` names a `nodeId` and its own values: content (canonical LC Material.content), position (ordinal among siblings — never cascades), title (display name), title_en (English mirror), summary (a routine/formatter's cross-cutting blurb → raw.metadata.summary), and/or properties (a freeform bag amending any other canonical LC prop → raw.<key>, e.g. metadata.assemblyGuide). Each item needs at least one field; a node may appear only once per batch. All-or-nothing: any item error blocks the whole batch.",
+    summary: "Edit one node's fields or MANY nodes' in one atomic draft edit (it replaced the single-node edit_node). Each `items[i]` names a `nodeId` and its own values: content (canonical LC Material.content), position (ordinal among siblings — never cascades), title (the display NAME — a single line; the text below it is kept), body (everything BELOW that name line, where a node has one — an empty string removes it), title_en (English mirror), summary (a routine/formatter's cross-cutting blurb → raw.metadata.summary), and/or properties (a freeform bag amending any other canonical LC prop → raw.<key>, e.g. metadata.assemblyGuide). Each item needs at least one field; a node may appear only once per batch. All-or-nothing: any item error blocks the whole batch.",
     params: [
-      { name: "items", required: true, note: "one entry per node: { nodeId, content?, position?, title?, title_en?, summary?, properties? }" },
+      { name: "items", required: true, note: "one entry per node: { nodeId, content?, position?, title?, body?, title_en?, summary?, properties? }" },
       { name: "items[].nodeId", required: true },
       { name: "items[].content", required: false },
       { name: "items[].position", required: false },
-      { name: "items[].title", required: false },
+      { name: "items[].title", required: false, note: "the display NAME — a single line; a multi-line value is refused, pass the rest as body" },
+      { name: "items[].body", required: false, note: "the text BELOW the name line of `description` (a routine step's script, a catalog entry's prose); \"\" removes it" },
       { name: "items[].title_en", required: false },
       { name: "items[].summary", required: false },
-      { name: "items[].properties", required: false, note: "amend any other canonical LC prop → raw.<key>; refuses identity + mirrored paths (use position/title/content for those)" },
+      { name: "items[].properties", required: false, note: "amend any other canonical LC prop → raw.<key>; refuses identity + mirrored paths (use position/title/body/content for those)" },
     ],
   },
   {

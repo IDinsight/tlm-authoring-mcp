@@ -150,24 +150,11 @@ describe("writing the correction back to the right field", () => {
       .toEqual([{ nodeId: "n1", title: "PHASE 1 — RAPPEL | 5 min" }]);
   });
 
-  it("keeps the body when the corrected line is only the name", () => {
-    // `title` overwrites the WHOLE description. Correcting a banner must not
-    // take the body of the node with it.
-    const items = editItems(proposals, new Map([
-      ["n1", { field: "title" as const, tail: "\n\nLe corps de la description, intact." }],
-    ]));
-    expect(items).toEqual([
-      { nodeId: "n1", title: "PHASE 1 — RAPPEL | 5 min\n\nLe corps de la description, intact." },
-    ]);
-  });
-
-  it("keeps the name line when the corrected text is the body", () => {
-    const items = editItems(proposals, new Map([
-      ["n1", { field: "title" as const, head: "Nom de l'étape\n\n" }],
-    ]));
-    expect(items).toEqual([
-      { nodeId: "n1", title: "Nom de l'étape\n\nPHASE 1 — RAPPEL | 5 min" },
-    ]);
+  it("writes `body` when the corrected text is the part below the name line", () => {
+    // The name line is NOT resent: `body` edits only what sits under it, so a
+    // correction to a routine step's script cannot rename the step.
+    expect(editItems(proposals, new Map([["n1", { field: "body" as const }]])))
+      .toEqual([{ nodeId: "n1", body: "PHASE 1 — RAPPEL | 5 min" }]);
   });
 
   it("falls back to `content` for a node it was told nothing about", () => {

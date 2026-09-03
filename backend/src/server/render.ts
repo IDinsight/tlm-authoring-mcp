@@ -334,15 +334,13 @@ const asText = (v: unknown): string => (typeof v === "string" ? v : "");
 function resolveTextField(
   props: Record<string, unknown> | undefined, inDocument: string | undefined, markers: readonly string[],
 ): { text: string; slot: TextSlot } | null {
-  const content = asText(props?.content);
   const description = asText(props?.description);
-  const name = displayName(description);
-  const body = descriptionBody(description);
-
   const candidates: Array<{ text: string; slot: TextSlot }> = [];
-  if (content) candidates.push({ text: content, slot: { field: "content" } });
-  if (body) candidates.push({ text: body, slot: { field: "title", head: `${name}\n\n` } });
-  if (name) candidates.push({ text: name, slot: { field: "title", tail: body ? `\n\n${body}` : "" } });
+  const push = (text: string, field: TextSlot["field"]) => { if (text) candidates.push({ text, slot: { field } }); };
+
+  push(asText(props?.content), "content");
+  push(descriptionBody(description), "body");
+  push(displayName(description), "title");
 
   if (candidates.length === 0) return null;
   if (inDocument !== undefined) {

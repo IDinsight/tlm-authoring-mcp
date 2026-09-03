@@ -24,7 +24,8 @@
  * bag would touch only one. Everything else under raw.* is fair game.
  */
 
-import { writeAtPath, type GraphMutation, type MutationGraph } from "../kg-store/index.js";
+import { readAtPath, writeAtPath, type GraphMutation, type MutationGraph } from "../kg-store/index.js";
+import { displayName, descriptionBody } from "../utils/index.js";
 import { RecipeCommon, nodeById } from "./shared.js";
 import { validateRenderInBag } from "./render-spec.js";
 import { reposition } from "./reposition.js";
@@ -34,7 +35,8 @@ export type EditNodeArgs = RecipeCommon & {
   nodeId: string;
   content?: string;     // load-bearing content (canonical LC Material.content)
   position?: number;    // ordinal among siblings
-  title?: string;       // display title (→ normalized title/text + raw.description)
+  title?: string;       // display NAME — the first line of raw.description; the body below it is kept
+  body?: string;        // everything BELOW that name line; "" removes it. The name line is kept
   title_en?: string;    // English mirror (→ raw.metadata.en.description)
   summary?: string;     // cross-cutting summary (→ raw.metadata.summary) — e.g. a routine/formatter's blurb
   properties?: Record<string, unknown>;  // amend any other canonical LC prop → raw.<key> (e.g. metadata.assemblyGuide)
@@ -51,7 +53,7 @@ const PROTECTED_RAW_PATHS = [
   "identifier",
   "position",         // ordinal mirror — use `position`
   "metadata.order",   // ordinal mirror — use `position`
-  "description",      // title mirror — use `title`
+  "description",      // title/body mirror — use `title` (name line) or `body` (below it)
   "content",          // Material payload — use `content`
 ] as const;
 
@@ -70,6 +72,8 @@ function isProtectedRawKey(key: string): boolean {
 // the create path uses, so an edited title re-parses like a seeded one.
 const GROUPING_LABELS = new Set(["Course", "LessonGrouping", "StandardsFramework"]);
 
+const asString = (v: unknown): string => (typeof v === "string" ? v : "");
+
 // Write the display fields to their known targets: the title to the normalized
 // field (title vs text by grouping-ness) + its raw mirror; the English title to
 // its metadata mirror; the summary to raw.metadata.summary (a routine/formatter's
@@ -81,10 +85,23 @@ function applyDisplayFields(graph: MutationGraph, args: EditNodeArgs): MutationG
       return node;
     }
     let properties = node.properties;
-    if (args.title !== undefined) {
+    /*
+     * `description` is TWO fields in one string: a name line, and — on a routine
+     * step or a catalog entry — a body below it. Editing either used to mean
+     * sending the whole thing through `title`, which is how a body got wiped by
+     * an author who only meant to fix a name, and how prose came to be kept in
+     * a second field because the first could not be reached safely.
+     *
+     * So each half has its own argument and the OTHER half is read back off the
+     * node and preserved. Supplying both rewrites both.
+     */
+    if (args.title !== undefined || args.body !== undefined) {
       const isGrouping = (node.labels ?? []).some((label) => GROUPING_LABELS.has(label));
-      properties = writeAtPath(properties, isGrouping ? "title" : "text", args.title);
-      properties = writeAtPath(properties, "raw.description", args.title);
+      const existing = asString(readAtPath(properties, "raw.description"));
+      const name = args.title ?? displayName(existing);
+      const body = args.body ?? descriptionBody(existing);
+      properties = writeAtPath(properties, isGrouping ? "title" : "text", name);
+      properties = writeAtPath(properties, "raw.description", body ? `${name}\n\n${body}` : name);
     }
     if (args.title_en !== undefined) {
       properties = writeAtPath(properties, "raw.metadata.en.description", args.title_en);
@@ -108,7 +125,7 @@ function applyDisplayFields(graph: MutationGraph, args: EditNodeArgs): MutationG
 export const editNode: GraphMutation<EditNodeArgs> = {
   name: "editNode",
   describe: (args) => {
-    const fields: string[] = (["content", "position", "title", "title_en", "summary"] as const).filter((field) => args[field] !== undefined);
+    const fields: string[] = (["content", "position", "title", "body", "title_en", "summary"] as const).filter((field) => args[field] !== undefined);
     // Name the bag's own keys so the diff description reads "…(metadata.assemblyGuide)".
     fields.push(...Object.keys(args.properties ?? {}));
     return `edit node '${args.nodeId}' (${fields.join(", ") || "no fields"})`;
@@ -120,9 +137,9 @@ export const editNode: GraphMutation<EditNodeArgs> = {
     }
 
     const bagKeys = args.properties ? Object.keys(args.properties) : [];
-    const editsSomething = args.content !== undefined || args.position !== undefined || args.title !== undefined || args.title_en !== undefined || args.summary !== undefined || bagKeys.length > 0;
+    const editsSomething = args.content !== undefined || args.position !== undefined || args.title !== undefined || args.body !== undefined || args.title_en !== undefined || args.summary !== undefined || bagKeys.length > 0;
     if (!editsSomething) {
-      errors.push(`edit_nodes: provide at least one of content / position / title / title_en / summary / properties to edit.`);
+      errors.push(`edit_nodes: provide at least one of content / position / title / body / title_en / summary / properties to edit.`);
     }
 
     // The freeform bag must be a plain key→value object, and no key may collide
@@ -135,7 +152,7 @@ export const editNode: GraphMutation<EditNodeArgs> = {
           if (key.length === 0) {
             errors.push(`edit_nodes: 'properties' has an empty key.`);
           } else if (isProtectedRawKey(key)) {
-            errors.push(`edit_nodes: 'properties.${key}' is a protected path (LC identity, or a mirrored field — edit the ordinal via 'position', the title via 'title', the content via 'content').`);
+            errors.push(`edit_nodes: 'properties.${key}' is a protected path (LC identity, or a mirrored field — edit the ordinal via 'position', the display name via 'title', the text below it via 'body', the content via 'content').`);
           }
         }
         // A formatter's declarative half is schema-checked HERE, at authoring
@@ -152,6 +169,14 @@ export const editNode: GraphMutation<EditNodeArgs> = {
     }
     if (args.title !== undefined && (typeof args.title !== "string" || args.title.length === 0)) {
       errors.push(`edit_nodes: 'title' must be a non-empty string.`);
+    }
+    // A multi-line title is almost always someone trying to reach the body, and
+    // silently accepting it is what used to overwrite the body wholesale.
+    if (typeof args.title === "string" && args.title.includes("\n")) {
+      errors.push(`edit_nodes: 'title' is the display NAME and must be a single line — pass the text below it as 'body'.`);
+    }
+    if (args.body !== undefined && typeof args.body !== "string") {
+      errors.push(`edit_nodes: 'body' must be a string ("" removes the text below the name line).`);
     }
     if (args.summary !== undefined && (typeof args.summary !== "string" || args.summary.length === 0)) {
       errors.push(`edit_nodes: 'summary' must be a non-empty string.`);
@@ -173,7 +198,7 @@ export const editNode: GraphMutation<EditNodeArgs> = {
       graph = setContent.apply(graph, { namespace: args.namespace, nodeId: args.nodeId, content: args.content });
     }
     const hasBag = args.properties !== undefined && Object.keys(args.properties).length > 0;
-    if (args.title !== undefined || args.title_en !== undefined || args.summary !== undefined || hasBag) {
+    if (args.title !== undefined || args.body !== undefined || args.title_en !== undefined || args.summary !== undefined || hasBag) {
       graph = applyDisplayFields(graph, args);
     }
     return graph;
