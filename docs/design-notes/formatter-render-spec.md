@@ -81,11 +81,34 @@ CI-maths teacher sheet and the CE1 bilingual session sheet from their own prose 
 validate, that six groups are common ground, and that the values which differ are exactly the ones
 that make these knobs rather than constants.
 
+### The measured pass — where the schema turned out to be wrong
+
+The transcribed fixtures came from the formatters' prose. On 3 September 2026 the same document
+type was read a second way: straight out of the twenty `.docx` produced on 2 September (lessons
+1–10, FR and WO), by measuring the XML rather than believing a note. Everything validated on the
+first attempt — ten banner fills, three language variants routed by colour and file suffix, image
+heights by role, the aspect-ratio rule that sends a band full width, the banner-carried page break
+— **except two keys, both about the line-height RULE**:
+
+| refused | why it matters |
+|---|---|
+| `type.leadingRule` | `leadingPt: 15.5` does not say whether Word treats 15.5 pt as a ceiling (`exact`) or a floor (`atLeast`). |
+| `images.paragraphLeadingRule` | Under an exact rule Word **crops** an inline image to the line box. Full-width bands came out at 5 mm. The fix is that the image's own paragraph keeps automatic leading. |
+
+So the schema could hold the setting that caused the worst defect of the production run and not the
+one that fixed it. Both keys are now in it, with `atLeast` alongside — the three rules OOXML has.
+
+The measured fixture also disagrees with the transcribed one on three values: leading 15.5 vs 19.35
+pt, 45 vs 36 lines per page, 0.547 vs 0.68 cm per line. The graph still carries Andika's natural
+leading; every produced sheet carries the tightened value. Both are valid specs and nothing in this
+schema can say which is current — that is WP7's job, and this is a worked example of why it exists.
+
 ## What this does not do
 
 It does not render anything. `generate_document` and `measure_document` do not exist, and building
-them needs a decision that has not been made: port the existing Python to Node, or ship Python
-alongside the server. Nothing here depends on that choice — the schema was written from the two
+them needs a decision that has not been made: rebuild the renderer in Node, or ship Python alongside
+the server. This is no longer a *porting* choice — the renderer's source (`producteur-fiches-v4.tgz`)
+is lost, so either path is a rebuild against the golden corpus. Nothing here depends on that choice — the schema was written from the two
 formatters' prose, not from any renderer's API.
 
 It also does not check `content` prose against `render` values. Where both are machine-readable —

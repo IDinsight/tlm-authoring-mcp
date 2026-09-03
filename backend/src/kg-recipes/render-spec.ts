@@ -53,11 +53,23 @@ const pageSchema = z.object({
   bindingCm: positive.optional(),
 }).strict();
 
-/** Body type. `leadingPt` is the line height a renderer must set, not a hint. */
+/*
+ * Body type. `leadingPt` is the line height a renderer must set, not a hint.
+ *
+ * `leadingRule` is not decoration on it. A height in points is ambiguous on its
+ * own -- "exact" makes it a CEILING, "atLeast" a FLOOR -- and CI maths shipped a
+ * production run where the difference cropped every full-width image band to
+ * 5 mm. The page count was right, so no measurement caught it; someone had to
+ * look at the page. A schema that can hold 15.5 but not "exact" can record the
+ * setting that caused that and not the one that fixes it.
+ */
+const leadingRule = z.enum(["exact", "atLeast", "auto"]);
+
 const typeSchema = z.object({
   family: z.string().min(1).optional(),
   sizePt: positive.optional(),
   leadingPt: positive.optional(),
+  leadingRule: leadingRule.optional(),
   colour: hexColour.optional(),
 }).strict();
 
@@ -120,6 +132,13 @@ const imagesSchema = z.object({
   // Wider than this ratio and an image goes full width instead of floating —
   // a band reduced to a sliver is unreadable.
   fullWidthAboveAspectRatio: positive.optional(),
+  // The leading rule for the paragraph CARRYING an inline image, which is
+  // deliberately not the body's. Under `type.leadingRule: "exact"` Word crops an
+  // inline image to the line box instead of growing the line to fit it; the
+  // twenty golden CI-maths sheets set this paragraph to "auto" for that reason.
+  // A floating image is unaffected — it has no line to respect — which is why the
+  // defect survived a full production run before anyone saw it.
+  paragraphLeadingRule: leadingRule.optional(),
 }).strict();
 
 /*
