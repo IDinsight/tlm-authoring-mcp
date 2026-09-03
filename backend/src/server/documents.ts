@@ -129,13 +129,13 @@ const contentSchema = {
     .array(
       z.object({
         name: z.string(),
-        type: z.string().optional().describe("What the character is, e.g. child, adult, teacher, market-seller, animal."),
-        role: z.string().optional().describe("Optional role in the scene, e.g. pupil, mother, shopkeeper."),
-        description: z.string().optional().describe("Any other distinguishing detail worth keeping consistent."),
+        type: z.string().optional().describe("child, adult, teacher, market-seller, animal…"),
+        role: z.string().optional().describe("Role in the scene, e.g. pupil, mother, shopkeeper."),
+        description: z.string().optional().describe("Any other detail worth keeping consistent."),
       })
     )
     .optional()
-    .describe("Characters used, each as {name, type, ...} (e.g. {name:'Awa', type:'child'}). Include every character found ANYWHERE in the document — the opening scene AND the activities/bilan — not only the amorce."),
+    .describe("Every character found ANYWHERE in the document — the opening scene AND the activities/bilan, not only the amorce — each as {name, type, …}."),
   exampleDomains: z.array(z.string()).optional().describe("Object families used, e.g. fruits, legumes."),
   conceptsCovered: z.array(z.string()).optional().describe("OS texts / lesson ids / statementCodes covered."),
   terminologyUsed: z.array(z.string()).optional().describe("Key math terms used."),
@@ -213,7 +213,7 @@ export function registerDocumentTools(server: McpServer) {
       };
     }));
 
-  server.registerTool("record_document_content", { title: "Record parsed document content", description: "After reading an UNTRACKED document's text, store the structured content you extracted into history so it is never re-parsed. For characters, include every one found ANYWHERE in the document (opening scene and activities/bilan), each with details like {name, type}. The object must already be in the bucket. 'nodeId' is the scope node the document covers — the Chapitre/Semaine/Lesson (find it with walk_graph / namespace_stats). REQUIRES CONFIRMATION: called without confirm:true it only returns a needsConfirmation notice — ask the user to approve writing to history, then call again with confirm:true. Requires a ROLE in the active workspace (any role): this writes to live storage/history, unlike the open curriculum reads.", inputSchema: { nodeId: z.string(), relPath: z.string(), content: z.object(contentSchema), confirm: z.boolean().optional() } },
+  server.registerTool("record_document_content", { title: "Record parsed document content", description: "After reading an UNTRACKED document's text, store the structured content you extracted into history so it is never re-parsed. The object must already be in the bucket. `nodeId` is the scope node the document covers (the Chapitre/Semaine/Lesson — find it with walk_graph / namespace_stats). REQUIRES CONFIRMATION — without confirm:true you get a needsConfirmation notice; ask the user to approve, then call again. " + WORKSPACE_ROLE_NOTE + " This writes LIVE to history: no draft, no undo.", inputSchema: { nodeId: z.string(), relPath: z.string(), content: z.object(contentSchema), confirm: z.boolean().optional() } },
     guarded(async (a: { nodeId: string; relPath: string; content: any; confirm?: boolean }) => {
       const denied = await denyNonMember("writeDocuments"); if (denied) return denied;
       const err = scopeNodeError(a.nodeId); if (err) return asJson({ error: err });
@@ -221,7 +221,7 @@ export function registerDocumentTools(server: McpServer) {
       return needConfirm ?? asJson(await recordContent("parsed", { nodeId: a.nodeId, relPath: a.relPath, content: a.content }));
     }));
 
-  server.registerTool("log_generation", { title: "Log a generated document", description: "Call after uploading a generated .docx to the bucket (via create_upload_url). Reads the object's hash from storage and records what you produced so it feeds future consistency + variety. Log each character with details like {name, type} (e.g. {name:'Awa', type:'child'}), not just the name. No local file needed. 'nodeId' is the scope node the document covers — the Chapitre/Semaine/Lesson. REQUIRES CONFIRMATION: called without confirm:true it only returns a needsConfirmation notice — ask the user to approve writing to history, then call again with confirm:true. Requires a ROLE in the active workspace (any role): this writes to live storage/history, unlike the open curriculum reads.", inputSchema: { nodeId: z.string(), relPath: z.string(), content: z.object(contentSchema), confirm: z.boolean().optional() } },
+  server.registerTool("log_generation", { title: "Log a generated document", description: "Call after uploading a generated .docx via create_upload_url: it reads the object's hash from storage and records what you produced, so it feeds future consistency + variety. `nodeId` is the scope node the document covers (the Chapitre/Semaine/Lesson). REQUIRES CONFIRMATION — without confirm:true you get a needsConfirmation notice; ask the user to approve, then call again. " + WORKSPACE_ROLE_NOTE + " This writes LIVE to history: no draft, no undo.", inputSchema: { nodeId: z.string(), relPath: z.string(), content: z.object(contentSchema), confirm: z.boolean().optional() } },
     guarded(async (a: { nodeId: string; relPath: string; content: any; confirm?: boolean }) => {
       const denied = await denyNonMember("writeDocuments"); if (denied) return denied;
       const err = scopeNodeError(a.nodeId); if (err) return asJson({ error: err });

@@ -20,6 +20,7 @@
  */
 
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import { z } from "zod";
 import { asJson, guarded, CONFIRMATION_RULE } from "./shared.js";
 import { getActiveAdapter } from "../adapters/index.js";
 import { activeWorkspace } from "../context/index.js";
@@ -63,9 +64,27 @@ const CAPABILITY_TO_AUTHZ: Record<Exclude<typeof CAPABILITY_ACTIONS[number], "ca
   canTranslate: "translate",
 };
 
+// Flatten the per-block {allowed, tools} groups into the sorted, de-duplicated
+// list of tools the caller may call. A tool named in two groups (a read that is
+// also listed under its feature) is kept when ANY group allows it.
+function collectPermittedVerbs(groups: Array<{ allowed: boolean; tools: readonly string[] }>): string[] {
+  const permitted = new Set<string>();
+  for (const group of groups) {
+    if (!group.allowed) {
+      continue;
+    }
+    for (const tool of group.tools) {
+      permitted.add(tool);
+    }
+  }
+  return [...permitted].sort();
+}
+
 // The inner logic, exported so tests can drive it without spinning up an
 // McpServer. `registerCapabilityTools` just wraps this in the MCP tool
-// envelope.
+// envelope. It always builds the WHOLE report; what a CALLER sees is chosen by
+// projectCapabilities below, so a section can never report something the full
+// report does not (the mirror property holds for every projection of it).
 export async function buildCapabilitiesReport(): Promise<Record<string, unknown>> {
   const adapter = getActiveAdapter();
   const namespace = kgNamespace(activeWorkspace(), adapter.grade, adapter.subject);
@@ -250,6 +269,15 @@ export async function buildCapabilitiesReport(): Promise<Record<string, unknown>
     tools: ["list_catalog", "get_catalog_entry", "use_routine", "use_formatter", "use_rubric", "add_to_catalog", "duplicate_entry"],
     canDuplicate: actions.canPublish,
     resources: ["catalog://{scope}/{id}"],
+    // How list_catalog is narrowed. The whole library in full is ~63 KB, so
+    // `names` is the default and detail is asked for.
+    listCatalog: {
+      params: ["kind", "scope", "detail", "limit", "cursor"],
+      details: ["names", "full"],
+      defaultDetail: "names",
+      defaults: { limit: 50 },
+      maxLimit: 200,
+    },
     // Where each kind of entry ATTACHES when applied — mirrors useRoutine / useFormatter / useRubric.
     applies: {
       routine: "Lesson, via usesRoutine",
@@ -271,8 +299,11 @@ export async function buildCapabilitiesReport(): Promise<Record<string, unknown>
     // and this client renders no completion dropdown, so the SERVER resolves
     // what the expert types (self-serve-authoring.md, D9).
     findNode: {
-      params: ["query", "labels", "limit", "slot"],
+      params: ["query", "queries", "labels", "limit", "slot"],
       defaults: { limit: 10 },
+      // `queries` resolves a whole list against ONE graph load; its `unresolved`
+      // names every entry that did not land on exactly one node.
+      batch: "pass `queries: string[]` instead of `query` — results are keyed by query string",
       // Several equally-good matches is normal (two Courses each hold a
       // "Chapitre 5"), so the answer is candidates, never a pick.
       ambiguity: "returns `ambiguous:true` + every match with its containment `path` — ask the user which, do not guess",
@@ -355,6 +386,29 @@ export async function buildCapabilitiesReport(): Promise<Record<string, unknown>
       "start_here answers 'where am I and what should I do next' for a PERSON (this tool answers 'what is possible' for a machine): active context or the list to choose from, the caller's role in plain terms, whether a draft is open, the unfinished work, and suggested next moves — and it works before set_context. The connector also publishes named workflow PROMPTS a client can surface as a menu (créer un document, appliquer un style, créer une routine, préparer une relecture). Every write response carries `nextSteps`, the sequence that usually follows. Language rule for all of it: these payloads are English, but they are for a PERSON — relay them in the expert's own working language, the one this subject's curriculum and guide are written in (French for Senegal, English for the EIDU frameworks). Vocabulary rule: speak the expert's words — document, section, chapter, objective — never TLM/SFI/hasPart, and never ask a user for a node id (use find_node).",
   };
 
+  // ── verbs: the flat list of tools this caller may actually call right now.
+  // Each group pairs a block's OWN tool list with the gate that block already
+  // reports, so a tool added to a block is picked up here without a second list
+  // to keep in sync. It is a projection of `actions`, never a new judgement.
+  const permittedVerbs = collectPermittedVerbs([
+    { allowed: true, tools: discovery.tools },
+    { allowed: true, tools: guidance.tools },
+    { allowed: true, tools: [checks.tool, editable.coverage.tool, ...profile.tools] },
+    { allowed: actions.canEditDraft, tools: [...editable.batch.tools, ...editable.structural.verbs, ...editable.documents.tools, ...recipes.list.map((recipe) => recipe.name)] },
+    { allowed: actions.canEditDraft, tools: ["use_routine", "use_formatter", "use_rubric"] },
+    { allowed: true, tools: ["list_catalog", "get_catalog_entry"] },
+    { allowed: actions.canPublish, tools: ["add_to_catalog", "duplicate_entry"] },
+    { allowed: actions.canReadDraft, tools: ["diff_draft"] },
+    { allowed: actions.canDiscardDraft, tools: ["discard_draft"] },
+    { allowed: actions.canPublish, tools: ["publish_draft"] },
+    { allowed: actions.canEditDraft, tools: ["undo_last", "request_review"] },
+    { allowed: actions.canPreview, tools: preview.tools },
+    { allowed: actions.canReadAudit, tools: [audit.tool] },
+    { allowed: actions.canReadDocuments, tools: documents.readTools },
+    { allowed: actions.canWriteDocuments, tools: documents.writeTools },
+    { allowed: actions.canTranslate, tools: ["translate"] },
+  ]);
+
   return {
     actor: {
       id: actor.id,
@@ -370,6 +424,7 @@ export async function buildCapabilitiesReport(): Promise<Record<string, unknown>
       namespace,
     },
     actions,
+    verbs: permittedVerbs,
     draft: {
       exists: draftExists,
       createdBy,
@@ -397,15 +452,64 @@ export async function buildCapabilitiesReport(): Promise<Record<string, unknown>
   };
 }
 
+// ── The response projection (WP2a's sibling: WP2b) ───────────────────────────
+// The whole report is ~26.5 KB / ~7,200 tokens, and it is called at the start of
+// nearly every session. It is excellent documentation and ruinous as a preamble,
+// so the DEFAULT is a digest — who you are, where you are, what you may call —
+// and the detail for one area is asked for by name. Nothing is unreachable: the
+// sections below partition the full report.
+
+// The blocks a caller can ask for. Each name is a key of the full report, so
+// `section` cannot name something that does not exist.
+export const CAPABILITY_SECTIONS = [
+  "discovery", "guidance", "editable", "checks", "lifecycle",
+  "profile", "preview", "audit", "catalog", "documents", "rules", "responseCap",
+] as const;
+
+export type CapabilitySection = typeof CAPABILITY_SECTIONS[number];
+
+// The digest's own keys — the orientation a caller needs before it knows which
+// section to ask for.
+const DIGEST_KEYS = ["actor", "context", "actions", "draft", "verbs"] as const;
+
+/**
+ * Project the full report down to what the caller asked for: one named section,
+ * or (by default) the digest plus the list of sections available.
+ *
+ * An unknown section name is answered with the digest and the valid names rather
+ * than an error — the caller can act on that in one turn.
+ */
+export function projectCapabilities(report: Record<string, unknown>, section?: string): Record<string, unknown> {
+  const digest = Object.fromEntries(DIGEST_KEYS.map((key) => [key, report[key]]));
+
+  const isKnownSection = CAPABILITY_SECTIONS.includes(section as CapabilitySection);
+  if (section !== undefined && isKnownSection) {
+    return { ...digest, section, [section]: report[section] };
+  }
+
+  return {
+    ...digest,
+    sections: [...CAPABILITY_SECTIONS],
+    ...(section !== undefined
+      ? { note: `'${section}' is not a section of this report. Call again with one of \`sections\`.` }
+      : {}),
+    note2: "Digest only. `verbs` is every tool you may call right now; `actions` is why. For the detail on one area — its tools, defaults, limits and rules — call again with section:'<name>' from `sections`.",
+  };
+}
+
 export function registerCapabilityTools(server: McpServer) {
   server.registerTool(
     "get_capabilities",
     {
       title: "What can I do right now?",
       description:
-        "Report — for the currently-authenticated caller and the active grade/subject — the caller's role, exactly which write actions they may perform, whether a draft is currently open, and what wording keys are editable in the pilot. Read-only, no state change, safe for unknown callers (returns a truthful 'read/generate only' shape rather than erroring). Every field is derived from the same functions that actually ENFORCE the behavior — so this tool cannot diverge from what other tools will actually let you do.",
-      inputSchema: {},
+        "Report — for the authenticated caller and the active grade/subject — who they are, which actions they may perform, whether a draft is open, and the flat list of tools they may call (`verbs`). Read-only, safe for unknown callers (a truthful read-only shape, not an error). Every field derives from the functions that actually ENFORCE the behaviour, so it cannot diverge from what the other tools will let you do. " +
+        "Returns a DIGEST by default (~2 KB). The full report is ~26 KB, so the per-area detail is asked for: pass `section` — one of discovery, guidance, editable, checks, lifecycle, profile, preview, audit, catalog, documents, rules, responseCap — to get that area's tools, defaults, limits and rules. `sections` in the digest lists them.",
+      inputSchema: { section: z.string().optional() },
     },
-    guarded(async () => asJson(await buildCapabilitiesReport())),
+    guarded(async (a: { section?: string }) => {
+      const report = await buildCapabilitiesReport();
+      return asJson(projectCapabilities(report, a.section));
+    }),
   );
 }

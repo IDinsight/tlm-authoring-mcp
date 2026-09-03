@@ -32,13 +32,13 @@ import { asJson, asMarkdown, guarded } from "./shared.js";
 import { getActiveAdapter } from "../adapters/index.js";
 import { activeWorkspace } from "../context/index.js";
 import { getKgStore, mintNodeId, runGraphMutation, kgNamespace, publishDraft, discardDraft, type MutationGraph, type MutationEdge, type MutationNode, type StoredEdge, type StoredNode } from "../kg-store/index.js";
-import { SHARED_CATALOG_NAMESPACE, catalogNamespace, cloneRoutineSubtree, relabelClonedFormatter, relabelClonedRubric, relabelForCatalog, addCatalogEntry, listCatalogEntries, renderCatalogEntry, useRoutine, useFormatter, useRubric, type CatalogScope, type UseRoutineArgs, type UseFormatterArgs, type UseRubricArgs } from "../kg-recipes/index.js";
+import { SHARED_CATALOG_NAMESPACE, catalogNamespace, cloneRoutineSubtree, relabelClonedFormatter, relabelClonedRubric, relabelForCatalog, addCatalogEntry, listCatalogEntries, renderCatalogEntry, useRoutine, useFormatter, useRubric, type CatalogEntry, type CatalogKind, type CatalogScope, type UseRoutineArgs, type UseFormatterArgs, type UseRubricArgs } from "../kg-recipes/index.js";
 import { parkWrapperContext, readWrapperContext, deleteWrapperContext } from "./wrapper-park.js";
 // Destination resolution moved to catalog-target.ts, which the generic write
 // verbs (edit_nodes / add_nodes / create_edges) share for their `catalog` redirect.
 import { resolveCatalogTarget } from "./catalog-target.js";
 import { PARKED_PAYLOAD_NOTE } from "./tool-notes.js";
-import { displayName } from "../utils/index.js";
+import { displayName, responseBytes } from "../utils/index.js";
 
 // Read one catalog namespace's published slot as a plain MutationGraph. Empty when
 // that namespace has never been seeded (no pointer). Exported for tests.
@@ -412,6 +412,133 @@ async function copyIntoCatalog(a: CatalogCopyArgs): Promise<Record<string, unkno
   return { ok: true, published: true, scope: target.scope, workspace: target.workspace, namespace: catalogNs, entryId: clone.newEntryId, auditId: published.auditId };
 }
 
+// ── list_catalog: filters, paging and the response projection (WP2a) ──────────
+// The whole catalog rendered in full is 63,125 characters on the live senegal
+// library — 26 entries, most of the weight being each entry's `summary` (up to
+// 3.4 KB on one) and its per-step detail. That is a payload no caller can
+// afford, so browsing DEFAULTS to names and detail is asked for.
+
+export type CatalogDetail = "names" | "full";
+
+export type ListCatalogArgs = {
+  kind?: CatalogKind;
+  scope?: CatalogScope;
+  detail?: CatalogDetail;
+  limit?: number;
+  cursor?: string;
+};
+
+// One entry as `detail:'names'` renders it: enough to CHOOSE an entry (and to
+// pass its id to use_routine / get_catalog_entry), nothing more. Measured at
+// ~4.8 KB for all 26 live entries, against 63 KB for the same list in full.
+type CatalogEntryName = {
+  id: string;
+  name: string;
+  kind: CatalogKind;
+  scope: CatalogScope;
+  stepCount: number;
+  materialCount: number;
+};
+
+const namesOnly = (entry: CatalogEntry): CatalogEntryName => ({
+  id: entry.id,
+  name: entry.name,
+  kind: entry.kind,
+  scope: entry.scope,
+  stepCount: entry.steps.length,
+  materialCount: entry.materialCount,
+});
+
+const DEFAULT_CATALOG_LIMIT = 50;
+const MAX_CATALOG_LIMIT = 200;
+
+// A page's byte budget, well under the 100 KB response cap so the envelope and
+// the scope list always fit. `detail:'full'` entries average ~2.5 KB, so a page
+// of them reaches this long before it reaches `limit` — the page is trimmed and
+// says so, the way walk_graph reports `truncatedBySize`.
+const CATALOG_PAGE_MAX_BYTES = 60 * 1024;
+
+// Stable total order, so a cursor means the same thing on the next call: scope,
+// then kind, then name, with the id as the final tie-break.
+function compareEntries(left: CatalogEntry, right: CatalogEntry): number {
+  return left.scope.localeCompare(right.scope)
+    || left.kind.localeCompare(right.kind)
+    || left.name.localeCompare(right.name)
+    || left.id.localeCompare(right.id);
+}
+
+// The cursor is the id of the last entry served — opaque to the caller, and
+// resilient to an entry being added or removed between pages (paging resumes
+// after that id in the sort order, rather than at a positional offset).
+const encodeCursor = (afterId: string): string => Buffer.from(JSON.stringify({ after: afterId }), "utf8").toString("base64url");
+
+function decodeCursor(cursor: string): string | null {
+  try {
+    const decoded = JSON.parse(Buffer.from(cursor, "base64url").toString("utf8")) as { after?: unknown };
+    return typeof decoded.after === "string" ? decoded.after : null;
+  } catch {
+    return null;
+  }
+}
+
+// Take entries until either `limit` or the byte budget is reached. Returns what
+// fits plus whether the BUDGET (not the limit) is what stopped it — the two need
+// different advice: a limit is raised, a byte overflow is narrowed.
+function takeWithinBudget<T>(entries: T[], limit: number): { page: T[]; trimmedBySize: boolean } {
+  const page: T[] = [];
+  for (const entry of entries.slice(0, limit)) {
+    const withEntry = [...page, entry];
+    if (page.length > 0 && responseBytes(withEntry) > CATALOG_PAGE_MAX_BYTES) {
+      return { page, trimmedBySize: true };
+    }
+    page.push(entry);
+  }
+  return { page, trimmedBySize: false };
+}
+
+// The core behind list_catalog, exported so tests drive the real logic (the same
+// shape buildCapabilitiesReport and findActiveNodes use).
+export async function listCatalog(args: ListCatalogArgs = {}): Promise<Record<string, unknown>> {
+  const detail = args.detail ?? "names";
+  const limit = Math.min(MAX_CATALOG_LIMIT, Math.max(1, Math.trunc(args.limit ?? DEFAULT_CATALOG_LIMIT)));
+
+  // Read only the scope(s) asked for — a `scope` filter should not pay for the
+  // other library's read.
+  const scopes = catalogScopes().filter((candidate) => !args.scope || candidate.scope === args.scope);
+  const perScope = await Promise.all(scopes.map(async (s) => listCatalogEntries(await readCatalog(s.namespace), s.scope)));
+
+  const matching = perScope.flat()
+    .filter((entry) => !args.kind || entry.kind === args.kind)
+    .sort(compareEntries);
+
+  // Resume after the cursor's entry. An unknown or malformed cursor starts from
+  // the beginning rather than erroring — a stale cursor should re-list, not fail.
+  const afterId = args.cursor ? decodeCursor(args.cursor) : null;
+  const startIndex = afterId ? matching.findIndex((entry) => entry.id === afterId) + 1 : 0;
+  const remaining = matching.slice(startIndex);
+
+  const projected: Array<CatalogEntry | CatalogEntryName> = detail === "full" ? remaining : remaining.map(namesOnly);
+  const { page, trimmedBySize } = takeWithinBudget(projected, limit);
+
+  const lastOnPage = page[page.length - 1];
+  const hasMore = page.length < remaining.length;
+
+  return {
+    scopes: scopes.map((s) => ({ scope: s.scope, namespace: s.namespace })),
+    detail,
+    entries: page,
+    count: page.length,
+    total: matching.length,
+    nextCursor: hasMore && lastOnPage ? encodeCursor(lastOnPage.id) : null,
+    ...(trimmedBySize
+      ? { truncatedBySize: true, hint: "This page was trimmed to fit a byte budget, so it holds fewer entries than `limit` — raising `limit` will not help. Filter by `kind`/`scope`, or use the default detail:'names', then page with cursor:<nextCursor>." }
+      : {}),
+    ...(detail === "names"
+      ? { note: "Names only — id, name, kind, scope and counts, which is what choosing an entry needs. For one entry's full authored spec (and the NODE IDS to edit it) call get_catalog_entry; for the whole list in full pass detail:'full', which is large." }
+      : {}),
+  };
+}
+
 // Shared confirm-gate + copy input, declared on both apply tools.
 // `entryId` / `targetId` are required on dry-run; on a token-only confirm (large
 // clone held server-side) they are omitted alongside `mintedIdMap`.
@@ -426,12 +553,22 @@ const APPLY_INPUT = {
 export function registerCatalogTools(server: McpServer) {
   server.registerTool(
     "list_catalog",
-    { title: "List the catalog", description: "Browse the reusable-spec catalog — the instructional routines, formatters and evaluation rubrics a curator can apply to content. Reads BOTH the shared cross-tenant library and the active workspace's own; each entry carries its `scope` (shared | workspace) and `kind` (routine | formatter | rubric), plus id, name, cross-cutting summary, ordered steps (name + timing), and material count. A RUBRIC (an evaluation grid) additionally carries `scale` ('0-4' or 'oui-non') on the entry, and its `steps` are the grid's weighted SECTIONS — each with a `weight` ('20%') and its criteria in `materials`. Pass a routine's id to use_routine, a formatter's to use_formatter, or a rubric's to use_rubric, to copy it. For an entry's FULL authored spec, call get_catalog_entry. [] when nothing is seeded. EDITING an entry: this is also where the NODE IDS come from, because a catalog cannot be traversed (walk_graph reads the active subject only). `materials[]` on an entry lists its own Material children — a FORMATTER's spec and a RUBRIC's criteria live there, and those ids are what `edit_nodes(items:[{nodeId, content}], catalog)` takes. A ROUTINE has no Materials at all: every step carries its own text in `description` (name on the first line, script below), so `steps[i].id` IS the editable id, its `materials` is empty, and you edit it with `edit_nodes(items:[{nodeId, title}], catalog)`.", inputSchema: {} },
-    guarded(async () => {
-      const scopes = catalogScopes();
-      const perScope = await Promise.all(scopes.map(async (s) => listCatalogEntries(await readCatalog(s.namespace), s.scope)));
-      return asJson({ scopes: scopes.map((s) => ({ scope: s.scope, namespace: s.namespace })), entries: perScope.flat() });
-    }),
+    {
+      title: "List the catalog",
+      description:
+        "Browse the reusable-spec catalog — the instructional routines, formatters and evaluation rubrics a curator applies to content. Reads the shared cross-tenant library and the active workspace's own, each entry tagged `scope` (shared | workspace) and `kind` (routine | formatter | rubric). " +
+        "`detail` defaults to 'names' — id, name, kind, scope, stepCount, materialCount — which is what CHOOSING an entry needs; 'full' adds each entry's summary, ordered steps (name + timing) and materials, and is large (63 KB for the live library, so filter or page it). " +
+        "Narrow with `kind` and `scope`; page with `limit` (default 50, max 200) + `cursor` until `nextCursor` is null. " +
+        "Pass a routine's id to use_routine, a formatter's to use_formatter, a rubric's to use_rubric. For ONE entry's full authored spec — and the NODE IDS to edit it — call get_catalog_entry: a catalog cannot be traversed (walk_graph reads the active subject only), so those two tools are the only place an entry's ids appear. A RUBRIC's `steps` are its weighted sections (`weight`, criteria in `materials`); a FORMATTER's spec lives in its `materials`; a ROUTINE has no materials — each step carries its text in `description`, so `steps[i].id` is the editable id. [] when nothing is seeded.",
+      inputSchema: {
+        kind: z.enum(["routine", "formatter", "rubric"]).optional(),
+        scope: z.enum(["shared", "workspace"]).optional(),
+        detail: z.enum(["names", "full"]).optional(),
+        limit: z.number().int().optional(),
+        cursor: z.string().optional(),
+      },
+    },
+    guarded(async (a: ListCatalogArgs) => asJson(await listCatalog(a))),
   );
 
   server.registerTool(
@@ -476,7 +613,7 @@ export function registerCatalogTools(server: McpServer) {
     "use_rubric",
     {
       title: "Use a catalog rubric",
-      description: "Apply a catalog RUBRIC (an evaluation grid — e.g. Annexe 8's approval checklist, Annexe 7's scored grid) to a DOCUMENT by COPYING it, so `evaluate_document` knows which grid governs that document. `targetId` is a TeachingLearningMaterial (the document node), OR a Course — in which case the TLM that `covers` that Course is resolved for you. The entry (from the shared OR the workspace library) is cloned with fresh ids into the active subject, RELABELLED to the document layer (Rubric → RubricSection → RubricCriterion), and hung under the TLM via `hasPart`. A grid judges the DOCUMENT, so it attaches where a formatter does — not to the curriculum. A document may carry SEVERAL rubrics (a general quality grid plus an approval checklist); evaluate_document reports every one. (If a Course has no document yet, create one with create_document — it mints the TeachingLearningMaterial AND its `covers` edge in one atomic call, so the document cannot end up covering nothing.) The copy is independent — later edits to the library rubric do not reach it. REQUIRES CONFIRMATION: dry-run returns diff + confirmationToken + mintedIdMap. " + PARKED_PAYLOAD_NOTE + " DRAFT edit — publish_draft to make it live.",
+      description: "Apply a catalog RUBRIC (an evaluation grid — Annexe 8's approval checklist, Annexe 7's scored grid) to a DOCUMENT by COPYING it, so `evaluate_document` knows which grid governs it. `targetId` is a TeachingLearningMaterial, or a Course (its covering TLM is resolved for you; if it has none, create_document mints the TLM and its `covers` edge atomically). The entry is cloned with fresh ids into the active subject, RELABELLED to Rubric → RubricSection → RubricCriterion, and hung under the TLM via `hasPart` — a grid judges the DOCUMENT, so it attaches where a formatter does, never to the curriculum. A document may carry SEVERAL rubrics and evaluate_document reports every one. The copy is independent of the library. REQUIRES CONFIRMATION: dry-run returns diff + confirmationToken + mintedIdMap. " + PARKED_PAYLOAD_NOTE + " DRAFT edit — publish_draft to make it live.",
       inputSchema: APPLY_INPUT,
     },
     guarded(async (a: ApplyArgs) => applyCatalogEntry(a, "rubric")),
@@ -486,7 +623,9 @@ export function registerCatalogTools(server: McpServer) {
     "add_to_catalog",
     {
       title: "Add a routine or formatter to the catalog",
-      description: "Publish a routine, formatter or rubric you AUTHORED (an InstructionalRoutine entry + its steps — plus Materials for a formatter or rubric — built in the active subject with add_nodes) INTO a catalog library, so list_catalog / use_routine / use_formatter / use_rubric can then reuse it. It clones the entry's whole subtree with fresh ids into the destination and files it under that library's root — the write inverse of use_routine. PREFER AUTHORING DIRECTLY INTO THE LIBRARY for a NEW entry: add_nodes with `catalog:'workspace'` writes there in one step, whereas building inside the subject and cloning here leaves a half-built entry stranded in the curriculum if the session is interrupted. Use add_to_catalog for an entry that already exists in a subject graph (it was authored inline, or applied there by use_routine and improved since). To start from an entry that already exists in a library, use duplicate_entry. DESTINATION: a workspace curator adds to their OWN workspace's library (omit targetWorkspace). A super_admin may target the shared cross-tenant library OR any workspace — pass `targetWorkspace` ('_shared' for the shared library, or a workspace id); call WITHOUT it to get back the list of catalogs to choose from. GATED by the destination — because it PUBLISHES, it needs an APPROVER of that workspace (or super_admin for the shared library). TWO-PHASE, and confirming does BOTH in one step: the dry-run returns the diff + confirmationToken + mintedIdMap. " + PARKED_PAYLOAD_NOTE + " Catalogs aren't enterable contexts, so there is no separate publish_draft.",
+      description: "File a routine, formatter or rubric you AUTHORED in the active subject INTO a catalog library, so list_catalog / use_routine / use_formatter / use_rubric can reuse it — the write inverse of use_routine. It clones the entry's whole subtree with fresh ids under the destination library's root. " +
+        "Use it for an entry that ALREADY exists in a subject graph (authored inline, or applied by use_routine and improved since). For a NEW entry, prefer add_nodes with `catalog:'workspace'`, which writes straight into the library — building it in the subject and cloning here strands a half-built entry if the session is interrupted. To start from an entry already in a library, use duplicate_entry. " +
+        "DESTINATION: a curator files into their OWN workspace's library (omit targetWorkspace); a super_admin may pass `targetWorkspace` ('_shared' or a workspace id), or call without it to be offered the list. Because it PUBLISHES it needs an APPROVER there (super_admin for the shared library). TWO-PHASE, and confirming applies AND publishes in one step — catalogs are not enterable, so there is no publish_draft. The dry-run returns the diff + confirmationToken + mintedIdMap. " + PARKED_PAYLOAD_NOTE,
       inputSchema: {
         entryId: z.string().optional(),   // required on dry-run; omitted on token-only confirm
         targetWorkspace: z.string().optional(),
@@ -503,9 +642,9 @@ export function registerCatalogTools(server: McpServer) {
     {
       title: "Duplicate a catalog entry",
       description:
-        "COPY an existing catalog entry — a routine, a formatter (house style) or a rubric — into a library as a NEW entry with fresh ids, so it can be edited without touching the original. This is how a house style is adapted: nobody authors a formatter from a blank page; you start from the one that is nearly right and change what differs. " +
-        "`entryId` comes from list_catalog (both libraries are searched). `name` names the copy (default: the original's name + « (copie) ») — give it one, because two identically-named entries are impossible to tell apart later. DESTINATION works exactly like add_to_catalog: a workspace curator's copy lands in their OWN library (omit targetWorkspace) — which is what makes duplicating a SHARED master useful, since a shared entry cannot be edited in place by a workspace curator; a super_admin may pass `targetWorkspace` ('_shared' or a workspace id), or call without it to be offered the list. " +
-        "GATED by the destination, and because it PUBLISHES it needs an APPROVER there. TWO-PHASE: the dry-run returns the diff + confirmationToken + mintedIdMap; confirm with confirm:true + the token, RE-SENDING the same `entryId`, `name` and `mintedIdMap` (a different — or omitted — `name` on the confirm produces a different copy and the token is rejected). " + PARKED_PAYLOAD_NOTE + " Then edit the copy in place with edit_nodes(items:[{nodeId, content}], catalog).",
+        "COPY an existing catalog entry into a library as a NEW entry with fresh ids, editable without touching the original. This is how a house style is adapted: nobody authors a formatter from a blank page — start from the one that is nearly right. " +
+        "`entryId` comes from list_catalog (both libraries are searched). ALWAYS give `name` (default: the original + « (copie) »): two identically-named entries cannot be told apart later. DESTINATION works like add_to_catalog — a curator's copy lands in their OWN library (omit targetWorkspace), which is what makes duplicating a SHARED master useful, since a curator cannot edit a shared entry in place; a super_admin may pass `targetWorkspace`, or omit it to be offered the list. Because it PUBLISHES it needs an APPROVER there. " +
+        "TWO-PHASE: confirm with the token, RE-SENDING the same `entryId`, `name` and `mintedIdMap` — a different or omitted `name` produces a different copy and the token is rejected. " + PARKED_PAYLOAD_NOTE + " Then edit the copy with edit_nodes(items:[{nodeId, content}], catalog).",
       inputSchema: {
         entryId: z.string().optional(),   // required on dry-run; omitted on token-only confirm
         name: z.string().optional(),

@@ -27,7 +27,7 @@ import { runBatchMutation, type ReturnMode } from "./batch.js";
 import { idempotencyPayloadHash } from "./idempotency.js";
 import { runCatalogWrite } from "./catalog-target.js";
 import type { SubjectAdapter } from "../types.js";
-import { PARKED_PAYLOAD_NOTE, IDEMPOTENCY_NOTE, RETURN_MODE_NOTE } from "./tool-notes.js";
+import { PARKED_PAYLOAD_NOTE, IDEMPOTENCY_NOTE, RETURN_MODE_NOTE, CATALOG_REDIRECT_NOTE } from "./tool-notes.js";
 
 // The namespace the active subject binds to (same as the other mutation tool groups).
 function bind(adapter: SubjectAdapter): { namespace: string } {
@@ -190,12 +190,11 @@ export function registerAuthoringTools(server: McpServer) {
     {
       title: "Add nodes (one or many) in one batch",
       description:
-        "The single node-creation tool — create ONE node or MANY in one atomic draft edit (it replaced the per-label add_lesson/add_material/… tools). Each `items[i]` has `kind` (the LC label — Course/LessonGrouping/Lesson/Activity/Assessment/Material/LearningComponent/InstructionalRoutine/StandardsFrameworkItem, or a document-layer label TeachingLearningMaterial/DocumentSection/Formatter/FormatterSpec), an EXISTING `parentId` (omit for a root Course/StandardsFramework), `description` (display title), optional `position`/`alignTo`/`via`, and `properties` (the kind-specific canonical LC bag). " +
+        "Create ONE node or MANY in one atomic draft edit — the single node-creation tool. Each `items[i]`: `kind` (the LC label, from the schema's enum), an EXISTING `parentId` (omit for a root Course / TeachingLearningMaterial), `description` (display title), optional `position` / `alignTo` / `via`, and `properties` (the kind-specific canonical LC bag). " +
         PER_KIND_GUIDE + " " +
-        "Each item attaches under an already-existing parent — a node minted in the SAME batch cannot be a parent (stage nodes here, then wire cross-references with create_edges). Optional per-item `mintedNodeId` is your own alias, returned in an id map so you can correlate items to their real ids. ALL-OR-NOTHING: the dry-run validates every item and returns ONE confirmationToken + `mintedNodeIds` (real ids, in item order); any item error blocks the whole batch (no partial apply). " + PARKED_PAYLOAD_NOTE + "" +
-        "" + RETURN_MODE_NOTE + "" +
-        "" + IDEMPOTENCY_NOTE + " DRAFT edit — publish_draft to make it live. " +
-        "`catalog` (optional) adds the nodes to a CATALOG LIBRARY instead of the active subject graph — this is ALSO how a brand-new library entry should be authored (write it straight into the library; do NOT build it inside the curriculum and clone it over with add_to_catalog — an interrupted session leaves a half-built formatter stranded in the subject graph with nothing to flag it). It also extends a stale master entry (e.g. a missing FormatterSpec) that use_routine / use_formatter would otherwise keep re-cloning without it. Pass 'workspace' (your own library), 'shared' (the cross-tenant one), or a workspace id. Crossing into another workspace's or the shared library needs super_admin. In a catalog the entry root is an `InstructionalRoutine` and its steps/specs are `Material` — a formatter is only RELABELLED to Formatter/FormatterSpec when use_formatter clones it out, so author catalog children as Material. TWO DIFFERENCES from a subject add: confirming PUBLISHES the library live in one step (catalogs are not enterable, so no publish_draft or diff_draft), and you must RE-SEND `catalog` on the confirm. Sequence multi-call authoring so each confirmed call leaves the library coherent on its own.",
+        "A node minted in the SAME batch cannot be another item's parent — stage nodes here, then wire cross-references with create_edges. Optional `mintedNodeId` is your own alias, echoed in the returned id map. ALL-OR-NOTHING: the dry-run validates every item and returns ONE confirmationToken + `mintedNodeIds` (real ids, in item order); any item error blocks the whole batch. " + PARKED_PAYLOAD_NOTE +
+        RETURN_MODE_NOTE + IDEMPOTENCY_NOTE + " DRAFT edit — publish_draft to make it live. " +
+        "A NEW catalog entry is authored straight into the library — do not build it in the curriculum and clone it over with add_to_catalog, which strands a half-built entry if the session is interrupted. A catalog entry root is an `InstructionalRoutine` with `Material` children (use_formatter relabels them to Formatter/FormatterSpec on the way out), so sequence multi-call authoring to leave the library coherent at each confirm. " + CATALOG_REDIRECT_NOTE,
       inputSchema: {
         // `items` is required on a dry-run; on a token-only confirm (large batch
         // held server-side) it is omitted alongside `mintedNodeIds`.

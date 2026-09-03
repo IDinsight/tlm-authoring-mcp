@@ -22,7 +22,7 @@ import { createEdges } from "../kg-recipes/index.js";
 import { runBatchMutation, type ReturnMode } from "./batch.js";
 import { idempotencyPayloadHash } from "./idempotency.js";
 import { runCatalogWrite } from "./catalog-target.js";
-import { PARKED_PAYLOAD_NOTE, IDEMPOTENCY_NOTE, RETURN_MODE_NOTE } from "./tool-notes.js";
+import { PARKED_PAYLOAD_NOTE, IDEMPOTENCY_NOTE, RETURN_MODE_NOTE, CATALOG_REDIRECT_NOTE } from "./tool-notes.js";
 
 function activeNamespace(): string {
   const a = getActiveAdapter();
@@ -168,10 +168,9 @@ export function registerStructuralTools(server: McpServer) {
     {
       title: "Create edges (one or many) in one batch",
       description:
-        "The edge-creation tool — add ONE edge or MANY in one atomic draft edit (it replaced the single create_edge). Use it for edges add_nodes doesn't set: `usesRoutine` (apply a routine to a Lesson/Course/Activity), `buildsTowards` / `relatesTo` / `hasDependency` (prerequisites), or an extra `hasEducationalAlignment`. Each `edges[i]` has `edgeType`, `fromId`, `toId`, and optional `properties`; both endpoints must already exist in the draft (ids minted by a prior committed add_nodes are valid). Edge ids are deterministic (`<type>:<from>-><to>`); a duplicate triple is rejected — duplicate detection spans BOTH the batch and the current draft. ALL-OR-NOTHING: the dry-run validates every edge and returns ONE confirmationToken; any item error blocks the whole batch (no partial apply). " + PARKED_PAYLOAD_NOTE + " Edge-type legality across labels is a reviewer judgment at publish, not enforced here. " +
-        "" + RETURN_MODE_NOTE + "" +
-        "" + IDEMPOTENCY_NOTE + " DRAFT edit. " +
-        "`catalog` (optional) wires the edges inside a CATALOG LIBRARY instead of the active subject graph — pass 'workspace' (your own library), 'shared', or a workspace id; crossing libraries needs super_admin. Confirming PUBLISHES the library live in one step (catalogs are not enterable, so no publish_draft), and `catalog` must be RE-SENT on the confirm.",
+        "Add ONE edge or MANY in one atomic draft edit — for the edges add_nodes does not set: `usesRoutine` (apply a routine to a Lesson/Course/Activity), `buildsTowards` / `relatesTo` / `hasDependency` (prerequisites), or an extra `hasEducationalAlignment`. Each `edges[i]`: `edgeType`, `fromId`, `toId`, optional `properties`. Both endpoints must already exist in the draft (ids from a prior committed add_nodes count). Edge ids are deterministic (`<type>:<from>-><to>`) and a duplicate triple is rejected — detection spans both the batch and the draft. ALL-OR-NOTHING: one confirmationToken; any item error blocks all of it. Edge-type legality across labels is a reviewer judgement at publish, not enforced here. " + PARKED_PAYLOAD_NOTE +
+        RETURN_MODE_NOTE + IDEMPOTENCY_NOTE + " DRAFT edit. " +
+        CATALOG_REDIRECT_NOTE,
       inputSchema: {
         // Required on dry-run; omitted on a token-only confirm (large batch
         // held server-side — the parked context reconstructs the list).
@@ -199,10 +198,9 @@ export function registerStructuralTools(server: McpServer) {
     {
       title: "Delete edges (one or many) in one batch",
       description:
-        "Remove ONE edge or MANY by id in one atomic draft edit. Each `edgeIds[i]` is a deterministic edge id (`<type>:<from>-><to>`) — get them from a prior create_edges preview, from diff_draft, or from the graph. Removing an edge cannot orphan a node (the node just becomes less connected); the dangling-edge check only cares about surviving edges. Use this to detach a node before delete_nodes if you want to keep the (now-detached) subtree. ALL-OR-NOTHING: the dry-run validates every id and returns ONE confirmationToken; any missing id (or an id listed twice) blocks the whole batch (no partial delete). To confirm, call again with confirm:true and the token. " +
-        "" + RETURN_MODE_NOTE + "" +
-        "`idempotencyKey` (optional): a unique key (a UUID) makes a RETRIED confirm safe — same key + same payload replays the first apply's summary with `replayed:true` instead of REPLAY; same key + different payload is rejected as IDEMPOTENCY_KEY_MISMATCH. Namespace-scoped, 24h TTL. DRAFT edit — publish_draft to make it live. " +
-         "`catalog` (optional) targets a CATALOG LIBRARY instead of the active subject graph — pass 'workspace' (your own library), 'shared', or a workspace id; crossing libraries needs super_admin. Confirming PUBLISHES the library live in one step (catalogs are not enterable, so no publish_draft), and `catalog` must be RE-SENT on the confirm.",
+        "Remove ONE edge or MANY by id in one atomic draft edit. Each `edgeIds[i]` is a deterministic edge id (`<type>:<from>-><to>`), from a create_edges preview, diff_draft, or the graph. Removing an edge cannot orphan a node — it just becomes less connected — so use this to DETACH a subtree you want to keep before delete_nodes. ALL-OR-NOTHING: a missing id, or one listed twice, blocks the batch. " +
+        RETURN_MODE_NOTE + IDEMPOTENCY_NOTE + " DRAFT edit — publish_draft to make it live. " +
+         CATALOG_REDIRECT_NOTE,
       inputSchema: {
         edgeIds: z.array(z.string()),
         returnMode: z.enum(["summary", "full"]).optional(),
@@ -221,10 +219,9 @@ export function registerStructuralTools(server: McpServer) {
     {
       title: "Delete nodes (one or many, each with its dependent subtree) in one batch",
       description:
-        "Remove ONE node or MANY by id in one atomic draft edit — each together with its dependent subtree (its hasChild/hasPart descendants) and every edge touching any removed node. The cascade is computed over ALL the ids at once, so a child shared by two nodes you delete together also vanishes. The dry-run diff shows the FULL set that will vanish and emits a WARNING listing it; nothing is deleted until you confirm, so seeing the cascade before confirming IS the safety (there is no separate force flag). ALL-OR-NOTHING: any missing id (or an id listed twice) blocks the whole batch. The result is re-checked for referential integrity. " +
-        "" + RETURN_MODE_NOTE + "" +
-        "`idempotencyKey` (optional): a unique key (a UUID) makes a RETRIED confirm safe — same key + same payload replays the first apply's summary with `replayed:true` instead of REPLAY; same key + different payload is rejected as IDEMPOTENCY_KEY_MISMATCH. Namespace-scoped, 24h TTL. DRAFT edit — publish_draft to make it live. " +
-         "`catalog` (optional) targets a CATALOG LIBRARY instead of the active subject graph — pass 'workspace' (your own library), 'shared', or a workspace id; crossing libraries needs super_admin. Confirming PUBLISHES the library live in one step (catalogs are not enterable, so no publish_draft), and `catalog` must be RE-SENT on the confirm." + " Retiring a catalog entry is this call with `catalog` set: name the ENTRY id and its steps/Materials come along in the cascade. Deleting from a catalog needs ADMIN in the destination workspace (above the approver an ordinary catalog write needs), because it publishes immediately — no draft to review, no undo_last, and other workspaces may be using the entry. The dry-run is flagged `irreversible:true`: read the cascade to the user and get an explicit yes before confirming. The confirmed response carries `recovery` naming the audit record that holds the deleted subtree in full.",
+        "Remove ONE node or MANY by id in one atomic draft edit — each with its dependent subtree (hasChild/hasPart descendants) and every edge touching a removed node. The cascade is computed over ALL the ids at once, so a child shared by two of them also vanishes. The dry-run diff shows the FULL set and WARNS with it; nothing is deleted until you confirm, so seeing the cascade IS the safety (no force flag). ALL-OR-NOTHING: a missing id, or one listed twice, blocks the batch. Referential integrity is re-checked after. " +
+        RETURN_MODE_NOTE + IDEMPOTENCY_NOTE + " DRAFT edit — publish_draft to make it live. " +
+         CATALOG_REDIRECT_NOTE + " Retiring a catalog entry is this call with `catalog` set: name the ENTRY id and its steps/Materials come along in the cascade. It needs ADMIN in the destination workspace — one tier above an ordinary catalog write — because it publishes immediately: no draft to review, no undo_last, and other workspaces may be using the entry. The dry-run carries `irreversible:true`; read the cascade to the user and get an explicit yes before confirming. The confirmed response carries `recovery`, naming the audit record that holds the deleted subtree in full.",
       inputSchema: {
         nodeIds: z.array(z.string()),
         returnMode: z.enum(["summary", "full"]).optional(),
