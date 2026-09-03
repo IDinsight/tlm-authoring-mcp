@@ -28,8 +28,14 @@ export type Proposal =
   | { kind: "missing"; nodeId: string; before: string }
   | { kind: "unplaced"; text: string; position: number };
 
-/** Strip the furniture a renderer added, so a comparison is about the words. */
-function words(text: string, markers: readonly string[]): string {
+/**
+ * Strip the furniture a renderer added, so a comparison is about the words.
+ *
+ * Public because the caller has to make the same judgement this does: a node
+ * can hold its text in more than one field, and picking the wrong one turns an
+ * expert's correction into an edit against the wrong half of the node.
+ */
+export function normalise(text: string, markers: readonly string[] = []): string {
   let out = text.trim();
   for (const marker of markers) {
     if (marker && out.startsWith(marker)) {
@@ -54,26 +60,36 @@ export type ProposeOptions = {
  * something this caller did not ask about, and inventing an edit for it would
  * reach outside the scope it was given.
  */
+/**
+ * What the DOCUMENT says for each anchor — its blocks joined, in order.
+ *
+ * A node can span several blocks (a table's lines all carry its anchor), so
+ * this join is the document's version of that node. Exported because the
+ * caller needs it BEFORE proposing, to work out which of the node's fields the
+ * text came from; `proposeEdits` uses the very same map.
+ */
+export function documentText(read: ReadDocument, markers: readonly string[] = []): Map<string, string> {
+  const inDocument = new Map<string, string[]>();
+  for (const block of read.blocks) {
+    if (!block.anchor) continue;
+    (inDocument.get(block.anchor) ?? inDocument.set(block.anchor, []).get(block.anchor)!)
+      .push(normalise(block.text, markers));
+  }
+  return new Map([...inDocument].map(([anchor, parts]) => [anchor, parts.join(" ").trim()]));
+}
+
 export function proposeEdits(
   read: ReadDocument, current: Map<string, string>, options: ProposeOptions = {},
 ): Proposal[] {
   const markers = options.markers ?? [];
   const proposals: Proposal[] = [];
 
-  // A node can span several blocks — a table's lines all carry its anchor — so
-  // the document's version of a node is its blocks joined, in order.
-  const inDocument = new Map<string, string[]>();
-  for (const block of read.blocks) {
-    if (!block.anchor) continue;
-    (inDocument.get(block.anchor) ?? inDocument.set(block.anchor, []).get(block.anchor)!)
-      .push(words(block.text, markers));
-  }
+  const inDocument = documentText(read, markers);
 
-  for (const [nodeId, parts] of inDocument) {
+  for (const [nodeId, after] of inDocument) {
     const before = current.get(nodeId);
     if (before === undefined) continue;   // not in the scope this caller asked about
-    const after = parts.join(" ").trim();
-    if (words(before, markers) !== after) {
+    if (normalise(before, markers) !== after) {
       proposals.push({ kind: "edit", nodeId, before, after });
     }
   }
@@ -92,9 +108,43 @@ export function proposeEdits(
   return proposals;
 }
 
-/** The proposals that can be applied directly, as `edit_nodes` items. */
-export function editItems(proposals: Proposal[]): { nodeId: string; content: string }[] {
+/*
+ * WHERE a node keeps the text a rendered block came from, and how to write it
+ * back. This is not decoration: on the live ci-maths graph only 21 nodes of
+ * 2019 keep their text in `content` (all of them FormatterSpecs), and every
+ * DocumentSection, Activity and Lesson keeps it in `description`. Emitting a
+ * `content` edit for one of those would not correct the node — it would add a
+ * SECOND copy of the text beside the real one, which is exactly the drift that
+ * left four catalog entries citing formatter ids that had moved on.
+ *
+ * `head`/`tail` are the rest of the field, kept verbatim. A node's description
+ * is a name line followed by a body, and correcting the banner must not take
+ * the body with it.
+ */
+export type TextSlot = {
+  field: "content" | "title";
+  head?: string;
+  tail?: string;
+};
+
+/** What a node's field becomes once the corrected text is dropped into it. */
+const written = (slot: TextSlot, after: string): string => (slot.head ?? "") + after + (slot.tail ?? "");
+
+/**
+ * The proposals that can be applied directly, as `edit_nodes` items.
+ *
+ * `slots` says which field each node's text lives in. A node with no entry
+ * falls back to `content`, which is what a Material holds.
+ */
+export function editItems(
+  proposals: Proposal[], slots: ReadonlyMap<string, TextSlot> = new Map(),
+): Array<{ nodeId: string; content: string } | { nodeId: string; title: string }> {
   return proposals
     .filter((p): p is Extract<Proposal, { kind: "edit" }> => p.kind === "edit")
-    .map((p) => ({ nodeId: p.nodeId, content: p.after }));
+    .map((p) => {
+      const slot = slots.get(p.nodeId) ?? { field: "content" as const };
+      return slot.field === "title"
+        ? { nodeId: p.nodeId, title: written(slot, p.after) }
+        : { nodeId: p.nodeId, content: written(slot, p.after) };
+    });
 }

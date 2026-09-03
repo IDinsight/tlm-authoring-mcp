@@ -33,7 +33,8 @@ import { getKgStore, kgNamespace, toAuditActor, nextAuditSeq } from "../kg-store
 import { currentActor } from "../actor.js";
 import { getStorageAdapter } from "../storage/index.js";
 import { formatterStackFor } from "../curriculum/index.js";
-import { documentSchema, renderDocx, resolveRenderSpec, splitByVariant, deriveVariant, hasVariant, measureDocx, readDocx, proposeEdits, editItems, type DocumentTree } from "../render/index.js";
+import { documentSchema, renderDocx, resolveRenderSpec, splitByVariant, deriveVariant, hasVariant, measureDocx, readDocx, proposeEdits, editItems, documentText, normalise, type DocumentTree, type TextSlot } from "../render/index.js";
+import { displayName, descriptionBody } from "../utils/index.js";
 import { translate } from "../translation/index.js";
 import { effectiveTerms, filterByText } from "./glossary-read.js";
 import { denyUnlessMember } from "./membership.js";
@@ -314,6 +315,43 @@ export function registerRenderTools(server: McpServer) {
  */
 type ProposeArgs = { relPath: string; markers?: string[] };
 
+const asText = (v: unknown): string => (typeof v === "string" ? v : "");
+
+/*
+ * Which field of a node the text on the page came from.
+ *
+ * A node can hold text in more than one place: a Material in `content`, and
+ * everything else in `description` — whose first line is the display name and
+ * whose remainder, when there is one, is the body. Reading only `content`
+ * meant a correction to a DocumentSection or a Lesson matched nothing and was
+ * dropped in silence, which is worse than refusing it.
+ *
+ * When the document's own text matches one of them exactly, that is the field
+ * the expert edited and there is nothing to infer. Otherwise the first
+ * candidate wins — content, else the body, else the name line — because that
+ * is the order in which a node's text is load-bearing.
+ */
+function resolveTextField(
+  props: Record<string, unknown> | undefined, inDocument: string | undefined, markers: readonly string[],
+): { text: string; slot: TextSlot } | null {
+  const content = asText(props?.content);
+  const description = asText(props?.description);
+  const name = displayName(description);
+  const body = descriptionBody(description);
+
+  const candidates: Array<{ text: string; slot: TextSlot }> = [];
+  if (content) candidates.push({ text: content, slot: { field: "content" } });
+  if (body) candidates.push({ text: body, slot: { field: "title", head: `${name}\n\n` } });
+  if (name) candidates.push({ text: name, slot: { field: "title", tail: body ? `\n\n${body}` : "" } });
+
+  if (candidates.length === 0) return null;
+  if (inDocument !== undefined) {
+    const untouched = candidates.find((c) => normalise(c.text, markers) === inDocument);
+    if (untouched) return untouched;
+  }
+  return candidates[0];
+}
+
 export async function proposeFromDocument(a: ProposeArgs): Promise<Record<string, unknown>> {
   const adapter = getActiveAdapter();
   const ns = kgNamespace(activeWorkspace(), adapter.grade, adapter.subject);
@@ -344,15 +382,22 @@ export async function proposeFromDocument(a: ProposeArgs): Promise<Record<string
   // never made.
   const model = adapter.model();
   const raw = model.rawGraph;
+  const markers = a.markers ?? ["\u2022"];
+  const inDocument = documentText(read, markers);
+
   const current = new Map<string, string>();
+  const slots = new Map<string, TextSlot>();
   for (const nodeId of read.anchors) {
     const node = raw?.nodes.find((n) => n.id === nodeId);
-    const content = (node?.properties as Record<string, unknown> | undefined)?.content;
-    if (typeof content === "string") current.set(nodeId, content);
+    if (!node) continue;
+    const chosen = resolveTextField(node.properties as Record<string, unknown>, inDocument.get(nodeId), markers);
+    if (!chosen) continue;
+    current.set(nodeId, chosen.text);
+    slots.set(nodeId, chosen.slot);
   }
 
-  const proposals = proposeEdits(read, current, { markers: a.markers ?? ["•"] });
-  const edits = editItems(proposals);
+  const proposals = proposeEdits(read, current, { markers });
+  const edits = editItems(proposals, slots);
   const missing = proposals.filter((p) => p.kind === "missing");
   const unplaced = proposals.filter((p) => p.kind === "unplaced");
 
