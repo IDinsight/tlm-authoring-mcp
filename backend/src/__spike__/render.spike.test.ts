@@ -22,9 +22,9 @@ import { describe, it, expect } from "vitest";
 import { readFileSync, writeFileSync, existsSync } from "node:fs";
 import { join } from "node:path";
 import { renderSpecSchema } from "../kg-recipes/index.js";
-import { renderDocx } from "./renderer.js";
+import { renderDocx } from "../render/index.js";
 import { readGolden, type GoldenMaps } from "./golden.js";
-import { unzip } from "./zip.js";
+import { unzip } from "../render/index.js";
 
 const GOLDEN_DIR = process.env.GOLDEN_DIR ?? "";
 const GOLDEN = GOLDEN_DIR ? join(GOLDEN_DIR, "Guide-Lecon-1-ensembles-FR.docx") : "";

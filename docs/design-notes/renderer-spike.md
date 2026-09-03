@@ -1,8 +1,8 @@
 # The renderer spike — can a document be produced in this runtime?
 
-**Status:** Live (spike, `backend/src/__spike__/`). It reproduces one sheet and is not a renderer:
-no `generate_document` tool, no bucket, no translation, no page counting. WP4 proper is still to
-build.
+**Status:** Live. The renderer and its contract are in **`backend/src/render/`**; the golden-file
+comparisons that proved them stay in `backend/src/__spike__/`. Still missing before WP4 is done: a
+`generate_document` tool, the bucket and history wiring, translation, and page counting.
 
 ## Why a spike rather than a decision
 
@@ -150,6 +150,36 @@ seven distinct heights and five of them are square, so nothing about the picture
 4.99 cm answer and which a 0.46 cm sign. `images.maxHeightCm` holds both; the second just needs a
 longer list of role names. Same key, no new shape — but a renderer that tried to *derive* the role
 would be right on one document type and wrong on the other.
+
+## Who composes the page
+
+The renderer needs a block tree — this table, then this line, then this picture — and it does not
+build one. **The authoring model does.**
+
+That is not a shortcut. Structure is authored per section, and on the live CI-maths graph it is 2-8
+KB of French guidance per lesson: which banner, in what order, where the page turns. It is not in
+the graph as data and putting it there would mean describing one document type in a schema. So the
+model reads the section and composes the tree; `render/document.ts` is the contract it composes to,
+and it is **strict** — an unknown key is refused at authoring time rather than dropped silently at
+render time.
+
+The line between the two halves is enforced by omission: there is no colour, no point size and no
+centimetre anywhere in the tree. A block names a `style`, a picture names a `role`, and the
+formatter says what those look like. A model that wanted to set a colour would have nowhere to put
+it. Page breaks work the same way — the tree says WHERE a page starts, `pagination.pageBreakCarrier`
+says HOW the break is written.
+
+**This changed a documented invariant.** `CLAUDE.md` said the server "never renders a `.docx`
+itself", which was true and was also why document production lived on one laptop. It renders now,
+and still decides nothing about what a page contains.
+
+### Merging the stack
+
+A section has formatters, not a spec: the TLM's document-wide stack plus its own, each FormatterSpec
+carrying a `render` bag beside its prose. `resolveRenderSpec` merges them, nearest wins, **deeply** —
+a section overriding one margin must not silently drop the page size, because the resulting Letter
+sheet is 1.8 cm short per page and this project has already shipped one production run that way. A
+stack that merges into something invalid is refused where the formatter can be named.
 
 ## Not attempted
 

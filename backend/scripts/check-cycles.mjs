@@ -38,6 +38,7 @@ const LAYERS = {
   "__spike__": 3,
   adapters: 2,
   storage: 1, curriculum: 1, "kg-store": 1, "kg-recipes": 1, workspaces: 1, identity: 1, translation: 1, glossary: 1,
+  render: 1,
   config: 0, "config.ts": 0, types: 0, "types.ts": 0, context: 0, utils: 0, "actor.ts": 0, "authz.ts": 0,
 };
 

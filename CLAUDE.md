@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What this is
 
-A remote **MCP server** ("Senegal Maths — TLM") that helps experts author teaching materials (pupil manuals + lesson sheets) from a curriculum knowledge graph. It exposes MCP tools, not a UI. The graph lives in Firestore as the raw *Learning Commons* (LC) ontology; generated `.docx` files + their history live in Firebase Storage; auth is Supabase JWT. Work is always scoped to an active `(workspace, grade, subject)` via `set_context` — the **workspace** is the tenant that owns a set of graphs (the two current graphs are the `senegal` workspace) and is the first segment of every namespace/storage key; roles are **per workspace** (see `docs/design-notes/workspaces.md`). Document generation is LLM-driven — the server provides curriculum context, prompts, signed upload URLs, and history; it never renders a `.docx` itself.
+A remote **MCP server** ("Senegal Maths — TLM") that helps experts author teaching materials (pupil manuals + lesson sheets) from a curriculum knowledge graph. It exposes MCP tools, not a UI. The graph lives in Firestore as the raw *Learning Commons* (LC) ontology; generated `.docx` files + their history live in Firebase Storage; auth is Supabase JWT. Work is always scoped to an active `(workspace, grade, subject)` via `set_context` — the **workspace** is the tenant that owns a set of graphs (the two current graphs are the `senegal` workspace) and is the first segment of every namespace/storage key; roles are **per workspace** (see `docs/design-notes/workspaces.md`). Document generation is LLM-driven — the model composes the words AND the page's structure; the server supplies curriculum context, the formatter's geometry, signed upload URLs, and history. It **lays out** the resulting block tree into a `.docx` (`render/`, WP4) but never decides what is on the page. That split replaced an earlier rule that the server rendered nothing at all, which had put document production on one person's laptop — see `docs/design-notes/renderer-spike.md`.
 
 ## Communicating with the user
 
@@ -38,7 +38,7 @@ Tests use `vitest` and never touch real Firebase/Firestore: a **memory KG store*
 ```
 app       server/* · index.ts · http.ts · activate.ts
 adapters  adapters/*                          — one behavior module per subject
-services  storage/* · curriculum/* · generation/* · kg-store/* · kg-recipes/*   — never import adapters
+services  storage/* · curriculum/* · render/* · kg-store/* · kg-recipes/*   — never import adapters
 core      config.ts · types.ts · context/{state,shared} · utils/*   — leaves
 ```
 

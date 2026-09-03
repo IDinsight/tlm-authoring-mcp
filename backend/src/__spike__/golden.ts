@@ -12,8 +12,8 @@
  * block may be another table. It doubles as a sketch of WP6a (reading a
  * corrected document back in), which is this problem pointed the other way.
  */
-import { unzip } from "./zip.js";
-import type { Block, Cell, DocumentModel, Run } from "./renderer.js";
+import { unzip } from "../render/index.js";
+import type { Block, Cell, DocumentTree, Run } from "../render/index.js";
 
 const EMU_PER_CM = 360000;
 
@@ -131,7 +131,7 @@ export type GoldenMaps = {
   styleOfSize?: Record<string, string>;
 };
 
-export function readGolden(bytes: Buffer, maps: GoldenMaps): DocumentModel {
+export function readGolden(bytes: Buffer, maps: GoldenMaps): DocumentTree {
   const parts = unzip(bytes);
   const doc = parts.get("word/document.xml")!.toString("utf8");
   const body = /<w:body>([\s\S]*)<\/w:body>/.exec(doc)![1];
@@ -142,7 +142,7 @@ export function readGolden(bytes: Buffer, maps: GoldenMaps): DocumentModel {
     targetOfRel.set(m[1], m[2]);
   }
 
-  const media: DocumentModel["media"] = [];
+  const media: DocumentTree["media"] = [];
   const seen = new Set<string>();
 
   function collect(name: string) {

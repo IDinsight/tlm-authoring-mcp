@@ -1,27 +1,29 @@
 /*
- * WP4 spike: a .docx renderer driven entirely by `properties.render`.
+ * A .docx renderer: a block tree in, a Word file out, everything about how it
+ * LOOKS read from `properties.render`.
  *
- * The question it was built to answer was narrow — can this runtime produce the
- * documents the project already ships? It can: it reproduces the CI-maths
- * teacher sheet. Aiming the same code at the pupil tool then answered a second
- * and more important question, NO, and said exactly where: the render spec
- * generalised across the two document types, and the CONTENT MODEL did not.
- * Every picture on a pupil page lives in a table cell, and a cell here used to
- * hold a string.
- *
- * This is that model rebuilt. The change that matters is one idea:
+ * It reproduces both live document types from the same code — the CI-maths
+ * teacher sheet (banners, floated pictures, an exact leading rule) and the
+ * pupil tool (nested picture grids, three type sizes, a free-standing page
+ * break). Getting there took one correction worth keeping in view:
  *
  *   A BANNER AND AN IMAGE GRID ARE THE SAME THING — a table whose cells hold
  *   blocks. Blocks nest; a cell is not a string.
  *
+ * The first version made a cell a string, which fitted the teacher sheet and
+ * dropped all 42 of the pupil tool's pictures.
+ *
  * The rule to keep watching: NOTHING here knows what a maths lesson looks like.
  * It knows tables, lines, runs, pictures and spacers. Which banner is
  * turquoise, how tall a band may stand, which colour marks French, where a page
- * break is carried — every one of those is read out of the RenderSpec. A
+ * break is carried — every one is read out of the RenderSpec. A
  * `if (subject === …)` anywhere below would mean the abstraction failed,
  * whatever the output looked like.
+ *
+ * See docs/design-notes/renderer-spike.md.
  */
 import type { RenderSpec } from "../kg-recipes/index.js";
+import type { Block, Cell, DocumentTree, ImageRun, Run } from "./document.js";
 import { zip, type ZipEntry } from "./zip.js";
 
 const TWIPS_PER_CM = 566.929;
@@ -41,47 +43,20 @@ const PAGE_CM: Record<string, { w: number; h: number }> = {
 const esc = (s: string) =>
   s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 
-// ── The document model ──────────────────────────────────────────────────────
+// ── What this renders ───────────────────────────────────────────────────────
 //
-// What the authoring layer hands the renderer: finished lines, already written
-// and already tightened. The renderer does not compose text, choose wording or
-// decide what a section contains — on this project that is the authoring
-// model's job, and the golden sheets prove it: their [N] lines were rewritten
-// by hand from the source guide's.
+// The block tree, defined and validated in `document.ts` — finished lines,
+// already written and already tightened. The renderer does not compose text,
+// choose wording or decide what a section contains: on this project that is the
+// authoring model's job, and the golden sheets prove it, because their [N]
+// lines were rewritten by hand from the source guide's.
 //
-// `style` names an entry in spec.blocks. It is the ONLY channel through which
-// appearance reaches the page, which is what keeps this file subject-agnostic:
-// the model says "this is a phaseBanner", the spec says what one looks like.
+// A block names a `style` and a picture names a `role`. That is the ONLY
+// channel through which appearance reaches the page, and it is what keeps this
+// file subject-agnostic: the tree says "this is a phaseBanner", the spec says
+// what one looks like.
 
-export type ImageRun = {
-  media: string;          // file name inside word/media/
-  role: string;           // looked up in spec.images.maxHeightCm
-  aspectRatio: number;    // natural width / height
-  // WHETHER a picture floats beside the text is a per-section choice — real
-  // sheets embed some and set others in the run of the line. WHERE a floated
-  // one goes is the formatter's (spec.images.placement).
-  float?: boolean;
-};
 
-export type Run = { text: string; style?: string } | { image: ImageRun };
-
-export type Cell = {
-  blocks: Block[];        // a cell holds BLOCKS, not a string
-  style?: string;
-  span?: number;          // columns this cell covers
-};
-
-export type Block =
-  | { kind: "table"; rows: Cell[][]; style?: string; columnsCm?: number[]; pageBreak?: "before" }
-  | { kind: "line"; runs: Run[]; variant?: string; style?: string; pageBreak?: "before" }
-  // Furniture between blocks. Its two numbers live in the MODEL rather than the
-  // spec because the spec has no key for them — a finding, not a design choice.
-  | { kind: "spacer"; sizePt: number; leadingPt: number };
-
-export type DocumentModel = {
-  blocks: Block[];
-  media: { name: string; data: Buffer }[];
-};
 
 // ── Geometry, resolved from the spec ────────────────────────────────────────
 
@@ -262,7 +237,8 @@ function lineXml(
   }).join("");
 
   const keep = style.keepWithNext ? "<w:keepNext/>" : "";
-  return `<w:p><w:pPr>${takeBreakForPPr(ctx)}${keep}${spacingXml(leading, rule)}</w:pPr>${marker}${runs}</w:p>`;
+  const props = `${takeBreakForPPr(ctx)}${keep}${spacingXml(leading, rule)}`;
+  return `<w:p>${props ? `<w:pPr>${props}</w:pPr>` : ""}${marker}${runs}</w:p>`;
 }
 
 /*
@@ -357,7 +333,7 @@ function sectPrXml(spec: RenderSpec): string {
   );
 }
 
-export function renderDocx(model: DocumentModel, spec: RenderSpec): Buffer {
+export function renderDocx(model: DocumentTree, spec: RenderSpec): Buffer {
   // Images get a relationship each; ids continue past the styles part.
   const rels: string[] = [
     `<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/>`,

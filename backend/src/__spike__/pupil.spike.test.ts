@@ -30,9 +30,9 @@ import { describe, it, expect } from "vitest";
 import { readFileSync, existsSync } from "node:fs";
 import { join } from "node:path";
 import { renderSpecSchema } from "../kg-recipes/index.js";
-import { renderDocx } from "./renderer.js";
+import { renderDocx } from "../render/index.js";
 import { readGolden, type GoldenMaps } from "./golden.js";
-import { unzip } from "./zip.js";
+import { unzip } from "../render/index.js";
 
 const PUPIL_DIR = process.env.PUPIL_DIR ?? "";
 const PUPIL = PUPIL_DIR ? join(PUPIL_DIR, "V2-Lecon-1-ensembles-FR.docx") : "";
