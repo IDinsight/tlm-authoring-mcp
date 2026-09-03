@@ -266,3 +266,45 @@ describe("reading durations in the spellings the live data uses", () => {
     expect(minutesFromTitle("Manuel de l'élève — structure d'un chapitre")).toBeNull();
   });
 });
+
+// ── The FLAT step shape ──────────────────────────────────────────────────────
+// An entry authored with add_nodes and filed with add_to_catalog holds its steps
+// as direct `Material` children rather than child routines. Both shapes are live.
+// Reading only the nested one would silently check nothing on the flat entries —
+// and the rules would look like they had passed.
+
+describe("entries whose steps are flat Materials", () => {
+  const material = (id: string, raw: Record<string, unknown>) => node(id, raw, ["Material"]);
+
+  it("checks a flat routine's durations like a nested one's", () => {
+    const flat = catalog([{
+      entry: node("flat", { description: "Séance d'intégration (30 min)" }),
+      steps: [
+        material("f1", { description: "Révision", position: 1, timeRequired: "PT10M" }),
+        material("f2", { description: "Intégration", position: 2, timeRequired: "PT25M" }),
+      ],
+    }]);
+    const [finding] = lintContent({ graph: flat });
+
+    expect(finding.rule).toBe("routine-duration-mismatch");
+    expect(finding.message).toContain("35");
+  });
+
+  it("catches untimed flat steps too", () => {
+    const flat = catalog([{
+      entry: node("flat", { description: "Fiche — 30 min" }),
+      steps: [material("f1", { description: "Une étape" })],
+    }]);
+    expect(rulesOf(lintContent({ graph: flat }))).toContain("routine-step-untimed");
+  });
+
+  it("does NOT mistake a formatter's spec Materials for steps", () => {
+    // A formatter's direct Materials are its specification. Treating them as
+    // steps would invent a duration requirement no formatter has.
+    const formatter = catalog([{
+      entry: node("fmt", { description: "Style maison (30 min de lecture)", metadata: { catalogKind: "formatter" } }),
+      steps: [material("spec", { description: "La spec", content: "…" })],
+    }]);
+    expect(lintContent({ graph: formatter })).toEqual([]);
+  });
+});

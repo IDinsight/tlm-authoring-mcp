@@ -129,7 +129,42 @@ function childrenOf(graph: MutationGraph, parentId: string): MutationNode[] {
     .filter((node): node is MutationNode => node !== undefined);
 }
 
+const MATERIAL_LABEL = "Material";
 const isRoutine = (node: MutationNode): boolean => (node.labels ?? []).includes(ROUTINE_LABEL);
+const isMaterial = (node: MutationNode): boolean => (node.labels ?? []).includes(MATERIAL_LABEL);
+
+/**
+ * An entry's kind, as the catalog tags it. Untagged means routine — the original
+ * kind, and how the seeded shared library reads.
+ */
+function kindOf(entry: MutationNode): string {
+  const meta = metaOf(entry);
+  const tagged = str(meta.catalogKind) || str(meta.role);
+  return tagged === "formatter" || tagged === "rubric" ? tagged : "routine";
+}
+
+/**
+ * An entry's STEPS, in either shape the catalog actually holds.
+ *
+ * A step is normally a child InstructionalRoutine with its text in a Material
+ * grandchild. But an entry authored with add_nodes and filed with add_to_catalog
+ * is FLAT: its steps are direct `Material` children carrying their own name,
+ * order and timing. Both shapes are live, and reading only the nested one would
+ * silently check nothing on the flat entries — the rules would look like they
+ * passed.
+ *
+ * A formatter's direct Materials are its SPEC, not steps, and a rubric's are its
+ * criteria; only a routine's flat children are steps. That is the same line
+ * `describeEntry` draws when it renders the catalog.
+ */
+function stepsOf(graph: MutationGraph, entry: MutationNode): MutationNode[] {
+  const children = childrenOf(graph, entry.id);
+  const nested = children.filter(isRoutine);
+  if (nested.length > 0) {
+    return nested;
+  }
+  return kindOf(entry) === "routine" ? children.filter(isMaterial) : [];
+}
 
 /*
  * A routine ENTRY, as opposed to the library root or an individual step.
@@ -159,7 +194,7 @@ const durationMismatch: ContentRule = {
         continue;
       }
       const total = declaredMinutes(entry);
-      const steps = childrenOf(graph, entry.id).filter(isRoutine);
+      const steps = stepsOf(graph, entry);
       if (total === null || steps.length === 0) {
         continue;
       }
@@ -206,7 +241,7 @@ const stepUntimed: ContentRule = {
         continue;
       }
 
-      const steps = childrenOf(graph, entry.id).filter(isRoutine);
+      const steps = stepsOf(graph, entry);
       const untimed = steps.filter((step) => minutesFromIso(rawOf(step).timeRequired) === null);
       if (untimed.length === 0) {
         continue;

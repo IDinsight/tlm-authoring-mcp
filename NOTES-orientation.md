@@ -233,7 +233,7 @@ Measured against the live `senegal` catalog and the repo, on 2026-09-03.
 | `get_capabilities` ≈ 8,000 tokens | ✅ measured **7,181** on the fixture |
 | Annexe 7 weights sum to 80% | ⚠ arithmetic ✅ (20+15+10+15+10+10), but **not a defect** — Karimou confirms sections were deliberately removed pending human review. See §10 |
 | "enseignement explicite (30 min)" steps sum to 35 min | ✅ declared 30, steps sum 35 |
-| `timeRequired` missing on 10 of 21 routines | ⚠ **11 of 16 routines** have ≥1 step with no `timeRequired`; 8 of 16 have it on *no* step (26 entries total, 16 of them routines). And the roadmap's "several with the duration in the step *name*" is wrong: **zero** step names carry one. Only the entry TOTAL is in the name (`… — 30 min`), so the gap is not mechanically recoverable |
+| `timeRequired` missing on 10 of 21 routines | ⚠ the count is **11 of 16 routines** (26 entries total, 16 of them routines) — but the roadmap's "several with the duration in the step *name*" is **CORRECT, and an earlier version of this report wrongly denied it**. See §11 |
 | CGP remediation points at a non-existent id; the real one is `edf2c696-…` | ✅ — and there were **seven dangling references across four entries**, not one (fixed: see §10). The entry's summary cites `3e43c5d3-…` (should be `edf2c696-db65-4d14-a19d-8c43fc674061`), `b3f4d5bc-…` and `6931f41c-…` (probably `6313dea1-…`, "Je fais / Nous faisons / Tu fais"). All three are written as **truncated prefixes with an ellipsis**, so WP5's "every referenced id must resolve" rule has to match prefixes, not whole UUIDs |
 | Both scopes named `…/_catalog/routines` | ✅ `_shared/_catalog/routines` and `senegal/_catalog/routines` |
 | Annexe 7 shared / Annexe 8 workspace | ✅ |
@@ -323,3 +323,40 @@ Verified after publishing: dangling references 7 → 2, exactly those four entri
 3. **The rule should distinguish a wrong id from a missing entry.** Five of these seven were typos
    with an obvious fix; two are content that does not exist. The same finding, with very different
    work behind it.
+
+---
+
+## 11. Correction (2026-09-03) — step durations ARE in the names
+
+An earlier version of §7 and §10 said the roadmap was wrong to claim that "several [routines] carry
+the duration in the step *name*", and that **zero** step names carried one, so the ~45 missing
+`timeRequired` values could not be recovered mechanically. **That was wrong, and it was wrong because
+of how it was measured.**
+
+The live catalog writes step durations in the **apostrophe form** — `Situation d'intégration (20')`,
+`Bilan de la remédiation (10')` — which is exactly the form the roadmap quoted (`Révision (5')`). The
+scan behind the original claim matched only `min` / `mn` / `minutes`, so it found nothing and the
+absence was reported as a finding.
+
+Measured properly across the 16 live routines:
+
+| | steps |
+|---|---:|
+| routine steps in total | 73 |
+| carry the `timeRequired` field | 23 |
+| carry a duration in the step NAME, as `(5')` | 25 |
+| carry a duration in the step name as "5 min" | 0 |
+
+Of the 50 steps with no `timeRequired`, **7 name their duration and could be lifted across
+mechanically** — in `Séance d'intégration` (3 of 3) and `Séance de remédiation d'intégration` (4 of
+4), where every untimed step names its own duration. The rest genuinely have to be authored.
+
+So the roadmap's WP8 defect 3 stands as written, and this report's correction of it does not. Two
+lessons worth keeping, since both cost something here:
+
+1. **A negative result from a regex is a claim about the regex, not about the data.** "Zero matches"
+   should have prompted a look at the raw strings before it was reported as a finding — the more so
+   because it contradicted a roadmap written by someone who had read the data.
+2. This surfaced only when `lint_content` was run against the live catalog and its findings quoted
+   the step names verbatim. Running a checker over real data reads the data in a way a targeted
+   query does not.
