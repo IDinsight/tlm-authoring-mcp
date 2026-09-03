@@ -51,6 +51,11 @@ export type HistoryEntry = {
   source: "pipeline" | "parsed";
   recordedAt: string;
   content: DocumentContent;
+  // The curriculum nodes this file was made from, with their content AT THE
+  // TIME — how a document can later be told to be out of date. Absent on
+  // anything produced before this was recorded, and absence means UNKNOWN
+  // rather than current (see render/sources.ts).
+  sources?: { nodeId: string; hash: string }[];
 };
 
 // Bumped to 3 for the node-keyed schema. A pre-node-keyed (v2) history can't be

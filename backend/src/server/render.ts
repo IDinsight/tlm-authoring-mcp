@@ -33,7 +33,7 @@ import { getKgStore, kgNamespace, toAuditActor, nextAuditSeq } from "../kg-store
 import { currentActor } from "../actor.js";
 import { getStorageAdapter } from "../storage/index.js";
 import { formatterStackFor } from "../curriculum/index.js";
-import { documentSchema, renderDocx, resolveRenderSpec, splitByVariant, deriveVariant, hasVariant, measureDocx, type DocumentTree } from "../render/index.js";
+import { documentSchema, renderDocx, resolveRenderSpec, splitByVariant, deriveVariant, hasVariant, measureDocx, readDocx, proposeEdits, editItems, type DocumentTree } from "../render/index.js";
 import { translate } from "../translation/index.js";
 import { effectiveTerms, filterByText } from "./glossary-read.js";
 import { denyUnlessMember } from "./membership.js";
@@ -264,4 +264,109 @@ export function registerRenderTools(server: McpServer) {
     },
     guarded(async (a: RenderArgs) => asJson(await renderDocument(a))),
   );
+
+  server.registerTool(
+    "propose_from_document",
+    {
+      title: "Read a corrected document back into proposed edits",
+      description:
+        "An expert opened a sheet, fixed some wording and sent it back: this works out what that means for the curriculum. `relPath` is the corrected .docx IN THE BUCKET. It returns `proposals` and, for the ones that can simply be applied, `editItems` in the exact shape `edit_nodes` takes. " +
+        "IT PROPOSES AND NEVER WRITES. Applying goes through edit_nodes like any other change, so the diff is seen and confirmed first. " +
+        "Three outcomes, and the difference matters: an EDIT (same node, different words) is unambiguous; MISSING (the graph has it, the document no longer does) is reported and NOT deleted, because a deliberate cut and a slip while editing look identical in a Word file; UNPLACED (text belonging to no node) is reported without a parent, because guessing one from position is how a sentence ends up under the wrong lesson. " +
+        "It works by reading the node ids render_document wrote into the file. A document produced any other way comes back `anchored:false` with its text but no matches — that is the honest answer, not a failure. Comparison ignores the bullet the formatter adds and whitespace Word normalised. Reads the graph; curators and approvers only.",
+      inputSchema: {
+        relPath: z.string(),
+        markers: z.array(z.string()).optional(),
+      },
+    },
+    guarded(async (a: ProposeArgs) => asJson(await proposeFromDocument(a))),
+  );
+}
+
+
+// ── propose_from_document ────────────────────────────────────────────────────
+
+/*
+ * A corrected sheet in, proposed graph edits out.
+ *
+ * The expert's half of the loop. They open a document, fix a sentence and send
+ * it back; this works out what that means for the curriculum and STOPS. It
+ * proposes; it never writes. Every proposal goes through the same two-phase
+ * edit as any other change, so a person sees the diff and confirms it — a tool
+ * that read a Word file and silently rewrote the curriculum would be the most
+ * dangerous thing in this codebase.
+ *
+ * It works because the renderer put the node ids IN the file. On sheets from
+ * the old pipeline nothing tied a line to a node, and matching meant guessing
+ * from position and wording; an unanchored document still reads here, it just
+ * cannot say where anything belongs, which is the honest answer rather than a
+ * confident wrong one.
+ */
+type ProposeArgs = { relPath: string; markers?: string[] };
+
+export async function proposeFromDocument(a: ProposeArgs): Promise<Record<string, unknown>> {
+  const adapter = getActiveAdapter();
+  const ns = kgNamespace(activeWorkspace(), adapter.grade, adapter.subject);
+
+  const denied = await denyIfNotDraftReader(ns);
+  if (denied) return denied;
+
+  let bytes: Buffer;
+  try {
+    bytes = await getStorageAdapter().downloadDocx(a.relPath);
+  } catch (error) {
+    return { error: `Could not read '${a.relPath}' from the bucket: ${(error as Error).message}` };
+  }
+
+  const read = readDocx(bytes);
+  if (read.anchors.length === 0) {
+    return {
+      relPath: a.relPath,
+      anchored: false,
+      blocks: read.blocks.length,
+      message:
+        "This document carries no node ids, so nothing in it can be matched back to the curriculum — it was not produced by render_document, or it was rebuilt from scratch. Its text reads fine; what cannot be said is which node any line belongs to. Re-render it through render_document and correct THAT copy, and the round trip works.",
+    };
+  }
+
+  // Published, not draft: a correction is judged against what the curriculum
+  // currently SAYS, and a half-finished draft would report edits the expert
+  // never made.
+  const model = adapter.model();
+  const raw = model.rawGraph;
+  const current = new Map<string, string>();
+  for (const nodeId of read.anchors) {
+    const node = raw?.nodes.find((n) => n.id === nodeId);
+    const content = (node?.properties as Record<string, unknown> | undefined)?.content;
+    if (typeof content === "string") current.set(nodeId, content);
+  }
+
+  const proposals = proposeEdits(read, current, { markers: a.markers ?? ["•"] });
+  const edits = editItems(proposals);
+  const missing = proposals.filter((p) => p.kind === "missing");
+  const unplaced = proposals.filter((p) => p.kind === "unplaced");
+
+  return {
+    relPath: a.relPath,
+    anchored: true,
+    blocks: read.blocks.length,
+    matched: current.size,
+    // Anchors the document carries that this subject's graph does not hold —
+    // usually a document read against the wrong context.
+    unknownAnchors: read.anchors.filter((id) => !current.has(id)),
+    proposals,
+    editItems: edits,
+    counts: { edits: edits.length, missing: missing.length, unplaced: unplaced.length },
+    nextSteps: [
+      edits.length
+        ? `Apply the ${edits.length} edit(s): edit_nodes with \`items\` set to \`editItems\` — it stages a draft, so you see the diff before anything is live.`
+        : "Nothing to apply: no anchored line differs from the graph.",
+      ...(missing.length
+        ? [`${missing.length} line(s) the graph has and this document no longer does. A deliberate cut and an editing slip look the same in a Word file, so they are reported, not deleted — read them and decide.`]
+        : []),
+      ...(unplaced.length
+        ? [`${unplaced.length} block(s) of text belong to no node. Where new material goes cannot be read off its position; add_nodes it where it belongs.`]
+        : []),
+    ],
+  };
 }

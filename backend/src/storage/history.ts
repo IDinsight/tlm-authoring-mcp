@@ -131,6 +131,7 @@ export async function recordContent(
     documentId?: string;
     variant?: string;
     replace?: boolean;
+    sources?: { nodeId: string; hash: string }[];
   },
 ) {
   if (!input.replace) {
@@ -151,6 +152,7 @@ export async function recordContent(
     // Only carried when the caller knows them; a migrated entry has neither.
     ...(input.documentId !== undefined ? { documentId: input.documentId } : {}),
     ...(input.variant !== undefined ? { variant: input.variant } : {}),
+    ...(input.sources?.length ? { sources: input.sources } : {}),
   };
   await histUpsert(entry);
   return entry;

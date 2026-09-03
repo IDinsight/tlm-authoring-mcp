@@ -14,6 +14,7 @@ import { getActiveAdapter } from "../adapters/index.js";
 import { activeWorkspace } from "../context/index.js";
 import { kgNamespace } from "../kg-store/index.js";
 import { getStorageAdapter, extractDocxText, listEntries, recordContent, reconcile } from "../storage/index.js";
+import { readDocx, sourcesFrom, staleness, type DocumentSource } from "../render/index.js";
 import type { HistoryEntry } from "../types.js";
 import { WORKSPACE_ROLE_NOTE } from "./tool-notes.js";
 import { DETAIL_LEVELS, DEFAULT_DETAIL, takeWithinBudget, trimmedBySizeHint, type DetailLevel } from "../utils/index.js";
@@ -273,6 +274,102 @@ export function pageDocumentText(relPath: string, full: string, offset?: number,
   return { relPath, offset: start, returned: text.length, total, nextOffset: end < total ? end : null, text };
 }
 
+
+/*
+ * What the uploaded document was made from, read out of the document itself.
+ *
+ * The server opens the object and takes the node ids the renderer wrote into
+ * it, rather than believing a list the caller supplies — a caller that got its
+ * own sources wrong would produce a document that reports itself current
+ * forever. Nothing to declare, nothing to get wrong.
+ *
+ * A file produced any other way carries no anchors and gets no sources, which
+ * later reads as "cannot tell" rather than "up to date".
+ */
+async function sourcesOf(relPath: string): Promise<DocumentSource[]> {
+  let bytes: Buffer;
+  try {
+    bytes = await getStorageAdapter().downloadDocx(relPath);
+  } catch {
+    return [];   // unreadable is not a reason to refuse the record
+  }
+  const anchors = readDocx(bytes).anchors;
+  if (anchors.length === 0) return [];
+
+  const raw = getActiveAdapter().model().rawGraph;
+  const current = new Map<string, string>();
+  for (const nodeId of anchors) {
+    const node = raw?.nodes.find((n) => n.id === nodeId);
+    const content = (node?.properties as Record<string, unknown> | undefined)?.content;
+    if (typeof content === "string") current.set(nodeId, content);
+  }
+  return sourcesFrom(anchors, current);
+}
+
+
+// ── check_stale ──────────────────────────────────────────────────────────────
+
+/*
+ * Which produced documents no longer match the curriculum.
+ *
+ * The gap this closes: the bucket holds sheets that quote wording the graph has
+ * since moved past, and nothing distinguishes them from current ones. A real
+ * instance sits in this very namespace — a record describing its guides as two
+ * pages each, written before they were tightened to one.
+ *
+ * Read-only, and it changes nothing: it says WHAT is out of date and WHY, and
+ * regenerating is a separate, deliberate act.
+ */
+export async function checkStale(filter?: { nodeId?: string }): Promise<Record<string, unknown>> {
+  const adapter = getActiveAdapter();
+  const denied = await denyUnlessMember("readDocuments", kgNamespace(activeWorkspace(), adapter.grade, adapter.subject));
+  if (denied) return denied;
+
+  const raw = adapter.model().rawGraph;
+  const contentOf = new Map<string, string>();
+  for (const node of raw?.nodes ?? []) {
+    const content = (node.properties as Record<string, unknown> | undefined)?.content;
+    if (typeof content === "string") contentOf.set(node.id, content);
+  }
+
+  const entries = (await listEntries()).filter((e) => !filter?.nodeId || e.nodeId === filter.nodeId);
+  const stale: Record<string, unknown>[] = [];
+  const unknown: string[] = [];
+  let current = 0;
+
+  for (const entry of entries) {
+    const state = staleness(entry.sources, contentOf);
+    if (state.state === "current") { current += 1; continue; }
+    if (state.state === "unknown") { unknown.push(entry.relPath); continue; }
+    stale.push({
+      relPath: entry.relPath,
+      nodeId: entry.nodeId,
+      variant: entry.variant ?? null,
+      updated: entry.updated,
+      changed: state.changed,
+      removed: state.removed,
+      checkedNodes: state.checked,
+    });
+  }
+
+  return {
+    counts: { stale: stale.length, current, unknown: unknown.length, total: entries.length },
+    stale,
+    // Listed, not hidden, and never counted as current: these predate sources
+    // being recorded, or were not produced through render_document.
+    unknown: unknown.slice(0, 50),
+    unknownTruncated: unknown.length > 50 ? unknown.length - 50 : 0,
+    nextSteps: [
+      stale.length
+        ? `${stale.length} document(s) quote curriculum that has changed since. Re-render each with render_document, then log_generation it — that records fresh sources and clears the flag.`
+        : "No document is known to be out of date.",
+      ...(unknown.length
+        ? [`${unknown.length} document(s) cannot be checked: they do not record what they were made from. That is NOT the same as being current. Regenerating one through render_document makes it answerable.`]
+        : []),
+    ],
+  };
+}
+
 export function registerDocumentTools(server: McpServer) {
   server.registerTool("reconcile", { title: "Reconcile bucket with history", description: "List the .docx documents in Firebase Storage and diff against history BY relPath: tracked docs (present + unchanged), UNTRACKED docs needing a link ('new' = no history entry, 'changed' = bytes differ from the recorded entry), and entries dropped because their object is gone. It no longer classifies filenames — link each untracked doc to the node it covers with record_document_content(nodeId, relPath, content). Link each untracked doc to the node it covers with record_document_content — several files may cover the same node, so the whole list can be walked. `dropped` lists the relPath of each entry whose object is gone. " + WORKSPACE_ROLE_NOTE + "", inputSchema: {} },
     guarded(async () => (await denyNonMember("readDocuments")) ?? asJson(await reconcile())));
@@ -310,12 +407,24 @@ export function registerDocumentTools(server: McpServer) {
       };
     }));
 
+  server.registerTool(
+    "check_stale",
+    {
+      title: "Which produced documents no longer match the curriculum",
+      description:
+        "Report which .docx in the bucket quote curriculum that has CHANGED since they were made. Each document records the nodes it drew from and their wording at the time (read out of the file's own anchors, not declared by anyone), so this is per-document: editing one lesson flags the files covering that lesson and nothing else. Returns `stale` (with the node ids that `changed` and those `removed` — kept apart, because reworded text can be regenerated while a vanished node needs a person to decide what the document should say instead), plus counts. " +
+        "A document that does not record its sources is reported as UNKNOWN and never as current — everything produced before this existed is in that state, and calling it up to date would be the most misleading thing here. Optional `nodeId` narrows to one lesson. Read-only: it says what is out of date, it does not regenerate anything. " + WORKSPACE_ROLE_NOTE,
+      inputSchema: { nodeId: z.string().optional() },
+    },
+    guarded(async (a: { nodeId?: string }) => asJson(await checkStale(a))),
+  );
+
   server.registerTool("record_document_content", { title: "Record parsed document content", description: "After reading an UNTRACKED document's text, store the structured content you extracted into history so it is never re-parsed. The object must already be in the bucket. `nodeId` is the scope node the document covers (the Chapitre/Semaine/Lesson — find it with walk_graph / namespace_stats). " + FILE_KEYED_NOTE + " REQUIRES CONFIRMATION — without confirm:true you get a needsConfirmation notice; ask the user to approve, then call again. " + WORKSPACE_ROLE_NOTE + " This writes LIVE to history: no draft, no undo.", inputSchema: { nodeId: z.string(), relPath: z.string(), content: z.object(contentSchema), documentId: z.string().optional(), variant: z.string().optional(), replace: z.boolean().optional(), confirm: z.boolean().optional() } },
     guarded(async (a: { nodeId: string; relPath: string; content: any; documentId?: string; variant?: string; replace?: boolean; confirm?: boolean }) => {
       const denied = await denyNonMember("writeDocuments"); if (denied) return denied;
       const err = scopeNodeError(a.nodeId); if (err) return asJson({ error: err });
       const needConfirm = requireConfirmation(a.confirm, `record content into history for node ${a.nodeId} — this writes NOW to the live history (no draft, no undo)`);
-      return needConfirm ?? asJson(await recordContent("parsed", { nodeId: a.nodeId, relPath: a.relPath, content: a.content, documentId: a.documentId, variant: a.variant, replace: a.replace }));
+      return needConfirm ?? asJson(await recordContent("parsed", { nodeId: a.nodeId, relPath: a.relPath, content: a.content, documentId: a.documentId, variant: a.variant, replace: a.replace, sources: await sourcesOf(a.relPath) }));
     }));
 
   server.registerTool("log_generation", { title: "Log a generated document", description: "Call after uploading a generated .docx via create_upload_url: it reads the object's hash from storage and records what you produced, so it feeds future consistency + variety. `nodeId` is the scope node the document covers (the Chapitre/Semaine/Lesson). " + FILE_KEYED_NOTE + " REQUIRES CONFIRMATION — without confirm:true you get a needsConfirmation notice; ask the user to approve, then call again. " + WORKSPACE_ROLE_NOTE + " This writes LIVE to history: no draft, no undo.", inputSchema: { nodeId: z.string(), relPath: z.string(), content: z.object(contentSchema), documentId: z.string().optional(), variant: z.string().optional(), replace: z.boolean().optional(), confirm: z.boolean().optional() } },
@@ -323,7 +432,7 @@ export function registerDocumentTools(server: McpServer) {
       const denied = await denyNonMember("writeDocuments"); if (denied) return denied;
       const err = scopeNodeError(a.nodeId); if (err) return asJson({ error: err });
       const needConfirm = requireConfirmation(a.confirm, `log the generated document for node ${a.nodeId} into history — this writes NOW to the live history (no draft, no undo)`);
-      return needConfirm ?? asJson(await recordContent("pipeline", { nodeId: a.nodeId, relPath: a.relPath, content: a.content, documentId: a.documentId, variant: a.variant, replace: a.replace }));
+      return needConfirm ?? asJson(await recordContent("pipeline", { nodeId: a.nodeId, relPath: a.relPath, content: a.content, documentId: a.documentId, variant: a.variant, replace: a.replace, sources: await sourcesOf(a.relPath) }));
     }));
 }
 

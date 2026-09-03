@@ -241,6 +241,63 @@ line counts, which changes the number this exists to report.
 > was written on, and the Docker daemon was not running, so the conversion itself has never been
 > executed. First run with `WITH_LAYOUT_ENGINE=1` should check a known sheet against a known count.
 
+### Reading a correction back (WP6)
+
+An expert opens a sheet, fixes a sentence, sends it back. The hard part was never the `.docx`: it
+was knowing WHICH node a line belongs to. Sheets from the old pipeline carried nothing that said —
+`w:sdt` count was zero across every file measured — so matching meant guessing from position and
+wording, and the roadmap treated reading corrections in as infeasible.
+
+It was infeasible **for documents we did not produce**. We produce these. So a block may carry an
+`anchor` — the node it came from — and the renderer writes it into the file as a Word content
+control: invisible on the page, preserved when a person edits around it, gone if they delete the
+block (which is how a deletion gets noticed rather than lost).
+
+`propose_from_document` reads the corrected file and returns three kinds of thing, and the
+difference between them is the whole design:
+
+| | |
+|---|---|
+| **edit** | same node, different words. Unambiguous — returned as `editItems`, the exact shape `edit_nodes` takes. |
+| **missing** | the graph has it, the document no longer does. **Reported, never deleted**: a deliberate cut and a slip while editing look identical in a Word file. |
+| **unplaced** | text belonging to no node. Reported without a parent, because guessing one from position is how a sentence ends up under the wrong lesson. |
+
+**It proposes and never writes.** Applying goes through `edit_nodes` like any other change, so the
+diff is seen and confirmed. A tool that read a Word file and silently rewrote the curriculum would
+be the most dangerous thing in this codebase.
+
+Comparison is on the words: the bullet the formatter added and the whitespace Word normalised on
+save are not edits, and reporting them would bury the real ones. A document with no anchors still
+reads — it just cannot say where anything belongs, which is the honest answer rather than a
+confident wrong one.
+
+### Knowing what has gone out of date (WP7)
+
+A produced sheet is a photograph of the curriculum at a moment. The curriculum carries on without it,
+and nothing said so — which is how the bucket ends up holding a sheet quoting wording nobody uses any
+more, indistinguishable from a current one. There is a live instance in this very namespace: a record
+describing its guides as "2 pages chacune", written before they were tightened to one.
+
+The obvious fix is a graph version stamped on each document, and it is useless — any edit anywhere
+bumps it, all eighty files go stale at once, and a flag that is always on is a flag nobody reads.
+Staleness has to be **per document**, against the nodes that document actually drew from.
+
+Which the anchors already say. So each produced file records its sources — the nodes behind its
+blocks, with their wording at the time — and `check_stale` compares them against the graph now.
+Editing one lesson flags the four files covering that lesson and nothing else.
+
+The sources are **read out of the file's own anchors by the server**, never declared by the caller: a
+caller that got its own list wrong would produce a document reporting itself current forever. Nothing
+to declare, nothing to get wrong.
+
+`changed` and `removed` are kept apart because they need different answers — reworded text can be
+regenerated, a vanished node needs a person to decide what the document should say instead. Hashing
+is on the words, so a re-import that reflows a paragraph is not a change.
+
+> **A document with no recorded sources is UNKNOWN, never current.** Everything produced before this
+> existed is in that state, including the twenty teacher sheets. Reporting them as up to date would
+> be the most misleading thing here; regenerating one is what makes the question answerable.
+
 ### Merging the stack
 
 A section has formatters, not a spec: the TLM's document-wide stack plus its own, each FormatterSpec

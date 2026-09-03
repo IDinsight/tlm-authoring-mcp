@@ -78,6 +78,7 @@ const cellSchema: z.ZodType<Cell> = z.lazy(() =>
 
 const tableSchema = z.object({
   kind: z.literal("table"),
+  anchor: z.string().min(1).max(200).optional(),
   rows: z.array(z.array(cellSchema)).min(1),
   style: styleName.optional(),
   // Column widths, when the document sets them rather than dividing the page.
@@ -91,6 +92,22 @@ const tableSchema = z.object({
 
 const lineSchema = z.object({
   kind: z.literal("line"),
+/*
+ * Where this block came from in the graph.
+ *
+ * The reason a corrected document can be read BACK. A sheet produced by the old
+ * pipeline carried nothing that tied a line to a node — matching one up again
+ * meant guessing from position and wording, which is why reading corrections in
+ * was written off as infeasible. It was infeasible for documents we did not
+ * produce. We produce these, so the renderer writes the node id into the file
+ * as a Word content control, invisible on the page and preserved when a person
+ * edits around it.
+ *
+ * Optional, and deliberately so: a block invented for layout (a spacer, a
+ * banner that announces rather than quotes) belongs to no node and says so by
+ * leaving this out.
+ */
+  anchor: z.string().min(1).max(200).optional(),
   runs: z.array(runSchema),
   // Which rendering this line belongs to — "fr", "wo", or one that prints in
   // every file. Named in the formatter's `language.variants`.
@@ -120,8 +137,8 @@ export type Cell = {
   span?: number;
 };
 export type Block =
-  | { kind: "table"; rows: Cell[][]; style?: string; columnsCm?: number[]; pageBreak?: "before" }
-  | { kind: "line"; runs: Run[]; variant?: string; style?: string; pageBreak?: "before" }
+  | { kind: "table"; rows: Cell[][]; style?: string; columnsCm?: number[]; pageBreak?: "before"; anchor?: string }
+  | { kind: "line"; runs: Run[]; variant?: string; style?: string; pageBreak?: "before"; anchor?: string }
   | { kind: "spacer"; sizePt: number; leadingPt: number };
 
 /** A whole document: its blocks, and the pictures they name. */

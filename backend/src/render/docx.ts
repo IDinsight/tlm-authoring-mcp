@@ -299,6 +299,25 @@ function tableXml(block: Extract<Block, { kind: "table" }>, ctx: Context): strin
   );
 }
 
+/*
+ * A Word content control carrying the graph node a block came from.
+ *
+ * `w:sdt` is the mechanism Word itself uses to mark a region as meaning
+ * something, so it survives being opened, edited and saved by a person — which
+ * a comment or a hidden bookmark does not reliably do. The tag holds the node
+ * id and nothing renders: on the page there is no trace of it.
+ *
+ * If an expert deletes the whole block, its anchor goes with it. That is not a
+ * loss — a missing anchor is exactly how "this was removed" gets noticed.
+ */
+function anchored(xml: string, anchor: string | undefined, ctx: Context): string {
+  if (!anchor) return xml;
+  return (
+    `<w:sdt><w:sdtPr><w:tag w:val="${esc(anchor)}"/><w:id w:val="${ctx.nextId++}"/></w:sdtPr>` +
+    `<w:sdtContent>${xml}</w:sdtContent></w:sdt>`
+  );
+}
+
 function renderBlocks(blocks: Block[], ctx: Context, inherited?: string): string {
   return blocks.map((block) => {
     // A break declared on a block is emitted the way the FORMATTER says, not
@@ -316,7 +335,8 @@ function renderBlocks(blocks: Block[], ctx: Context, inherited?: string): string
         `<w:r><w:rPr><w:sz w:val="${Math.round(block.sizePt * 2)}"/></w:rPr></w:r></w:p>`
       );
     }
-    return prefix + (block.kind === "table" ? tableXml(block, ctx) : lineXml(block, ctx, inherited));
+    const body = block.kind === "table" ? tableXml(block, ctx) : lineXml(block, ctx, inherited);
+    return prefix + anchored(body, block.anchor, ctx);
   }).join("");
 }
 
