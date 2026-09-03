@@ -364,22 +364,51 @@ const danglingReference: ContentRule = {
       if (ignoredRules(node).has("dangling-reference")) {
         continue;
       }
-      // Every field that carries authored prose on any node kind.
+      /*
+       * Every field that carries authored prose on any node kind — and each is
+       * checked SEPARATELY so the finding can name the one at fault.
+       *
+       * It matters because a node can hold the same prose twice: a catalog
+       * entry's `description` is what the catalog renders, while `content` and
+       * `metadata.summary` are not shown by any read. Correcting the visible
+       * copy then leaves the other stale, the finding survives, and the author
+       * is left staring at text that already reads correctly. Naming the field
+       * turns that from a puzzle into an edit.
+       */
       const raw = rawOf(node);
-      const text = [str(raw.description), str(raw.content), str(metaOf(node).summary), str(metaOf(node).assemblyGuide)].join("\n");
+      const fields: [string, string][] = [
+        ["description", str(raw.description)],
+        ["content", str(raw.content)],
+        ["metadata.summary", str(metaOf(node).summary)],
+        ["metadata.assemblyGuide", str(metaOf(node).assemblyGuide)],
+      ];
 
-      const unresolved = citedIds(text)
-        .filter((cited) => (cited.length === 8 ? !knownPrefixes.has(cited) : !known.has(cited)));
-      if (unresolved.length === 0) {
+      const unresolvedIn = new Map<string, string[]>();
+      for (const [field, text] of fields) {
+        if (!text) continue;
+        const unresolved = citedIds(text)
+          .filter((cited) => (cited.length === 8 ? !knownPrefixes.has(cited) : !known.has(cited)));
+        if (unresolved.length) unresolvedIn.set(field, [...new Set(unresolved)]);
+      }
+      if (unresolvedIn.size === 0) {
         continue;
       }
+
+      const all = [...new Set([...unresolvedIn.values()].flat())];
+      const where = [...unresolvedIn.entries()]
+        .map(([field, ids]) => `${field} (${ids.map((id) => `${id}…`).join(", ")})`)
+        .join("; ");
       findings.push({
         rule: "dangling-reference",
         severity: "warning",
         nodeId: node.id,
         title: titleOf(node),
-        message: `This text cites ${unresolved.length} id(s) that resolve to nothing: ${unresolved.map((id) => `${id}…`).join(", ")}.`,
-        fix: "Either the id is wrong — find the entry by NAME and cite its real id — or the thing it names was never authored, in which case the reference is describing work still to do and should say so instead of pointing at nothing.",
+        message:
+          `This text cites ${all.length} id(s) that resolve to nothing: ${all.map((id) => `${id}…`).join(", ")}. ` +
+          `In: ${where}.`,
+        fix:
+          "Either the id is wrong — find the entry by NAME and cite its real id — or the thing it names was never authored, in which case the reference is describing work still to do and should say so instead of pointing at nothing. " +
+          "The field is named above because a node can hold the same prose twice: only `description` is rendered by the catalog reads, so a citation in `content` or `metadata.summary` stays broken after the visible copy is fixed.",
       });
     }
     return findings;

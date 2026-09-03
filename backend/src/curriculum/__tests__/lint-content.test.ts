@@ -387,3 +387,57 @@ describe("weighted grids in the flat shape", () => {
     expect(findings[0].message).toContain("80%");
   });
 });
+
+/*
+ * Naming the field a broken citation sits in.
+ *
+ * Found the hard way on the live catalog: five references were corrected in an
+ * entry's `description`, the catalog reads showed the fixed ids, and the checker
+ * went on reporting the old ones — because the same prose also sits in a field
+ * no read displays. Without the field name that is an unsolvable puzzle; with
+ * it, it is one edit.
+ */
+describe("a dangling reference says WHICH field it is in", () => {
+  /** One node carrying authored prose, and the dangling findings it produces. */
+  const danglingIn = (props: Record<string, unknown>) =>
+    lintContent({
+      graph: {
+        nodes: [{ id: "real-node-1111", labels: ["Material"], properties: { raw: props } }],
+        edges: [],
+      } as unknown as MutationGraph,
+    }).filter((f) => f.rule === "dangling-reference");
+
+  it("names `description` when the visible copy is the broken one", () => {
+    const [finding] = danglingIn({ description: "Voir 4359b4a3-0000-0000-0000-000000000000." });
+    expect(finding.message).toContain("In: description");
+  });
+
+  it("names `metadata.summary` — the copy no catalog read shows", () => {
+    const [finding] = danglingIn({
+      description: "Une routine correcte.",
+      metadata: { summary: "Voir 4359b4a3-0000-0000-0000-000000000000." },
+    });
+    expect(finding.message).toContain("In: metadata.summary");
+    expect(finding.message).not.toContain("In: description");
+  });
+
+  it("names BOTH when the prose was fixed in one copy only", () => {
+    // Exactly the live case: description corrected, the duplicate left behind.
+    const [finding] = danglingIn({
+      description: "Voir 4359b4a3-0000-0000-0000-000000000000.",
+      content: "Voir 070573a2-0000-0000-0000-000000000000.",
+    });
+    // Each field named with the id that is broken IN it — the ids are reported
+    // as written, truncated or full.
+    expect(finding.message).toMatch(/description \(4359b4a3/);
+    expect(finding.message).toMatch(/content \(070573a2/);
+  });
+
+  it("still reports each unresolved id once across the fields", () => {
+    const [finding] = danglingIn({
+      description: "Voir 4359b4a3-0000-0000-0000-000000000000.",
+      content: "Voir aussi 4359b4a3-0000-0000-0000-000000000000.",
+    });
+    expect(finding.message).toContain("cites 1 id(s)");
+  });
+});
