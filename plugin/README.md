@@ -4,7 +4,9 @@ Procedures for authoring teaching materials against the **Senegal Maths — TLM*
 
 ## Installing it
 
-Two commands, in Claude Code (including the Code tab of the Claude desktop app):
+In **Cowork**: Customize → Plugins → add this repository, then install `tlm-autorat`.
+
+In **Claude Code** (including the Code tab of the Claude desktop app), two commands:
 
 ```
 /plugin marketplace add IDinsight/tlm-authoring-mcp
@@ -25,10 +27,33 @@ Both are remote and both authenticate by OAuth discovery, so no key or secret is
 this repo. Installing the plugin does add both servers to the author's Claude — say so when you
 hand it to someone, rather than letting them discover it in `/mcp`.
 
-**These are Claude Code constructs.** The commands and subagents here have no equivalent in the
-desktop app's chat tab; an author working there would add the two servers as custom connectors by
-URL (Settings → Connectors) and get none of the procedure. Neither server is a candidate for a
-`.mcpb` desktop extension: that format packages a LOCAL server, and both of these are remote.
+### Where it runs, and what runs there
+
+A plugin installs in **Cowork**, in chat on the web, in the Chat tab of Claude Desktop, and in
+Claude Code. What it can DO differs by surface, and this plugin leans on the part that does not
+travel:
+
+| | skills | sub-agents |
+|---|---|---|
+| **Cowork** | yes | **yes** |
+| chat (web, desktop Chat tab) | yes | greyed out |
+| Claude Code | yes | yes |
+
+The four sub-agents here — `lecteur`, `illustrateur`, `relecteur`, `mesureur` — are not decoration.
+`lecteur` exists because a bulk read costing ~184,000 tokens in the main thread returns ~2,000 from
+a sub-agent. An author in plain chat gets the skills and loses that, so **Cowork is the home for
+this plugin**, and Claude Code is the equivalent for anyone working in a terminal.
+
+In Cowork an author installs it under **Customize → Plugins** (browse, add this GitHub repo, or
+upload a plugin file); on Team and Enterprise plans an admin can install it for everyone instead.
+In Claude Code it is the two commands above.
+
+Neither server is a candidate for a `.mcpb` desktop extension: that format packages a LOCAL server,
+and both of these are remote.
+
+**Unverified:** the eight entries under `commands/` are the older flat-file form of a skill — Claude
+Code reads them as skills and its own docs say to use `skills/` for new plugins. Whether Cowork
+surfaces them the same way has not been checked on a real install.
 
 ## What is in here, and what is deliberately not
 
