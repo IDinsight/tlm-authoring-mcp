@@ -2,6 +2,34 @@
 
 Procedures for authoring teaching materials against the **Senegal Maths — TLM** MCP server.
 
+## Installing it
+
+Two commands, in Claude Code (including the Code tab of the Claude desktop app):
+
+```
+/plugin marketplace add IDinsight/tlm-authoring-mcp
+/plugin install tlm-autorat@idinsight-tlm
+```
+
+Then `/mcp` once, to sign in.
+
+**The plugin brings its own servers.** `.mcp.json` declares the two this procedure assumes, so an
+author configures nothing by hand:
+
+| server | what it is for |
+|---|---|
+| `tlm` | the authoring server — the graph, the catalog, the renderer, the documents bucket |
+| `nano-banana` | image generation, which the `illustrations` skill and the `illustrateur` agent need |
+
+Both are remote and both authenticate by OAuth discovery, so no key or secret is stored anywhere in
+this repo. Installing the plugin does add both servers to the author's Claude — say so when you
+hand it to someone, rather than letting them discover it in `/mcp`.
+
+**These are Claude Code constructs.** The commands and subagents here have no equivalent in the
+desktop app's chat tab; an author working there would add the two servers as custom connectors by
+URL (Settings → Connectors) and get none of the procedure. Neither server is a candidate for a
+`.mcpb` desktop extension: that format packages a LOCAL server, and both of these are remote.
+
 ## What is in here, and what is deliberately not
 
 This plugin carries **procedure**: which tool to call, in what order, what to check before
