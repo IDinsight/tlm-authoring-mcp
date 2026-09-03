@@ -84,22 +84,29 @@ export async function renderDocument(a: RenderArgs): Promise<Record<string, unkn
   const denied = await denyIfNotDraftReader(ns);
   if (denied) return denied;
 
-  const resolved = await resolveDraftModel(ns);
-  if (!resolved) {
-    return {
-      preview: true, noDraft: true,
-      message:
-        `No draft exists for '${ns}' to render from. Rendering reflects UNPUBLISHED draft edits, so with no draft there is nothing to render. ` +
-        `Stage an edit first, then call render_document again.`,
-    };
-  }
+  /*
+   * Draft when there is one, published otherwise.
+   *
+   * It used to REFUSE with "no draft to render from". That is right for
+   * preview_generation — a preview of nothing is nothing — and wrong here. This
+   * renders a DOCUMENT, and with no draft open the published curriculum is
+   * exactly what a document would be made from. Refusing meant the tool could
+   * produce nothing at all except while somebody happened to be mid-edit, which
+   * is not the state the person who wants a sheet is in.
+   *
+   * Found by calling it against the live server. Every test missed it because
+   * every test stages a draft first.
+   */
+  const draft = await resolveDraftModel(ns);
+  const model = draft?.model ?? getActiveAdapter().model();
+  const renderedFrom = draft ? "draft" : "published";
 
-  const stack = formatterStackFor(resolved.model, a.nodeId);
+  const stack = formatterStackFor(model, a.nodeId);
   if (!stack) {
     return {
       preview: true,
       error:
-        `'${a.nodeId}' is neither a DocumentSection nor a TeachingLearningMaterial in the draft, so it has no formatter stack to render with. ` +
+        `'${a.nodeId}' is neither a DocumentSection nor a TeachingLearningMaterial in the ${renderedFrom} graph, so it has no formatter stack to render with. ` +
         `Use find_node to turn a name into an id, or walk_document for a document's section ids.`,
     };
   }
@@ -222,7 +229,7 @@ export async function renderDocument(a: RenderArgs): Promise<Record<string, unkn
     reason:
       `rendered ${tree.data.blocks.length} blocks for '${a.nodeId}' into ${files.length} file(s)` +
       `${a.translateInto ? `, deriving '${a.translateInto}' by translation` : ""}` +
-      ` from draft${resolved.draftVersion ? ` ${resolved.draftVersion}` : ""}`,
+      ` from ${renderedFrom}${draft?.draftVersion ? ` ${draft.draftVersion}` : ""}`,
   });
 
   return {
@@ -236,9 +243,12 @@ export async function renderDocument(a: RenderArgs): Promise<Record<string, unkn
     images: media.length,
     formatters: spec.from,
     translatedInto: a.translateInto ?? null,
-    draftVersion: resolved.draftVersion,
+    // Which graph this was laid out from, so a sheet is never mistaken for one
+    // made from edits that are still unpublished.
+    renderedFrom,
+    draftVersion: draft?.draftVersion ?? null,
     isolation:
-      "Rendered from the UNPUBLISHED draft into the segregated previews/ prefix. It will NOT appear in list_documents or reconcile, must NEVER be recorded via log_generation, and expires at expiresAt.",
+      `Rendered from the ${renderedFrom} graph into the segregated previews/ prefix. It will NOT appear in list_documents or reconcile, must NEVER be recorded via log_generation, and expires at expiresAt.`,
   };
 }
 
@@ -253,7 +263,7 @@ export function registerRenderTools(server: McpServer) {
         "Unknown keys are REFUSED rather than ignored, and nothing is rendered when the tree or the stack is invalid — the response names the path. " +
         "ONE SOURCE, ONE FILE PER LANGUAGE. When the formatter's `language.strategy` is 'per-file', each declared variant gets its own document: lines marked `inAllFiles` print in every one, a line tagged with a variant prints only in that variant's file, and `files[]` comes back with one entry each. Pass `translateInto` (a variant id, e.g. 'wo') to have the server DERIVE that language from the one the tree already carries, translating line by line through the subject's MOHEBS glossary so the wording matches materials already in classrooms — a tree that already has those lines is left alone. Translation spends a metered backend, so it needs a ROLE in the workspace. " +
         "Pass `measure:true` to lay each file out and COUNT ITS PAGES — page counts are measured on the render, never estimated from the source (an estimate once put a document at 2.5 pages that rendered at eleven). Each file then carries `measurement` with the page count, the page size actually produced, and the whitespace left below the last line of each page; with `budget.maxPages` declared it also carries `fits`. Measuring starts a whole office suite, so it is off by default, and where the deployment has no layout engine it reports `available:false` rather than a guess. " +
-        "Output goes to the SEGREGATED previews/ prefix: short-lived, invisible to list_documents and reconcile, and never to be recorded via log_generation. Reads the UNPUBLISHED draft; curators and approvers only.",
+        "Output goes to the SEGREGATED previews/ prefix: short-lived, invisible to list_documents and reconcile, and never to be recorded via log_generation. Renders from the DRAFT when one is open and from PUBLISHED otherwise — `renderedFrom` says which, so a sheet is never mistaken for one made from unpublished edits. Curators and approvers only.",
       inputSchema: {
         nodeId: z.string(),
         document: z.unknown(),

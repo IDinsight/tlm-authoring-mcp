@@ -672,10 +672,35 @@ describe("render_document refuses rather than guesses", () => {
     expect(uploaded).toBeNull();
   });
 
-  it("says so when there is no draft to render from", async () => {
-    const out = await withCtx(CURATOR, async () => renderDocument({ nodeId: sectionId, document: TREE }));
-    expect(out.noDraft).toBe(true);
-    expect(uploaded).toBeNull();
+  it("renders from PUBLISHED when no draft is open", async () => {
+    /*
+     * It used to refuse here, and that was the bug: a person who wants a sheet
+     * is not normally mid-edit, so refusing meant the tool produced nothing at
+     * all most of the time. Found by calling it against the live server — every
+     * other test in this file stages a draft first, which is exactly why none
+     * of them caught it.
+     *
+     * The render bag has to be published for this: with no draft, published is
+     * what gets read.
+     */
+    const out = await withCtx(APPROVER, async () => {
+      await stageRenderBag(RENDER_BAG);
+      const { publishDraft, kgNamespace } = await import("../../kg-store/index.js");
+      await publishDraft(kgNamespace(ctx.workspace, ctx.grade, ctx.subject));
+      return renderDocument({ nodeId: sectionId, document: TREE });
+    });
+    expect(out.error).toBeUndefined();
+    expect(out.renderedFrom).toBe("published");
+    expect(out.blocks).toBe(3);
+    expect(uploaded!.length).toBeGreaterThan(500);
+  });
+
+  it("says which graph it rendered from, so a sheet is not mistaken for a draft", async () => {
+    const out = await withCtx(CURATOR, async () => {
+      await stageRenderBag(RENDER_BAG);   // leaves a draft open
+      return renderDocument({ nodeId: sectionId, document: TREE });
+    });
+    expect(out.renderedFrom).toBe("draft");
   });
 
   it("blocks a signed-in caller with no role, like every other draft read", async () => {

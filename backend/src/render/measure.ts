@@ -35,7 +35,22 @@ export type PageMeasurement = {
   /** Where the ink starts and stops down the page. */
   textTopCm: number | null;
   textBottomCm: number | null;
-  /** Whitespace left below the last line — the number the tightening watched. */
+  /*
+   * Whitespace below the last WORD — the number the tightening watched, with one
+   * limitation worth knowing before trusting it.
+   *
+   * `pdftotext -bbox` emits words. It does not emit images. So a page that ends
+   * with a picture reports the gap below the last line of TEXT, not below the
+   * last mark on the page, and OVERSTATES how much room is left — the dangerous
+   * direction for a number whose job is to say how close a sheet is to
+   * overflowing.
+   *
+   * Measured on the twenty golden sheets: this reports 3.89-9.83 cm where the
+   * production note records 1.4-9.9 cm. The upper bounds agree closely; the
+   * lower does not, and those sheets end in full-width image bands. Use it to
+   * compare pages against each other, and the PAGE COUNT to decide whether a
+   * sheet fits.
+   */
   freeBelowCm: number | null;
 };
 

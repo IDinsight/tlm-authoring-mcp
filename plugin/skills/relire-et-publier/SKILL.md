@@ -15,10 +15,13 @@ description: Review a draft and hand it over — wiring check, coverage against 
 3. **`evaluate_document`** — the evaluation grids attached to the document. It bundles the rubrics
    and the document; you score it against them. A document may carry several grids, and all of them
    apply.
-4. **`request_review`** (curator) or **`publish_draft`** (approver).
-
-> **Seam.** `lint_content` — the third checker, for content rules the other two do not cover — does
-> not exist yet. When it lands it goes between steps 2 and 3.
+4. **`lint_content`** — cohérence. Il signale les énoncés qui se contredisent entre eux : une
+   routine dont le total annoncé ne fait pas la somme de ses étapes, une grille pondérée qui
+   n'atteint pas 100 %, un identifiant cité dans la prose qui ne mène à rien, un formatter dont les
+   valeurs déclarées démentent sa propre prose. Il lit le sujet actif **et** les deux bibliothèques
+   de catalogue. Une alerte délibérée se tait sur le nœud avec `metadata.lintIgnore: ["id-de-règle"]`
+   — pas de déploiement nécessaire. Lisez `rulesPending` plutôt que de supposer que tout est vérifié.
+5. **`request_review`** (curator) ou **`publish_draft`** (approver).
 
 ## Present it as one review, not four tool results
 

@@ -20,7 +20,10 @@ if not os.path.isdir(server_dir):
     sys.exit(f"no server source at {server_dir} — pass its path")
 
 # Tools that do not exist yet. A skill may name one only to mark the seam.
-SEAMS = {"generate_document", "measure_document", "lint_content"}
+# Seams are tools the plugin may name before the server has them. All three of the
+# originals are now closed: lint_content shipped under its own name, and
+# generate_document/measure_document landed as render_document (with measure:true).
+SEAMS = set()
 # Subagents shipped by this plugin — named like tools, dispatched differently.
 AGENTS = {"lecteur", "mesureur", "relecteur", "illustrateur"}
 

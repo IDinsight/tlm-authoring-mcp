@@ -22,15 +22,31 @@ Everything about how the sheet must look comes from the **formatters** in that p
 everything about what it must contain from the section's own assembly guidance and the routine.
 Read them. Do not lay out a document from memory or from another subject's habits.
 
-## Measure with the `mesureur` subagent
+## Rendre avec `render_document`
 
-It renders and returns **numbers** — pages, lines used per section, overflow, whitespace — not an
-opinion about whether it looks right.
+Vous composez la page — quel bandeau, dans quel ordre, où elle tourne — et vous l'envoyez comme
+**arbre de blocs**. Le serveur la met en page. La géométrie ne vous appartient pas : un bloc nomme
+un `style`, une image nomme un `role`, et c'est le formatter qui dit à quoi cela ressemble. L'arbre
+ne porte donc **aucune couleur, aucun corps, aucun centimètre** — si vous cherchez où mettre une
+couleur, c'est que vous vous trompez de moitié.
 
-> **Seam.** The server has no `generate_document` or `measure_document` yet, so the render happens
-> outside it. Until it lands, the `mesureur` drives whatever local renderer the team uses and
-> reports the same numbers. What must not change when it lands is this skill's discipline: the
-> decision is made on measured output, never on the specification.
+Sa forme est dans `get_capabilities section:'document'`. Lisez-la avant de composer : une clé
+inventée est REFUSÉE, et rien n'est rendu tant que l'arbre n'est pas valide.
+
+Deux options qui comptent :
+
+- **`translateInto:'wo'`** — le serveur dérive le wolof du français que porte l'arbre, adossé au
+  glossaire MOHEBS, et sort un fichier par langue. Un arbre qui porte déjà le wolof est laissé tel
+  quel : on ne retraduit jamais ce qu'un auteur a écrit à la main.
+- **`measure:true`** — il met la page en page et **compte les pages**. Le compte se fait sur le
+  RENDU, jamais sur la lecture du guide : une estimation a déjà donné 2,5 pages pour un document
+  qui en faisait onze. Là où le déploiement n'a pas de moteur de mise en page, il répond
+  `available:false` — il ne devine pas.
+
+## Lire les nombres avec le sous-agent `mesureur`
+
+Il rend des **nombres** — pages, lignes par section, débordement, blanc résiduel — pas un avis sur
+l'allure de la page.
 
 ## When a sheet overflows
 

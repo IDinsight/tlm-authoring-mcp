@@ -1,6 +1,6 @@
 ---
 name: reprendre-corrections
-description: Take an expert's corrected document back into the graph — read the PDF render in a subagent, propose one batched edit, and never object to something you have not seen yourself. Use when someone hands back a marked-up or corrected .docx, or says "voici les corrections", "l'expert a relu", "reprendre ses remarques", "intégrer les corrections".
+description: Take an expert's corrected document back into the graph — propose_from_document when the sheet carries its anchors, the PDF render in a subagent when it does not, then one batched edit, and never object to something you have not seen yourself. Use when someone hands back a marked-up or corrected .docx, or says "voici les corrections", "l'expert a relu", "reprendre ses remarques", "intégrer les corrections".
 ---
 
 # Taking an expert's corrections back into the graph
@@ -8,23 +8,49 @@ description: Take an expert's corrected document back into the graph — read th
 The expert opened a produced sheet, corrected it in place, and handed it back. Your job is to turn
 their corrections into graph edits — faithfully, and without inventing objections.
 
-## Read the PDF render. Never a Word or LibreOffice conversion.
+## D'abord : `propose_from_document`. C'est exact, pas approximatif.
 
-This is the one rule in this skill that is not negotiable, and it is mechanical, not stylistic.
+Si la fiche a été produite par `render_document`, elle porte l'identifiant de chaque nœud à
+l'intérieur du fichier — invisible sur la page, conservé quand une personne édite autour. Alors
+**ne devinez rien** : appelez `propose_from_document` avec son `relPath` et le serveur vous rend
+l'appariement exact.
 
-**A conversion drops tables.** Everything laid out in a table disappears from the extracted text
-without any error. You then "discover" that content is missing, and raise it — and the content was
-there all along, on the page, in a table. That has happened, and the false objections cost a day.
+Il rend trois choses, et la différence entre elles est tout le sujet :
 
-So: work from the **PDF render** of the document. If you only have a `.docx`, say so and ask for the
-PDF rather than proceeding on converted text. `get_document_text` extracts from `.docx` through a
-converter and carries exactly this limitation — it is fine for a quick look, and not fine as the
-basis for an objection.
+| | |
+|---|---|
+| **edit** | même nœud, mots différents. Sans ambiguïté — repris tel quel dans `editItems`, à la forme exacte qu'`edit_nodes` attend. |
+| **missing** | le graphe l'a, le document ne l'a plus. **Signalé, jamais supprimé** : une coupe voulue et un faux mouvement se ressemblent dans un fichier Word. |
+| **unplaced** | du texte qui n'appartient à aucun nœud. Signalé **sans parent** : deviner d'après la position, c'est ainsi qu'une phrase se retrouve sous la mauvaise leçon. |
+
+Il **propose et n'écrit jamais**. L'application passe par `edit_nodes` comme toute autre
+modification : l'expert voit le diff avant que quoi que ce soit soit publié.
+
+Une réponse `anchored:false` veut dire que le document ne vient pas de `render_document` — passez
+alors à la marche à suivre ci-dessous, qui est faite pour ce cas.
+
+## Sinon : lisez le RENDU PDF, jamais une conversion Word ou LibreOffice.
+
+Pour un document **sans ancres**, la règle qui suit n'est pas négociable, et elle est mécanique,
+pas stylistique.
+
+**Une conversion perd les tableaux.** Tout ce qui est mis en page dans un tableau disparaît du texte
+extrait, sans la moindre erreur. Vous « découvrez » alors qu'il manque du contenu, et vous le
+signalez — alors qu'il était là depuis le début, sur la page, dans un tableau. C'est arrivé, et les
+fausses objections ont coûté une journée.
+
+Donc : travaillez sur le **rendu PDF**. Si vous n'avez qu'un `.docx`, dites-le et demandez le PDF
+plutôt que d'avancer sur du texte converti. `get_document_text` extrait d'un `.docx` par un
+convertisseur et porte exactement cette limite — bon pour un coup d'œil, pas comme base d'une
+objection.
+
+*(La restriction ne vaut pas pour `propose_from_document` : il lit le XML du fichier, pas une
+conversion, donc les tableaux ne lui échappent pas.)*
 
 ## Do the reading in a subagent
 
-Dispatch the `lecteur` subagent. It reads the whole source and returns **a structured edit
-proposal** — a list of `{ what changed, where, from, to }` — not a narrative.
+Pour un document sans ancres seulement. Dispatch the `lecteur` subagent: it reads the whole source
+and returns **a structured edit proposal** — a list of `{ what changed, where, from, to }` — not a narrative.
 
 This is the single largest token saving available: a bulk read that costs ~184,000 tokens inside a
 subagent returns ~2,000 to the main thread. Read the source yourself only when the proposal points
