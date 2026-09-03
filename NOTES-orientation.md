@@ -10,10 +10,12 @@ bench against the committed fixtures, and — because the working graph is the s
 the fixtures — by calling the live MCP server read-only against `senegal/ci/maths`. No writes, no
 draft touched.
 
-> ⚠ There is an **open draft on `senegal/ci/maths`** right now: 14 edits, 140 elements touched,
-> last edited 2026-09-03 09:39 by `9ab53a02-…`. I left it alone. Someone should publish or discard
-> it before WP-anything begins, because a stale draft silently changes what `preview_generation`,
-> `check_draft` and `diff_draft` return.
+> ⚠ There is an **open draft on `senegal/ci/maths`**: 14 edits, 140 elements touched, last edited
+> 2026-09-03 09:39 by `9ab53a02-…`. **It is live authoring work in progress in another session — do
+> NOT publish or discard it.** (An earlier version of this note advised exactly that; it was wrong.)
+> The only thing to know is that it EXISTS: `preview_generation`, `check_draft`, `diff_draft` and any
+> `slot:'draft'` read resolve against it, so a reading taken from the draft is that session's
+> unfinished state, not a baseline. Take measurements from `slot:'published'`.
 
 ---
 
