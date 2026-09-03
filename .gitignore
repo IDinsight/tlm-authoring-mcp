@@ -10,6 +10,14 @@ backend/dist
 !example_domains.json
 !package.json
 !package-lock.json
+
+# The blanket `*.json` above swallowed the plugin's own manifest, so the plugin
+# on GitHub had no plugin.json and could not be installed at all. Negate the
+# plugin's files by EXACT PATH — never by name — because a repo-root Firebase
+# service-account key is relying on that same blanket rule to stay out.
+!/.claude-plugin/marketplace.json
+!/plugin/.claude-plugin/plugin.json
+!/plugin/.mcp.json
 !tsconfig.json
 !firebase.json
 # Committed test fixtures (golden snapshots) live under __fixtures__ dirs.

@@ -1,0 +1,12 @@
+{
+  "mcpServers": {
+    "tlm": {
+      "type": "http",
+      "url": "https://senegal-mohebs-tlm-148764688487.europe-west1.run.app/mcp"
+    },
+    "nano-banana": {
+      "type": "http",
+      "url": "https://nano-banana-mcp-148764688487.europe-west1.run.app/mcp"
+    }
+  }
+}
