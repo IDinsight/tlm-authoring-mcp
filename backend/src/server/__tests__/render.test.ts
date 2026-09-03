@@ -18,7 +18,7 @@
  * previews/ prefix, never the canonical bucket or history.
  */
 import { describe, it, expect, beforeAll, beforeEach, afterAll, vi } from "vitest";
-import { seedStore, seededContexts, CE1_READING, CURATOR, SIGNED_IN_NO_ROLE } from "../../__tests__/index.js";
+import { seedStore, seededContexts, CE1_READING, CURATOR, APPROVER, SIGNED_IN_NO_ROLE } from "../../__tests__/index.js";
 import { newSessionState, runInSession, previewKey } from "../../context/index.js";
 import { __setKgStoreForTest, __resetMutationsForTest } from "../../kg-store/index.js";
 import { __setStorageForTest } from "../../storage/index.js";
@@ -26,6 +26,7 @@ import { __setActorForTest, type Actor } from "../../actor.js";
 import { activateContext } from "../../activate.js";
 import { runEditNodes } from "../recipes.js";
 import { renderDocument, proposeFromDocument } from "../render.js";
+import { checkStale } from "../documents.js";
 import { unzip, documentSchema } from "../../render/index.js";
 import { CONFIG } from "../../config.js";
 import type { StorageAdapter, HistoryFile } from "../../types.js";
@@ -497,6 +498,131 @@ describe("reading a corrected document back", () => {
     corrected = await renderWithAnchor(originalText);
     const out = await withCtx(SIGNED_IN_NO_ROLE, async () => proposeFromDocument({ relPath: "corrigé.docx" }));
     expect(out.proposals).toBeUndefined();
+  });
+});
+
+describe("knowing which produced documents have gone out of date", () => {
+  // The gap: the bucket holds sheets quoting wording the graph has since moved
+  // past, and nothing tells them apart from the current ones.
+  let anchorId: string;
+  let originalText: string;
+  let stored: Buffer = Buffer.alloc(0);
+
+  // Behaves like the real bucket for one file: downloadable back, and it
+  // reports an md5, so recordContent will accept it.
+  const bucket: StorageAdapter = {
+    ...storage,
+    downloadDocx: async () => stored,
+    getObjectMd5: async () => "md5-of-the-stored-file",
+  };
+
+  async function renderAnchored(text: string): Promise<Buffer> {
+    const { renderDocx, resolveRenderSpec } = await import("../../render/index.js");
+    const spec = resolveRenderSpec([{ id: "f", properties: { raw: { render: RENDER_BAG } } }]);
+    if (!spec.ok) throw new Error(spec.errors.join("; "));
+    const tree = documentSchema.parse({
+      blocks: [{ kind: "line", anchor: anchorId, style: "bullet", runs: [{ text }] }],
+    });
+    return renderDocx({ blocks: tree.blocks, media: [] }, spec.spec);
+  }
+
+  /** Record the stored file the way a real generation would. */
+  async function logIt(relPath: string): Promise<void> {
+    const { recordContent } = await import("../../storage/index.js");
+    const { readDocx, sourcesFrom } = await import("../../render/index.js");
+    const { getActiveAdapter } = await import("../../adapters/index.js");
+    const raw = getActiveAdapter().model().rawGraph!;
+    const anchors = readDocx(stored).anchors;
+    const current = new Map<string, string>();
+    for (const id of anchors) {
+      const node = raw.nodes.find((n) => n.id === id);
+      const content = (node?.properties as Record<string, unknown>)?.content;
+      if (typeof content === "string") current.set(id, content);
+    }
+    await recordContent("pipeline", {
+      nodeId: anchorId, relPath, content: { summary: "test" },
+      sources: sourcesFrom(anchors, current),
+    });
+  }
+
+  /** Rewrite one node's content and publish it. Run as an APPROVER: a curator
+   *  may stage and discard a draft, but publishing is the approver's move. */
+  async function rewrite(nodeId: string, content: string): Promise<void> {
+    const items = [{ nodeId, content }];
+    const dry = await runEditNodes({ items });
+    await runEditNodes({ items, confirm: true, confirmationToken: dry.confirmationToken as string });
+    const { publishDraft, kgNamespace } = await import("../../kg-store/index.js");
+    await publishDraft(kgNamespace(ctx.workspace, ctx.grade, ctx.subject));
+  }
+
+  beforeEach(async () => {
+    __setStorageForTest(bucket);
+    await withCtx(CURATOR, async () => {
+      const { getActiveAdapter } = await import("../../adapters/index.js");
+      const raw = getActiveAdapter().model().rawGraph!;
+      const node = raw.nodes.find(
+        (n) => typeof (n.properties as Record<string, unknown>)?.content === "string"
+          && ((n.properties as Record<string, unknown>).content as string).length > 20,
+      )!;
+      anchorId = node.id;
+      originalText = (node.properties as Record<string, unknown>).content as string;
+      stored = await renderAnchored(originalText);
+      await logIt("lecon_01/fiche.docx");
+    });
+  });
+
+  it("reports a freshly produced document as current", async () => {
+    const out = await withCtx(CURATOR, async () => checkStale());
+    expect((out.counts as Record<string, number>).current).toBeGreaterThanOrEqual(1);
+    expect(out.stale).toEqual([]);
+  });
+
+  it("flags it once the curriculum it quotes has moved, and names the node", async () => {
+    await withCtx(APPROVER, async () => rewrite(anchorId, originalText + " UNE PHRASE DE PLUS."));
+    // A separate session, so the graph is re-read — which is also how this
+    // would actually happen: one person edits, another asks what is stale.
+    const out = await withCtx(CURATOR, async () => checkStale());
+
+    const stale = (out.stale as Array<Record<string, unknown>>)
+      .find((d) => d.relPath === "lecon_01/fiche.docx");
+    expect(stale).toBeDefined();
+    expect(stale!.changed).toEqual([anchorId]);
+    expect(stale!.removed).toEqual([]);
+  });
+
+  it("does NOT flag it when a lesson it never quoted changes", async () => {
+    // The reason staleness is per document. A graph-wide version would mark all
+    // eighty files on any edit, and a flag that is always on gets ignored.
+    const other = await withCtx(APPROVER, async () => {
+      const { getActiveAdapter } = await import("../../adapters/index.js");
+      const raw = getActiveAdapter().model().rawGraph!;
+      const node = raw.nodes.find(
+        (n) => n.id !== anchorId && typeof (n.properties as Record<string, unknown>)?.content === "string",
+      )!;
+      await rewrite(node.id, "Tout autre chose.");
+      return node.id;
+    });
+    expect(other).not.toBe(anchorId);
+
+    const out = await withCtx(CURATOR, async () => checkStale());
+    expect((out.stale as Array<Record<string, unknown>>)
+      .some((d) => d.relPath === "lecon_01/fiche.docx")).toBe(false);
+  });
+
+  it("calls a document with no recorded sources UNKNOWN, never current", async () => {
+    // Everything produced before this existed is in that state, and reporting
+    // it as up to date would be the most misleading thing here.
+    const out = await withCtx(CURATOR, async () => {
+      const { recordContent } = await import("../../storage/index.js");
+      await recordContent("pipeline", {
+        nodeId: anchorId, relPath: "lecon_01/ancienne.docx", content: { summary: "no sources" },
+      });
+      return checkStale();
+    });
+    expect(out.unknown).toContain("lecon_01/ancienne.docx");
+    expect((out.stale as Array<Record<string, unknown>>)
+      .some((d) => d.relPath === "lecon_01/ancienne.docx")).toBe(false);
+    expect((out.nextSteps as string[]).join(" ")).toContain("NOT the same as being current");
   });
 });
 

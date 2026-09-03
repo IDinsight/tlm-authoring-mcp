@@ -271,6 +271,33 @@ save are not edits, and reporting them would bury the real ones. A document with
 reads — it just cannot say where anything belongs, which is the honest answer rather than a
 confident wrong one.
 
+### Knowing what has gone out of date (WP7)
+
+A produced sheet is a photograph of the curriculum at a moment. The curriculum carries on without it,
+and nothing said so — which is how the bucket ends up holding a sheet quoting wording nobody uses any
+more, indistinguishable from a current one. There is a live instance in this very namespace: a record
+describing its guides as "2 pages chacune", written before they were tightened to one.
+
+The obvious fix is a graph version stamped on each document, and it is useless — any edit anywhere
+bumps it, all eighty files go stale at once, and a flag that is always on is a flag nobody reads.
+Staleness has to be **per document**, against the nodes that document actually drew from.
+
+Which the anchors already say. So each produced file records its sources — the nodes behind its
+blocks, with their wording at the time — and `check_stale` compares them against the graph now.
+Editing one lesson flags the four files covering that lesson and nothing else.
+
+The sources are **read out of the file's own anchors by the server**, never declared by the caller: a
+caller that got its own list wrong would produce a document reporting itself current forever. Nothing
+to declare, nothing to get wrong.
+
+`changed` and `removed` are kept apart because they need different answers — reworded text can be
+regenerated, a vanished node needs a person to decide what the document should say instead. Hashing
+is on the words, so a re-import that reflows a paragraph is not a change.
+
+> **A document with no recorded sources is UNKNOWN, never current.** Everything produced before this
+> existed is in that state, including the twenty teacher sheets. Reporting them as up to date would
+> be the most misleading thing here; regenerating one is what makes the question answerable.
+
 ### Merging the stack
 
 A section has formatters, not a spec: the TLM's document-wide stack plus its own, each FormatterSpec

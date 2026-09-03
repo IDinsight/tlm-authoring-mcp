@@ -13,4 +13,5 @@ export { splitByVariant, deriveVariant, hasVariant, type Variant, type Translate
 export { measureDocx, parsePdfInfo, parseBBox, type Measurement, type PageMeasurement } from "./measure.js";
 export { readDocx, type ReadDocument, type ReadBlock } from "./read-docx.js";
 export { proposeEdits, editItems, type Proposal } from "./propose.js";
+export { hashContent, sourcesFrom, staleness, type DocumentSource, type Staleness } from "./sources.js";
 export { zip, unzip, type ZipEntry } from "./zip.js";
