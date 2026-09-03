@@ -49,7 +49,49 @@ async function histUpsert(entry: HistoryEntry) {
   await histSave();
 }
 
-export async function recordContent(source: "pipeline" | "parsed", input: { nodeId: string; relPath: string; content: DocumentContent }) {
+/*
+ * Refuse to REPLACE a different document silently.
+ *
+ * History holds one entry per node, so recording a second FILE against a node
+ * that already has one does not add — it overwrites, content record and all,
+ * with no draft and no undo. And `reconcile` walks a caller straight into it:
+ * it reports every unrecorded object and says to link each one, which on this
+ * graph means 152 objects against nodes that already hold an entry. Each CI
+ * maths lesson has four files (pupil FR, pupil WO, illustration dossier,
+ * teacher sheet) and room for one.
+ *
+ * Re-recording the SAME relPath is an update, not a replacement, and stays
+ * allowed — that is how a changed document is re-linked after an edit.
+ *
+ * This does not decide how a node should hold several documents; it stops the
+ * unrecoverable write while that is decided. See docs/design-notes/
+ * graph-linked-documents.md.
+ */
+async function replacementRefusal(nodeId: string, relPath: string): Promise<{ error: string } | null> {
+  const existing = await getEntry(nodeId);
+  if (!existing || existing.relPath === relPath) {
+    return null;
+  }
+  return {
+    error:
+      `This node already has a recorded document: '${existing.relPath}' (recorded ${existing.recordedAt}, source '${existing.source}'). ` +
+      `History keeps ONE entry per node, so recording '${relPath}' here would REPLACE it — including its stored content record — and there is no undo. ` +
+      `If '${relPath}' is a different document (another language, another kind of sheet), it needs its own scope node or its own entry; do not overwrite. ` +
+      `If it genuinely supersedes the recorded one, call again with replace: true.`,
+  };
+}
+
+export async function recordContent(
+  source: "pipeline" | "parsed",
+  input: { nodeId: string; relPath: string; content: DocumentContent; replace?: boolean },
+) {
+  if (!input.replace) {
+    const refusal = await replacementRefusal(input.nodeId, input.relPath);
+    if (refusal) {
+      return refusal;
+    }
+  }
+
   const md5 = await getStorageAdapter().getObjectMd5(input.relPath);
   if (md5 == null) {
     return { error: `Object not found in the bucket at documents/${input.relPath}. Upload it first via create_upload_url, then call this again.` };
