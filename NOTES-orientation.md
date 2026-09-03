@@ -1,8 +1,9 @@
 # NOTES-orientation — WP0 of ROADMAP-authoring-self-serve
 
 **Status:** WP0 deliverable. Answers the roadmap's five orientation questions with file paths,
-then records where the repo and the live graph contradict the roadmap. Nothing in WP1–WP8 has been
-started.
+then records where the repo and the live graph contradict the roadmap. **WP2 has since shipped**
+(response projections) and **WP8 is partly done** — see §10, which also corrects three of this
+report's own findings. WP1 and WP3–WP7 are not started.
 
 **How this was produced:** by reading the code under `backend/src`, running the repo's own token
 bench against the committed fixtures, and — because the working graph is the source of truth, not
