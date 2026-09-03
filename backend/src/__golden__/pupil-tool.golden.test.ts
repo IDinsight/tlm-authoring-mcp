@@ -24,7 +24,14 @@
  * SAME THING, a table whose cells hold blocks — and this file now asserts that
  * the SAME renderer carries both document types with no new keys.
  *
- * Set PUPIL_DIR to the folder holding the pupil files.
+ * Set PUPIL_DIR to the folder holding the pupil files:
+ *
+ *     …/Maths CI new lessons/Outil de l'élève/Inputs/Previously generated/lecon_01
+ *
+ * NOT `Outil de l'élève/Outputs/Lessons/lecon_01`, which holds a LATER version of
+ * the same filename — different margins (737/850 against this file's 850/964/680/964),
+ * no page colour, 16 pictures against 42. Pointed there, every geometry assertion
+ * here fails and none of it is the renderer's doing.
  */
 import { describe, it, expect } from "vitest";
 import { readFileSync, existsSync } from "node:fs";
@@ -190,7 +197,7 @@ describe.skipIf(!havePupil)("does the same renderer carry a second document type
 
   it("so: one renderer, two document types, no new render keys", () => {
     // Stated as an assertion so it cannot quietly stop being true. Between this
-    // file and render.spike.test.ts the same code produces a bannered teacher
+    // file and teacher-sheet.golden.test.ts the same code produces a bannered teacher
     // sheet and a picture-grid pupil page, told apart only by their formatters.
     expect(mine.pgMar).toBe(gold.pgMar);
     expect(mine.fills).toEqual(gold.fills);
