@@ -286,6 +286,32 @@ save are not edits, and reporting them would bury the real ones. A document with
 reads — it just cannot say where anything belongs, which is the honest answer rather than a
 confident wrong one.
 
+#### Which field a correction writes back to
+
+The first version read every anchored node's text from `properties.content`, and it passed its
+tests. Running it against the live server said otherwise: on `senegal/ci/maths` **21 nodes of 2019
+keep their text in `content`, and all 21 are FormatterSpecs.** Every DocumentSection (1096),
+Activity (519) and Lesson (60) keeps it in `description`. `proposeEdits` skips an anchor it has no
+text for — deliberately, so it never reaches outside the scope it was given — so a correction to a
+lesson banner matched nothing and was reported as **nothing at all**. Not an error; silence.
+
+So the caller now resolves the field per node, in the order in which a node's text is load-bearing:
+`content`, else the body of `description`, else its name line. Where the document's own text still
+matches one of them exactly, that is the field the expert edited and nothing is inferred.
+
+`editItems` names the argument that reaches the field it chose — `content` or `title` — and carries
+the rest of that field verbatim. Both halves matter: `title` overwrites the WHOLE description, so
+correcting a banner must not take the body with it, and emitting a `content` edit for a node whose
+text is its description would not correct anything — it would leave a SECOND copy beside the real
+one. That is not hypothetical. It is exactly how four catalog entries came to carry two copies of
+their prose, one of them citing formatter ids that had moved on, invisible because only the other
+copy is ever rendered.
+
+One seam remains, and it is deliberate rather than an oversight: `render_document` writes the
+segregated `previews/` prefix, while `propose_from_document` reads `documents/`. A corrected sheet
+has been through a person and is a real deliverable, so it goes back through `create_upload_url` —
+but it does mean the loop is not closed by the two tools alone.
+
 ### Knowing what has gone out of date (WP7)
 
 A produced sheet is a photograph of the curriculum at a moment. The curriculum carries on without it,

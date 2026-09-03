@@ -12,6 +12,6 @@ export { resolveRenderSpec, type ResolvedSpec, type SpecCarrier } from "./resolv
 export { splitByVariant, deriveVariant, hasVariant, type Variant, type TranslateText } from "./variants.js";
 export { measureDocx, parsePdfInfo, parseBBox, type Measurement, type PageMeasurement } from "./measure.js";
 export { readDocx, type ReadDocument, type ReadBlock } from "./read-docx.js";
-export { proposeEdits, editItems, type Proposal } from "./propose.js";
+export { proposeEdits, editItems, documentText, normalise, type Proposal, type TextSlot } from "./propose.js";
 export { hashContent, sourcesFrom, staleness, type DocumentSource, type Staleness } from "./sources.js";
 export { zip, unzip, type ZipEntry } from "./zip.js";

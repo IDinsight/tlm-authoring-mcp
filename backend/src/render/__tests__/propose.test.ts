@@ -8,7 +8,7 @@
  * a deletion and a rewrite alike.
  */
 import { describe, it, expect } from "vitest";
-import { proposeEdits, editItems } from "../propose.js";
+import { proposeEdits, editItems, documentText } from "../propose.js";
 import type { ReadDocument } from "../read-docx.js";
 
 const doc = (blocks: { anchor: string | null; text: string }[]): ReadDocument => ({
@@ -126,5 +126,67 @@ describe("what counts as a difference", () => {
       new Map([["n1", "Un ensemble est un groupe. On le trace par une boucle."]]),
     );
     expect(proposals).toEqual([]);
+  });
+});
+
+/*
+ * Which field a correction writes back to.
+ *
+ * The bug this covers was silent, not loud: the caller read `content` for every
+ * node, and on the live graph almost nothing keeps its text there. A corrected
+ * banner matched nothing and was dropped without a word.
+ */
+describe("writing the correction back to the right field", () => {
+  const corrected = doc([{ anchor: "n1", text: "PHASE 1 — RAPPEL | 5 min" }]);
+  const proposals = proposeEdits(corrected, new Map([["n1", "PHASE 1 — RÉVISION | 4 min"]]));
+
+  it("writes `content` when that is where the node keeps its text", () => {
+    expect(editItems(proposals, new Map([["n1", { field: "content" as const }]])))
+      .toEqual([{ nodeId: "n1", content: "PHASE 1 — RAPPEL | 5 min" }]);
+  });
+
+  it("writes `title` for a node whose text lives in its description", () => {
+    expect(editItems(proposals, new Map([["n1", { field: "title" as const }]])))
+      .toEqual([{ nodeId: "n1", title: "PHASE 1 — RAPPEL | 5 min" }]);
+  });
+
+  it("keeps the body when the corrected line is only the name", () => {
+    // `title` overwrites the WHOLE description. Correcting a banner must not
+    // take the body of the node with it.
+    const items = editItems(proposals, new Map([
+      ["n1", { field: "title" as const, tail: "\n\nLe corps de la description, intact." }],
+    ]));
+    expect(items).toEqual([
+      { nodeId: "n1", title: "PHASE 1 — RAPPEL | 5 min\n\nLe corps de la description, intact." },
+    ]);
+  });
+
+  it("keeps the name line when the corrected text is the body", () => {
+    const items = editItems(proposals, new Map([
+      ["n1", { field: "title" as const, head: "Nom de l'étape\n\n" }],
+    ]));
+    expect(items).toEqual([
+      { nodeId: "n1", title: "Nom de l'étape\n\nPHASE 1 — RAPPEL | 5 min" },
+    ]);
+  });
+
+  it("falls back to `content` for a node it was told nothing about", () => {
+    expect(editItems(proposals)).toEqual([{ nodeId: "n1", content: "PHASE 1 — RAPPEL | 5 min" }]);
+  });
+});
+
+describe("documentText", () => {
+  it("joins the blocks that share an anchor, in order", () => {
+    const read = doc([
+      { anchor: "n1", text: "Première ligne." },
+      { anchor: "n1", text: "Seconde ligne." },
+      { anchor: null, text: "Sans ancre." },
+    ]);
+    expect(documentText(read)).toEqual(new Map([["n1", "Première ligne. Seconde ligne."]]));
+  });
+
+  it("strips the marker the formatter added, like the comparison does", () => {
+    expect(documentText(doc([{ anchor: "n1", text: "• Nommez ces objets." }]), ["•"]))
+      .toEqual(new Map([["n1", "Nommez ces objets."]]));
   });
 });

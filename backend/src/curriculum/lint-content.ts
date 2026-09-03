@@ -368,12 +368,13 @@ const danglingReference: ContentRule = {
        * Every field that carries authored prose on any node kind — and each is
        * checked SEPARATELY so the finding can name the one at fault.
        *
-       * It matters because a node can hold the same prose twice: a catalog
-       * entry's `description` is what the catalog renders, while `content` and
-       * `metadata.summary` are not shown by any read. Correcting the visible
-       * copy then leaves the other stale, the finding survives, and the author
-       * is left staring at text that already reads correctly. Naming the field
-       * turns that from a puzzle into an edit.
+       * It matters because a node can hold the same prose twice, and only one
+       * copy is on show: a catalog entry renders `metadata.summary` when it has
+       * one and the body of `description` only otherwise. Correcting the
+       * visible copy leaves the other stale, the finding survives, and the
+       * author is left staring at text that already reads correctly — which is
+       * how four live entries came to cite formatter ids that had moved on.
+       * Naming the field turns that from a puzzle into an edit.
        */
       const raw = rawOf(node);
       const fields: [string, string][] = [
@@ -408,7 +409,7 @@ const danglingReference: ContentRule = {
           `In: ${where}.`,
         fix:
           "Either the id is wrong — find the entry by NAME and cite its real id — or the thing it names was never authored, in which case the reference is describing work still to do and should say so instead of pointing at nothing. " +
-          "The field is named above because a node can hold the same prose twice: only `description` is rendered by the catalog reads, so a citation in `content` or `metadata.summary` stays broken after the visible copy is fixed.",
+          "The field is named above because a node can hold the same prose twice and only one copy is on show: an entry with a `metadata.summary` renders THAT, and falls back to the body of `description` only when it has none. So a citation in the field that is not being rendered stays broken after the visible copy reads correctly.",
       });
     }
     return findings;

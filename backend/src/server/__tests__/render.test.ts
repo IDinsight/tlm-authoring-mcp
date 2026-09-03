@@ -465,6 +465,41 @@ describe("reading a corrected document back", () => {
     expect((out.counts as Record<string, number>).edits).toBe(0);
   });
 
+  it("matches a node whose text is its DESCRIPTION, not its content", async () => {
+    /*
+     * The live-majority case, and the one that used to fall through: on the
+     * real ci-maths graph 21 nodes of 2019 keep their text in `content`, and
+     * every DocumentSection, Lesson and Activity keeps it in `description`.
+     * Reading only `content` left those unmatched — reported as nothing at
+     * all, so a correction to a lesson banner simply disappeared.
+     */
+    const described = await withCtx(CURATOR, async () => {
+      const { getActiveAdapter } = await import("../../adapters/index.js");
+      const raw = getActiveAdapter().model().rawGraph!;
+      return raw.nodes.find((n) => {
+        const props = n.properties as Record<string, unknown> | undefined;
+        return typeof props?.description === "string" && props.description.length > 10
+          && typeof props?.content !== "string";
+      })!;
+    });
+    const description = (described.properties as Record<string, unknown>).description as string;
+    const nameLine = description.split("\n")[0];
+
+    anchorId = described.id;
+    corrected = await renderWithAnchor(`${nameLine} — CORRIGÉ`);
+    const out = await withCtx(CURATOR, async () => proposeFromDocument({ relPath: "corrigé.docx" }));
+
+    expect(out.matched).toBe(1);
+    expect(out.proposals).toHaveLength(1);
+    expect(out.proposals).toMatchObject([{ kind: "edit", nodeId: described.id }]);
+
+    // And it writes back through `title`, the argument that reaches a
+    // description — a `content` edit would add a second copy beside it.
+    const items = out.editItems as Array<Record<string, unknown>>;
+    expect(Object.keys(items[0]).sort()).toEqual(["nodeId", "title"]);
+    expect(String(items[0].title)).toContain("— CORRIGÉ");
+  });
+
   it("says so plainly when a document carries no node ids", async () => {
     // An old sheet, or one rebuilt by hand. Its text reads; what cannot be said
     // is where any of it belongs, and saying that beats a confident guess.
