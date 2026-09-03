@@ -36,17 +36,18 @@ const SPEC = renderSpecSchema.parse({
   type: { family: "Andika", sizePt: 12, leadingPt: 15.5, leadingRule: "exact" },
   budget: { linesPerPage: 45, lineHeightCm: 0.547, maxCharsPerLine: 72, maxCharsBesideImage: 52 },
   blocks: {
-    weekCell: { fill: "2EAEE5", textColour: "FFFFFF" },
-    lessonCell: { fill: "57BC49", textColour: "FFFFFF" },
-    dayCell: { fill: "C0504D", textColour: "FFFFFF" },
-    objectiveBanner: { fill: "3E4D9E", textColour: "FFFFFF" },
-    materialsBox: { fill: "00B0F0", textColour: "FFFFFF" },
-    sessionBanner: { fill: "09A9E1", textColour: "FFFFFF" },
-    phaseBanner: { fill: "79D0F0", textColour: "000000", keepWithNext: true },
-    retainBanner: { fill: "9DD485", textColour: "000000" },
-    objectivationBanner: { fill: "E88169", textColour: "000000" },
-    evaluationBanner: { fill: "92CDDC", textColour: "000000" },
+    weekCell: { fill: "2EAEE5", textColour: "FFFFFF", bold: true },
+    lessonCell: { fill: "57BC49", textColour: "FFFFFF", bold: true },
+    dayCell: { fill: "C0504D", textColour: "FFFFFF", bold: true },
+    objectiveBanner: { fill: "3E4D9E", textColour: "FFFFFF", bold: true },
+    materialsBox: { fill: "00B0F0", textColour: "FFFFFF", bold: true },
+    sessionBanner: { fill: "09A9E1", textColour: "FFFFFF", bold: true },
+    phaseBanner: { fill: "79D0F0", textColour: "000000", bold: true, keepWithNext: true },
+    retainBanner: { fill: "9DD485", textColour: "000000", bold: true },
+    objectivationBanner: { fill: "E88169", textColour: "000000", bold: true },
+    evaluationBanner: { fill: "92CDDC", textColour: "000000", bold: true },
     bullet: { marker: "•", maxChars: 72, maxCharsBesideImage: 52 },
+    spacer: {},
   },
   images: {
     maxHeightCm: { amorce: 2.4, notion: 2, bande: 2, pictogram: 0.5, marker: 0.42 },
@@ -78,6 +79,7 @@ const MAPS: GoldenMaps = {
   },
   variantOfColour: { "000000": "commun", C0504D: "fr", "0070C0": "wo" },
   roleOfMedia: {},   // filled below from each image's measured shape
+  bulletMarker: { marker: "•", style: "bullet" },
 };
 
 type Facts = {
@@ -130,14 +132,18 @@ describe.skipIf(!haveGolden)("WP4 spike — rebuild lesson 1's teacher sheet", (
   // scene is taller, anything under a line's height is a pictogram.
   const model = haveGolden ? (() => {
     const m = readGolden(goldenBytes, MAPS);
-    for (const b of m.blocks) {
-      if (b.kind !== "line") continue;
-      for (const r of b.runs) {
-        if (!("image" in r)) continue;
-        const ar = r.image.aspectRatio;
-        r.image.role = ar > 4 ? "bande" : ar > 1.7 ? "amorce" : "pictogram";
+    const walk = (blocks: typeof m.blocks): void => {
+      for (const b of blocks) {
+        if (b.kind === "table") { for (const row of b.rows) for (const cell of row) walk(cell.blocks); continue; }
+        if (b.kind !== "line") continue;
+        for (const r of b.runs) {
+          if (!("image" in r)) continue;
+          const ar = r.image.aspectRatio;
+          r.image.role = ar > 4 ? "bande" : ar > 1.7 ? "amorce" : "pictogram";
+        }
       }
-    }
+    };
+    walk(m.blocks);
     return m;
   })() : null;
 

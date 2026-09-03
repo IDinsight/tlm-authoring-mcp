@@ -49,8 +49,8 @@ Three files, about 500 lines, no new dependency.
 | `renderer.ts` | Document model + `RenderSpec` → `.docx` bytes. |
 | `golden.ts` | A produced sheet → the same document model, so the comparison is not the renderer marking its own homework. Doubles as a sketch of WP6a. |
 
-`render.spike.test.ts` checks the teacher sheet (`GOLDEN_DIR`); `pupil.spike.test.ts` checks whether
-the same code carries a second document type (`PUPIL_DIR`).
+`render.spike.test.ts` checks the teacher sheet (`GOLDEN_DIR`); `pupil.spike.test.ts` checks that the
+same code carries a second document type (`PUPIL_DIR`). Neither runs without its corpus.
 
 `render.spike.test.ts` reads `Guide-Lecon-1-ensembles-FR.docx` into the model, renders it again from
 scratch, and compares. It skips unless `GOLDEN_DIR` names the folder holding the sheets.
@@ -106,43 +106,56 @@ schema exists to make impossible.
    and nowhere in the schema to put them. Left in the document model and recorded here rather than
    widening the schema a second time in one pass.
 
-## Genericity — asked, and answered with a qualified no
+## Genericity — asked, answered no, then fixed
 
-Nothing in `renderer.ts` knows what a maths lesson looks like. It knows banners, lines, pictures and
-spacers; which banner is turquoise, how tall a band may stand and which colour marks French are all
-read out of the `RenderSpec`. But one document type can always be matched by accident, so the same
-renderer was pointed at the pupil tool — 42 picture placements against nine, grids of images in
-table cells rather than banners of text, three type sizes, a page break standing on its own —
-**with no new code**. `pupil.spike.test.ts` records what happened.
+Nothing in `renderer.ts` knows what a maths lesson looks like. It knows tables, lines, runs,
+pictures and spacers; which banner is turquoise, how tall a band may stand, which colour marks
+French and where a page break is carried are all read out of the `RenderSpec`. But one document type
+can be matched by accident, so the same renderer was pointed at the pupil tool — 42 picture
+placements against nine, grids of images in tables nested inside tables, three type sizes, a page
+break standing on its own — **with no new code**.
 
-**The spec generalised. The content model did not.**
+**First answer: the spec generalised, the content model did not.** Page geometry, block fill and the
+image ceilings carried over on nothing but different values. Everything else was lost: all 42
+pictures, the page break, the title's type size, the bullet rule, and any cell holding more than one
+paragraph.
 
-Carried over, from a spec with the same keys and different values: page size and all four margins,
-the block fill (a palette of one instead of ten), and the declared image heights.
+Every one of those was a missing way to **describe** a document rather than a missing render knob —
+the WP3 line holding rather than breaking. So the model was rebuilt around one idea:
 
-Lost:
+> **A banner and an image grid are the same thing** — a table whose cells hold blocks. Blocks nest;
+> a cell is not a string.
 
-| | |
-|---|---|
-| **All 42 pictures.** | Not most — every one. A pupil page *is* a grid of pictures, and a banner cell in this model holds a string. The teacher sheet hid this: its pictures sit in paragraphs, which the model has. |
-| **The page break.** | The spec offers three carriers; this document uses `paragraph` and the renderer acts only on `banner-property`. The value is declared and read, and nothing honours it. |
-| **`blocks.*.sizePt`.** | Declared in the schema, consumed by nothing. Only shows up on a document with more than one type size. |
-| **Per-block bullet markers.** | `blocks.bullet.marker` exists; the model carries one marker and puts it on every line, so the page title gets bulleted. |
-| **Cells with several paragraphs.** | The instruction box holds three numbered questions; a cell is one string, so they come out concatenated. |
+Both document types now come out of the same code, and both suites pass:
 
-Every one of those is a missing way to **describe** the document, not a missing render knob. That is
-the WP3 line holding up rather than breaking: geometry belongs in `properties.render` and it fitted
-both types; structure is authored per section, and the spike stubs structure out with a model shaped
-around one document.
+| | teacher sheet | pupil tool |
+|---|---|---|
+| pictures | 9, floated right | 42, in nested grids |
+| tables / cells | 14 banners | 12 tables, 70 cells |
+| page break | on the banner's paragraph property | a paragraph of its own |
+| type sizes | one | 12, 11.5 and 16 pt |
+| picture roles | 3, told apart by shape | 7, five of them square |
+| bullets | on every content line | none |
 
-**So WP4's real work is the content model, not the schema.** A cell must be able to hold blocks
-rather than a string, blocks must nest, and the renderer must honour all three page-break carriers
-and a block's own type size. None of that is a new `properties.render` key.
+What the rebuild had to add, all of it structural: cells holding blocks; all three page-break
+carriers honoured, with the model saying WHERE a page starts and the spec saying HOW; a container's
+style cascading into what it contains; per-run styling, because a line is not one style — the pupil
+header sets "Unité 1 · Leçon 1" at 12 pt and the lesson title at 16 pt in the same paragraph.
+
+### The one thing the exercise says about the spec
+
+A picture's **role is authored, not inferred**. The teacher sheet's three roles happen to be
+separable by shape — a band is wide, an opening scene taller, a pictogram tiny. The pupil tool has
+seven distinct heights and five of them are square, so nothing about the picture says which is a
+4.99 cm answer and which a 0.46 cm sign. `images.maxHeightCm` holds both; the second just needs a
+longer list of role names. Same key, no new shape — but a renderer that tried to *derive* the role
+would be right on one document type and wrong on the other.
 
 ## Not attempted
 
-Emphasis within a line (the golden bolds the odd word; this model treats a line as one colour) —
-that belongs in the document model, alongside the five gaps the pupil-tool test found. Translation. Page counting, which needs a layout
+Composing the words — the golden's `[N]` lines were rewritten by hand during the tightening pass, and
+laying out finished lines is a different job. Translation. Page counting, which needs a layout
+engine. Translation. Page counting, which needs a layout
 engine. And **Andika is not installed on the machine this ran on**, so nothing rendered here is at
 true metrics: geometry, colour and structure are read from the file and unaffected, but no page
 count from this environment means anything.

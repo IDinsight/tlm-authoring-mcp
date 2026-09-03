@@ -13,16 +13,18 @@
  * it needs a new key or a new branch, the gap is a finding and this file is
  * where it gets recorded.
  *
- * The answer is NO, and the shape of the no is the useful part. The SPEC
- * generalises — same keys, different values, and the geometry comes out right.
- * What does not generalise is the spike's DOCUMENT MODEL: banners of text
- * cells, lines, spacers. A pupil page is a grid of pictures, and this model has
- * no way to say that. So WP4 needs a richer content model, not more render
- * keys — which is the WP3 line (geometry declared, structure authored) holding
- * up rather than breaking.
+ * Asked once and answered NO: the spec generalised, the content model did not.
+ * Every picture here lives in a table cell, and a cell in the first model held
+ * a string — so all 42 were dropped, along with the page break, the title's
+ * type size, the bullet rule and any cell holding more than one paragraph.
  *
- * The assertions below RECORD that, failures included. Set PUPIL_DIR to the
- * folder holding the pupil files.
+ * Every one of those was a missing way to DESCRIBE a document rather than a
+ * missing render knob, which is the WP3 line holding rather than breaking. So
+ * the model was rebuilt around one idea — A BANNER AND AN IMAGE GRID ARE THE
+ * SAME THING, a table whose cells hold blocks — and this file now asserts that
+ * the SAME renderer carries both document types with no new keys.
+ *
+ * Set PUPIL_DIR to the folder holding the pupil files.
  */
 import { describe, it, expect } from "vitest";
 import { readFileSync, existsSync } from "node:fs";
@@ -42,12 +44,18 @@ const SPEC = renderSpecSchema.parse({
   page: { size: "A4", orientation: "portrait", marginsCm: { top: 1.3, right: 1.5, bottom: 1.3, left: 1.5 } },
   type: { family: "Andika", sizePt: 12, leadingPt: 12, leadingRule: "auto" },
   blocks: {
-    instructionBox: { fill: "FDF1E4", bold: false },
+    instructionBox: { fill: "FDF1E4" },
     title: { sizePt: 16, bold: true },
     grid: { border: "thin" },
   },
   images: {
-    maxHeightCm: { scene: 5.43, cell: 4.99, marker: 1.15, sign: 0.46 },
+    // Seven roles where the teacher sheet has three, because this document
+    // sizes its pictures individually rather than by kind. Same key, longer
+    // list — no new shape, which is the point.
+    maxHeightCm: {
+      scene: 5.43, banner: 4.62, answer: 4.99, answerSmall: 3.61,
+      marker: 1.15, sign: 0.52, signSmall: 0.46,
+    },
     maxWidthCm: 9.8,
     placement: "inline",
     fullWidthAboveAspectRatio: 1.7,
@@ -66,6 +74,12 @@ const SPEC = renderSpecSchema.parse({
 
 const MAPS: GoldenMaps = {
   blockOfFill: { FDF1E4: "instructionBox" },
+  bulletMarker: undefined,   // a pupil page has no bullets
+  styleOfSize: { "32": "title" },
+  roleOfHeightCm: {
+    "5.43": "scene", "4.62": "banner", "4.99": "answer", "3.61": "answerSmall",
+    "1.15": "marker", "0.52": "sign", "0.46": "signSmall",
+  },
   variantOfColour: { "000000": "commun" },
   roleOfMedia: {},
 };
@@ -79,6 +93,9 @@ function facts(bytes: Buffer) {
     images: (doc.match(/<wp:extent /g) ?? []).length,
     pageBreaks: (doc.match(/w:type="page"/g) ?? []).length + (doc.match(/<w:pageBreakBefore\/>/g) ?? []).length,
     tables: (doc.match(/<w:tbl>/g) ?? []).length,
+    cells: (doc.match(/<w:tc>/g) ?? []).length,
+    imageSizes: [...doc.matchAll(/<wp:extent cx="(\d+)" cy="(\d+)"\/>/g)]
+      .map((m) => `${(Number(m[1]) / 360000).toFixed(2)}x${(Number(m[2]) / 360000).toFixed(2)}`),
     sizes: [...new Set([...doc.matchAll(/<w:sz w:val="(\d+)"\/>/g)].map((m) => m[1]))].sort(),
     texts: [...doc.matchAll(/<w:p[ >][\s\S]*?<\/w:p>/g)]
       .map((p) => [...p[0].matchAll(/<w:t[^>]*>([^<]*)<\/w:t>/g)].map((t) => t[1]).join(""))
@@ -93,7 +110,7 @@ describe.skipIf(!havePupil)("does the same renderer carry a second document type
   const model = havePupil ? readGolden(goldenBytes, MAPS) : null;
   const mine = havePupil ? facts(renderDocx(model!, SPEC)) : ({} as ReturnType<typeof facts>);
 
-  // ── What carries over: the declared geometry ──────────────────────────────
+  // ── The declared geometry, from a spec with the same keys ─────────────────
 
   it("carries the page geometry, which is not the teacher sheet's", () => {
     expect(mine.pgSz).toBe(gold.pgSz);
@@ -107,60 +124,78 @@ describe.skipIf(!havePupil)("does the same renderer carry a second document type
     expect(gold.fills).toEqual(["FDF1E4"]);
   });
 
-  // ── What does not: the content model ──────────────────────────────────────
+  // ── The content model, which is what had to be rebuilt ────────────────────
 
-  it("FINDING 1 — every picture is lost, because they all live in table cells", () => {
-    // Not most. All of them. A pupil page IS a grid of pictures — 42 placements
-    // over 28 files — and a banner cell in this model holds a string. The
-    // teacher sheet hid this: its pictures sit in paragraphs, which the model
-    // does have. This is the single biggest gap between the two document types.
+  it("reproduces every picture, all of which live inside table cells", () => {
+    // This is the assertion the rebuild exists for. A pupil page IS a grid of
+    // pictures — 42 placements over 28 files, in tables nested inside tables —
+    // and under the old model, where a cell held a string, every one was lost.
     expect(gold.images).toBe(42);
-    expect(mine.images).toBe(0);
+    expect(mine.images).toBe(gold.images);
   });
 
-  it("FINDING 2 — a page break not carried by a banner is lost", () => {
-    // The spec offers three carriers and this document uses "paragraph": a
-    // paragraph holding nothing but <w:br type="page"/>. The model reads a
-    // textless, pictureless paragraph as a spacer, and the renderer acts only
-    // on "banner-property". The VALUE is declared and read; nothing honours it.
+  it("reproduces the table structure, nesting and all", () => {
+    expect(mine.tables).toBe(gold.tables);
+    expect(mine.cells).toBe(gold.cells);
+    expect(gold.cells).toBe(70);
+  });
+
+  it("carries a page break the formatter says rides a paragraph", () => {
+    // The teacher sheet hangs its break off a banner's paragraph property,
+    // because a paragraph carrying a break leaves a blank page when the page
+    // before it is full. This document does the opposite, and both are declared
+    // rather than assumed: the model says WHERE a page starts, the spec says HOW.
+    expect(mine.pageBreaks).toBe(gold.pageBreaks);
     expect(gold.pageBreaks).toBe(1);
-    expect(mine.pageBreaks).toBe(0);
   });
 
-  it("FINDING 3 — a block's declared type size is never applied", () => {
-    // blocks.title.sizePt is 16 above and appears nowhere in the output. The
-    // renderer takes fill, textColour and bold off a block style and ignores
-    // sizePt. The key exists in the schema; nothing consumes it. The pupil
-    // title is 16 pt and the teacher sheet has one size throughout, so again
-    // only the second document type exposes it.
-    expect(mine.sizes).not.toContain("32");
+  it("applies a block's own type size", () => {
+    // blocks.title.sizePt is 16 in the spec above, and the old renderer read
+    // fill, textColour and bold off a block style while ignoring sizePt. Only a
+    // document with more than one type size ever exposed it.
     expect(gold.sizes).toContain("32");
+    expect(mine.sizes).toContain("32");
   });
 
-  it("FINDING 4 — the bullet marker is document-wide, not per block", () => {
-    // spec.blocks.bullet.marker exists, but the model carries ONE marker and
-    // the renderer puts it on every line. Here that bullets the page title.
-    expect(mine.texts[0]).toBe("• " + gold.texts[0]);
+  it("reproduces every printed line, word for word", () => {
+    // Including the instruction box's three numbered questions, which a
+    // one-string cell used to concatenate — and without bulleting the page
+    // title, which a document-wide marker used to do.
+    expect(mine.texts).toEqual(gold.texts);
   });
 
-  it("FINDING 5 — a cell holding several paragraphs collapses into one line", () => {
-    // The instruction box holds three numbered questions as three paragraphs.
-    // A cell is one string in this model, so they come out concatenated, with
-    // no space and no line break between them.
-    expect(gold.texts.slice(1, 4)).toEqual([
-      "1. Regardez bien ce panier. Quels fruits voyez-vous ?",
-      "2. Combien de fruits différents avons-nous ?",
-      "3. Quel est le fruit qui est le plus nombreux ?",
-    ]);
-    expect(mine.texts[1]).toBe(gold.texts.slice(1, 4).join(""));
+  it("puts every picture back at the size the golden gives it", () => {
+    // The sizes come from images.maxHeightCm, so getting them right means the
+    // roles were right — and a role has to be AUTHORED. Five of this document's
+    // seven picture sizes are square, so shape cannot tell them apart the way
+    // it can on the teacher sheet. Nothing here is a new render key; it is a
+    // longer list under an existing one.
+    expect(mine.images).toBe(gold.images);
+    // Within a tenth of a millimetre, not exactly. The heights come straight
+    // from the spec and match to the digit; two of the 42 widths land 0.01 cm
+    // out, because the spec declares its ceilings to two decimals and every
+    // width is derived from one. That is a rounding difference, not a layout
+    // one, and asserting a tolerance says so where rounding to a decimal place
+    // would just move the boundary.
+    const cm = (row: string) => row.split("x").map(Number);
+    expect(mine.imageSizes.length).toBe(gold.imageSizes.length);
+    mine.imageSizes.forEach((row, i) => {
+      const [mw, mh] = cm(row);
+      const [gw, gh] = cm(gold.imageSizes[i]);
+      // Compared in micrometres so binary float noise does not decide it.
+      expect(Math.round(Math.abs(mw - gw) * 1000)).toBeLessThanOrEqual(10);
+      expect(Math.round(Math.abs(mh - gh) * 1000)).toBeLessThanOrEqual(10);
+    });
   });
 
-  it("so: the spec generalised and the content model did not", () => {
-    // Stated as an assertion so it cannot quietly stop being true. Every
-    // failure above is a missing way to DESCRIBE the document; none of them is
-    // a missing render knob.
-    expect(mine.pgMar).toBe(gold.pgMar);       // geometry: carried
-    expect(mine.fills).toEqual(gold.fills);    // style: carried
-    expect(mine.images).toBe(0);               // structure: not
+  it("so: one renderer, two document types, no new render keys", () => {
+    // Stated as an assertion so it cannot quietly stop being true. Between this
+    // file and render.spike.test.ts the same code produces a bannered teacher
+    // sheet and a picture-grid pupil page, told apart only by their formatters.
+    expect(mine.pgMar).toBe(gold.pgMar);
+    expect(mine.fills).toEqual(gold.fills);
+    expect(mine.images).toBe(gold.images);
+    expect(mine.cells).toBe(gold.cells);
+    expect(mine.texts).toEqual(gold.texts);
   });
 });

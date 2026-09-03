@@ -1,28 +1,32 @@
 /*
  * WP4 spike: a .docx renderer driven entirely by `properties.render`.
  *
- * The question this exists to answer is narrow — CAN this runtime produce the
- * documents the project already ships, or does making Word files here fight us
- * hard enough to justify a second service in another language? So it is written
- * to be judged on output, not on completeness.
+ * The question it was built to answer was narrow — can this runtime produce the
+ * documents the project already ships? It can: it reproduces the CI-maths
+ * teacher sheet. Aiming the same code at the pupil tool then answered a second
+ * and more important question, NO, and said exactly where: the render spec
+ * generalised across the two document types, and the CONTENT MODEL did not.
+ * Every picture on a pupil page lives in a table cell, and a cell here used to
+ * hold a string.
  *
- * The rule it must not break, and the one worth watching: NOTHING here knows
- * what a maths lesson looks like. It knows banners, lines, images and spacers.
- * Which banner is turquoise, how tall a "bande" may stand, which colour marks
- * French — every one of those is read out of the RenderSpec. A `if (subject ===`
- * anywhere below would mean the abstraction failed, whatever the output looked
- * like.
+ * This is that model rebuilt. The change that matters is one idea:
  *
- * Not attempted: emphasis WITHIN a line. The golden sheets bold a word here and
- * there, and this model has no run-level styling — a line is one colour. That
- * is an authoring concern rather than a geometry one, so it would belong in the
- * document model, not in the spec.
+ *   A BANNER AND AN IMAGE GRID ARE THE SAME THING — a table whose cells hold
+ *   blocks. Blocks nest; a cell is not a string.
+ *
+ * The rule to keep watching: NOTHING here knows what a maths lesson looks like.
+ * It knows tables, lines, runs, pictures and spacers. Which banner is
+ * turquoise, how tall a band may stand, which colour marks French, where a page
+ * break is carried — every one of those is read out of the RenderSpec. A
+ * `if (subject === …)` anywhere below would mean the abstraction failed,
+ * whatever the output looked like.
  */
 import type { RenderSpec } from "../kg-recipes/index.js";
 import { zip, type ZipEntry } from "./zip.js";
 
 const TWIPS_PER_CM = 566.929;
 const EMU_PER_CM = 360000;
+const POINTS_PER_CM = 28.35;
 
 const cmToTwips = (cm: number) => Math.round(cm * TWIPS_PER_CM);
 const ptToTwentieths = (pt: number) => Math.round(pt * 20);
@@ -37,36 +41,46 @@ const PAGE_CM: Record<string, { w: number; h: number }> = {
 const esc = (s: string) =>
   s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 
-// ── The document model: what the authoring layer hands the renderer ──────────
+// ── The document model ──────────────────────────────────────────────────────
 //
-// Finished lines, already written and already tightened. The renderer does not
-// compose text, choose wording, or decide what a section contains — on this
-// project that is the authoring model's job, and the golden sheets prove it:
-// their [N] lines were rewritten by hand from the source guide's.
+// What the authoring layer hands the renderer: finished lines, already written
+// and already tightened. The renderer does not compose text, choose wording or
+// decide what a section contains — on this project that is the authoring
+// model's job, and the golden sheets prove it: their [N] lines were rewritten
+// by hand from the source guide's.
+//
+// `style` names an entry in spec.blocks. It is the ONLY channel through which
+// appearance reaches the page, which is what keeps this file subject-agnostic:
+// the model says "this is a phaseBanner", the spec says what one looks like.
 
 export type ImageRun = {
   media: string;          // file name inside word/media/
   role: string;           // looked up in spec.images.maxHeightCm
   aspectRatio: number;    // natural width / height
-  // WHETHER a picture floats beside the text is a per-section choice — the
-  // golden sheets embed some and set others in the run of the line. WHERE a
-  // floated one goes is the formatter's (spec.images.placement). The spec's
-  // single `placement` can therefore only be a default; that split is a finding.
+  // WHETHER a picture floats beside the text is a per-section choice — real
+  // sheets embed some and set others in the run of the line. WHERE a floated
+  // one goes is the formatter's (spec.images.placement).
   float?: boolean;
 };
-export type Run = { text: string } | { image: ImageRun };
+
+export type Run = { text: string; style?: string } | { image: ImageRun };
+
+export type Cell = {
+  blocks: Block[];        // a cell holds BLOCKS, not a string
+  style?: string;
+  span?: number;          // columns this cell covers
+};
 
 export type Block =
-  | { kind: "banner"; rows: { text: string; block: string }[][]; pageBreakBefore?: boolean }
-  | { kind: "line"; variant: string; runs: Run[] }
-  // Inter-block furniture. Its two numbers live in the MODEL rather than the
+  | { kind: "table"; rows: Cell[][]; style?: string; columnsCm?: number[]; pageBreak?: "before" }
+  | { kind: "line"; runs: Run[]; variant?: string; style?: string; pageBreak?: "before" }
+  // Furniture between blocks. Its two numbers live in the MODEL rather than the
   // spec because the spec has no key for them — a finding, not a design choice.
   | { kind: "spacer"; sizePt: number; leadingPt: number };
 
 export type DocumentModel = {
   blocks: Block[];
   media: { name: string; data: Buffer }[];
-  bulletMarker?: string;
 };
 
 // ── Geometry, resolved from the spec ────────────────────────────────────────
@@ -81,36 +95,89 @@ function usableWidthCm(spec: RenderSpec): number {
  * An image's size, from its role and its shape — never from the file.
  *
  * The height ceiling is per role, and a picture wider than the declared ratio
- * goes full width instead of floating, because a band squeezed beside text is
- * a sliver nobody can read. Width follows from height and the aspect ratio, and
- * is then capped by the page. This is the rule that overflowed four lessons
- * when it was applied without the ceiling.
+ * goes full width instead of floating, because a band squeezed beside text is a
+ * sliver nobody can read. Width follows from height and the aspect ratio, then
+ * is capped by the page. This is the rule that overflowed four lessons when it
+ * was applied without the ceiling.
  */
 function imageSizeCm(img: ImageRun, spec: RenderSpec): { w: number; h: number } {
-  const maxHeight = spec.images?.maxHeightCm?.[img.role];
-  const usable = usableWidthCm(spec);
-  const h = maxHeight ?? 2;
+  const h = spec.images?.maxHeightCm?.[img.role] ?? 2;
   let w = h * img.aspectRatio;
   const maxWidth = spec.images?.maxWidthCm;
   const goesFullWidth =
     spec.images?.fullWidthAboveAspectRatio !== undefined &&
     img.aspectRatio > spec.images.fullWidthAboveAspectRatio;
-  if (!goesFullWidth && maxWidth !== undefined && w > maxWidth) {
-    w = maxWidth;
-  }
-  return { w: Math.min(w, usable), h };
+  if (!goesFullWidth && maxWidth !== undefined && w > maxWidth) w = maxWidth;
+  return { w: Math.min(w, usableWidthCm(spec)), h };
 }
 
-// ── XML fragments ───────────────────────────────────────────────────────────
+// ── Rendering ───────────────────────────────────────────────────────────────
+
+type Style = NonNullable<RenderSpec["blocks"]>[string];
+
+/*
+ * Threaded down the block tree so a page break can be attached to the first
+ * paragraph the renderer reaches — which may be several levels inside a table.
+ * `pending` is consumed once; whoever takes it clears it.
+ */
+type Context = { spec: RenderSpec; relOf: Map<string, string>; nextId: number; pending: boolean };
+
+const styleOf = (ctx: Context, name?: string): Style => (name && ctx.spec.blocks?.[name]) || {};
+
+const hex = (value: string | undefined, fallback?: string) =>
+  (value ?? fallback)?.replace("#", "");
 
 function spacingXml(leadingPt: number | undefined, rule: string | undefined): string {
   if (leadingPt === undefined) return "";
   return `<w:spacing w:line="${ptToTwentieths(leadingPt)}" w:lineRule="${rule ?? "auto"}"/>`;
 }
 
-function drawingXml(img: ImageRun, spec: RenderSpec, relId: string, id: number): string {
+/*
+ * How a page break reaches the page — one of three, declared by the formatter.
+ *
+ * It genuinely differs between the two live document types: the teacher sheet
+ * hangs the break off its séance banner's own paragraph property, because a
+ * paragraph carrying a break produces a BLANK PAGE whenever the page before it
+ * is already full. The pupil tool uses exactly that free-standing paragraph.
+ * Silently supporting one of them is how the pupil tool lost its break.
+ */
+function standaloneBreak(ctx: Context): string {
+  switch (ctx.spec.pagination?.pageBreakCarrier) {
+    case "paragraph":
+      return `<w:p><w:r><w:br w:type="page"/></w:r></w:p>`;
+    case "section-break":
+      return `<w:p><w:pPr>${sectPrXml(ctx.spec)}</w:pPr></w:p>`;
+    default:
+      return "";   // "banner-property": it rides the next paragraph instead
+  }
+}
+
+/** Claim the pending break for a paragraph property, if that is the carrier. */
+function takeBreakForPPr(ctx: Context): string {
+  if (!ctx.pending) return "";
+  const carrier = ctx.spec.pagination?.pageBreakCarrier ?? "banner-property";
+  if (carrier !== "banner-property") return "";
+  ctx.pending = false;
+  return "<w:pageBreakBefore/>";
+}
+
+function runPropsXml(ctx: Context, style: Style, colour: string | undefined): string {
+  const parts = [
+    style.bold ? "<w:b/>" : "",
+    style.italic ? "<w:i/>" : "",
+    style.sizePt ? `<w:sz w:val="${Math.round(style.sizePt * 2)}"/><w:szCs w:val="${Math.round(style.sizePt * 2)}"/>` : "",
+    colour ? `<w:color w:val="${colour}"/>` : "",
+  ];
+  const inner = parts.join("");
+  return inner ? `<w:rPr>${inner}</w:rPr>` : "";
+}
+
+function drawingXml(img: ImageRun, ctx: Context): string {
+  const { spec } = ctx;
   const { w, h } = imageSizeCm(img, spec);
   const cx = cmToEmu(w), cy = cmToEmu(h);
+  const id = ctx.nextId++;
+  const relId = ctx.relOf.get(img.media) ?? "rId1";
 
   const picture =
     `<a:graphic xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main">` +
@@ -151,54 +218,146 @@ function drawingXml(img: ImageRun, spec: RenderSpec, relId: string, id: number):
   );
 }
 
-/*
- * A banner: a small table whose cells carry the colour.
- *
- * Several ROWS, not one — the header alone stacks week/lesson/day across three
- * cells, then the objective and the materials box each across the full width.
- * A single-row model rendered them side by side, squashed into thirds.
- */
-function bannerXml(
-  block: Extract<Block, { kind: "banner" }>, spec: RenderSpec,
+function lineXml(
+  block: Extract<Block, { kind: "line" }>, ctx: Context, inherited?: string,
 ): string {
-  const totalTwips = cmToTwips(usableWidthCm(spec));
-  const columns = Math.max(...block.rows.map((r) => r.length));
-  const each = Math.floor(totalTwips / columns);
-  const grid = Array.from({ length: columns }, () => `<w:gridCol w:w="${each}"/>`).join("");
+  const { spec } = ctx;
+  // A style on a CONTAINER reaches what it contains: the white bold text of a
+  // banner is the banner's style, not something each line inside it restates.
+  // A line's own style wins where it sets a value.
+  const style = { ...styleOf(ctx, inherited), ...styleOf(ctx, block.style) };
 
-  const rows = block.rows.map((cells, rowIndex) => {
-    const span = Math.floor(columns / cells.length);
-    return `<w:tr>${cells.map((cell, i) => {
-      const style = spec.blocks?.[cell.block] ?? {};
-      const fill = (style.fill ?? "auto").replace("#", "");
-      const colour = (style.textColour ?? "000000").replace("#", "");
-      const first = rowIndex === 0 && i === 0;
-      const breakBefore = block.pageBreakBefore && first ? "<w:pageBreakBefore/>" : "";
-      const bold = style.bold === false ? "" : "<w:b/>";
+  /*
+   * A paragraph carrying a picture may need a different leading rule from the
+   * body's — but only when the picture would actually be cropped.
+   *
+   * The narrow condition matters. "Any paragraph holding a picture" is the
+   * obvious reading and it is wrong: it relaxes the leading under every
+   * pictogram too, and each of those lines then grows by a few points. Across a
+   * sheet that is enough to push a séance onto a third page. Only a picture
+   * TALLER than the line box is at risk, and a floated one never is — it has no
+   * line to respect.
+   */
+  const lineBoxCm = (spec.type?.leadingPt ?? 0) / POINTS_PER_CM;
+  const cropped = block.runs.some(
+    (r) => "image" in r && !r.image.float && imageSizeCm(r.image, spec).h > lineBoxCm,
+  );
+  const rule = cropped ? (spec.images?.paragraphLeadingRule ?? spec.type?.leadingRule) : spec.type?.leadingRule;
+  const leading = cropped && spec.images?.paragraphLeadingRule === "auto" ? undefined : spec.type?.leadingPt;
+
+  const variantColour = hex(
+    (spec.language?.variants ?? []).find((v) => v.id === block.variant)?.colour,
+  );
+  const colour = hex(style.textColour, variantColour);
+
+  const marker = style.marker
+    ? `<w:r>${runPropsXml(ctx, style, colour)}<w:t xml:space="preserve">${esc(style.marker)} </w:t></w:r>`
+    : "";
+
+  const runs = block.runs.map((run) => {
+    if ("image" in run) return drawingXml(run.image, ctx);
+    const runStyle = run.style ? { ...style, ...styleOf(ctx, run.style) } : style;
+    const runColour = hex(styleOf(ctx, run.style).textColour, colour);
+    return `<w:r>${runPropsXml(ctx, runStyle, runColour)}<w:t xml:space="preserve">${esc(run.text)}</w:t></w:r>`;
+  }).join("");
+
+  const keep = style.keepWithNext ? "<w:keepNext/>" : "";
+  return `<w:p><w:pPr>${takeBreakForPPr(ctx)}${keep}${spacingXml(leading, rule)}</w:pPr>${marker}${runs}</w:p>`;
+}
+
+/*
+ * A table — which is a banner AND an image grid.
+ *
+ * Treating them as one construct is the whole point of this rewrite. The old
+ * model had a "banner" of text cells, so every picture in the pupil tool's
+ * grids was dropped: 42 of 42. A cell holds blocks now, so a grid cell holds a
+ * line holding a picture, and the same code lays out both.
+ */
+function tableXml(block: Extract<Block, { kind: "table" }>, ctx: Context): string {
+  const { spec } = ctx;
+  const style = styleOf(ctx, block.style);
+  const columns = Math.max(...block.rows.map((r) => r.reduce((n, c) => n + (c.span ?? 1), 0)));
+  const widths = block.columnsCm?.length
+    ? block.columnsCm.map(cmToTwips)
+    : Array.from({ length: columns }, () => Math.floor(cmToTwips(usableWidthCm(spec)) / columns));
+
+  const grid = widths.map((w) => `<w:gridCol w:w="${w}"/>`).join("");
+
+  const borders = style.border === "none" || style.border === undefined
+    ? `<w:tblBorders><w:top w:val="nil"/><w:left w:val="nil"/><w:bottom w:val="nil"/>` +
+      `<w:right w:val="nil"/><w:insideH w:val="nil"/><w:insideV w:val="nil"/></w:tblBorders>`
+    : `<w:tblBorders><w:top w:val="single" w:sz="${style.border === "thin" ? 4 : 8}"/>` +
+      `<w:left w:val="single" w:sz="${style.border === "thin" ? 4 : 8}"/>` +
+      `<w:bottom w:val="single" w:sz="${style.border === "thin" ? 4 : 8}"/>` +
+      `<w:right w:val="single" w:sz="${style.border === "thin" ? 4 : 8}"/>` +
+      `<w:insideH w:val="single" w:sz="${style.border === "thin" ? 4 : 8}"/>` +
+      `<w:insideV w:val="single" w:sz="${style.border === "thin" ? 4 : 8}"/></w:tblBorders>`;
+
+  const margin = style.cellMarginsCm !== undefined ? cmToTwips(style.cellMarginsCm) : 0;
+
+  const rows = block.rows.map((cells) => {
+    let column = 0;
+    return `<w:tr>${cells.map((cell) => {
+      const span = cell.span ?? 1;
+      const width = widths.slice(column, column + span).reduce((a, b) => a + b, 0);
+      column += span;
+      const cellStyle = styleOf(ctx, cell.style);
+      const fill = hex(cellStyle.fill);
       return (
-        `<w:tc><w:tcPr><w:tcW w:w="${each * span}" w:type="dxa"/>` +
+        `<w:tc><w:tcPr><w:tcW w:w="${width}" w:type="dxa"/>` +
         (span > 1 ? `<w:gridSpan w:val="${span}"/>` : "") +
-        `<w:shd w:val="clear" w:color="auto" w:fill="${fill}"/></w:tcPr>` +
-        `<w:p><w:pPr>${breakBefore}${spacingXml(spec.type?.leadingPt, spec.type?.leadingRule)}</w:pPr>` +
-        `<w:r><w:rPr>${bold}<w:color w:val="${colour}"/></w:rPr>` +
-        `<w:t xml:space="preserve">${esc(cell.text)}</w:t></w:r></w:p></w:tc>`
+        (fill ? `<w:shd w:val="clear" w:color="auto" w:fill="${fill}"/>` : "") +
+        `</w:tcPr>` +
+        // A cell must contain at least one paragraph, even when it holds nothing.
+        (renderBlocks(cell.blocks, ctx, cell.style ?? block.style) || "<w:p/>") +
+        `</w:tc>`
       );
     }).join("")}</w:tr>`;
   }).join("");
 
   return (
-    `<w:tbl><w:tblPr><w:tblW w:w="0" w:type="auto"/>` +
-    `<w:tblCellMar><w:left w:w="0" w:type="dxa"/><w:right w:w="0" w:type="dxa"/></w:tblCellMar>` +
-    `<w:tblLook w:val="04A0"/></w:tblPr>` +
+    `<w:tbl><w:tblPr><w:tblW w:w="0" w:type="auto"/><w:tblLayout w:type="fixed"/>` +
+    `<w:tblCellMar><w:left w:w="${margin}" w:type="dxa"/><w:right w:w="${margin}" w:type="dxa"/></w:tblCellMar>` +
+    `${borders}<w:tblLook w:val="04A0"/></w:tblPr>` +
     `<w:tblGrid>${grid}</w:tblGrid>${rows}</w:tbl>`
   );
 }
 
-export function renderDocx(model: DocumentModel, spec: RenderSpec): Buffer {
-  const variantColour = new Map(
-    (spec.language?.variants ?? []).map((v) => [v.id, (v.colour ?? "000000").replace("#", "")]),
-  );
+function renderBlocks(blocks: Block[], ctx: Context, inherited?: string): string {
+  return blocks.map((block) => {
+    // A break declared on a block is emitted the way the FORMATTER says, not
+    // the way this renderer prefers: as its own paragraph, as a section break,
+    // or as a property the next paragraph picks up.
+    let prefix = "";
+    if (block.kind !== "spacer" && block.pageBreak === "before") {
+      prefix = standaloneBreak(ctx);
+      ctx.pending = prefix === "";
+    }
 
+    if (block.kind === "spacer") {
+      return (
+        `${prefix}<w:p><w:pPr>${spacingXml(block.leadingPt, "exact")}</w:pPr>` +
+        `<w:r><w:rPr><w:sz w:val="${Math.round(block.sizePt * 2)}"/></w:rPr></w:r></w:p>`
+      );
+    }
+    return prefix + (block.kind === "table" ? tableXml(block, ctx) : lineXml(block, ctx, inherited));
+  }).join("");
+}
+
+function sectPrXml(spec: RenderSpec): string {
+  const page = PAGE_CM[spec.page?.size ?? "A4"] ?? PAGE_CM.A4;
+  const landscape = spec.page?.orientation === "landscape";
+  const m = spec.page?.marginsCm ?? {};
+  return (
+    `<w:sectPr><w:pgSz w:w="${cmToTwips(landscape ? page.h : page.w)}"` +
+    ` w:h="${cmToTwips(landscape ? page.w : page.h)}"${landscape ? ' w:orient="landscape"' : ""}/>` +
+    `<w:pgMar w:top="${cmToTwips(m.top ?? 2)}" w:right="${cmToTwips(m.right ?? 2)}"` +
+    ` w:bottom="${cmToTwips(m.bottom ?? 2)}" w:left="${cmToTwips(m.left ?? 2)}"` +
+    ` w:header="720" w:footer="720" w:gutter="0"/></w:sectPr>`
+  );
+}
+
+export function renderDocx(model: DocumentModel, spec: RenderSpec): Buffer {
   // Images get a relationship each; ids continue past the styles part.
   const rels: string[] = [
     `<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/>`,
@@ -212,79 +371,24 @@ export function renderDocx(model: DocumentModel, spec: RenderSpec): Buffer {
     );
   });
 
-  let drawingId = 1;
-  const body = model.blocks.map((block) => {
-    if (block.kind === "banner") return bannerXml(block, spec);
-
-    if (block.kind === "spacer") {
-      return (
-        `<w:p><w:pPr>${spacingXml(block.leadingPt, "exact")}</w:pPr>` +
-        `<w:r><w:rPr><w:sz w:val="${Math.round(block.sizePt * 2)}"/></w:rPr></w:r></w:p>`
-      );
-    }
-
-    /*
-     * A line. A paragraph carrying an image may need a different leading rule
-     * from the body's — but only when the picture would actually be cropped.
-     *
-     * The narrow condition matters. "Any paragraph holding a picture" is the
-     * obvious reading and it is wrong: it relaxes the leading under every
-     * pictogram too, and each of those lines then grows by a few points. Across
-     * a sheet that is enough to push a séance onto a third page. Only a picture
-     * TALLER than the line box is at risk, which is why the golden sheets leave
-     * their pictograms on the exact rule and their bands on the automatic one.
-     *
-     * A floated picture is never at risk — it has no line to respect.
-     */
-    const lineBoxCm = (spec.type?.leadingPt ?? 0) / 28.35;
-    const cropped = block.runs.some(
-      (r) => "image" in r && !r.image.float && imageSizeCm(r.image, spec).h > lineBoxCm,
-    );
-    const rule = cropped
-      ? (spec.images?.paragraphLeadingRule ?? spec.type?.leadingRule)
-      : spec.type?.leadingRule;
-    const leading = cropped && spec.images?.paragraphLeadingRule === "auto"
-      ? undefined
-      : spec.type?.leadingPt;
-    const colour = variantColour.get(block.variant) ?? "000000";
-
-    const marker = model.bulletMarker ?? "";
-    const runs = block.runs.map((run) => {
-      if ("image" in run) {
-        return drawingXml(run.image, spec, relOf.get(run.image.media) ?? "rId1", drawingId++);
-      }
-      return `<w:r><w:rPr><w:color w:val="${colour}"/></w:rPr><w:t xml:space="preserve">${esc(run.text)}</w:t></w:r>`;
-    }).join("");
-    const lead = `<w:r><w:rPr><w:color w:val="${colour}"/></w:rPr><w:t xml:space="preserve">${esc(marker)}</w:t></w:r>`;
-
-    return `<w:p><w:pPr>${spacingXml(leading, rule)}</w:pPr>${marker ? lead : ""}${runs}</w:p>`;
-  }).join("");
-
-  const page = PAGE_CM[spec.page?.size ?? "A4"] ?? PAGE_CM.A4;
-  const landscape = spec.page?.orientation === "landscape";
-  const m = spec.page?.marginsCm ?? {};
-  const sectPr =
-    `<w:sectPr><w:pgSz w:w="${cmToTwips(landscape ? page.h : page.w)}" w:h="${cmToTwips(landscape ? page.w : page.h)}"` +
-    `${landscape ? ' w:orient="landscape"' : ""}/>` +
-    `<w:pgMar w:top="${cmToTwips(m.top ?? 2)}" w:right="${cmToTwips(m.right ?? 2)}"` +
-    ` w:bottom="${cmToTwips(m.bottom ?? 2)}" w:left="${cmToTwips(m.left ?? 2)}"` +
-    ` w:header="720" w:footer="720" w:gutter="0"/></w:sectPr>`;
+  const ctx: Context = { spec, relOf, nextId: 1, pending: false };
+  const body = renderBlocks(model.blocks, ctx);
 
   const document =
     `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>` +
     `<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"` +
     ` xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"` +
     ` xmlns:wp="http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing">` +
-    `<w:body>${body}${sectPr}</w:body></w:document>`;
+    `<w:body>${body}${sectPrXml(spec)}</w:body></w:document>`;
 
   const family = esc(spec.type?.family ?? "Calibri");
+  const size = Math.round((spec.type?.sizePt ?? 11) * 2);
   const styles =
     `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>` +
     `<w:styles xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">` +
     `<w:docDefaults><w:rPrDefault><w:rPr>` +
     `<w:rFonts w:ascii="${family}" w:hAnsi="${family}" w:cs="${family}"/>` +
-    `<w:sz w:val="${Math.round((spec.type?.sizePt ?? 11) * 2)}"/>` +
-    `<w:szCs w:val="${Math.round((spec.type?.sizePt ?? 11) * 2)}"/>` +
+    `<w:sz w:val="${size}"/><w:szCs w:val="${size}"/>` +
     `</w:rPr></w:rPrDefault><w:pPrDefault><w:pPr>` +
     spacingXml(spec.type?.leadingPt, spec.type?.leadingRule) +
     `</w:pPr></w:pPrDefault></w:docDefaults></w:styles>`;
