@@ -253,7 +253,7 @@ export async function buildCapabilitiesReport(): Promise<Record<string, unknown>
   // kept by hand here.
   const document = {
     available: actions.canPreview,
-    tool: "render_document",
+    tools: ["render_document", "propose_from_document"],
     keys: DOCUMENT_TREE_KEYS,
     blockKinds: ["table", "line", "spacer"],
     validatedAt: "render",
@@ -263,7 +263,8 @@ export async function buildCapabilitiesReport(): Promise<Record<string, unknown>
       "IT CARRIES NO GEOMETRY — no colour, no point size, no centimetre. A block names a `style` and a picture names a `role`, both defined by the formatter's `render`; a page break says only `pageBreak:'before'` and `pagination.pageBreakCarrier` decides whether that is written as a paragraph property or a paragraph of its own. That split is the point: structure varies per lesson and is yours, geometry is the formatter's and is the same for every page it governs. " +
       "UNKNOWN KEYS ARE REFUSED and nothing renders when the tree is invalid; the response names the path. Output is a preview: segregated prefix, short-lived URL, never list_documents or log_generation. " +
       "ONE FILE PER LANGUAGE when the formatter's `language.strategy` is 'per-file' — tag a line with a `variant` and it prints only in that variant's file, leave it untagged (or mark the variant `inAllFiles`) and it prints in every one. `translateInto` derives a language the tree does not carry, grounded in the subject glossary. " +
-      "`measure:true` lays each file out and COUNTS ITS PAGES — measured on the render, never estimated from the source; with `budget.maxPages` declared each file also reports `fits`. It needs a layout engine in the deployment and reports `available:false` where there is none, rather than guessing.",
+      "`measure:true` lays each file out and COUNTS ITS PAGES — measured on the render, never estimated from the source; with `budget.maxPages` declared each file also reports `fits`. It needs a layout engine in the deployment and reports `available:false` where there is none, rather than guessing. " +
+      "THE LOOP CLOSES BOTH WAYS: a block may carry `anchor`, the graph node it came from, which the renderer writes into the file as a Word content control — invisible on the page, preserved when a person edits around it. `propose_from_document` reads a corrected .docx back and returns proposed edits, plus `editItems` in the shape edit_nodes takes. It PROPOSES and never writes; a vanished line is reported rather than deleted (a deliberate cut and an editing slip look identical in a Word file), and new text with no anchor is reported without a parent rather than filed by position.",
   };
 
   // ── audit: advertise the approver-only, read-only audit reader (#16), so

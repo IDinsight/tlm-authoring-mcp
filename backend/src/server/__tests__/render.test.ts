@@ -25,8 +25,8 @@ import { __setStorageForTest } from "../../storage/index.js";
 import { __setActorForTest, type Actor } from "../../actor.js";
 import { activateContext } from "../../activate.js";
 import { runEditNodes } from "../recipes.js";
-import { renderDocument } from "../render.js";
-import { unzip } from "../../render/index.js";
+import { renderDocument, proposeFromDocument } from "../render.js";
+import { unzip, documentSchema } from "../../render/index.js";
 import { CONFIG } from "../../config.js";
 import type { StorageAdapter, HistoryFile } from "../../types.js";
 
@@ -397,6 +397,106 @@ describe("counting the pages", () => {
     expect(out.error).toBeUndefined();
     expect(uploads).toHaveLength(1);
     expect(uploads[0].body.length).toBeGreaterThan(500);
+  });
+});
+
+describe("reading a corrected document back", () => {
+  // The expert's half of the loop. A sheet goes out, comes back with a fixed
+  // sentence, and the correction has to reach the graph — without any tool
+  // silently rewriting curriculum from a Word file.
+  let anchorId: string;
+  let originalText: string;
+
+  // Serve the "corrected" file back through the storage stub, so the tool
+  // reads it exactly as it would read one an expert uploaded.
+  let corrected: Buffer = Buffer.alloc(0);
+  const readable: StorageAdapter = { ...storage, downloadDocx: async () => corrected };
+
+  async function renderWithAnchor(text: string): Promise<Buffer> {
+    const { renderDocx, resolveRenderSpec } = await import("../../render/index.js");
+    const stack = [{ id: "f", properties: { raw: { render: RENDER_BAG } } }];
+    const spec = resolveRenderSpec(stack);
+    if (!spec.ok) throw new Error(spec.errors.join("; "));
+    const tree = documentSchema.parse({
+      blocks: [{ kind: "line", anchor: anchorId, style: "bullet", runs: [{ text }] }],
+    });
+    return renderDocx({ blocks: tree.blocks, media: [] }, spec.spec);
+  }
+
+  beforeEach(async () => {
+    __setStorageForTest(readable);
+    await withCtx(CURATOR, async () => {
+      const { getActiveAdapter } = await import("../../adapters/index.js");
+      const raw = getActiveAdapter().model().rawGraph!;
+      const withContent = raw.nodes.find(
+        (n) => typeof (n.properties as Record<string, unknown>)?.content === "string"
+          && ((n.properties as Record<string, unknown>).content as string).length > 20,
+      )!;
+      anchorId = withContent.id;
+      originalText = (withContent.properties as Record<string, unknown>).content as string;
+    });
+  });
+
+  it("proposes the edit an expert actually made", async () => {
+    corrected = await renderWithAnchor(originalText + " ET UNE PHRASE AJOUTÉE.");
+    const out = await withCtx(CURATOR, async () => proposeFromDocument({ relPath: "corrigé.docx" }));
+
+    expect(out.anchored).toBe(true);
+    const proposals = out.proposals as Array<Record<string, unknown>>;
+    expect(proposals).toHaveLength(1);
+    expect(proposals[0]).toMatchObject({ kind: "edit", nodeId: anchorId });
+    expect(String(proposals[0].after)).toContain("ET UNE PHRASE AJOUTÉE.");
+  });
+
+  it("hands back edits in the exact shape edit_nodes takes", async () => {
+    corrected = await renderWithAnchor(originalText + " ET UNE PHRASE AJOUTÉE.");
+    const out = await withCtx(CURATOR, async () => proposeFromDocument({ relPath: "corrigé.docx" }));
+    const items = out.editItems as Array<Record<string, unknown>>;
+    expect(items).toHaveLength(1);
+    expect(Object.keys(items[0]).sort()).toEqual(["content", "nodeId"]);
+  });
+
+  it("proposes NOTHING when the expert changed nothing", async () => {
+    // Including the bullet the formatter added, which the graph never held.
+    corrected = await renderWithAnchor(originalText);
+    const out = await withCtx(CURATOR, async () => proposeFromDocument({ relPath: "corrigé.docx" }));
+    expect(out.proposals).toEqual([]);
+    expect((out.counts as Record<string, number>).edits).toBe(0);
+  });
+
+  it("says so plainly when a document carries no node ids", async () => {
+    // An old sheet, or one rebuilt by hand. Its text reads; what cannot be said
+    // is where any of it belongs, and saying that beats a confident guess.
+    const { renderDocx, resolveRenderSpec } = await import("../../render/index.js");
+    const spec = resolveRenderSpec([{ id: "f", properties: { raw: { render: RENDER_BAG } } }]);
+    if (!spec.ok) throw new Error("spec");
+    corrected = renderDocx(
+      { blocks: documentSchema.parse({ blocks: [{ kind: "line", runs: [{ text: "Sans ancre." }] }] }).blocks, media: [] },
+      spec.spec,
+    );
+    const out = await withCtx(CURATOR, async () => proposeFromDocument({ relPath: "vieux.docx" }));
+    expect(out.anchored).toBe(false);
+    expect(out.proposals).toBeUndefined();
+    expect(String(out.message)).toContain("no node ids");
+  });
+
+  it("never writes to the graph", async () => {
+    // The whole safety property: a Word file cannot change the curriculum on
+    // its own. Reading one leaves no draft behind.
+    corrected = await renderWithAnchor(originalText + " CHANGÉ.");
+    const draftAfter = await withCtx(CURATOR, async () => {
+      await proposeFromDocument({ relPath: "corrigé.docx" });
+      const { resolveDraftModel } = await import("../preview.js");
+      const { kgNamespace } = await import("../../kg-store/index.js");
+      return resolveDraftModel(kgNamespace(ctx.workspace, ctx.grade, ctx.subject));
+    });
+    expect(draftAfter).toBeNull();
+  });
+
+  it("blocks a signed-in caller with no role", async () => {
+    corrected = await renderWithAnchor(originalText);
+    const out = await withCtx(SIGNED_IN_NO_ROLE, async () => proposeFromDocument({ relPath: "corrigé.docx" }));
+    expect(out.proposals).toBeUndefined();
   });
 });
 
