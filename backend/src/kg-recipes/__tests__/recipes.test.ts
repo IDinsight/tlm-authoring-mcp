@@ -275,6 +275,63 @@ describe("edit-node (the per-node engine behind edit_nodes — replaced repositi
     expect(node.properties.title).toBe("Chapitre renommé");
   });
 
+  /*
+   * A `description` is two fields in one string: a name line, and — on a routine
+   * step or a catalog entry — a body below it. `title` used to write the whole
+   * thing, so an author fixing a name silently wiped the body, and prose ended
+   * up duplicated into `metadata.summary` because that was the only field that
+   * could be edited safely. Each half now has its own argument.
+   */
+  describe("editing a description that has a body under its name line", () => {
+    const NAME = "Étape 2 — Écrire la lettre";
+    const BODY = "**Je fais** : E écrit la lettre au tableau.\n\n**Tu fais** : les LVs reprennent.";
+
+    /** A node whose raw.description carries a name line AND a body. */
+    async function withBody(): Promise<string> {
+      const { lessonId } = pick(await readPublished());
+      const { confirm } = await runRecipe(editNode, {
+        namespace: ns, nodeId: lessonId, title: NAME, body: BODY,
+      });
+      expect(confirm?.phase).toBe("apply");
+      return lessonId;
+    }
+
+    const descriptionOf = async (id: string) =>
+      ((await readDraft())!.nodes.find((n) => n.id === id)!.properties.raw as any).description as string;
+
+    it("keeps the body when only the name is edited", async () => {
+      const id = await withBody();
+      await runRecipe(editNode, { namespace: ns, nodeId: id, title: "Étape 2 — CORRIGÉE" });
+      expect(await descriptionOf(id)).toBe(`Étape 2 — CORRIGÉE\n\n${BODY}`);
+    });
+
+    it("keeps the name line when only the body is edited", async () => {
+      const id = await withBody();
+      await runRecipe(editNode, { namespace: ns, nodeId: id, body: "Un script entièrement réécrit." });
+      expect(await descriptionOf(id)).toBe(`${NAME}\n\nUn script entièrement réécrit.`);
+    });
+
+    it("removes the body on an empty string, keeping the name line", async () => {
+      const id = await withBody();
+      await runRecipe(editNode, { namespace: ns, nodeId: id, body: "" });
+      expect(await descriptionOf(id)).toBe(NAME);
+    });
+
+    it("puts only the NAME in the normalized display field, never the body", async () => {
+      const id = await withBody();
+      const node = (await readDraft())!.nodes.find((n) => n.id === id)!;
+      expect(node.properties.text).toBe(NAME);
+    });
+
+    it("refuses a multi-line title and points at `body`", async () => {
+      const { lessonId } = pick(await readPublished());
+      const { preview } = await runRecipe(editNode, {
+        namespace: ns, nodeId: lessonId, title: "Un nom\n\net un corps",
+      });
+      expect(JSON.stringify(preview)).toMatch(/single line.*'body'/);
+    });
+  });
+
   it("writes a summary into raw.metadata.summary (a routine/formatter's blurb)", async () => {
     const { lessonId } = pick(await readPublished());
     const { confirm } = await runRecipe(editNode, { namespace: ns, nodeId: lessonId, summary: "Résumé transversal en **markdown**." });

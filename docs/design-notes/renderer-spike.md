@@ -299,13 +299,17 @@ So the caller now resolves the field per node, in the order in which a node's te
 `content`, else the body of `description`, else its name line. Where the document's own text still
 matches one of them exactly, that is the field the expert edited and nothing is inferred.
 
-`editItems` names the argument that reaches the field it chose — `content` or `title` — and carries
-the rest of that field verbatim. Both halves matter: `title` overwrites the WHOLE description, so
-correcting a banner must not take the body with it, and emitting a `content` edit for a node whose
-text is its description would not correct anything — it would leave a SECOND copy beside the real
-one. That is not hypothetical. It is exactly how four catalog entries came to carry two copies of
-their prose, one of them citing formatter ids that had moved on, invisible because only the other
-copy is ever rendered.
+`editItems` names the argument that reaches the field it chose — `content`, `title` or `body`.
+Emitting a `content` edit for a node whose text is its description would not correct anything: it
+would leave a SECOND copy beside the real one. That is not hypothetical. It is exactly how four
+catalog entries came to carry two copies of their prose, one of them citing formatter ids that had
+moved on, invisible because only the other copy is ever rendered.
+
+`body` did not exist when this was first written, and its absence is the same root cause: `title`
+wrote the WHOLE `description`, so the only way to correct a name was to resend the body with it, and
+the only way to reach a body was to resend the name. `edit_nodes` now splits them — `title` is the
+name line and keeps what is under it, `body` is what is under it and keeps the name — which let the
+head/tail bookkeeping here disappear.
 
 One seam remains, and it is deliberate rather than an oversight: `render_document` writes the
 segregated `previews/` prefix, while `propose_from_document` reads `documents/`. A corrected sheet

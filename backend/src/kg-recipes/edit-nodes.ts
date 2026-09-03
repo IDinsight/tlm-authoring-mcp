@@ -30,6 +30,7 @@ export type EditNodesItem = {
   content?: string;
   position?: number;
   title?: string;
+  body?: string;
   title_en?: string;
   summary?: string;
   properties?: Record<string, unknown>;
@@ -46,6 +47,7 @@ function toEditNodeArgs(item: EditNodesItem, namespace: string): EditNodeArgs {
     content: item.content,
     position: item.position,
     title: item.title,
+    body: item.body,
     title_en: item.title_en,
     summary: item.summary,
     properties: item.properties,

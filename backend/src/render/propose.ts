@@ -109,42 +109,28 @@ export function proposeEdits(
 }
 
 /*
- * WHERE a node keeps the text a rendered block came from, and how to write it
- * back. This is not decoration: on the live ci-maths graph only 21 nodes of
- * 2019 keep their text in `content` (all of them FormatterSpecs), and every
- * DocumentSection, Activity and Lesson keeps it in `description`. Emitting a
- * `content` edit for one of those would not correct the node — it would add a
- * SECOND copy of the text beside the real one, which is exactly the drift that
- * left four catalog entries citing formatter ids that had moved on.
- *
- * `head`/`tail` are the rest of the field, kept verbatim. A node's description
- * is a name line followed by a body, and correcting the banner must not take
- * the body with it.
+ * WHERE a node keeps the text a rendered block came from, and which edit_nodes
+ * argument writes it back. This is not decoration: on the live ci-maths graph
+ * only 21 nodes of 2019 keep their text in `content` (all of them
+ * FormatterSpecs), and every DocumentSection, Activity and Lesson keeps it in
+ * `description` — whose first line is the display name and whose remainder,
+ * where there is one, is the body. Naming the wrong argument would not correct
+ * the node: it would leave a SECOND copy of the text beside the real one,
+ * which is exactly the drift that left four catalog entries citing formatter
+ * ids that had moved on.
  */
-export type TextSlot = {
-  field: "content" | "title";
-  head?: string;
-  tail?: string;
-};
-
-/** What a node's field becomes once the corrected text is dropped into it. */
-const written = (slot: TextSlot, after: string): string => (slot.head ?? "") + after + (slot.tail ?? "");
+export type TextSlot = { field: "content" | "title" | "body" };
 
 /**
  * The proposals that can be applied directly, as `edit_nodes` items.
  *
- * `slots` says which field each node's text lives in. A node with no entry
+ * `slots` says which argument writes each node back. A node with no entry
  * falls back to `content`, which is what a Material holds.
  */
 export function editItems(
   proposals: Proposal[], slots: ReadonlyMap<string, TextSlot> = new Map(),
-): Array<{ nodeId: string; content: string } | { nodeId: string; title: string }> {
+): Array<{ nodeId: string } & Partial<Record<"content" | "title" | "body", string>>> {
   return proposals
     .filter((p): p is Extract<Proposal, { kind: "edit" }> => p.kind === "edit")
-    .map((p) => {
-      const slot = slots.get(p.nodeId) ?? { field: "content" as const };
-      return slot.field === "title"
-        ? { nodeId: p.nodeId, title: written(slot, p.after) }
-        : { nodeId: p.nodeId, content: written(slot, p.after) };
-    });
+    .map((p) => ({ nodeId: p.nodeId, [(slots.get(p.nodeId) ?? { field: "content" }).field]: p.after }));
 }
