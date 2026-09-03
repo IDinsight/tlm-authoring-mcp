@@ -25,11 +25,28 @@
  */
 import { renderSpecSchema, type RenderSpec } from "../kg-recipes/index.js";
 
-/** The shape resolution needs: a node with a raw property bag. */
+/*
+ * The shape resolution needs: a node carrying a `render` bag.
+ *
+ * This codebase has TWO node shapes and both are legitimate here — a STORED
+ * node keeps its LC properties under `properties.raw`, while the raw envelope
+ * the parser reads puts them at `properties` directly. Accepting either beats
+ * making every caller know which one it is holding, and getting it wrong is
+ * silent: the stack resolves to an empty spec and the page comes out on library
+ * defaults.
+ */
 export type SpecCarrier = {
   id: string;
-  properties?: { raw?: Record<string, unknown> | undefined } | undefined;
+  properties?: Record<string, unknown> | undefined;
 };
+
+/** A carrier's `render` bag, from whichever of the two shapes it uses. */
+function renderBagOf(node: SpecCarrier): unknown {
+  const props = node.properties;
+  if (!isPlainObject(props)) return undefined;
+  const raw = props.raw;
+  return isPlainObject(raw) && "render" in raw ? raw.render : props.render;
+}
 
 const isPlainObject = (value: unknown): value is Record<string, unknown> =>
   typeof value === "object" && value !== null && !Array.isArray(value);
@@ -68,7 +85,7 @@ export function resolveRenderSpec(stack: SpecCarrier[]): ResolvedSpec {
   let merged: Record<string, unknown> = {};
 
   for (const node of stack) {
-    const render = node.properties?.raw?.render;
+    const render = renderBagOf(node);
     if (!isPlainObject(render)) continue;
     merged = deepMerge(merged, render);
     from.push(node.id);

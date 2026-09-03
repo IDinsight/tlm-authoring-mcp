@@ -340,27 +340,67 @@ function documentAncestry(raw: RawGraphSnapshot, sectionId: string): DocumentAnc
 // nor to a sibling — so this is what "the TLM's doc-wide stack" and "this section's
 // own stack" both mean, and applying it up the ancestry chain gives a nested section
 // exactly the stacks on its own path.
-function ownFormatterIds(raw: RawGraphSnapshot, rootId: string): Set<string> {
-  const childrenOf = new Map<string, string[]>();
+/*
+ * One owner's formatters, in the order they should be APPLIED.
+ *
+ * Depth-first through the document edge, siblings by position, walling at a
+ * walling at a nested DocumentSection — so a Formatter's FormatterSpec children
+ * come back in the order the author put them in, and a sibling section's own
+ * stack stays out of it.
+ *
+ * The order is not cosmetic. Each spec carries a `render` bag and the bags MERGE,
+ * nearest wins; a set has no order, so resolving a stack out of it would let two
+ * specs that disagree resolve differently from one read to the next.
+ */
+function ownFormattersInOrder(raw: RawGraphSnapshot, rootId: string): string[] {
+  const childrenOf = new Map<string, RawNode[]>();
   for (const e of raw.relationships) {
     if (e.type !== DOCUMENT_EDGE) continue;
-    (childrenOf.get(e.start) ?? childrenOf.set(e.start, []).get(e.start)!).push(e.end);
+    const child = raw.nodes.find((n) => n.id === e.end);
+    if (!child) continue;
+    (childrenOf.get(e.start) ?? childrenOf.set(e.start, []).get(e.start)!).push(child);
   }
 
-  const found = new Set<string>();
-  const stack = [...(childrenOf.get(rootId) ?? [])];
-  const seen = new Set<string>(stack);
-  while (stack.length) {
-    const nodeId = stack.pop()!;
-    const node = raw.nodes.find((n) => n.id === nodeId);
-    if (!node) continue;
-    if (labelsOf(node).includes(SECTION_LABEL)) continue;   // wall: a sibling section's own subtree
-    if (labelsOf(node).some((l) => FORMATTER_LABELS.has(l))) found.add(node.id);
-    for (const child of childrenOf.get(node.id) ?? []) {
-      if (!seen.has(child)) { seen.add(child); stack.push(child); }
+  const found: string[] = [];
+  const seen = new Set<string>();
+  const visit = (parentId: string): void => {
+    const children = [...(childrenOf.get(parentId) ?? [])].sort((a, b) => positionOf(a) - positionOf(b));
+    for (const node of children) {
+      if (seen.has(node.id)) continue;
+      seen.add(node.id);
+      if (labelsOf(node).includes(SECTION_LABEL)) continue;   // wall: a sibling section's own subtree
+      if (labelsOf(node).some((l) => FORMATTER_LABELS.has(l))) found.push(node.id);
+      visit(node.id);
+    }
+  };
+  visit(rootId);
+  return found;
+}
+
+/*
+ * The formatter stack for a section, in APPLICATION ORDER: the owning document's
+ * doc-wide formatters first, then each section it is nested in from outermost
+ * in, then its own last.
+ *
+ * That order IS the "nearest wins" rule, spelled as a sequence so whoever merges
+ * the bags does not have to know the document's shape. `ancestry.sections` runs
+ * nearest-first, which is the opposite of what applying them needs, so it is
+ * reversed here rather than at every call site.
+ */
+function formatterStackIds(
+  raw: RawGraphSnapshot, sectionId: string, ancestrySections: string[], tlmId: string | null,
+): string[] {
+  const owners = [...(tlmId ? [tlmId] : []), ...[...ancestrySections].reverse(), sectionId];
+  const seen = new Set<string>();
+  const stack: string[] = [];
+  for (const owner of owners) {
+    for (const id of ownFormattersInOrder(raw, owner)) {
+      if (seen.has(id)) continue;
+      seen.add(id);
+      stack.push(id);
     }
   }
-  return found;
+  return stack;
 }
 
 // The routine that applies to a section, resolved NEAREST-WINS along a
@@ -406,6 +446,37 @@ function resolveSectionRoutine(
   return null;
 }
 
+/*
+ * The formatter stack for whatever a caller names — a DocumentSection or the
+ * document itself — in application order, or null if it is neither.
+ *
+ * A section's stack runs from the document's own formatters down to its; a TLM
+ * has only its doc-wide ones. Both are the same question, and a renderer should
+ * not have to ask it two ways.
+ */
+export function formatterStackFor(model: CurriculumModel, nodeId: string): RawNode[] | null {
+  const raw = model.rawGraph;
+  if (!raw) return null;
+  const node = raw.nodes.find((n) => n.id === nodeId);
+  if (!node) return null;
+
+  const labels = labelsOf(node);
+  // RAW nodes, not the read projection: this feeds the renderer, which needs
+  // every declared property. `nodeOut` exists to trim a tool RESPONSE, and
+  // trimming an internal read is how a formatter silently loses its `render`.
+  const byId = new Map(raw.nodes.map((n) => [n.id, n]));
+  const pick = (ids: string[]) => ids.map((id) => byId.get(id)!);
+
+  if (labels.includes(SECTION_LABEL)) {
+    const ancestry = documentAncestry(raw, nodeId);
+    return pick(formatterStackIds(raw, nodeId, ancestry.sections, ancestry.tlm?.id ?? null));
+  }
+  if (labels.includes(TLM_LABEL)) {
+    return pick(ownFormattersInOrder(raw, nodeId));
+  }
+  return null;
+}
+
 // Everything a per-section generation composes: the section node, the owning
 // document, the curriculum this slot renders, the applicable routine, and the
 // formatters (doc-wide + this section's own).
@@ -416,6 +487,10 @@ export type DocumentSectionScope = {
   curriculum: { nodes: NodeOut[]; edges: EdgeOut[] };  // pure hasPart/hasChild from the covers targets
   routine: SectionRoutine | null;
   formatters: { nodes: NodeOut[]; edges: EdgeOut[] };  // the TLM's doc-wide stack ∪ this section's own
+  // The same formatters as an ORDERED list — doc-wide first, this section's own
+  // last. Merging their `render` bags in this order is what "nearest wins"
+  // means; `formatters` above is the subgraph, which has no order.
+  formatterStack: NodeOut[];   // projected, because this one rides a tool response
 };
 
 // The generation scope rooted at one DocumentSection. Returns null if `sectionId`
@@ -445,11 +520,10 @@ export function documentSectionSubgraph(model: CurriculumModel, sectionId: strin
   // Formatters: every stack on this section's OWN path — its own, those of the
   // sections it is nested in, and the owning TLM's doc-wide stack. Sibling sections'
   // stacks are excluded, because each walk walls at a section boundary.
-  const formatterIds = new Set<string>(
-    [sectionId, ...ancestry.sections, ...(tlm ? [tlm.id] : [])]
-      .flatMap((id) => [...ownFormatterIds(raw, id)]),
-  );
-  const formatters = inducedSubgraph(raw, formatterIds, new Set([DOCUMENT_EDGE]));
+  const stackIds = formatterStackIds(raw, sectionId, ancestry.sections, tlm?.id ?? null);
+  const formatters = inducedSubgraph(raw, new Set(stackIds), new Set([DOCUMENT_EDGE]));
+  const byId = new Map(raw.nodes.map((n) => [n.id, n]));
+  const formatterStack = stackIds.map((id) => nodeOut(byId.get(id)!));
 
-  return { section: nodeOut(section), document, covers, curriculum, routine, formatters };
+  return { section: nodeOut(section), document, covers, curriculum, routine, formatters, formatterStack };
 }

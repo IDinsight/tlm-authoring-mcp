@@ -1,8 +1,9 @@
 # The renderer spike — can a document be produced in this runtime?
 
-**Status:** Live. The renderer and its contract are in **`backend/src/render/`**; the golden-file
-comparisons that proved them stay in `backend/src/__spike__/`. Still missing before WP4 is done: a
-`generate_document` tool, the bucket and history wiring, translation, and page counting.
+**Status:** Live. The renderer and its contract are in **`backend/src/render/`**, reachable as the
+**`render_document`** tool; the golden-file comparisons that proved them stay in
+`backend/src/__spike__/`. Still missing before WP4 is done: writing the CANONICAL bucket and history
+(output is preview-only today), translation, and page counting.
 
 ## Why a spike rather than a decision
 
@@ -172,6 +173,23 @@ says HOW the break is written.
 **This changed a documented invariant.** `CLAUDE.md` said the server "never renders a `.docx`
 itself", which was true and was also why document production lived on one laptop. It renders now,
 and still decides nothing about what a page contains.
+
+### The tool
+
+`render_document(nodeId, document)` closes it. The node is a `DocumentSection` or the
+`TeachingLearningMaterial`; `document` is the tree. The server merges that node's formatter stack,
+validates the tree, lays out the `.docx`, and PUTs it itself — there is nothing left for the caller
+to upload.
+
+Output goes to the **segregated `previews/` prefix**, on the isolation `preview_generation` already
+has: short-lived, invisible to `list_documents` and `reconcile`, never recorded through
+`log_generation`. Writing the canonical bucket is a separate decision with separate stakes, and this
+tool deliberately cannot.
+
+Nothing renders when either half is wrong. An invalid tree or an unresolvable stack comes back
+naming the path — and the stack is checked BEFORE the tree is looked at, because a stack that will
+not resolve is the formatter author's problem and saying so with the formatter ids beats a page that
+is wrong for reasons nobody can trace.
 
 ### Merging the stack
 

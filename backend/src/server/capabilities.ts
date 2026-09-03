@@ -30,6 +30,7 @@ import {
   kgNamespace, getKgStore, STRUCTURAL_RULES,
 } from "../kg-store/index.js";
 import { RECIPES, SHARED_CATALOG_NAMESPACE, catalogNamespace, renderSpecSchema } from "../kg-recipes/index.js";
+import { documentSchema } from "../render/index.js";
 import { lintableRules, CONTENT_RULES } from "../curriculum/index.js";
 import { KIND_PROPERTIES } from "./authoring.js";
 import { CATALOG_WRITE_VERBS } from "./catalog-target.js";
@@ -69,6 +70,9 @@ const CAPABILITY_TO_AUTHZ: Record<Exclude<typeof CAPABILITY_ACTIONS[number], "ca
 // enforces them — a hand-kept list here would be a copy that goes stale the
 // first time a knob is added.
 const RENDER_SPEC_GROUPS = Object.keys(renderSpecSchema.shape).sort();
+
+// The top level of the block tree, read off the schema for the same reason.
+const DOCUMENT_TREE_KEYS = Object.keys(documentSchema.shape).sort();
 
 // Flatten the per-block {allowed, tools} groups into the sorted, de-duplicated
 // list of tools the caller may call. A tool named in two groups (a read that is
@@ -241,6 +245,23 @@ export async function buildCapabilitiesReport(): Promise<Record<string, unknown>
     tools: ["preview_generation", "create_preview_upload_url"],
     note:
       "preview_generation resolves the generation context from the UNPUBLISHED draft (not published), scoped to whichever piece you name — a DocumentSection (one slot of a document), a TeachingLearningMaterial (a whole document), or a Course (its containment subtree), reported back as `previewOf` — so you can generate a PREVIEW of the material a staged edit would produce before publishing, at the size of the thing that changed rather than a whole chapter. It closes the loop with the dry-run: dry-run shows the graph DIFF, preview shows the resulting MATERIAL. Read-only on the draft (no graph change), curator + approver only. Preview .docx output goes through create_preview_upload_url to a SEGREGATED previews/ prefix with short-lived, clearly-labelled URLs — it never touches the canonical documents bucket, list_documents, or log_generation. With no draft open, preview_generation returns a clear 'no draft to preview' notice. Draft-vs-published output comparison is a deferred follow-on.",
+  };
+
+  // ── document: the block tree render_document takes. The counterpart to
+  // `editable.render`: that half says what a page LOOKS like, this one says
+  // what is ON it. Keys come off the schema that enforces them, never a list
+  // kept by hand here.
+  const document = {
+    available: actions.canPreview,
+    tool: "render_document",
+    keys: DOCUMENT_TREE_KEYS,
+    blockKinds: ["table", "line", "spacer"],
+    validatedAt: "render",
+    strict: true,
+    note:
+      "The block tree is what YOU compose and render_document lays out. `blocks` is an ordered list of: `table` ({rows: Cell[][]}, where a Cell is {blocks, style?, span?} — cells hold BLOCKS, so a banner and a grid of pictures are the same construct and tables nest), `line` ({runs, variant?, style?}, where a run is {text, style?} or {image: {media, role, aspectRatio, float?}}), and `spacer` ({sizePt, leadingPt}). Optional `media` carries the pictures as {name, data} with data base64. " +
+      "IT CARRIES NO GEOMETRY — no colour, no point size, no centimetre. A block names a `style` and a picture names a `role`, both defined by the formatter's `render`; a page break says only `pageBreak:'before'` and `pagination.pageBreakCarrier` decides whether that is written as a paragraph property or a paragraph of its own. That split is the point: structure varies per lesson and is yours, geometry is the formatter's and is the same for every page it governs. " +
+      "UNKNOWN KEYS ARE REFUSED and nothing renders when the tree is invalid; the response names the path. Output is a preview: segregated prefix, short-lived URL, never list_documents or log_generation.",
   };
 
   // ── audit: advertise the approver-only, read-only audit reader (#16), so
@@ -472,6 +493,7 @@ export async function buildCapabilitiesReport(): Promise<Record<string, unknown>
     lifecycle,
     profile,
     preview,
+    document,
     audit,
     catalog,
     documents,
@@ -499,7 +521,7 @@ export async function buildCapabilitiesReport(): Promise<Record<string, unknown>
 // `section` cannot name something that does not exist.
 export const CAPABILITY_SECTIONS = [
   "discovery", "guidance", "editable", "checks", "lifecycle",
-  "profile", "preview", "audit", "catalog", "documents", "rules", "responseCap",
+  "profile", "preview", "document", "audit", "catalog", "documents", "rules", "responseCap",
 ] as const;
 
 export type CapabilitySection = typeof CAPABILITY_SECTIONS[number];

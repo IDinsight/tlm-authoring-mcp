@@ -64,6 +64,33 @@ describe("nearest wins", () => {
   });
 });
 
+describe("the two node shapes this codebase actually has", () => {
+  /*
+   * A stored node keeps its LC properties under `properties.raw`; the raw
+   * envelope the parser reads puts them at `properties` directly. Reading only
+   * one shape is SILENT: the stack resolves to an empty spec and the page comes
+   * out on library defaults, which is a Letter-sized sheet with the wrong
+   * leading and no way to tell from the output why.
+   */
+  it("reads a render bag stored under properties.raw", () => {
+    const r = resolveRenderSpec([{ id: "stored", properties: { raw: { render: { type: { sizePt: 12 } } } } }]);
+    expect(r.ok && r.spec.type?.sizePt).toBe(12);
+  });
+
+  it("reads one held at properties directly", () => {
+    const r = resolveRenderSpec([{ id: "envelope", properties: { render: { type: { sizePt: 12 } } } }]);
+    expect(r.ok && r.spec.type?.sizePt).toBe(12);
+  });
+
+  it("prefers the raw bag when a node somehow carries both", () => {
+    const r = resolveRenderSpec([{
+      id: "both",
+      properties: { render: { type: { sizePt: 99 } }, raw: { render: { type: { sizePt: 12 } } } },
+    }]);
+    expect(r.ok && r.spec.type?.sizePt).toBe(12);
+  });
+});
+
 describe("what it skips and what it refuses", () => {
   it("ignores a formatter that is only prose", () => {
     const prose: SpecCarrier = { id: "prose", properties: { raw: { content: "Un bandeau…" } } };
