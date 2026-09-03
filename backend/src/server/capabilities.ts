@@ -464,6 +464,7 @@ export async function buildCapabilitiesReport(): Promise<Record<string, unknown>
     { allowed: actions.canPublish, tools: ["publish_draft"] },
     { allowed: actions.canEditDraft, tools: ["undo_last", "request_review"] },
     { allowed: actions.canPreview, tools: preview.tools },
+    { allowed: document.available, tools: document.tools },
     { allowed: actions.canReadAudit, tools: [audit.tool] },
     { allowed: actions.canReadDocuments, tools: documents.readTools },
     { allowed: actions.canWriteDocuments, tools: documents.writeTools },

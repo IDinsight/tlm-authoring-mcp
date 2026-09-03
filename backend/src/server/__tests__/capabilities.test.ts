@@ -338,3 +338,26 @@ describe("get_capabilities is a read", () => {
     expect(caps.actor.isKnown).toBe(false);
   });
 });
+
+/*
+ * The mirror's own integrity.
+ *
+ * `verbs` is what a caller reads to know what it may call, and it is assembled
+ * separately from the sections that describe those tools. That is exactly how
+ * it drifts: the `document` section shipped advertising three tools that never
+ * reached `verbs`, because its group was written with `available` where the
+ * collector reads `allowed` and was then never passed to it at all. Nothing
+ * failed — the mirror just quietly stopped listing three callable tools.
+ */
+describe("every tool a section advertises is a tool it says you may call", () => {
+  it("lists the document tools in verbs, for a caller allowed to preview", async () => {
+    // Inside an active context, like every other test here: the report reads
+    // the active subject to decide what this actor may do.
+    const report = await withActiveContext(CURATOR, callGetCapabilities);
+    const section = report.document as { available: boolean; tools: string[] };
+    if (!section.available) return;   // gated off for this actor: nothing to assert
+    for (const tool of section.tools) {
+      expect(report.verbs).toContain(tool);
+    }
+  });
+});
