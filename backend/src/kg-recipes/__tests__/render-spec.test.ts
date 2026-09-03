@@ -125,6 +125,95 @@ describe("acceptance — both live formatters are expressible", () => {
   });
 });
 
+/*
+ * The same document type as CI_MATHS_TEACHER_SHEET, but read off the twenty
+ * `.docx` produced on 2 September 2026 rather than off the formatter's prose.
+ *
+ * Two reasons it is here as well as the transcribed one:
+ *
+ *   1. It is the only fixture whose every value was MEASURED. The transcribed
+ *      one holds what the graph currently says, and on three knobs the graph is
+ *      out of date (see the drift test below) — so keeping only that one would
+ *      make the suite agree with the wrong numbers.
+ *
+ *   2. It is what broke the schema. `type.leadingRule` and
+ *      `images.paragraphLeadingRule` did not exist until this fixture was tried
+ *      against it, and their absence is what let the 5 mm image crop happen.
+ */
+const CI_MATHS_TEACHER_SHEET_MEASURED = {
+  page: { size: "A4", orientation: "portrait", marginsCm: { top: 2.5, right: 2.5, bottom: 2.5, left: 2.5 } },
+  type: { family: "Andika", sizePt: 12, leadingPt: 15.5, leadingRule: "exact" },
+  budget: { maxPages: 2, linesPerPage: 45, lineHeightCm: 0.547, maxCharsPerLine: 72, maxCharsBesideImage: 52 },
+  blocks: {
+    weekCell: { fill: "2EAEE5" },
+    lessonCell: { fill: "57BC49" },
+    dayCell: { fill: "C0504D" },
+    objectiveBanner: { fill: "3E4D9E" },
+    materialsBox: { fill: "00B0F0" },
+    sessionBanner: { fill: "09A9E1", keepWithNext: true },
+    phaseBanner: { fill: "79D0F0", keepWithNext: true },
+    retainBanner: { fill: "9DD485" },
+    objectivationBanner: { fill: "E88169" },
+    evaluationBanner: { fill: "92CDDC" },
+    bullet: { maxChars: 72, maxCharsBesideImage: 52 },
+  },
+  images: {
+    maxHeightCm: { amorce: 2.4, notion: 2, bande: 2 },
+    inlineHeightCm: { pictogram: 0.5, marker: 0.42 },
+    maxPerSection: 2,
+    fullWidthAboveAspectRatio: 4,
+    paragraphLeadingRule: "auto",
+  },
+  pagination: { oneSectionPerPage: true, pageBreakCarrier: "banner-property" },
+  visibility: { printedPrefixes: ["[N]", "[FR]", "[WO]", "[IMAGE :"], neverPrint: ["assemblyGuide"] },
+  language: {
+    strategy: "per-file",
+    variants: [
+      { id: "commun", lang: "fr", colour: "000000", inAllFiles: true },
+      { id: "fr", lang: "fr", colour: "C0504D", prefix: "[FR]", fileSuffix: "-FR" },
+      { id: "wo", lang: "wo", colour: "0070C0", prefix: "[WO]", fileSuffix: "-WO" },
+    ],
+  },
+  overflow: { policy: "tighten-text", neverAdjust: ["margins", "leading", "typeSize", "images"] },
+};
+
+describe("acceptance — the produced sheets, not just the prose", () => {
+  it("holds every value measured off the twenty golden sheets", () => {
+    expect(renderSpecSchema.safeParse(CI_MATHS_TEACHER_SHEET_MEASURED).success).toBe(true);
+  });
+
+  // The bug this schema exists to make impossible. `leadingPt` alone cannot tell
+  // a renderer whether to crop an image to the line or grow the line to the
+  // image, and only one of those is right.
+  it("can say that the body leading is EXACT and an image paragraph's is not", () => {
+    const spec = renderSpecSchema.parse(CI_MATHS_TEACHER_SHEET_MEASURED);
+    expect(spec.type?.leadingRule).toBe("exact");
+    expect(spec.images?.paragraphLeadingRule).toBe("auto");
+    expect(spec.images?.paragraphLeadingRule).not.toBe(spec.type?.leadingRule);
+  });
+
+  it("refuses a leading rule that is not one Word has", () => {
+    expect(validateRenderSpec({ type: { leadingPt: 15.5, leadingRule: "tight" } }, "edit_nodes"))
+      .toHaveLength(1);
+  });
+
+  /*
+   * Documents the drift rather than resolving it: the formatter's prose still
+   * carries Andika's natural leading and the line budget derived from it, while
+   * every sheet in the bucket was produced at the tightened value. Both fixtures
+   * are valid specs — which is the point. Nothing in the schema can tell you
+   * which is current, and that is WP7's job, not this module's.
+   */
+  it("records that the graph and the produced sheets disagree on three knobs", () => {
+    expect(CI_MATHS_TEACHER_SHEET.type.leadingPt).toBe(19.35);
+    expect(CI_MATHS_TEACHER_SHEET_MEASURED.type.leadingPt).toBe(15.5);
+    expect(CI_MATHS_TEACHER_SHEET.budget.linesPerPage).toBe(36);
+    expect(CI_MATHS_TEACHER_SHEET_MEASURED.budget.linesPerPage).toBe(45);
+    expect(CI_MATHS_TEACHER_SHEET.budget.lineHeightCm).toBe(0.68);
+    expect(CI_MATHS_TEACHER_SHEET_MEASURED.budget.lineHeightCm).toBe(0.547);
+  });
+});
+
 describe("what the schema refuses", () => {
   it("refuses an unknown key — the whole point of validating at authoring time", () => {
     const errors = validateRenderSpec({ page: { size: "A4" }, colours: { green: "1F7A1F" } }, "edit_nodes");

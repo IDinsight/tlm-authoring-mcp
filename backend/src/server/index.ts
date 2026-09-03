@@ -14,6 +14,7 @@ import { registerTranslationTools } from "./translation.js";
 import { registerGlossaryTools } from "./glossary.js";
 import { registerGraphTools } from "./graph.js";
 import { registerPreviewTools } from "./preview.js";
+import { registerRenderTools } from "./render.js";
 import { registerDocumentTools } from "./documents.js";
 import { registerLifecycleTools } from "./lifecycle.js";
 import { registerStructuralTools } from "./structural.js";
@@ -43,6 +44,7 @@ export function buildServer(): McpServer {
   registerGlossaryTools(server);     // add_terms, edit_term, remove_terms (workspace bilingual lexicon)
   registerGraphTools(server);        // walk_graph (generic BFS traversal), namespace_stats (orientation snapshot)
   registerPreviewTools(server);      // preview_generation, create_preview_upload_url (draft-resolved, isolated from published)
+  registerRenderTools(server);       // render_document — a composed block tree + the node's formatter stack -> a .docx
   registerDocumentTools(server);     // reconcile, upload/download, record/log
   registerLifecycleTools(server);    // diff_draft, publish_draft, discard_draft
   registerUndoTools(server);         // undo_last (take back ONE staged edit — the per-edit counterpart to discard_draft)

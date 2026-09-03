@@ -76,7 +76,7 @@ export async function resolveDraftModel(
 // curator + approver may preview; unknown/no-role is blocked and audited (never
 // leaks draft content). Returns the unauthorized payload when denied, or null
 // when allowed. Not a mutation → no token, no two-phase confirm.
-async function denyIfNotDraftReader(ns: string): Promise<Record<string, unknown> | null> {
+export async function denyIfNotDraftReader(ns: string): Promise<Record<string, unknown> | null> {
   const actor = currentActor();
   const authz = authorize(actor, "readDraft", ns);
   if (authz.ok) return null;
