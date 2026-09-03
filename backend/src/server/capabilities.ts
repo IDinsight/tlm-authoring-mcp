@@ -29,7 +29,7 @@ import { authorize, effectiveRole, type AuthAction } from "../authz.js";
 import {
   kgNamespace, getKgStore, STRUCTURAL_RULES,
 } from "../kg-store/index.js";
-import { RECIPES, SHARED_CATALOG_NAMESPACE, catalogNamespace } from "../kg-recipes/index.js";
+import { RECIPES, SHARED_CATALOG_NAMESPACE, catalogNamespace, renderSpecSchema } from "../kg-recipes/index.js";
 import { KIND_PROPERTIES } from "./authoring.js";
 import { CATALOG_WRITE_VERBS } from "./catalog-target.js";
 
@@ -63,6 +63,11 @@ const CAPABILITY_TO_AUTHZ: Record<Exclude<typeof CAPABILITY_ACTIONS[number], "ca
   canWriteDocuments: "writeDocuments",
   canTranslate: "translate",
 };
+
+// The top-level groups `render` accepts, read straight off the schema that
+// enforces them — a hand-kept list here would be a copy that goes stale the
+// first time a knob is added.
+const RENDER_SPEC_GROUPS = Object.keys(renderSpecSchema.shape).sort();
 
 // Flatten the per-block {allowed, tools} groups into the sorted, de-duplicated
 // list of tools the caller may call. A tool named in two groups (a read that is
@@ -176,6 +181,20 @@ export async function buildCapabilitiesReport(): Promise<Record<string, unknown>
       kindProperties: KIND_PROPERTIES,
       note:
         "add_nodes creates one node or many; create_edges wires many edges — each a whole batch as ONE atomic draft edit (one diff, one token, one audit record). add_nodes REPLACED the per-label typed adds (add_lesson/add_material/…): pass `kind` (the LC label) + a `properties` bag; `kindProperties` lists what each kind accepts. returnMode defaults to 'summary' — a compact `counts` object instead of the full diff (~200 KB for an 84-item batch); pass 'full' to also get the diff. idempotencyKey (a client-chosen UUID) makes a RETRIED confirm a safe replay (same key + same payload → the first apply's summary with replayed:true, no double-apply/audit; different payload → IDEMPOTENCY_KEY_MISMATCH). Keys are namespace-scoped and expire after 24h; omit for strict single-use tokens.",
+    },
+    // The formatter's DECLARATIVE half. A FormatterSpec's `content` stays prose —
+    // it is what the authoring model reads — and `render` carries the values a
+    // renderer needs, validated at authoring time so a mistyped knob is refused
+    // here rather than silently ignored on the page.
+    render: {
+      property: "render",
+      appliesTo: ["Formatter", "FormatterSpec"],
+      writtenWith: ["add_nodes", "edit_nodes"],
+      groups: RENDER_SPEC_GROUPS,
+      validatedAt: "authoring",
+      strict: true,
+      note:
+        "`render` is the machine-readable half of a formatter, written through the same `properties` bag as any other raw prop (whole: {\"render\": {…}}; one branch: {\"render.page.marginsCm\": {…}}). Every group and every field is OPTIONAL — silence means 'this formatter does not govern that', never zero — but UNKNOWN KEYS ARE REFUSED, because a typo in a declarative bag is invisible at authoring time and ignored at render time. It carries GEOMETRY AND STYLE (page, type, block styles, image sizes, where a page break is carried, which line prefixes print, how the languages are laid out, what yields when a page overflows). It does NOT carry STRUCTURE: which blocks appear in what order, and where a particular lesson breaks its page, is authored per section in that section's own assembly guidance — a schema holding it would be describing one document type. `language.strategy` covers both shapes in use: 'inline' (both languages on one line, separated) and 'per-file' (one file per language, lines routed by prefix).",
     },
     coverage: {
       // Coverage is no longer coded rules on the adapter — it is the subject's

@@ -78,8 +78,8 @@ export const KIND_PROPERTIES: Record<string, string[]> = {
   // "metadata.assemblyGuide". A FormatterSpec carries the actual rule in `content`.
   TeachingLearningMaterial: ["audience", "mediumType", "metadata.assemblyGuide"],
   DocumentSection: ["metadata.assemblyGuide"],
-  Formatter: ["metadata.summary"],
-  FormatterSpec: ["content"],
+  Formatter: ["metadata.summary", "render"],
+  FormatterSpec: ["content", "render"],
 };
 
 // The same catalog as prose, with the notes the typed tools carried (required
@@ -97,7 +97,7 @@ const PER_KIND_GUIDE =
   "on a Lesson, educationalUse:'Assessment' is what marks a bilan · " +
   "LearningComponent attaches to its parent StandardsFrameworkItem via `supports` (no alignTo) · " +
   "attach an InstructionalRoutine ROOT onto a Lesson/Course/Activity with `via:\"usesRoutine\"`, then nest its steps/step-Materials under it by the default hasPart · " +
-  "a DocumentSection with no `covers` target is front-matter; a Formatter is composed of FormatterSpec children by hasPart, and the FormatterSpec carries the rule text in `content`. " +
+  "a DocumentSection with no `covers` target is front-matter; a Formatter is composed of FormatterSpec children by hasPart, and the FormatterSpec carries the rule text in `content` plus its machine-readable half in `render` (see get_capabilities → editable.render). " +
   "PREFER create_document for a NEW document and add_section for its sections: those mint the node AND its `covers` edge atomically, whereas add_nodes leaves the document covering nothing until you remember create_edges — which fails silently (generation just reads an empty document). " +
   "Common to every item: `description` (display title), `title_en`, `position`; content kinds may `alignTo` an SFI (hasEducationalAlignment).";
 

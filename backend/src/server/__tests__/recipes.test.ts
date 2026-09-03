@@ -20,7 +20,7 @@ import { RECIPES } from "../../kg-recipes/index.js";
 import { __setStorageForTest } from "../../storage/index.js";
 import { __setActorForTest, type Actor } from "../../actor.js";
 import { buildServer } from "../index.js";
-import { runMoveNode } from "../recipes.js";
+import { runMoveNode, runEditNodes } from "../recipes.js";
 import { runCreateEdges } from "../structural.js";
 import type { KgNodeStore, StoredNode, StoredEdge } from "../../kg-store/index.js";
 
@@ -350,5 +350,53 @@ describe("move_node — the axis comes from the graph, not the label alone", () 
 
     expect(preview.phase).toBe("preview");   // a warning, not a block
     expect((preview.warnings as string[]).join(" ")).toMatch(/2 'hasPart' parents/);
+  });
+});
+
+// ── The formatter's declarative half, through the real tool ──────────────────
+// The schema is unit-tested in kg-recipes; what matters here is that the tool
+// actually REFUSES a bad knob rather than staging it. A `render` bag that
+// reaches the graph unvalidated is silently ignored at render time, and the
+// page comes out wrong with nothing to point at.
+
+describe("edit_nodes — the `render` bag is schema-checked at authoring time", () => {
+  // Any existing node will do: validation runs on the bag, not on the label.
+  const aNode = async (): Promise<string> => {
+    const nodes = await store.listNodes(ns, "a");
+    return nodes.find((node) => (node.labels ?? []).includes("FormatterSpec"))!.id;
+  };
+
+  it("stages a valid render bag", async () => {
+    const result = await withActiveContext(CURATOR, async () =>
+      runEditNodes({ items: [{ nodeId: await aNode(), properties: { render: { page: { size: "A4" }, type: { family: "Andika", sizePt: 12 } } } }] }));
+    expect(result.phase).toBe("preview");
+    expect(result.confirmationToken).toBeTruthy();
+  });
+
+  it("BLOCKS an unknown knob, with no token issued", async () => {
+    const result = await withActiveContext(CURATOR, async () =>
+      runEditNodes({ items: [{ nodeId: await aNode(), properties: { render: { page: { size: "A4" }, colours: {} } } }] }));
+    expect(result.phase).toBe("blocked");
+    expect(result.confirmationToken).toBeUndefined();
+    expect(JSON.stringify(result.errors)).toContain("render");
+  });
+
+  it("BLOCKS a mistyped value", async () => {
+    const result = await withActiveContext(CURATOR, async () =>
+      runEditNodes({ items: [{ nodeId: await aNode(), properties: { render: { type: { sizePt: "twelve" } } } }] }));
+    expect(result.phase).toBe("blocked");
+  });
+
+  it("names the item AND the knob, so a batch failure is locatable", async () => {
+    const nodeId = await aNode();
+    const result = await withActiveContext(CURATOR, async () =>
+      runEditNodes({ items: [
+        { nodeId, properties: { render: { page: { size: "A4" } } } },
+        { nodeId: (await store.listNodes(ns, "a")).find((n) => n.id !== nodeId)!.id, properties: { render: { page: { size: "Foolscap" } } } },
+      ] }));
+    expect(result.phase).toBe("blocked");
+    const errors = JSON.stringify(result.errors);
+    expect(errors).toContain("edit_nodes[1]");
+    expect(errors).toContain("render.page.size");
   });
 });

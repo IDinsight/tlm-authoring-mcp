@@ -31,3 +31,6 @@ export {
   containmentEdgeFor, deriveTemplate, isKnownLabel, orderPathsOf,
   ALIGNMENT_EDGE, POSITION, type NodeTemplate,
 } from "./lc.js";
+
+// The formatter's declarative half — its schema, and the authoring-time check.
+export { renderSpecSchema, validateRenderSpec, validateRenderInBag, type RenderSpec } from "./render-spec.js";
