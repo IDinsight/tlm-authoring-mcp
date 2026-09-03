@@ -104,7 +104,7 @@ async function useStore(withRubric: boolean) {
 
 beforeAll(() => { __setStorageForTest(fakeStorage); });
 beforeEach(async () => {
-  history = { version: 3, entries: [] };
+  history = { version: 4, entries: [] };
   __resetMutationsForTest();
   __setActorForTest(CURATOR);
   await useStore(true);

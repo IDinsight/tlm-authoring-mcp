@@ -22,7 +22,7 @@ import { getActiveAdapter } from "../adapters/index.js";
 import { activeWorkspace, sessionState } from "../context/index.js";
 import { getKgStore, kgNamespace, toAuditActor, diffGraphs, type GraphDiff, nextAuditSeq } from "../kg-store/index.js";
 import { exportSubtree } from "../kg-export.js";
-import { walkGraph, computeGraphStats, documentSubgraph, documentSectionSubgraph, findNodes, toFindable, PRELOADED_SLOT_KEY, type WalkDirection } from "../curriculum/index.js";
+import { walkGraph, computeGraphStats, documentSubgraph, documentSectionSubgraph, findNodes, toFindable, PRELOADED_SLOT_KEY, type WalkDirection, type FindableGraph, type FoundNode } from "../curriculum/index.js";
 import { resolveDraftModel } from "./preview.js";
 import { authorize } from "../authz.js";
 import { currentActor } from "../actor.js";
@@ -211,30 +211,84 @@ export async function walkDocumentSection(args: { sectionId: string; slot?: Walk
 // pastes a UUID: client-side completion was measured and does not render, so the
 // server does the resolution (self-serve-authoring.md, D9). Exported so tests
 // drive the real logic.
-export async function findActiveNodes(args: { query: string; labels?: string[]; limit?: number; slot?: WalkSlot }): Promise<Record<string, unknown>> {
+
+// What one query resolved to, plus the guidance that goes with the outcome.
+// Shared by the single-query and batched shapes so a batch entry says exactly
+// what a lone call would.
+type QueryResult = { matches: FoundNode[]; ambiguous?: true; note?: string };
+
+const AMBIGUOUS_NOTE =
+  "Several elements carry this name. Ask the user which one — each candidate's `path` says which document or course it sits in — rather than picking one.";
+const NO_MATCH_NOTE =
+  "Nothing carries this name. Try fewer words, or call namespace_stats to see the graph's roots.";
+
+// Resolve ONE name against an already-loaded graph. Several equally-good matches
+// is the NORMAL case here (both Courses of a subject hold a "Chapitre 5"), so the
+// ambiguity is stated out loud rather than resolved by guessing.
+function resolveOneQuery(graph: FindableGraph, query: string, args: { labels?: string[]; limit?: number }): QueryResult {
+  const matches = findNodes(graph, { query, labels: args.labels, limit: args.limit });
+
+  if (matches.length > 1) {
+    return { matches, ambiguous: true, note: AMBIGUOUS_NOTE };
+  }
+  if (matches.length === 0) {
+    return { matches, note: NO_MATCH_NOTE };
+  }
+  return { matches };
+}
+
+export type FindNodeArgs = {
+  query?: string;
+  /** Batch form: resolve many names against ONE graph load (WP2c). */
+  queries?: string[];
+  labels?: string[];
+  limit?: number;
+  slot?: WalkSlot;
+};
+
+export async function findActiveNodes(args: FindNodeArgs): Promise<Record<string, unknown>> {
   const namespace = activeNamespace();
   const slot = args.slot ?? "published";
+
+  if (args.query === undefined && (args.queries === undefined || args.queries.length === 0)) {
+    return { error: "find_node needs a `query` (one name) or `queries` (several names). Ask the user for the NAME — never for an id." };
+  }
 
   const resolved = await resolveWalkModel(namespace, slot);
   if ("notice" in resolved) {
     return resolved.notice;
   }
 
-  const matches = findNodes(toFindable(resolved.model), { query: args.query, labels: args.labels, limit: args.limit });
-  return {
-    slot,
-    physicalSlot: resolved.physicalSlot,
-    query: args.query,
-    matches,
-    // Several equally-good matches is the NORMAL case here (both Courses of a
-    // subject hold a "Chapitre 5"), so say out loud that guessing is wrong.
-    ...(matches.length > 1
-      ? { ambiguous: true, note: "Several elements carry this name. Ask the user which one — each candidate's `path` says which document or course it sits in — rather than picking one." }
-      : {}),
-    ...(matches.length === 0
-      ? { note: "Nothing carries this name. Try fewer words, or call namespace_stats to see the graph's roots." }
-      : {}),
-  };
+  // Loading + flattening the model is the expensive half, so a batch pays it
+  // once for every name. That is the whole point of `queries`: resolving 60
+  // lesson names cost 60 round-trips and 60 graph loads.
+  const graph = toFindable(resolved.model);
+  const envelope = { slot, physicalSlot: resolved.physicalSlot };
+
+  if (args.queries !== undefined && args.queries.length > 0) {
+    // Keyed by the query the caller sent, so a caller matching results back to
+    // its own list never depends on array order. Duplicates collapse onto one
+    // key — the same name cannot resolve two ways in one graph.
+    const results: Record<string, QueryResult> = {};
+    for (const query of args.queries) {
+      results[query] = resolveOneQuery(graph, query, args);
+    }
+
+    const unresolved = Object.entries(results)
+      .filter(([, result]) => result.matches.length !== 1)
+      .map(([query]) => query);
+
+    return {
+      ...envelope,
+      results,
+      count: Object.keys(results).length,
+      // One place to look before acting on a batch: every name that did NOT
+      // land on exactly one node still needs a person's answer.
+      ...(unresolved.length > 0 ? { unresolved } : {}),
+    };
+  }
+
+  return { ...envelope, query: args.query, ...resolveOneQuery(graph, args.query!, args) };
 }
 
 // ── Core: namespace_stats ─────────────────────────────────────────────────────
@@ -334,16 +388,10 @@ export function registerGraphTools(server: McpServer) {
     {
       title: "Walk the graph from a node",
       description:
-        "Paginated BFS over the active subject's graph. The defaults (limit:50, includeEdges:false) are the expected usage — narrow `nodeTypes` on top of them. Page via `cursor` until nextCursor is null. Do NOT raise `limit` to fit a big result — that is the single most common misuse and it will overflow the client. `direction:'both'` with empty `nodeTypes` reaches the whole graph and is almost never what you want; narrow first.\n" +
-        "  CORRECT:   walk_graph(fromId=<domainId>, direction='out',\n" +
-        "             edgeTypes=['hasChild'], nodeTypes=['StandardsFrameworkItem'],\n" +
-        "             limit=50)  →  page with cursor until nextCursor is null\n" +
-        "  BROKEN:    walk_graph(fromId=<domainId>, direction='both', limit=500,\n" +
-        "             includeEdges=true)  →  one page overflows the client\n" +
-        "Each response carries `nextCursor` (null on the last page) plus three independent flags: `truncatedByLimit:true` means more matching nodes remain on further pages (call again with `cursor: <nextCursor>`); `truncated:true` means the `maxDepth` cap hid deeper nodes (raise maxDepth to reach them); and `truncatedBySize:true` means the page was trimmed to fit a response BYTE budget, so it holds fewer nodes than `limit` — raising `limit` will NOT help, so instead set includeEdges:false and narrow `nodeTypes`, then page via cursor (the `hint` field spells this out). " +
-        "This is the single generic read for every 'list / find / enumerate / traverse' need. `direction`: 'out' follows edges from→to (a Course down to its parts), 'in' follows to→from (a standard up to its framework root), 'both' either. `edgeTypes` filters which edges to follow (empty ⇒ all); `nodeTypes` filters which nodes to RETURN (empty ⇒ all) — non-matching nodes are still traversed THROUGH, so filters compose. `maxDepth` (default 3, max 10) bounds the hops. `includeEdges` (default FALSE) adds the traversed edges so you can rebuild the subgraph — leave it off unless you need the wiring, since edges dominate a page's size. `limit` maxes at 500. `slot`: 'published' (default) reads the live graph; 'draft' reads UNPUBLISHED staged edits (curators/approvers only). Read-only. " +
-        "Examples: framework root → walk(fromId=<any standard>, direction='in', edgeTypes=['hasChild'], nodeTypes=['StandardsFramework']); the whole SFI spine → walk(fromId=<root>, direction='out', edgeTypes=['hasChild'], nodeTypes=['StandardsFrameworkItem']), then keep calling with cursor:<nextCursor> until nextCursor is null; a course subtree → walk(fromId=<courseId>, direction='out', edgeTypes=['hasPart','hasChild']). " +
-        "Each response also carries `physicalSlot` — the actual slot ('a'/'b') the returned data came from — so you can confirm reads and writes agree after a publish.",
+        "The single generic read for every 'list / find / enumerate / traverse' need: a paginated BFS over the active subject's graph. Keep the defaults (limit:50, includeEdges:false) and narrow `nodeTypes` on top of them; page via `cursor` until nextCursor is null. Do NOT raise `limit` to fit a big result — the most common misuse, and it overflows the client. `direction:'both'` with no `nodeTypes` reaches the whole graph; narrow first. " +
+        "`direction`: 'out' follows edges from→to (a Course down to its parts), 'in' follows to→from (a standard up to its framework root), 'both' either. `edgeTypes` filters which edges to FOLLOW (empty ⇒ all); `nodeTypes` which nodes to RETURN — non-matching nodes are still traversed through, so filters compose. `maxDepth` default 3, max 10. `includeEdges` (default false) adds the traversed edges when you need the wiring; they dominate a page's size. `limit` max 500. `slot`: 'published' (default) or 'draft' (UNPUBLISHED staged edits — curators/approvers only). Read-only. " +
+        "Three independent flags say why a page stopped: `truncatedByLimit` (more nodes on further pages — call again with the cursor), `truncated` (the maxDepth cap hid deeper nodes — raise it), `truncatedBySize` (a BYTE budget trimmed the page below `limit` — raising limit will NOT help; set includeEdges:false, narrow nodeTypes, and page). `physicalSlot` names the slot ('a'/'b') the data came from, so you can confirm reads and writes agree after a publish. " +
+        "Examples: framework root → (fromId=<any standard>, direction='in', edgeTypes=['hasChild'], nodeTypes=['StandardsFramework']); the SFI spine → (fromId=<root>, direction='out', edgeTypes=['hasChild'], nodeTypes=['StandardsFrameworkItem']) paged to the end; a course subtree → (fromId=<courseId>, direction='out', edgeTypes=['hasPart','hasChild']).",
       inputSchema: {
         fromId: z.string(),
         direction: z.enum(["out", "in", "both"]),
@@ -364,7 +412,8 @@ export function registerGraphTools(server: McpServer) {
     {
       title: "Resolve a document's generation scope",
       description:
-        "Given a TeachingLearningMaterial (TLM) id — a document/deliverable root, found via namespace_stats roots (filter labels for 'TeachingLearningMaterial') — return everything generation composes to produce that document (docs/design-notes/teaching-learning-materials.md). This is the document-side counterpart to walk_graph: walk_graph reads the curriculum to TEACH, walk_document reads the document to PRODUCE. Returns: `assemblyGuide` (the document's own authored 'how to build me' markdown, from metadata.assemblyGuide, or null); `scope` — how the curriculum was resolved: 'sections' (the TLM has a DocumentSection spine), 'course' (the simple TLM→covers→Course fallback), or 'none' (covers nothing yet); `sections` (the DocumentSection spine in reading order — depth-first, siblings by position — each with the `parent` it hangs under (the TLM, or the section it is nested in: sections nest) and its `covers` curriculum targets, an EMPTY covers marking a front-matter section like a cover/TOC or a section that just groups the ones beneath it); `document` (the TLM subtree as raw nodes+edges — the TLM plus its hasPart Formatter/FormatterSpec rendering stack and DocumentSections, with the covers edges); and `curriculum` (the resolved curriculum-to-render as raw nodes+edges — pure hasPart/hasChild containment, NOT usesRoutine, because formatting reaches generation through the TLM, not the curriculum). The payload is SELF-BOUNDED to the response cap: a whole-Course document's curriculum is the whole graph, so when it would overflow, `curriculum` comes back as `{ tooLarge, counts, approxBytes, softCapBytes, message }` (the guide, scope, `sections` spine and `document` subtree still ride) — do NOT retry; follow the message: with a section spine call walk_document_section per `sections` id, otherwise page the curriculum with walk_graph. Read-only. `slot`: 'published' (default) or 'draft' (UNPUBLISHED staged edits — curators/approvers only), so you can inspect a document you are authoring before publishing.",
+        "The document-side counterpart to walk_graph: walk_graph reads the curriculum to TEACH, this reads the document to PRODUCE. Pass a TeachingLearningMaterial (TLM) id — a document root, from namespace_stats `roots`. Returns `assemblyGuide` (the document's authored 'how to build me' markdown, or null); `scope` — how the curriculum resolved: 'sections' (a DocumentSection spine), 'course' (the TLM→covers→Course fallback) or 'none'; `sections` (the spine in reading order, each naming the `parent` it hangs under — sections nest — and its `covers` targets, an EMPTY covers marking front matter or a pure grouping section); `document` (the TLM subtree: its Formatter/FormatterSpec stack and DocumentSections, with the covers edges); and `curriculum` (what it renders — pure hasPart/hasChild containment, NOT usesRoutine: formatting reaches generation through the TLM, not the curriculum). " +
+        "SELF-BOUNDED: a whole-Course document's curriculum is the whole graph, so when it would overflow, `curriculum` returns `{ tooLarge, counts, message }` while the guide, scope, spine and document subtree still ride. Do NOT retry — follow the message: with a section spine, call walk_document_section per `sections` id; otherwise page with walk_graph. Read-only. `slot`: 'published' (default) or 'draft' (UNPUBLISHED staged edits — curators/approvers only).",
       inputSchema: {
         tlmId: z.string(),
         slot: z.enum(["published", "draft"]).optional(),
@@ -381,7 +430,8 @@ export function registerGraphTools(server: McpServer) {
     {
       title: "Resolve one document section's generation scope",
       description:
-        "Given a DocumentSection id, return everything a per-section generation composes to produce that ONE slot of a document — the unit a `.docx` is produced from, section by section (docs/design-notes/walk-document-section.md). Find section ids in walk_document's `sections` spine, or via walk_graph (nodeTypes ['DocumentSection']). It is the per-piece generation entry — where walk_document reads a WHOLE document, this reads ONE slot of it. A DocumentSection already IS the document↔curriculum binding (it hangs under exactly one document — directly, or through the sections it is nested in — and `covers` its curriculum node), so nothing is reverse-searched — its document scope, routine, and formatters are all unambiguous. Returns: `section` (the DocumentSection's raw fields — its position + any per-section assemblyGuide); `document` (the owning TLM: its id, assemblyGuide, and raw node carrying audience/mediumType — null if the section is not under a TLM yet); `covers` (the curriculum node id(s) this section renders — an EMPTY array marks a front-matter section like a cover/TOC/intro); `curriculum` (the covered subtree as raw nodes+edges — pure hasPart/hasChild containment from the covers targets); `routine` (the InstructionalRoutine that APPLIES, resolved nearest-wins along a document-first chain: the section's own usesRoutine, else that of the sections it is nested in (nearest first), else the owning TLM's, else the nearest routine up the covered curriculum's ancestry — with `resolvedFrom`, `resolvedFromScope` ('section'|'document'|'curriculum'), and the routine subtree; null when nothing in the chain uses a routine); and `formatters` (every Formatter/FormatterSpec stack on this section's own path — its own, those of the sections it is nested in, and the owning TLM's doc-wide stack — as raw nodes+edges, with sibling sections' stacks excluded). Read-only. `slot`: 'published' (default) or 'draft' (UNPUBLISHED staged edits — curators/approvers only).",
+        "The PER-PIECE generation entry: everything needed to produce ONE slot of a document, which is the unit a `.docx` is produced from section by section. Section ids come from walk_document's `sections` spine, or walk_graph (nodeTypes ['DocumentSection']). A DocumentSection already IS the document↔curriculum binding — it hangs under exactly one document and `covers` its curriculum — so its document, routine and formatters are unambiguous, never reverse-searched. " +
+        "Returns `section` (its position + any per-section assemblyGuide); `document` (the owning TLM: id, assemblyGuide, audience/mediumType — null if not under one yet); `covers` (the curriculum id(s) it renders; EMPTY marks front matter); `curriculum` (the covered subtree, pure hasPart/hasChild); `routine` (the one that APPLIES, nearest-wins document-first — the section's own usesRoutine, else its parent sections' nearest-first, else the TLM's, else up the covered curriculum's ancestry — with `resolvedFrom` and `resolvedFromScope`; null when nothing in the chain uses one); and `formatters` (every stack on this section's own path — its own, its parent sections', the TLM's doc-wide one; sibling sections' stacks excluded). Read-only. `slot`: 'published' (default) or 'draft' (curators/approvers only).",
       inputSchema: {
         sectionId: z.string(),
         slot: z.enum(["published", "draft"]).optional(),
@@ -397,15 +447,17 @@ export function registerGraphTools(server: McpServer) {
       description:
         "Turn a NAME into node ids — the way to get an id when the user says « chapter 5 » or « le guide de l'enseignant ». NEVER ask the user for a node id or a UUID: ask for the name, in their own language, and resolve it here. Matching ignores case and accents, so « chapitre 5 les nombres jusqu'a 20 » finds « Chapitre 5 : Les nombres jusqu'à 20 ». " +
         "`query` is what the user typed; `labels` narrows to LC labels (e.g. ['LessonGrouping'] for a chapter/week, ['Course'], ['TeachingLearningMaterial'] for a document, ['Lesson']); `limit` caps the list (default 10). Each match carries `id`, `title`, `labels`, `path` (its containment ancestors — what tells two « Chapitre 5 » apart) and `match` (exact | prefix | contains | words). " +
+        "`queries` (an array) resolves MANY names in ONE call against a single graph load — use it whenever you have a list (60 lesson names is 1 call, not 60). It returns `results` keyed by each query string, every entry carrying the same `matches`/`ambiguous` fields a single call would, plus `unresolved`: the names that did NOT land on exactly one node and so still need the user's answer. Pass `query` OR `queries`. " +
         "When several match, the response sets `ambiguous`: ASK the user which one, quoting the `path`, and do not guess — picking wrong silently writes against another document. `slot`: 'published' (default) or 'draft' (unpublished staged edits — curators/approvers only), so a chapter you just created is findable before publishing. Read-only.",
       inputSchema: {
-        query: z.string(),
+        query: z.string().optional(),
+        queries: z.array(z.string()).optional(),
         labels: z.array(z.string()).optional(),
         limit: z.number().int().optional(),
         slot: z.enum(["published", "draft"]).optional(),
       },
     },
-    guarded(async (a: { query: string; labels?: string[]; limit?: number; slot?: WalkSlot }) => asJson(await findActiveNodes(a))),
+    guarded(async (a: FindNodeArgs) => asJson(await findActiveNodes(a))),
   );
 
   server.registerTool(
@@ -424,9 +476,8 @@ export function registerGraphTools(server: McpServer) {
     {
       title: "Export a scoped graph slice for a visualization artifact",
       description:
-        "Returns a SELF-CONTAINED slice of the active subject's published graph — the containment subtree rooted at `fromId` — in the explorer's DisplayGraph shape (`nodes`, `edges`, `meta.taxonomy` legend, `meta.viewConfig`, `meta.counts`). Feed this JSON into a self-contained HTML artifact to render the same interactive tree the live KG explorer shows (nodes coloured by LC label; folded hasChild containment with Standards / Curriculum / Progression / By-type views). " +
-        "Scope it to ONE thing: get a root id from namespace_stats (a Course/chapter) or walk_graph, then export its subtree. `maxDepth` (default 4, max 12) bounds how deep the subtree goes. `detail` (default false) includes each node's full raw LC property bag (the detail-panel data); leave it off for a compact payload and turn it on only for a small subtree. " +
-        "The payload is self-bounded to fit the response cap: an oversized detailed slice auto-drops `detail`, and a slice that is still too big returns `{ tooLarge, counts, message }` telling you to lower maxDepth, pick a deeper root, or use the live explorer for the whole graph. Read-only, published slot only (no draft). This returns DATA; render the visual from it.",
+        "A SELF-CONTAINED slice of the published graph — the containment subtree rooted at `fromId` — in the explorer's DisplayGraph shape (`nodes`, `edges`, `meta.taxonomy`, `meta.viewConfig`, `meta.counts`). Feed the JSON into a self-contained HTML artifact to render the same interactive tree the live KG explorer shows. " +
+        "Scope it to ONE thing: take a root id from namespace_stats or walk_graph, then export its subtree. `maxDepth` default 4, max 12. `detail` (default false) adds each node's full raw LC property bag — turn it on only for a small subtree. Self-bounded to the response cap: an oversized detailed slice auto-drops `detail`, and a still-too-big slice returns `{ tooLarge, counts, message }` telling you to lower maxDepth or pick a deeper root. Read-only, published slot only. This returns DATA; render the visual from it.",
       inputSchema: {
         fromId: z.string(),
         maxDepth: z.number().int().optional(),

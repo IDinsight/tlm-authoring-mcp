@@ -20,10 +20,32 @@ export type DocumentContent = {
 // A generated document's identity is the graph node it covers — its "scope node"
 // (a Chapitre/Semaine/Lesson) — not a (unit, deliverable) coordinate. See
 // docs/design-notes/graph-linked-documents.md. `id === nodeId`.
+/*
+ * One recorded FILE.
+ *
+ * The entry's identity is its `relPath`, because the file is the thing that
+ * exists in the bucket — and one curriculum node is covered by SEVERAL files.
+ * A CI-maths lesson has four: the pupil's tool in French and in Wolof, and the
+ * teacher's guide in each. Keying by the covered node could hold one of them,
+ * so recording the second silently replaced the first.
+ *
+ * The other three fields say how a file is FILED rather than identified:
+ *   nodeId     — the curriculum node it covers ("everything for lesson 1")
+ *   documentId — the document it was produced from (the pupil's tool, the
+ *                teacher's guide): what distinguishes two files covering the
+ *                same lesson
+ *   variant    — which rendering of that document ("FR", "WO"), the same
+ *                variants a formatter's `render.language` already declares
+ *
+ * documentId and variant are optional: entries migrated from the node-keyed
+ * schema have neither, and they still read, page and reconcile correctly.
+ */
 export type HistoryEntry = {
-  id: string;                 // == nodeId (kept as `id` for the shared upsert/paging helpers)
-  nodeId: string;             // the scope node this document covers
+  id: string;                 // == relPath (kept as `id` for the shared upsert/paging helpers)
   relPath: string;
+  nodeId: string;             // the curriculum node this file covers
+  documentId?: string;        // the TLM / DocumentSection it was produced from
+  variant?: string;           // which rendering — "FR", "WO", …
   md5: string;
   updated: string;
   source: "pipeline" | "parsed";
@@ -35,7 +57,7 @@ export type HistoryEntry = {
 // auto-mapped to node ids without the graph, so it is ignored on load and the
 // bucket docs re-surface as untracked for re-linking (the "fresh reconcile"
 // migration in graph-linked-documents.md).
-export type HistoryFile = { version: 3; entries: HistoryEntry[] };
+export type HistoryFile = { version: 4; entries: HistoryEntry[] };
 
 export type StoredObject = {
   relPath: string;

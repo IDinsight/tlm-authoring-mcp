@@ -344,11 +344,10 @@ export function registerAuditTools(server: McpServer) {
     {
       title: "Review the audit trail",
       description:
-        "Read a page of the append-only audit log for the ACTIVE grade/subject namespace, newest-first. APPROVERS ONLY (same tier as publish); curators and no-role callers are blocked (and the blocked read is itself audited). READ-ONLY — it cannot create, edit, delete, redact, or reorder any audit record. Namespace-scoped: to review another GRAPH's trail, set_context to it first (there is no free-form namespace argument). " +
-        "Pass `workspace` instead to read that WORKSPACE's own trail — member grants, invites, domain rules, workspace creation. Those events belong to no grade/subject, so set_context cannot reach them and this is the only way to see them; it needs no active context, and requires approver in that workspace. " +
-        "Filters (all optional, AND-combined): actor (actorId), action (one of apply|createDraft|publish|discard|blocked|preview|read|membership|workspace|review), outcome (applied|blocked), nodeId (entries whose apply-diff touches that node), since/until (inclusive ISO-8601). Pagination: limit (default 25, max 100) + an opaque cursor — pass back the returned nextCursor to get the next page. " +
-        "Modes: 'summary' (default) returns compact records (actor, action, outcome, ts, auditId, self-authorship, one-line target) with NO before/after; 'detail' returns the full record including the before/after diff. Pass auditId to fetch one record in detail. " +
-        "Calling this appends ONE lightweight 'read' audit event (actor + query + timestamp + count) — never a before/after — so 'who reviewed history' stays answerable. This is the supported way to review the trail; it is deliberately a reader, not analytics.",
+        "Read a page of the append-only audit log for the ACTIVE grade/subject namespace, newest-first. APPROVERS ONLY (same tier as publish); curators and no-role callers are blocked, and the blocked read is itself audited. READ-ONLY — it cannot create, edit, delete, redact or reorder a record. To review another GRAPH's trail, set_context to it first. " +
+        "Pass `workspace` instead for that WORKSPACE's own trail — member grants, invites, domain rules, workspace creation. Those events belong to no grade/subject, so this is the only way to see them; needs no active context, requires approver in that workspace. " +
+        "Filters (optional, AND-combined): actor, action (apply|createDraft|publish|discard|blocked|preview|read|membership|workspace|review), outcome (applied|blocked), nodeId (entries whose diff touches it), since/until (ISO-8601). Page with limit (default 25, max 100) + the returned cursor. Modes: 'summary' (default, no before/after) or 'detail' (full diff); `auditId` fetches one record in detail. " +
+        "Each call appends ONE lightweight 'read' event so 'who reviewed history' stays answerable. A reader, not analytics.",
       inputSchema: {
         workspace: z.string().optional(),
         actor: z.string().optional(),

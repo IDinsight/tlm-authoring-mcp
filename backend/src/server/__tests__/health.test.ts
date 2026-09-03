@@ -82,7 +82,7 @@ describe("ping (health) tool", () => {
 });
 
 describe("list_documents — advertised inputSchema (single source of truth)", () => {
-  it("exposes limit, cursor, nodeId and unit as declared params", async () => {
+  it("exposes limit, cursor, nodeId, unit and the per-file filters as declared params", async () => {
     const tools = await client.listTools();
     const listDocs = tools.tools.find((t) => t.name === "list_documents");
     expect(listDocs).toBeDefined();
@@ -90,7 +90,7 @@ describe("list_documents — advertised inputSchema (single source of truth)", (
     // The exact divergence from live testing: schema advertised NO properties
     // while the handler enforced a typed limit. All four must be visible now.
     // (A document is keyed by its scope nodeId; unit is the ordinal convenience filter.)
-    expect(Object.keys(props).sort()).toEqual(["cursor", "limit", "nodeId", "unit"]);
+    expect(Object.keys(props).sort()).toEqual(["cursor", "detail", "documentId", "limit", "nodeId", "unit", "variant"]);
   });
 
   it("rejects a wrongly-typed limit at the schema boundary (validator == advertised schema)", async () => {

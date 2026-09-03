@@ -16,3 +16,6 @@ export { walkGraph, type WalkArgs, type WalkDirection, type WalkResult } from ".
 export { findNodes, resolveRef, toFindable, type FoundNode, type FindArgs, type ResolvedRef, type MatchQuality, type FindableGraph } from "./find.js";
 export { computeGraphStats, type GraphStats, type StatsRoot } from "./stats.js";
 export { readCachedModel, writeCachedModel, __clearModelCache, type ModelVersion } from "./model-cache.js";
+
+// The CONTENT lint — check_draft checks wiring, review_draft coverage, this consistency.
+export { lintContent, lintableRules, CONTENT_RULES, citedIds, minutesFromIso, minutesFromTitle, type ContentRule, type ContentLintInput, type ContentLintOptions } from "./lint-content.js";

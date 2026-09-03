@@ -12,6 +12,7 @@
 import { describe, it, expect } from "vitest";
 import { pageDocuments, pageDocumentText, DOC_TEXT_DEFAULT_MAX_CHARS, DOC_TEXT_MAX_CHARS } from "../documents.js";
 import type { HistoryEntry } from "../../types.js";
+import { responseBytes } from "../../utils/index.js";
 
 // Two documents per chapter (its manual + its lesson sheets, distinct scope
 // nodes) exercise the tie-break on nodeId — "ch1-lessons" sorts before
@@ -69,7 +70,7 @@ describe("pageDocuments", () => {
     let guard = 0;
     do {
       const page = ok(pageDocuments(ALL, ordinalOf, { cursor: cursor ?? undefined, limit: 6 }));
-      seen.push(...page.entries.map((e) => e.nodeId));
+      seen.push(...page.entries.map((e) => String(e.nodeId)));
       cursor = page.nextCursor;
       if (++guard > 100) {
         throw new Error("pagination did not terminate");
@@ -104,7 +105,7 @@ describe("pageDocuments", () => {
     let guard = 0;
     do {
       const page = ok(pageDocuments(ALL, ordinalOf, { cursor: cursor ?? undefined, limit: 3 }));
-      walked.push(...page.entries.map((e) => e.nodeId));
+      walked.push(...page.entries.map((e) => String(e.nodeId)));
       cursor = page.nextCursor;
       if (++guard > 100) throw new Error("did not terminate");
     } while (cursor != null);
@@ -132,7 +133,7 @@ describe("pageDocuments", () => {
 
   it("filters by unit, narrowing total but keeping totalUnfiltered", () => {
     const page = ok(pageDocuments(ALL, ordinalOf, { unit: 3 }));
-    expect(page.entries.map((e) => e.nodeId)).toEqual(["ch3-lessons", "ch3-manual"]);
+    expect(page.entries.map((e) => String(e.nodeId))).toEqual(["ch3-lessons", "ch3-manual"]);
     expect(page.total).toBe(2);              // the filtered set
     expect(page.totalUnfiltered).toBe(20);   // the whole history
     expect(page.nextCursor).toBeNull();
@@ -140,7 +141,7 @@ describe("pageDocuments", () => {
 
   it("filters by nodeId to a single scope node's document", () => {
     const page = ok(pageDocuments(ALL, ordinalOf, { nodeId: "ch7-manual" }));
-    expect(page.entries.map((e) => e.nodeId)).toEqual(["ch7-manual"]);
+    expect(page.entries.map((e) => String(e.nodeId))).toEqual(["ch7-manual"]);
     expect(page.total).toBe(1);
     expect(page.totalUnfiltered).toBe(20);
   });
@@ -151,7 +152,7 @@ describe("pageDocuments", () => {
     let guard = 0;
     do {
       const page = ok(pageDocuments(ALL, ordinalOf, { unit: 5, cursor: cursor ?? undefined, limit: 1 }));
-      seen.push(...page.entries.map((e) => e.nodeId));
+      seen.push(...page.entries.map((e) => String(e.nodeId)));
       cursor = page.nextCursor;
       if (++guard > 50) {
         throw new Error("did not terminate");
@@ -225,5 +226,99 @@ describe("pageDocumentText", () => {
     const page = pageDocumentText(REL, "hello world", -5, 5);
     expect(page.offset).toBe(0);
     expect(page.text).toBe("hello");
+  });
+});
+
+// ── Detail levels: the cheapest shape is the default ─────────────────────────
+// The defect these pin: `list_documents({limit: 30})` returned 255,216 bytes on
+// the live history and was refused by the server's own 100 KB cap, because every
+// entry carried a full content record — a summary, characters, concepts,
+// terminology — at roughly 8.5 KB each. There was no filter that returned
+// entries WITHOUT their content, so the only lever was `limit`, and `limit: 2`
+// already cost thousands of tokens.
+
+describe("list_documents detail levels", () => {
+  // An entry weighted like a live one: the content record is the payload.
+  const heavy = (nodeId: string, relPath: string): HistoryEntry => ({
+    id: relPath,
+    relPath,
+    nodeId,
+    md5: "m",
+    updated: "2026-09-01T00:00:00Z",
+    source: "pipeline",
+    recordedAt: "2026-09-01T00:00:00Z",
+    content: {
+      summary: "Résumé de la leçon. ".repeat(180),
+      characters: [{ name: "Fatou", type: "child" }, { name: "Moussa", type: "child" }],
+      exampleDomains: ["fruits", "cauris"],
+      conceptsCovered: ["ensembles", "sous-ensembles"],
+      terminologyUsed: ["ensemble", "boucle"],
+    },
+  });
+
+  const THIRTY = Array.from({ length: 30 }, (_, i) => heavy(`node-${i}`, `lecon_${i}/sheet-FR.docx`));
+  const ordinals = (nodeId: string) => Number(nodeId.split("-")[1]);
+
+  it("defaults to names, and 30 entries fit well inside the response cap", () => {
+    const page = ok(pageDocuments(THIRTY, ordinals, { limit: 30 }));
+
+    expect(page.detail).toBe("names");
+    expect(page.count).toBe(30);
+    expect(responseBytes(page)).toBeLessThan(20 * 1024);   // the handoff's acceptance figure
+  });
+
+  it("omits the content record entirely at names — that is where the weight was", () => {
+    const [row] = ok(pageDocuments(THIRTY, ordinals, { limit: 1 })).entries;
+
+    expect(row.content).toBeUndefined();
+    expect(Object.keys(row).sort()).toEqual(["nodeId", "relPath", "updated"]);
+  });
+
+  it("reports content as COUNTS at summary, not as truncated prose", () => {
+    const [row] = ok(pageDocuments(THIRTY, ordinals, { detail: "summary", limit: 1 })).entries;
+    const counts = row.content as Record<string, unknown>;
+
+    expect(counts).toEqual({ hasSummary: true, characters: 2, exampleDomains: 2, conceptsCovered: 2, terminologyUsed: 2 });
+    expect(row.source).toBe("pipeline");
+  });
+
+  it("reproduces the whole entry at full, so nothing depending on the old shape breaks", () => {
+    const [row] = ok(pageDocuments(THIRTY, ordinals, { detail: "full", limit: 1 })).entries;
+
+    expect(row).toEqual(THIRTY[0]);
+  });
+
+  it("trims a full page to the byte budget and hands back a cursor, rather than failing", () => {
+    const page = ok(pageDocuments(THIRTY, ordinals, { detail: "full", limit: 30 }));
+
+    // 30 full entries is a quarter of a megabyte; a short page plus a cursor is
+    // strictly better than an error and nothing.
+    expect(page.count).toBeLessThan(30);
+    expect(page.truncatedBySize).toBe(true);
+    expect(page.nextCursor).not.toBeNull();
+    expect(String(page.hint)).toContain("raising `limit` will NOT help");
+  });
+
+  it("still walks every entry across pages at full detail", () => {
+    const seen: string[] = [];
+    let cursor: string | null | undefined;
+    let guard = 0;
+    do {
+      const page = ok(pageDocuments(THIRTY, ordinals, { detail: "full", limit: 30, cursor: cursor ?? undefined }));
+      seen.push(...page.entries.map((e) => String(e.relPath)));
+      cursor = page.nextCursor;
+      if (++guard > 100) throw new Error("pagination did not terminate");
+    } while (cursor != null);
+
+    expect(seen).toHaveLength(30);
+    expect(new Set(seen).size).toBe(30);
+  });
+
+  it("keeps the totals honest whatever the detail level", () => {
+    const page = ok(pageDocuments(THIRTY, ordinals, { detail: "full", limit: 30 }));
+
+    // A trimmed page still reports how many entries the filter matched.
+    expect(page.total).toBe(30);
+    expect(page.totalUnfiltered).toBe(30);
   });
 });

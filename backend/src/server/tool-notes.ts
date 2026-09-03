@@ -28,6 +28,19 @@ export const RETURN_MODE_NOTE =
 export const CATALOG_PUBLISH_NOTE =
   "Confirming a catalog write PUBLISHES the library in one step (catalogs are not enterable, so no publish_draft), and `catalog` must be RE-SENT on the confirm.";
 
+/**
+ * The `catalog` redirect, shared by every write verb that accepts it.
+ *
+ * Six tools each carried their own 150-250 token version of this paragraph, all
+ * saying the same four things. Each tool now adds only its OWN delta on top —
+ * what deleting means, what authoring a new entry means — and the common
+ * contract is stated once. get_capabilities section:'catalog' holds the rest.
+ */
+export const CATALOG_REDIRECT_NOTE =
+  "`catalog` (optional) targets a CATALOG LIBRARY instead of the active subject graph — 'workspace' (your own), 'shared' (cross-tenant), or a workspace id; ids come from list_catalog / get_catalog_entry, and crossing libraries needs super_admin. " +
+  CATALOG_PUBLISH_NOTE +
+  " Copies already made from an entry are independent: fixing a master does not reach them.";
+
 /** The documents/history/translate gate — distinct from the open curriculum reads. */
 export const WORKSPACE_ROLE_NOTE =
   "Requires a ROLE in the active workspace: published curriculum is open to everyone, a workspace's generated documents are not.";

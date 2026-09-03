@@ -26,6 +26,7 @@
 
 import { writeAtPath, type GraphMutation, type MutationGraph } from "../kg-store/index.js";
 import { RecipeCommon, nodeById } from "./shared.js";
+import { validateRenderInBag } from "./render-spec.js";
 import { reposition } from "./reposition.js";
 import { setContent } from "./set-content.js";
 
@@ -137,6 +138,10 @@ export const editNode: GraphMutation<EditNodeArgs> = {
             errors.push(`edit_nodes: 'properties.${key}' is a protected path (LC identity, or a mirrored field — edit the ordinal via 'position', the title via 'title', the content via 'content').`);
           }
         }
+        // A formatter's declarative half is schema-checked HERE, at authoring
+        // time. Left to render time, a mistyped knob is silently ignored and the
+        // page comes out wrong with nothing to point at.
+        errors.push(...validateRenderInBag(args.properties, "edit_nodes"));
       }
     }
     if (args.content !== undefined && (typeof args.content !== "string" || args.content.length === 0)) {

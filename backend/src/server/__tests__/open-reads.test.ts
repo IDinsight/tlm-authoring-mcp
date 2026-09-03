@@ -140,7 +140,9 @@ describe("the workspace's live assets are members-only", () => {
 
 describe("get_capabilities mirrors the split", () => {
   it("reports open reads and closed documents for a non-member", async () => {
-    const report = await callAs(GUEST, "get_capabilities");
+    // `actions` rides the digest; the per-area `documents` block is a section,
+    // asked for by name since the tool started projecting (WP2b).
+    const report = await callAs(GUEST, "get_capabilities", { section: "documents" });
     const actions = report.actions as Record<string, boolean>;
     expect(actions.canReadGenerate).toBe(true);
     expect(actions.canReadDocuments).toBe(false);

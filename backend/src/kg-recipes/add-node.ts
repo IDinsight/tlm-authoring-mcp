@@ -14,6 +14,7 @@
 import { createNode, linkNodes, type GraphMutation, type MutationNode } from "../kg-store/index.js";
 import { RecipeCommon, buildCreatedProps, nextPosition, nodeById } from "./shared.js";
 import { ALIGNMENT_EDGE, containmentEdgeFor, deriveTemplate, isKnownLabel } from "./lc.js";
+import { validateRenderInBag } from "./render-spec.js";
 
 export type AddNodeArgs = RecipeCommon & {
   parentId?: string;                      // the container to attach under; omitted for a ROOT node (Course/StandardsFramework)
@@ -43,6 +44,9 @@ export const addNode: GraphMutation<AddNodeArgs> = {
       if (!target) errors.push(`add_node: alignTo '${args.alignTo}' does not exist — a node can only align to a standard that already exists.`);
       else if (!isSfi(target)) errors.push(`add_node: alignTo '${args.alignTo}' is not a StandardsFrameworkItem; alignment targets a standard.`);
     }
+    // Same schema check as edit_nodes: a formatter must not be able to be born
+    // with a knob a renderer will silently ignore.
+    errors.push(...validateRenderInBag(args.properties, "add_nodes"));
     return { errors, warnings: [] };
   },
   apply: (base, args) => {
