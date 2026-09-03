@@ -98,13 +98,36 @@ const declaredMinutes = (node: MutationNode): number | null =>
 
 // ── The lint's input ─────────────────────────────────────────────────────────
 
+/*
+ * Every id a citation may legally name, for one set of nodes.
+ *
+ * A node answers to TWO ids, and prose in this graph uses both. `id` is what it
+ * is stored under here; `raw.identifier` is its ORIGINAL LC uuid — and a
+ * catalog entry cloned out of a subject graph keeps the SOURCE node's id as its
+ * identifier while taking a fresh `id`. So an entry cloned from ce1/reading
+ * carries prose citing reading's ids, which are exactly the identifiers its own
+ * clones now hold. Resolving `id` alone reported every one of those as broken:
+ * nine findings on the live catalog, four of them citations that were perfectly
+ * good.
+ */
+export function resolvableIds(nodes: MutationGraph["nodes"]): Set<string> {
+  const ids = new Set<string>();
+  for (const node of nodes) {
+    ids.add(node.id);
+    const identifier = (node.properties?.raw as Record<string, unknown> | undefined)?.identifier;
+    if (typeof identifier === "string" && identifier) ids.add(identifier);
+  }
+  return ids;
+}
+
 export type ContentLintInput = {
   /** The graph being checked — a subject namespace, or a catalog library. */
   graph: MutationGraph;
   /**
    * Every id a reference may legally resolve to. Wider than `graph` on purpose:
    * a catalog entry may cite a node in another library, and flagging that as
-   * dangling would be wrong. Defaults to the graph's own ids.
+   * dangling would be wrong. Defaults to the graph's own — see `resolvableIds`,
+   * which counts a node's `identifier` as well as its `id`.
    */
   knownIds?: Set<string>;
 };
@@ -356,7 +379,7 @@ const danglingReference: ContentRule = {
   requires: "graph",
   summary: "Every id cited in authored text must resolve to something that exists.",
   check: ({ graph, knownIds }) => {
-    const known = knownIds ?? new Set(graph.nodes.map((node) => node.id));
+    const known = knownIds ?? resolvableIds(graph.nodes);
     const knownPrefixes = new Set([...known].map((id) => id.slice(0, 8)));
 
     const findings: LintFinding[] = [];
@@ -408,7 +431,8 @@ const danglingReference: ContentRule = {
           `This text cites ${all.length} id(s) that resolve to nothing: ${all.map((id) => `${id}…`).join(", ")}. ` +
           `In: ${where}.`,
         fix:
-          "Either the id is wrong — find the entry by NAME and cite its real id — or the thing it names was never authored, in which case the reference is describing work still to do and should say so instead of pointing at nothing. " +
+          "FIRST check that the thing really is missing: this resolves ids in the ACTIVE subject and both catalog libraries only, so a citation naming a node in ANOTHER subject's graph reads as broken here and is not. (A node's `identifier` counts as well as its `id`, so an entry cloned into a catalog still resolves citations written against its source.) " +
+          "If it really resolves nowhere: either the id is wrong — find the entry by NAME and cite its real id — or the thing it names was never authored, in which case the reference is describing work still to do and should say so instead of pointing at nothing. " +
           "The field is named above because a node can hold the same prose twice and only one copy is on show: an entry with a `metadata.summary` renders THAT, and falls back to the body of `description` only when it has none. So a citation in the field that is not being rendered stays broken after the visible copy reads correctly.",
       });
     }
