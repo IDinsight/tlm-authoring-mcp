@@ -6,4 +6,4 @@
 export { getStorageAdapter, __setStorageForTest } from "./adapter.js";
 export { readGlobalObject, writeGlobalObject } from "./firebase.js";
 export { extractDocxText } from "./documents.js";
-export { listEntries, getEntry, recordContent, reconcile } from "./history.js";
+export { listEntries, getEntry, entriesForNode, recordContent, reconcile } from "./history.js";

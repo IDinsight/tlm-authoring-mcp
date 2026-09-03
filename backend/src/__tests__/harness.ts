@@ -34,7 +34,7 @@ import type { StorageAdapter, HistoryFile } from "../types.js";
 
 // ── Storage stub ─────────────────────────────────────────────────────────────
 
-const emptyHistory: HistoryFile = { version: 3, entries: [] };
+const emptyHistory: HistoryFile = { version: 4, entries: [] };
 
 // A StorageAdapter that answers everything with an empty/no-op result. The KG
 // suites never assert on the bucket; they only need document tools not to blow

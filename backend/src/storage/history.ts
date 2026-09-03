@@ -13,80 +13,111 @@ import { getStorageAdapter, getHistCache, setHistCache } from "./adapter.js";
 import { discoverDocuments } from "./documents.js";
 import type { HistoryFile, HistoryEntry, DocumentContent } from "../types.js";
 
-const EMPTY: HistoryFile = { version: 3, entries: [] };
+const EMPTY: HistoryFile = { version: 4, entries: [] };
+
+// A v3 history was keyed by the covered node, one entry per node. Every field it
+// held survives the move to file-keyed: the entry keeps its relPath, its covered
+// nodeId and its whole content record, and only its `id` changes. So v3 is
+// MIGRATED, never ignored — dropping it would discard 60 content records of real
+// authored work, which is the loss this whole change exists to prevent.
+//
+// documentId and variant are left UNSET on a migrated entry. They could only be
+// guessed from the file's path, and classifying documents by filename is exactly
+// what this module moved away from; they fill in when a file is next recorded.
+function migrateFromNodeKeyed(raw: { entries: HistoryEntry[] }): HistoryFile {
+  return {
+    version: 4,
+    entries: raw.entries.map((entry) => ({ ...entry, id: entry.relPath })),
+  };
+}
 
 async function histLoad(): Promise<HistoryFile> {
   const cached = getHistCache();
   if (cached) return cached;
   const raw = await getStorageAdapter().readHistory();
-  // A pre-node-keyed (v2) history was keyed by (unit, deliverable); it can't be
-  // mapped to node ids without the graph, so we ignore it and start fresh — the
-  // bucket objects then re-surface via reconcile as untracked for re-linking.
-  const isCurrent = raw != null && raw.version === 3;
-  if (raw != null && !isCurrent) console.error("[history] ignoring a legacy (pre-nodeId) history file — run reconcile to re-link documents to their nodes");
-  const loaded = isCurrent ? raw : { ...EMPTY, entries: [] };
+
+  let loaded: HistoryFile;
+  if (raw != null && raw.version === 4) {
+    loaded = raw;
+  } else if (raw != null && (raw as { version: number }).version === 3) {
+    loaded = migrateFromNodeKeyed(raw as unknown as { entries: HistoryEntry[] });
+    console.error(`[history] migrated ${loaded.entries.length} node-keyed entries to file-keyed; each keeps its content record`);
+  } else {
+    // A v2 history was keyed by (unit, deliverable) and cannot be mapped to the
+    // graph at all. Its objects re-surface through reconcile as untracked.
+    if (raw != null) console.error("[history] ignoring a legacy (pre-nodeId) history file — run reconcile to re-link documents");
+    loaded = { ...EMPTY, entries: [] };
+  }
+
   setHistCache(loaded);
   return loaded;
 }
 
 async function histSave() { await getStorageAdapter().writeHistory(await histLoad()); }
 
-// Ordered by node id — a stable total order storage can produce without knowing
+// Ordered by relPath — a stable total order storage can produce without knowing
 // graph ordinals. Callers that want ordinal order (list_documents) resolve each
-// node's ordinal from the active model and re-sort.
+// covered node's ordinal from the active model and re-sort.
 export async function listEntries() {
-  return [...(await histLoad()).entries].sort((a, b) => a.nodeId.localeCompare(b.nodeId));
+  return [...(await histLoad()).entries].sort((a, b) => a.relPath.localeCompare(b.relPath));
 }
 
-export async function getEntry(nodeId: string) {
-  return (await histLoad()).entries.find((e) => e.nodeId === nodeId);
+/** One recorded file, by the path that identifies it. */
+export async function getEntry(relPath: string) {
+  return (await histLoad()).entries.find((e) => e.relPath === relPath);
+}
+
+/** Every file recorded against one curriculum node — four, on a CI-maths lesson. */
+export async function entriesForNode(nodeId: string) {
+  return (await histLoad()).entries.filter((e) => e.nodeId === nodeId);
 }
 
 async function histUpsert(entry: HistoryEntry) {
   const h = await histLoad();
-  const i = h.entries.findIndex((e) => e.nodeId === entry.nodeId);
+  const i = h.entries.findIndex((e) => e.relPath === entry.relPath);
   if (i >= 0) h.entries[i] = entry; else h.entries.push(entry);
   await histSave();
 }
 
 /*
- * Refuse to REPLACE a different document silently.
+ * Refuse to silently re-point a recorded file at a DIFFERENT curriculum node.
  *
- * History holds one entry per node, so recording a second FILE against a node
- * that already has one does not add — it overwrites, content record and all,
- * with no draft and no undo. And `reconcile` walks a caller straight into it:
- * it reports every unrecorded object and says to link each one, which on this
- * graph means 152 objects against nodes that already hold an entry. Each CI
- * maths lesson has four files (pupil FR, pupil WO, illustration dossier,
- * teacher sheet) and room for one.
+ * Now that an entry is identified by its file, recording a second file against a
+ * node simply adds — the collision that used to destroy content records is gone.
+ * What remains worth refusing is the other direction: re-recording an existing
+ * FILE against a different node. That is a correction, not an addition, and it
+ * silently moves the file out from under whatever was reading it there.
  *
- * Re-recording the SAME relPath is an update, not a replacement, and stays
- * allowed — that is how a changed document is re-linked after an edit.
- *
- * This does not decide how a node should hold several documents; it stops the
- * unrecoverable write while that is decided. See docs/design-notes/
- * graph-linked-documents.md.
+ * Re-recording the same file against the same node is an ordinary update — that
+ * is how a changed document is re-read after an edit — and stays allowed.
  */
-async function replacementRefusal(nodeId: string, relPath: string): Promise<{ error: string } | null> {
-  const existing = await getEntry(nodeId);
-  if (!existing || existing.relPath === relPath) {
+async function repointRefusal(relPath: string, nodeId: string): Promise<{ error: string } | null> {
+  const existing = await getEntry(relPath);
+  if (!existing || existing.nodeId === nodeId) {
     return null;
   }
   return {
     error:
-      `This node already has a recorded document: '${existing.relPath}' (recorded ${existing.recordedAt}, source '${existing.source}'). ` +
-      `History keeps ONE entry per node, so recording '${relPath}' here would REPLACE it — including its stored content record — and there is no undo. ` +
-      `If '${relPath}' is a different document (another language, another kind of sheet), it needs its own scope node or its own entry; do not overwrite. ` +
-      `If it genuinely supersedes the recorded one, call again with replace: true.`,
+      `'${relPath}' is already recorded against node '${existing.nodeId}' (recorded ${existing.recordedAt}, source '${existing.source}'). ` +
+      `Recording it against '${nodeId}' would MOVE it, not add it, and there is no undo. ` +
+      `If this file really does cover a different node than was recorded, call again with replace: true. ` +
+      `If you meant to record a DIFFERENT file, pass its own relPath — several files on one node is normal and no longer collides.`,
   };
 }
 
 export async function recordContent(
   source: "pipeline" | "parsed",
-  input: { nodeId: string; relPath: string; content: DocumentContent; replace?: boolean },
+  input: {
+    nodeId: string;
+    relPath: string;
+    content: DocumentContent;
+    documentId?: string;
+    variant?: string;
+    replace?: boolean;
+  },
 ) {
   if (!input.replace) {
-    const refusal = await replacementRefusal(input.nodeId, input.relPath);
+    const refusal = await repointRefusal(input.relPath, input.nodeId);
     if (refusal) {
       return refusal;
     }
@@ -98,8 +129,11 @@ export async function recordContent(
   }
   const now = new Date().toISOString();
   const entry: HistoryEntry = {
-    id: input.nodeId, nodeId: input.nodeId, relPath: input.relPath, md5,
+    id: input.relPath, relPath: input.relPath, nodeId: input.nodeId, md5,
     updated: now, source, recordedAt: now, content: input.content,
+    // Only carried when the caller knows them; a migrated entry has neither.
+    ...(input.documentId !== undefined ? { documentId: input.documentId } : {}),
+    ...(input.variant !== undefined ? { variant: input.variant } : {}),
   };
   await histUpsert(entry);
   return entry;
@@ -118,14 +152,14 @@ export async function reconcile() {
   const result = {
     tracked: [] as { nodeId: string; relPath: string }[],
     untracked: [] as { relPath: string; md5: string | null; reason: "new" | "changed" }[],
-    dropped: [] as string[],   // nodeIds whose object is gone
+    dropped: [] as string[],   // relPaths whose object is gone
   };
 
   const knownPaths = new Set<string>();
   const survivors: HistoryEntry[] = [];
   for (const e of h.entries) {
     const obj = byPath.get(e.relPath);
-    if (!obj) { result.dropped.push(e.nodeId); continue; }   // object gone → drop the stale entry
+    if (!obj) { result.dropped.push(e.relPath); continue; }   // object gone → drop the stale entry
     survivors.push(e);
     knownPaths.add(e.relPath);
     if (obj.md5 && obj.md5 === e.md5) result.tracked.push({ nodeId: e.nodeId, relPath: e.relPath });

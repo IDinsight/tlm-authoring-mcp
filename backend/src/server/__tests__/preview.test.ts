@@ -43,7 +43,7 @@ import type { StorageAdapter, HistoryFile } from "../../types.js";
 // A storage stub that COUNTS canonical writes, so isolation tests can assert a
 // preview never touches the documents bucket / history, and implements the
 // preview upload path so the segregation test can inspect the object key.
-const emptyHistory: HistoryFile = { version: 3, entries: [] };
+const emptyHistory: HistoryFile = { version: 4, entries: [] };
 let canonicalUploadCalls = 0;
 let historyWrites = 0;
 const fakeStorage: StorageAdapter = {

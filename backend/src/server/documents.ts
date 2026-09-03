@@ -17,10 +17,10 @@ import { getStorageAdapter, extractDocxText, listEntries, recordContent, reconci
 import type { HistoryEntry } from "../types.js";
 import { WORKSPACE_ROLE_NOTE } from "./tool-notes.js";
 
-// History keeps ONE entry per scope node, so a second document on a node is a
-// REPLACEMENT, not an addition. Every tool that can trigger that says so.
-const ONE_ENTRY_PER_NODE_NOTE =
-  "ONE ENTRY PER NODE: history holds a single document per scope node, so recording a SECOND file against a node that already has one REPLACES it (its content record included) with no undo. That write is now REFUSED, naming the entry in the way; pass `replace: true` only when the new document genuinely supersedes the recorded one. A different LANGUAGE or KIND of sheet is a different document — it is not a replacement.";
+// A file is identified by its path, and a node holds as many as it needs. Both
+// write tools say so, because the mental model they replaced was the opposite.
+const FILE_KEYED_NOTE =
+  "ONE ENTRY PER FILE: history is keyed by `relPath`, so a node holds as MANY files as it has — a CI-maths lesson has four (pupil tool FR and WO, teacher guide FR and WO). Recording a second file on a node ADDS it. `nodeId` says which curriculum node the file covers; `documentId` (optional) which document it was produced from, and `variant` (optional) which rendering — those two are what tell apart two files covering the same lesson. Re-recording the SAME relPath updates it. Re-recording it against a DIFFERENT nodeId is refused (it would move the file, not add one) unless you pass `replace: true`.";
 
 // A document belongs to the workspace whose namespace it hangs under, so the
 // membership check reads that namespace — the same one history is keyed by.
@@ -57,11 +57,17 @@ const MAX_PAGE = 100;
 export const listDocumentsShape = {
   cursor: z.string().optional().describe("Opaque cursor from a prior page's nextCursor. Omit to start at the first document."),
   limit: z.number().int().min(1).max(MAX_PAGE).optional().describe(`Page size, 1..${MAX_PAGE} (default ${DEFAULT_PAGE}).`),
-  nodeId: z.string().optional().describe("Filter to the document covering one scope node."),
+  nodeId: z.string().optional().describe("Filter to every file covering one curriculum node — a CI-maths lesson has four."),
   unit: z.number().int().optional().describe("Filter to one chapter/week ordinal (CI maths: chapter number)."),
+  documentId: z.string().optional().describe("Filter to files produced from ONE document (the pupil's tool, the teacher's guide)."),
+  variant: z.string().optional().describe("Filter to one rendering — 'FR', 'WO' — as the document's formatter declares them."),
 };
 
-type DocCursor = { unit: number | null; nodeId: string };
+// The cursor pins the last row of a page. It carries relPath as well as the
+// covered node, because a node now holds SEVERAL files — (unit, nodeId) stopped
+// being unique the moment a lesson could have four documents, and a non-unique
+// cursor silently skips or repeats rows at a page boundary.
+type DocCursor = { unit: number | null; nodeId: string; relPath: string };
 
 // A node with no ordinal (or gone from the graph) sorts after every numbered one.
 const unitRank = (u: number | null | undefined): number => (u == null ? Infinity : u);
@@ -72,6 +78,7 @@ function decodeCursor(s: string): DocCursor | null {
   try {
     const p = JSON.parse(Buffer.from(s, "base64").toString("utf8")) as unknown;
     if (p && typeof p === "object" && typeof (p as DocCursor).nodeId === "string"
+      && typeof (p as DocCursor).relPath === "string"
       && ((p as DocCursor).unit === null || typeof (p as DocCursor).unit === "number")) {
       return p as DocCursor;
     }
@@ -81,11 +88,20 @@ function decodeCursor(s: string): DocCursor | null {
   }
 }
 
-// Strictly-after test in the (ordinal asc, nodeId asc) ordering: an entry is on
-// the "next page" iff its ordinal rank is larger, or the ranks tie and its
-// nodeId sorts later.
-const isAfterCursor = (ord: number | null, nodeId: string, c: DocCursor): boolean =>
-  unitRank(ord) > unitRank(c.unit) || (unitRank(ord) === unitRank(c.unit) && nodeId.localeCompare(c.nodeId) > 0);
+// Strictly-after test in the (ordinal asc, nodeId asc, relPath asc) ordering.
+// relPath is the final tie-break and the reason the order is total: it is what
+// identifies an entry, so no two rows can compare equal.
+const isAfterCursor = (ord: number | null, entry: HistoryEntry, c: DocCursor): boolean => {
+  const byUnit = unitRank(ord) - unitRank(c.unit);
+  if (byUnit !== 0) {
+    return byUnit > 0;
+  }
+  const byNode = entry.nodeId.localeCompare(c.nodeId);
+  if (byNode !== 0) {
+    return byNode > 0;
+  }
+  return entry.relPath.localeCompare(c.relPath) > 0;
+};
 
 // Pure paging (+ optional nodeId/unit filtering). `ordinalOf` maps each entry's
 // scope node to its chapter/week ordinal (null if the node is gone), so the
@@ -96,7 +112,7 @@ const isAfterCursor = (ord: number | null, nodeId: string, c: DocCursor): boolea
 export function pageDocuments(
   all: HistoryEntry[],
   ordinalOf: (nodeId: string) => number | null,
-  args: { cursor?: string; limit?: number; nodeId?: string; unit?: number }
+  args: { cursor?: string; limit?: number; nodeId?: string; unit?: number; documentId?: string; variant?: string }
 ): { entries: HistoryEntry[]; count: number; total: number; totalUnfiltered: number; nextCursor: string | null } | { error: string } {
   const cursor = args.cursor != null ? decodeCursor(args.cursor) : null;
   if (args.cursor != null && cursor == null) {
@@ -107,15 +123,23 @@ export function pageDocuments(
   // — storage lists by nodeId only, so the ordinal ordering is applied here.
   const ordered = all
     .map((e) => ({ e, ord: ordinalOf(e.nodeId) }))
-    .sort((a, b) => unitRank(a.ord) - unitRank(b.ord) || a.e.nodeId.localeCompare(b.e.nodeId));
+    .sort((a, b) =>
+      unitRank(a.ord) - unitRank(b.ord)
+      || a.e.nodeId.localeCompare(b.e.nodeId)
+      || a.e.relPath.localeCompare(b.e.relPath));
   // Filters first (they define the set being paged), then the cursor slice.
-  const filtered = ordered.filter(
-    ({ e, ord }) => (args.nodeId == null || e.nodeId === args.nodeId) && (args.unit == null || ord === args.unit),
-  );
-  const rows = cursor ? filtered.filter(({ e, ord }) => isAfterCursor(ord, e.nodeId, cursor)) : filtered;
+  // `nodeId` now returns EVERY file covering that node, which is the point.
+  const filtered = ordered.filter(({ e, ord }) =>
+    (args.nodeId == null || e.nodeId === args.nodeId)
+    && (args.unit == null || ord === args.unit)
+    && (args.documentId == null || e.documentId === args.documentId)
+    && (args.variant == null || e.variant === args.variant));
+  const rows = cursor ? filtered.filter(({ e, ord }) => isAfterCursor(ord, e, cursor)) : filtered;
   const page = rows.slice(0, limit);
   const last = page[page.length - 1];
-  const nextCursor = rows.length > limit && last ? encodeCursor({ unit: last.ord ?? null, nodeId: last.e.nodeId }) : null;
+  const nextCursor = rows.length > limit && last
+    ? encodeCursor({ unit: last.ord ?? null, nodeId: last.e.nodeId, relPath: last.e.relPath })
+    : null;
   return { entries: page.map((x) => x.e), count: page.length, total: filtered.length, totalUnfiltered: all.length, nextCursor };
 }
 
@@ -182,10 +206,10 @@ export function pageDocumentText(relPath: string, full: string, offset?: number,
 }
 
 export function registerDocumentTools(server: McpServer) {
-  server.registerTool("reconcile", { title: "Reconcile bucket with history", description: "List the .docx documents in Firebase Storage and diff against history BY relPath: tracked docs (present + unchanged), UNTRACKED docs needing a link ('new' = no history entry, 'changed' = bytes differ from the recorded entry), and entries dropped because their object is gone. It no longer classifies filenames — link each untracked doc to the node it covers with record_document_content(nodeId, relPath, content). " + ONE_ENTRY_PER_NODE_NOTE + " So do NOT walk the untracked list linking everything to the node it belongs to: where a node already has an entry, the link is refused and the two documents need separating first. " + WORKSPACE_ROLE_NOTE + "", inputSchema: {} },
+  server.registerTool("reconcile", { title: "Reconcile bucket with history", description: "List the .docx documents in Firebase Storage and diff against history BY relPath: tracked docs (present + unchanged), UNTRACKED docs needing a link ('new' = no history entry, 'changed' = bytes differ from the recorded entry), and entries dropped because their object is gone. It no longer classifies filenames — link each untracked doc to the node it covers with record_document_content(nodeId, relPath, content). Link each untracked doc to the node it covers with record_document_content — several files may cover the same node, so the whole list can be walked. `dropped` lists the relPath of each entry whose object is gone. " + WORKSPACE_ROLE_NOTE + "", inputSchema: {} },
     guarded(async () => (await denyNonMember("readDocuments")) ?? asJson(await reconcile())));
 
-  server.registerTool("list_documents", { title: "List tracked documents", description: "Current history: one canonical entry per document, keyed by the scope node it covers (nodeId), with its known content, ordered by unit ordinal then nodeId. Paginated: pass limit (default 25, max 100) and an opaque cursor. Optional filters: nodeId (one scope node) and unit (a chapter/week ordinal). Returns { entries, count, total, totalUnfiltered, nextCursor }; nextCursor is null on the last page — pass it back to fetch the next page. " + WORKSPACE_ROLE_NOTE + "", inputSchema: listDocumentsShape },
+  server.registerTool("list_documents", { title: "List tracked documents", description: "Current history: one entry per FILE, keyed by its relPath, with its known content, ordered by unit ordinal then covered node then path. A node holds several files (a CI-maths lesson has four), so filtering by `nodeId` returns all of them; narrow further with `documentId` (which document produced it) or `variant` ('FR'/'WO'). Paginated: pass limit (default 25, max 100) and an opaque cursor. Optional filters: nodeId (one scope node) and unit (a chapter/week ordinal). Returns { entries, count, total, totalUnfiltered, nextCursor }; nextCursor is null on the last page — pass it back to fetch the next page. " + WORKSPACE_ROLE_NOTE + "", inputSchema: listDocumentsShape },
     guarded(async (a: { cursor?: string; limit?: number; nodeId?: string; unit?: number }) => {
       const denied = await denyNonMember("readDocuments"); if (denied) return denied;
       const byId = getActiveAdapter().model().byId;
@@ -218,20 +242,20 @@ export function registerDocumentTools(server: McpServer) {
       };
     }));
 
-  server.registerTool("record_document_content", { title: "Record parsed document content", description: "After reading an UNTRACKED document's text, store the structured content you extracted into history so it is never re-parsed. The object must already be in the bucket. `nodeId` is the scope node the document covers (the Chapitre/Semaine/Lesson — find it with walk_graph / namespace_stats). " + ONE_ENTRY_PER_NODE_NOTE + " REQUIRES CONFIRMATION — without confirm:true you get a needsConfirmation notice; ask the user to approve, then call again. " + WORKSPACE_ROLE_NOTE + " This writes LIVE to history: no draft, no undo.", inputSchema: { nodeId: z.string(), relPath: z.string(), content: z.object(contentSchema), replace: z.boolean().optional(), confirm: z.boolean().optional() } },
-    guarded(async (a: { nodeId: string; relPath: string; content: any; replace?: boolean; confirm?: boolean }) => {
+  server.registerTool("record_document_content", { title: "Record parsed document content", description: "After reading an UNTRACKED document's text, store the structured content you extracted into history so it is never re-parsed. The object must already be in the bucket. `nodeId` is the scope node the document covers (the Chapitre/Semaine/Lesson — find it with walk_graph / namespace_stats). " + FILE_KEYED_NOTE + " REQUIRES CONFIRMATION — without confirm:true you get a needsConfirmation notice; ask the user to approve, then call again. " + WORKSPACE_ROLE_NOTE + " This writes LIVE to history: no draft, no undo.", inputSchema: { nodeId: z.string(), relPath: z.string(), content: z.object(contentSchema), documentId: z.string().optional(), variant: z.string().optional(), replace: z.boolean().optional(), confirm: z.boolean().optional() } },
+    guarded(async (a: { nodeId: string; relPath: string; content: any; documentId?: string; variant?: string; replace?: boolean; confirm?: boolean }) => {
       const denied = await denyNonMember("writeDocuments"); if (denied) return denied;
       const err = scopeNodeError(a.nodeId); if (err) return asJson({ error: err });
       const needConfirm = requireConfirmation(a.confirm, `record content into history for node ${a.nodeId} — this writes NOW to the live history (no draft, no undo)`);
-      return needConfirm ?? asJson(await recordContent("parsed", { nodeId: a.nodeId, relPath: a.relPath, content: a.content, replace: a.replace }));
+      return needConfirm ?? asJson(await recordContent("parsed", { nodeId: a.nodeId, relPath: a.relPath, content: a.content, documentId: a.documentId, variant: a.variant, replace: a.replace }));
     }));
 
-  server.registerTool("log_generation", { title: "Log a generated document", description: "Call after uploading a generated .docx via create_upload_url: it reads the object's hash from storage and records what you produced, so it feeds future consistency + variety. `nodeId` is the scope node the document covers (the Chapitre/Semaine/Lesson). " + ONE_ENTRY_PER_NODE_NOTE + " REQUIRES CONFIRMATION — without confirm:true you get a needsConfirmation notice; ask the user to approve, then call again. " + WORKSPACE_ROLE_NOTE + " This writes LIVE to history: no draft, no undo.", inputSchema: { nodeId: z.string(), relPath: z.string(), content: z.object(contentSchema), replace: z.boolean().optional(), confirm: z.boolean().optional() } },
-    guarded(async (a: { nodeId: string; relPath: string; content: any; replace?: boolean; confirm?: boolean }) => {
+  server.registerTool("log_generation", { title: "Log a generated document", description: "Call after uploading a generated .docx via create_upload_url: it reads the object's hash from storage and records what you produced, so it feeds future consistency + variety. `nodeId` is the scope node the document covers (the Chapitre/Semaine/Lesson). " + FILE_KEYED_NOTE + " REQUIRES CONFIRMATION — without confirm:true you get a needsConfirmation notice; ask the user to approve, then call again. " + WORKSPACE_ROLE_NOTE + " This writes LIVE to history: no draft, no undo.", inputSchema: { nodeId: z.string(), relPath: z.string(), content: z.object(contentSchema), documentId: z.string().optional(), variant: z.string().optional(), replace: z.boolean().optional(), confirm: z.boolean().optional() } },
+    guarded(async (a: { nodeId: string; relPath: string; content: any; documentId?: string; variant?: string; replace?: boolean; confirm?: boolean }) => {
       const denied = await denyNonMember("writeDocuments"); if (denied) return denied;
       const err = scopeNodeError(a.nodeId); if (err) return asJson({ error: err });
       const needConfirm = requireConfirmation(a.confirm, `log the generated document for node ${a.nodeId} into history — this writes NOW to the live history (no draft, no undo)`);
-      return needConfirm ?? asJson(await recordContent("pipeline", { nodeId: a.nodeId, relPath: a.relPath, content: a.content, replace: a.replace }));
+      return needConfirm ?? asJson(await recordContent("pipeline", { nodeId: a.nodeId, relPath: a.relPath, content: a.content, documentId: a.documentId, variant: a.variant, replace: a.replace }));
     }));
 }
 
