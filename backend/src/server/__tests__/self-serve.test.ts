@@ -242,12 +242,13 @@ describe("create_document — the TLM and its `covers` edge are one step", () =>
 describe("add_section — both axes, or the section is broken", () => {
   it("wires the section under its document AND onto the curriculum", async () => {
     const chapter = await aChapter();
-    // The fixture ships its own TLMs, so the created one has to be identified.
-    const existingDocuments = new Set(
-      (await store.listNodes(ns, "a"))
-        .filter((node) => (node.labels ?? []).includes("TeachingLearningMaterial"))
-        .map((node) => node.id),
-    );
+    // The fixture ships its own TLMs AND (since maths grew a document layer) its
+    // own 1,000-odd DocumentSections, so BOTH the document and the section
+    // created here have to be told apart from what was already there.
+    const idsWithLabel = async (label: string) =>
+      new Set((await store.listNodes(ns, "a")).filter((node) => (node.labels ?? []).includes(label)).map((node) => node.id));
+    const existingDocuments = await idsWithLabel("TeachingLearningMaterial");
+    const existingSections = await idsWithLabel("DocumentSection");
     await withActiveContext(CURATOR, () =>
       confirmed(runCreateDocument as never, { name: "Manuel de l'élève", covers: chapter.id }));
 
@@ -258,7 +259,7 @@ describe("add_section — both axes, or the section is broken", () => {
     const pointer = await store.readPointer(ns);
     const nodes = await store.listNodes(ns, pointer!.draftSlot!);
     const edges = await store.listEdges(ns, pointer!.draftSlot!);
-    const section = nodes.find((node) => (node.labels ?? []).includes("DocumentSection"))!;
+    const section = nodes.find((node) => (node.labels ?? []).includes("DocumentSection") && !existingSections.has(node.id))!;
     const document = nodes.find((node) => (node.labels ?? []).includes("TeachingLearningMaterial") && !existingDocuments.has(node.id))!;
 
     expect(edges.some((e) => e.type === "hasPart" && e.from === document.id && e.to === section.id)).toBe(true);

@@ -66,15 +66,23 @@ async function runRecipe<A>(mutation: GraphMutation<A>, args: A) {
   return { preview, confirm };
 }
 
-// A chapter + some lesson + some expectation, from the published seed. Post
-// two-Course split, lessons live under weeks (schedule axis), not chapters, so
-// take the lesson from a week rather than the chapter.
+// A grouping + some lesson + some expectation, from the published seed.
+//
+// Nothing here names the grouping KIND. ci/maths has reorganised its groupings
+// twice — chapters, then weeks, now units — and each time a test that spelled
+// the kind out broke on data that was perfectly valid. What these tests actually
+// need is "a LessonGrouping that has a Lesson under it", which is structural and
+// survives the next reorganisation.
+function groupings(model: ReturnType<typeof modelOf>) {
+  return [...model.byId.values()].filter((u) => (u.labels ?? []).includes("LessonGrouping"));
+}
+
 function pick(graph: MutationGraph) {
   const model = modelOf(graph);
-  // ci/maths retired its chapters with the Student's Book, so the "chapter" here
-  // is just a second grouping to move things between — take the first week.
-  const week = model.unitsOfKind("Semaine").find((candidate) => model.childrenOf(candidate.id).some((child) => child.kind === "Lesson"))!;
-  const chapter = model.unitsOfKind("Semaine").sort((a, b) => (a.order ?? 0) - (b.order ?? 0))[0];
+  const all = groupings(model);
+  const week = all.find((candidate) => model.childrenOf(candidate.id).some((child) => child.kind === "Lesson"))!;
+  // A second grouping, only so there is somewhere to move things TO.
+  const chapter = [...all].sort((a, b) => (a.order ?? 0) - (b.order ?? 0))[0];
   const lesson = model.childrenOf(week.id).find((child) => child.kind === "Lesson")!;
   // A standard's kind is its statementType (many values); find one by its
   // structural class instead (a leaf SFI is normalizedStatementType "Standard").
@@ -118,7 +126,11 @@ describe("add_node", () => {
     expect(node.labels).toContain("Lesson");
     const raw = node.properties.raw as Record<string, any>;
     expect(raw.normalizedType).toBe("Lesson");
-    expect(raw.metadata.order).toBe(node.properties.order); // maths' ordinal path, mirrored to normalized order
+    // The created node mirrors its siblings' ordinal path, whatever that is —
+    // `orderPathsOf` reads it off an existing node rather than assuming one.
+    // V2 maths carries `position`; it carried `metadata.order` too before the
+    // rebuild, and a source using both would get both.
+    expect(raw.position).toBe(node.properties.order);
     // Faithful re-parse: the new lesson shows up under its chapter, aligned.
     const model = modelOf(draft);
     expect(model.childrenOf(chapterId).some((child) => child.id === lessonId && child.kind === "Lesson")).toBe(true);
@@ -257,7 +269,7 @@ describe("edit-node (the per-node engine behind edit_nodes — replaced repositi
     const node = (await readDraft())!.nodes.find((candidate) => candidate.id === lessonId)!;
     expect((node.properties.raw as any).content).toBe("new body");
     expect(node.properties.order).toBe(42);
-    expect((node.properties.raw as any).metadata.order).toBe(42);   // maths ordinal mirror
+    expect((node.properties.raw as any).position).toBe(42);   // maths' ordinal path
     // A Lesson is a content leaf, so its display name lives in `text` (+ raw.description).
     expect(node.properties.text).toBe("Nouveau titre");
     expect((node.properties.raw as any).description).toBe("Nouveau titre");
@@ -342,6 +354,10 @@ describe("edit-node (the per-node engine behind edit_nodes — replaced repositi
 
   it("amends an arbitrary raw prop via the properties bag, nested-merging beside siblings", async () => {
     const { lessonId } = pick(await readPublished());
+    // Plant the sibling this test needs rather than borrowing one the curriculum
+    // happens to carry: the old version leaned on metadata.order, which the V2
+    // rebuild dropped, so the merge went unproven the day the data changed.
+    await runRecipe(editNode, { namespace: ns, nodeId: lessonId, properties: { "metadata.noteRevision": "r1" } });
     const { confirm } = await runRecipe(editNode, {
       namespace: ns,
       nodeId: lessonId,
@@ -351,8 +367,8 @@ describe("edit-node (the per-node engine behind edit_nodes — replaced repositi
     const node = (await readDraft())!.nodes.find((candidate) => candidate.id === lessonId)!;
     const raw = node.properties.raw as Record<string, any>;
     expect(raw.metadata.assemblyGuide).toBe("Assemble ordre A→B.");
-    // Nested-merge: writing metadata.assemblyGuide leaves metadata.order intact.
-    expect(raw.metadata.order).toBeDefined();
+    // Nested-merge: writing metadata.assemblyGuide left the sibling key alone.
+    expect(raw.metadata.noteRevision).toBe("r1");
   });
 
   it("blocks a properties bag that targets a protected identity or mirrored path", async () => {
@@ -412,6 +428,14 @@ describe("edit_nodes (the batch tool — one dry-run, one confirm, one audit rec
     const lessonIds = model.unitsOfKind("Lesson").slice(0, 3).map((lesson) => lesson.id);
     expect(lessonIds.length).toBe(3);
 
+    // Plant a sibling key on each node first, so the per-node nested merge is
+    // proven against something this test put there rather than something the
+    // curriculum happens to carry (metadata.order, which the V2 rebuild dropped).
+    await runRecipe(editNodes, {
+      namespace: ns,
+      items: lessonIds.map((nodeId) => ({ nodeId, properties: { "metadata.noteRevision": "r1" } })),
+    });
+
     const { confirm } = await runRecipe(editNodes, {
       namespace: ns,
       items: lessonIds.map((nodeId) => ({ nodeId, properties: { "metadata.assemblyGuide": "Même consigne partout." } })),
@@ -422,7 +446,7 @@ describe("edit_nodes (the batch tool — one dry-run, one confirm, one audit rec
     for (const id of lessonIds) {
       const raw = draft.nodes.find((candidate) => candidate.id === id)!.properties.raw as Record<string, any>;
       expect(raw.metadata.assemblyGuide).toBe("Même consigne partout.");
-      expect(raw.metadata.order).toBeDefined();   // nested-merge, per node
+      expect(raw.metadata.noteRevision).toBe("r1");   // nested-merge, per node
     }
   });
 

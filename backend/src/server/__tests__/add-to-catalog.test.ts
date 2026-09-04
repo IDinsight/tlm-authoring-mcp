@@ -80,10 +80,15 @@ async function readPublished(namespace: string): Promise<MutationGraph> { const 
 const modelOf = (g: MutationGraph): CurriculumModel => adapter().parse(toRawEnvelope({ nodes: g.nodes, edges: g.edges }));
 
 // A real Lesson id from the published CI-maths seed (a valid usesRoutine target).
+// Found STRUCTURALLY — "a LessonGrouping with a Lesson under it" — because the
+// grouping kind is a curriculum decision that has already changed twice
+// (chapters → weeks → units) and is nothing this test is about.
 function someLessonId(g: MutationGraph): string {
   const m = modelOf(g);
-  const week = m.unitsOfKind("Semaine").find((w) => m.childrenOf(w.id).some((c) => c.kind === "Lesson"))!;
-  return m.childrenOf(week.id).find((c) => c.kind === "Lesson")!.id;
+  const grouping = [...m.byId.values()]
+    .filter((u) => (u.labels ?? []).includes("LessonGrouping"))
+    .find((u) => m.childrenOf(u.id).some((c) => c.kind === "Lesson"))!;
+  return m.childrenOf(grouping.id).find((c) => c.kind === "Lesson")!.id;
 }
 
 // Author an InstructionalRoutine on a lesson in the active CI-maths DRAFT (two-phase

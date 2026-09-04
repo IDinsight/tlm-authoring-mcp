@@ -133,10 +133,15 @@ async function inCtx(fn: () => Promise<void>): Promise<void> {
 }
 
 // A real Lesson id from the published CI-maths seed (a valid usesRoutine target).
+// Found STRUCTURALLY — "a LessonGrouping with a Lesson under it" — because the
+// grouping kind is a curriculum decision that has already changed twice
+// (chapters → weeks → units) and is nothing this test is about.
 function someLessonId(g: MutationGraph): string {
   const m = modelOf(g);
-  const week = m.unitsOfKind("Semaine").find((w) => m.childrenOf(w.id).some((c) => c.kind === "Lesson"))!;
-  return m.childrenOf(week.id).find((c) => c.kind === "Lesson")!.id;
+  const grouping = [...m.byId.values()]
+    .filter((u) => (u.labels ?? []).includes("LessonGrouping"))
+    .find((u) => m.childrenOf(u.id).some((c) => c.kind === "Lesson"))!;
+  return m.childrenOf(grouping.id).find((c) => c.kind === "Lesson")!.id;
 }
 
 beforeAll(() => { __setStorageForTest(fakeStorage); });
@@ -341,8 +346,9 @@ describe("use_routine", () => {
 
   it("blocks copying onto a non-lesson target (a grouping)", async () => {
     const published = await readPublished();
-    // ci/maths groups by week now, not chapter — any grouping is a non-lesson target.
-    const chapterId = modelOf(published).unitsOfKind("Semaine")[0].id;
+    // Any LessonGrouping serves — the point is that it is NOT a Lesson.
+    const chapterId = [...modelOf(published).byId.values()]
+      .find((u) => (u.labels ?? []).includes("LessonGrouping"))!.id;
     const catalog = await readCatalog(SHARED_CATALOG_NAMESPACE);
     const clone = cloneRoutineSubtree(catalog, "cat-entry", ns, () => mintNodeId())!;
     const args = { namespace: ns, targetId: chapterId, clonedNodes: clone.nodes, clonedEdges: clone.edges, newEntryId: clone.newEntryId };

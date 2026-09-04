@@ -15,6 +15,7 @@ The knowledge graph lives **only** in a Firestore node/edge store, in raw *Learn
 | [`backend/`](backend/) | The MCP server — its own `package.json`, `tsconfig.json`, `Dockerfile`. **Run every `npm` command from here.** |
 | [`frontend/explorer/`](frontend/explorer/) | The read-only KG explorer (Vite + TS), served by Firebase Hosting against the server's `/kg` endpoint. |
 | [`frontend/user-guide/`](frontend/user-guide/) | The expert-facing user guide (MkDocs), published to GitHub Pages by [`user-guide.yml`](.github/workflows/user-guide.yml). |
+| [`plugin/`](plugin/) | The Cowork plugin (French workflow commands, skills and agents) shipped through the repo-root marketplace. |
 | [`docs/`](docs/) | Technical reference, design notes, and the canonical LC ontology reference. |
 
 Paths written as `src/…`, `scripts/…`, `test/…`, `assets/…` below are relative to `backend/`.
@@ -159,12 +160,13 @@ The live surface is mirrored by `get_capabilities`; this is the map.
 - **Orientation & context:** `ping`, `start_here`, `set_context`, `get_context`, `get_capabilities`, `namespace_stats`.
 - **Graph reads (generic):** `walk_graph` (directional, filtered, paginated BFS — the traversal primitive), `find_node` (a name → node ids, with the path that tells two same-named nodes apart), `get_standards`, `export_graph_view`.
 - **Generation reads:** `walk_document`, `walk_document_section`, `get_terminology`.
-- **Authoring (role-gated):** `add_nodes`, `create_edges`, `edit_nodes`, `delete_nodes`, `delete_edges`, plus the two task verbs `create_document` and `add_section`.
-- **Draft lifecycle (role-gated):** `diff_draft`, `check_draft` (mechanical wiring lint), `review_draft` (bundles the guide's expectations for the calling model to judge), `undo_last`, `request_review`, `publish_draft`, `discard_draft`, `read_audit`.
+- **Authoring (role-gated):** `add_nodes`, `create_edges`, `edit_nodes`, `move_node`, `delete_nodes`, `delete_edges`, plus the two task verbs `create_document` and `add_section`.
+- **Draft lifecycle (role-gated):** `diff_draft`, `check_draft` (mechanical wiring lint), `lint_content` (consistency lint — does an authored statement contradict another), `review_draft` (bundles the guide's expectations for the calling model to judge), `undo_last`, `request_review`, `publish_draft`, `discard_draft`, `read_audit`.
 - **Subject profile & guide:** `get_profile`, `edit_profile`, `get_graph_guide`.
 - **Catalog — reusable routines, formatters & rubrics:** `list_catalog`, `get_catalog_entry`, `add_to_catalog`, `duplicate_entry`, `use_routine`, `use_formatter`, `use_rubric`.
 - **Glossary & translation:** `add_terms`, `edit_term`, `remove_terms`, `translate` (FR↔Wolof via Gemini, glossary-grounded).
 - **Documents & generation output:** `list_documents`, `create_upload_url`, `create_download_url`, `get_document_text`, `record_document_content`, `log_generation`, `reconcile`, `evaluate_document`, `preview_generation`, `create_preview_upload_url`.
+- **Rendering & round-trip:** `render_document` (a composed block tree + the node's formatter stack → a `.docx`, optionally measured), `check_stale` (has the graph moved under a rendered document), `propose_from_document` (take an expert's corrections in a document back into the graph as staged edits).
 - **Workspaces (tenant admin):** `list_workspaces`, `create_workspace`, `add_member`, `remove_member`, `list_members`, `invite_member`, `revoke_invite`, `set_domain_rule`, `remove_domain_rule`, `list_unaffiliated_users`.
 
 The connector also publishes four named French workflow **prompts** — *Créer un nouveau document*, *Appliquer un style*, *Créer une routine pédagogique*, *Préparer une relecture*. They are French because a prompt *is* the expert's first turn; every server-authored string is English and relayed in the expert's working language.
@@ -172,7 +174,7 @@ The connector also publishes four named French workflow **prompts** — *Créer 
 ## Documentation
 
 - [`CLAUDE.md`](CLAUDE.md) — architecture summary, module layering, conventions (the working guide).
-- [`docs/technical-reference/`](docs/technical-reference/) — the operational manual: [KG store & curator loop](docs/technical-reference/store.md) · [explorer](docs/technical-reference/explorer.md) · [generation & storage](docs/technical-reference/generation-and-storage.md) · [deployment](docs/technical-reference/deployment.md) · [architecture & extending](docs/technical-reference/architecture-and-extending.md).
+- [`docs/technical-reference/`](docs/technical-reference/) — the operational manual: [KG store & curator loop](docs/technical-reference/store.md) · [explorer](docs/technical-reference/explorer.md) · [generation & storage](docs/technical-reference/generation-and-storage.md) · [rendering](docs/technical-reference/rendering.md) · [deployment](docs/technical-reference/deployment.md) · [architecture & extending](docs/technical-reference/architecture-and-extending.md).
 - [`docs/reference/learning-commons/`](docs/reference/learning-commons/) — the canonical LC ontology (node data models, every relationship, enums). Check it before adding or retyping any node or edge.
 - [`docs/design-notes/`](docs/design-notes/) — the *why* behind each subsystem. Each note carries a **Status** line; heed the "Historical / superseded" ones. Start with [graph-native authoring](docs/design-notes/graph-native-authoring.md) · [self-serve authoring](docs/design-notes/self-serve-authoring.md) · [authorable catalog](docs/design-notes/authorable-catalog.md) · [workspaces](docs/design-notes/workspaces.md) · [member onboarding](docs/design-notes/member-onboarding.md) · [KG mutations](docs/design-notes/kg-mutations/).
 - [`DEPLOY.md`](DEPLOY.md) — production deployment runbook.

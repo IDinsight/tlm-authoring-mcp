@@ -309,15 +309,20 @@ describe("move_node — the axis comes from the graph, not the label alone", () 
     /*
      * containmentEdgeFor("LearningComponent") answers a different question — which
      * edge a NEW component is attached BY — and its answer, `supports`, points
-     * component→SFI, so it is never an incoming parent edge. Resolving the axis off
-     * the graph is what keeps all 80 derived components movable.
+     * component→SFI, so it is never an incoming parent edge. Resolving the axis
+     * off the graph is what keeps a derived component movable at all.
+     *
+     * On the SYNTHETIC graph: ci/maths carried ~80 hasChild-parented components
+     * under its "Composants dérivés" frames until the V2 rebuild, which left
+     * none, so the shape this mechanic exists for has to be built. The mechanic
+     * is unchanged — a subject may still carry derived frames.
      */
-    const { nodes, edges } = await slot("a");
-    const component = nodes.find((node) =>
-      (node.labels ?? []).includes("LearningComponent") &&
-      edges.some((edge) => edge.type === "hasChild" && edge.to === node.id))!;
-    const currentFrame = edges.find((e) => e.type === "hasChild" && e.to === component.id)!.from;
-    const otherFrame = edges.find((e) => e.type === "hasChild" && e.from !== currentFrame && e.to !== component.id)!.from;
+    await seedSyntheticChapters(store, ns);
+    const { edges } = await slot("a");
+    const component = { id: SYNTHETIC_IDS.component };
+    const currentFrame = SYNTHETIC_IDS.frame;
+    const otherFrame = SYNTHETIC_IDS.frame2;
+    expect(edges.some((e) => e.type === "hasChild" && e.from === currentFrame && e.to === component.id)).toBe(true);
 
     const applied = await withActiveContext(CURATOR, async () => {
       const preview = await runMoveNode({ nodeId: component.id, toParentId: otherFrame });

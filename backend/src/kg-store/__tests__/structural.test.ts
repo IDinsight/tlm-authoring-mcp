@@ -75,6 +75,18 @@ async function readPublishedGraph(namespace: string): Promise<MutationGraph> {
 }
 
 
+/*
+ * The kind these tests create and link nodes of, READ FROM THE SEED.
+ *
+ * Nothing here is about how ci/maths organises its curriculum — the tests need
+ * "some grouping kind this graph already knows", because `create_node` derives a
+ * new node's LC identity by copying an existing node of the same kind and
+ * rightly BLOCKS a kind the graph has never seen. Spelling the kind out made
+ * every one of these tests fail the day maths regrouped from weeks into units,
+ * on data that was entirely valid.
+ */
+let GROUPING_KIND: string;
+
 beforeAll(() => { __setStorageForTest(fakeStorage); });
 beforeEach(async () => {
   store = await seedFreshStore();
@@ -82,6 +94,8 @@ beforeEach(async () => {
   __resetMutationsForTest();
   __resetDraftTokensForTest();
   __setActorForTest(CURATOR);
+  const seeded = await readPublishedGraph(ns);
+  GROUPING_KIND = seeded.nodes.find((n) => (n.labels ?? []).includes("LessonGrouping"))!.type;
 });
 afterAll(() => {
   __setKgStoreForTest(null);
@@ -94,7 +108,7 @@ describe("create_node", () => {
     const newNodeId = mintNodeId();
     const preview = await runGraphMutation({
       namespace: ns, mutation: createNode,
-      args: { kind: "Semaine", properties: { title: "New grouping", raw: { semaineNum: 999 } }, namespace: ns, newNodeId },
+      args: { kind: GROUPING_KIND, properties: { title: "New grouping", raw: { semaineNum: 999 } }, namespace: ns, newNodeId },
     });
     if (preview.phase !== "preview") throw new Error(`expected preview, got ${preview.phase}`);
     // The diff surfaces the added node with the minted id.
@@ -102,12 +116,12 @@ describe("create_node", () => {
 
     const applied = await runGraphMutation({
       namespace: ns, mutation: createNode,
-      args: { kind: "Semaine", properties: { title: "New grouping", raw: { semaineNum: 999 } }, namespace: ns, newNodeId },
+      args: { kind: GROUPING_KIND, properties: { title: "New grouping", raw: { semaineNum: 999 } }, namespace: ns, newNodeId },
       confirm: true, token: preview.confirmationToken,
     });
     expect(applied).toMatchObject({ ok: true });
     const draft = await readSlotGraph(ns, "b");
-    expect(draft.nodes.some((n) => n.id === newNodeId && n.type === "Semaine")).toBe(true);
+    expect(draft.nodes.some((n) => n.id === newNodeId && n.type === GROUPING_KIND)).toBe(true);
     // Published is untouched.
     const published = await readSlotGraph(ns, "a");
     expect(published.nodes.some((n) => n.id === newNodeId)).toBe(false);
@@ -118,7 +132,7 @@ describe("create_node", () => {
     const blocked = await runGraphMutation({
       namespace: ns, mutation: createNode,
       args: {
-        kind: "Semaine",
+        kind: GROUPING_KIND,
         properties: { title: "Rogue", id: "caller-supplied-id" },  // sneak in an id
         namespace: ns, newNodeId,
       },
@@ -146,7 +160,7 @@ describe("link_nodes", () => {
   it("adds an edge between two existing nodes", async () => {
     const graph = await readPublishedGraph(ns);
     // Pick two chapters and link them with hasDependency (a known edge type).
-    const chapters = graph.nodes.filter((n) => n.type === "Semaine");
+    const chapters = graph.nodes.filter((n) => n.type === GROUPING_KIND);
     const [firstChapter, lastChapter] = [chapters[0], chapters[chapters.length - 1]];
     // Choose a pair that isn't already linked.
     const existingId = makeEdgeId("hasDependency", firstChapter.id, lastChapter.id);
@@ -249,7 +263,7 @@ describe("link_nodes", () => {
 
   it("rejects a self-loop", async () => {
     const graph = await readPublishedGraph(ns);
-    const node = graph.nodes.find((n) => n.type === "Semaine")!;
+    const node = graph.nodes.find((n) => n.type === GROUPING_KIND)!;
     const blocked = await runGraphMutation({
       namespace: ns, mutation: linkNodes,
       args: { edgeType: "hasDependency", fromId: node.id, toId: node.id, properties: {}, namespace: ns },
@@ -297,12 +311,12 @@ describe("delete_node — non-cascading", () => {
     const newNodeId = mintNodeId();
     const createPreview = await runGraphMutation({
       namespace: ns, mutation: createNode,
-      args: { kind: "Semaine", properties: { title: "isolated" }, namespace: ns, newNodeId },
+      args: { kind: GROUPING_KIND, properties: { title: "isolated" }, namespace: ns, newNodeId },
     });
     if (createPreview.phase !== "preview") throw new Error("preview");
     await runGraphMutation({
       namespace: ns, mutation: createNode,
-      args: { kind: "Semaine", properties: { title: "isolated" }, namespace: ns, newNodeId },
+      args: { kind: GROUPING_KIND, properties: { title: "isolated" }, namespace: ns, newNodeId },
       confirm: true, token: createPreview.confirmationToken,
     });
 
@@ -418,12 +432,12 @@ describe("delete_nodes — batch", () => {
     for (const newNodeId of ids) {
       const p = await runGraphMutation({
         namespace: ns, mutation: createNode,
-        args: { kind: "Semaine", properties: { title: "isolated" }, namespace: ns, newNodeId },
+        args: { kind: GROUPING_KIND, properties: { title: "isolated" }, namespace: ns, newNodeId },
       });
       if (p.phase !== "preview") throw new Error("preview");
       await runGraphMutation({
         namespace: ns, mutation: createNode,
-        args: { kind: "Semaine", properties: { title: "isolated" }, namespace: ns, newNodeId },
+        args: { kind: GROUPING_KIND, properties: { title: "isolated" }, namespace: ns, newNodeId },
         confirm: true, token: p.confirmationToken,
       });
     }
@@ -525,7 +539,7 @@ describe("Rule 1 — disguised rename across delete_node + create_node", () => {
     const preview = await runGraphMutation({
       namespace: ns, mutation: createNode,
       args: {
-        kind: "Semaine",
+        kind: GROUPING_KIND,
         properties: { title: "A wholly new chapter", raw: { semaineNum: 99999 } },
         namespace: ns, newNodeId,
       },
@@ -542,7 +556,7 @@ describe("role matrix — every primitive gated on curator/approver", () => {
   const primitiveCalls: Array<[string, () => Promise<unknown>]> = [
     ["create_node", () => runGraphMutation({
       namespace: ns, mutation: createNode,
-      args: { kind: "Semaine", properties: { title: "x" }, namespace: ns, newNodeId: mintNodeId() },
+      args: { kind: GROUPING_KIND, properties: { title: "x" }, namespace: ns, newNodeId: mintNodeId() },
     })],
     ["link_nodes", async () => {
       // Read as an unaffected caller so authz denial doesn't short-circuit
@@ -595,12 +609,12 @@ describe("audit — apply and blocked records", () => {
     const newNodeId = mintNodeId();
     const preview = await runGraphMutation({
       namespace: ns, mutation: createNode,
-      args: { kind: "Semaine", properties: { title: "audited" }, namespace: ns, newNodeId },
+      args: { kind: GROUPING_KIND, properties: { title: "audited" }, namespace: ns, newNodeId },
     });
     if (preview.phase !== "preview") throw new Error("preview");
     await runGraphMutation({
       namespace: ns, mutation: createNode,
-      args: { kind: "Semaine", properties: { title: "audited" }, namespace: ns, newNodeId },
+      args: { kind: GROUPING_KIND, properties: { title: "audited" }, namespace: ns, newNodeId },
       confirm: true, token: preview.confirmationToken,
     });
     const applyRecs = await store.listAudit({ namespace: ns, eventType: "apply" });
@@ -630,12 +644,12 @@ describe("end-to-end: manual structural add across a draft, then publish", () =>
     const chapterId = mintNodeId();
     const chapterPreview = await runGraphMutation({
       namespace: ns, mutation: createNode,
-      args: { kind: "Semaine", properties: { title: "Nouveau chapitre", raw: { chapitreNum: 42, chapitreTitre: "Nouveau chapitre" } }, namespace: ns, newNodeId: chapterId },
+      args: { kind: GROUPING_KIND, properties: { title: "Nouveau chapitre", raw: { chapitreNum: 42, chapitreTitre: "Nouveau chapitre" } }, namespace: ns, newNodeId: chapterId },
     });
     if (chapterPreview.phase !== "preview") throw new Error("chapter preview");
     await runGraphMutation({
       namespace: ns, mutation: createNode,
-      args: { kind: "Semaine", properties: { title: "Nouveau chapitre", raw: { chapitreNum: 42, chapitreTitre: "Nouveau chapitre" } }, namespace: ns, newNodeId: chapterId },
+      args: { kind: GROUPING_KIND, properties: { title: "Nouveau chapitre", raw: { chapitreNum: 42, chapitreTitre: "Nouveau chapitre" } }, namespace: ns, newNodeId: chapterId },
       confirm: true, token: chapterPreview.confirmationToken,
     });
 
@@ -693,12 +707,12 @@ describe("parity — a structural draft edit doesn't leak to published reads", (
     const newNodeId = mintNodeId();
     const preview = await runGraphMutation({
       namespace: ns, mutation: createNode,
-      args: { kind: "Semaine", properties: { title: "leak test" }, namespace: ns, newNodeId },
+      args: { kind: GROUPING_KIND, properties: { title: "leak test" }, namespace: ns, newNodeId },
     });
     if (preview.phase !== "preview") throw new Error("preview");
     await runGraphMutation({
       namespace: ns, mutation: createNode,
-      args: { kind: "Semaine", properties: { title: "leak test" }, namespace: ns, newNodeId },
+      args: { kind: GROUPING_KIND, properties: { title: "leak test" }, namespace: ns, newNodeId },
       confirm: true, token: preview.confirmationToken,
     });
     const afterPublished = await readPublishedGraph(ns);

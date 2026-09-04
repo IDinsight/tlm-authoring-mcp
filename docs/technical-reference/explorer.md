@@ -7,7 +7,7 @@ stays in the MCP curator tools. See `docs/design-notes/kg-explorer-findings.md` 
 the data-scope finding.
 
 Two pieces: a read-only **export endpoint** (companion routes on the same Cloud Run service,
-`src/kg-export.ts` + routes in `src/http.ts`) and the **hosted explorer** (`frontend/explorer/`,
+`src/kg-export/` + routes in `src/http.ts`) and the **hosted explorer** (`frontend/explorer/`,
 a React + TypeScript app — Vite, Tailwind CSS, Lucide icons — that builds to
 `frontend/explorer/dist` and is served by Firebase Hosting). It is a component-based port of the
 original single-file page: same look, interactions, and data contract.
@@ -165,7 +165,7 @@ de-noises the explorer without a re-seed.
 Seed it into Firestore (see [Seed](store.md#seed)). It then appears in the selector automatically. If its
 data has the CI maths-shaped fields it gets the rich views; otherwise it renders via the generic
 `node-type` view — no frontend change. To give a differently-shaped KG its own rich views, extend
-`buildViewConfig` in `src/kg-export.ts` with a new detection + a new view `shape` in the frontend
+`buildViewConfig` in `src/kg-export/views.ts` with a new detection + a new view `shape` in the frontend
 (the view-derivation builders live in `frontend/explorer/src/lib/graphModel.ts`).
 
 ### Data-scope finding (what's in the graph)

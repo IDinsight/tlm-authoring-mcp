@@ -2,7 +2,7 @@
 
 **Status:** Live. The renderer and its contract are in **`backend/src/render/`**, reachable as the
 **`render_document`** tool; the golden-file comparisons that proved them stay in
-`backend/src/__spike__/`. Still missing before WP4 is done: writing the CANONICAL bucket and history (output is preview-only
+`backend/src/__golden__/` (renamed from `__spike__` when it stopped being throwaway work). The operational manual for the live tools is [`docs/technical-reference/rendering.md`](../technical-reference/rendering.md). Still missing before WP4 is done: writing the CANONICAL bucket and history (output is preview-only
 today). Page counting is built but **unverified end to end** — see below.
 
 ## Why a spike rather than a decision
@@ -46,14 +46,14 @@ Three files, about 500 lines, no new dependency.
 
 | | |
 |---|---|
-| `zip.ts` | A `.docx` is a zip of XML parts and the repo has no zip library. Writing the container directly is ~60 lines of `node:zlib` — which is itself part of the answer. |
-| `renderer.ts` | Document model + `RenderSpec` → `.docx` bytes. |
-| `golden.ts` | A produced sheet → the same document model, so the comparison is not the renderer marking its own homework. Doubles as a sketch of WP6a. |
+| `render/zip.ts` | A `.docx` is a zip of XML parts and the repo has no zip library. Writing the container directly is ~60 lines of `node:zlib` — which is itself part of the answer. |
+| `render/docx.ts` | Document model + `RenderSpec` → `.docx` bytes. |
+| `__golden__/golden.ts` | A produced sheet → the same document model, so the comparison is not the renderer marking its own homework. Doubles as a sketch of WP6a. |
 
-`render.spike.test.ts` checks the teacher sheet (`GOLDEN_DIR`); `pupil.spike.test.ts` checks that the
+`__golden__/teacher-sheet.golden.test.ts` checks the teacher sheet (`GOLDEN_DIR`); `__golden__/pupil-tool.golden.test.ts` checks that the
 same code carries a second document type (`PUPIL_DIR`). Neither runs without its corpus.
 
-`render.spike.test.ts` reads `Guide-Lecon-1-ensembles-FR.docx` into the model, renders it again from
+`__golden__/teacher-sheet.golden.test.ts` reads `Guide-Lecon-1-ensembles-FR.docx` into the model, renders it again from
 scratch, and compares. It skips unless `GOLDEN_DIR` names the folder holding the sheets.
 
 **The corpus lives on one laptop and nowhere else.** It is not in the bucket, not in the repo (a
@@ -109,7 +109,7 @@ schema exists to make impossible.
 
 ## Genericity — asked, answered no, then fixed
 
-Nothing in `renderer.ts` knows what a maths lesson looks like. It knows tables, lines, runs,
+Nothing in `render/docx.ts` knows what a maths lesson looks like. It knows tables, lines, runs,
 pictures and spacers; which banner is turquoise, how tall a band may stand, which colour marks
 French and where a page break is carried are all read out of the `RenderSpec`. But one document type
 can be matched by accident, so the same renderer was pointed at the pupil tool — 42 picture

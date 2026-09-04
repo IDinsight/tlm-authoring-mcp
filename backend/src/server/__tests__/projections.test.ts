@@ -12,6 +12,9 @@
  *     and 60 graph loads. It now takes a batch against ONE load.
  */
 import { describe, it, expect, beforeAll, beforeEach, afterAll } from "vitest";
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
+import { subjectDir, KG_FIXTURE } from "../../__tests__/index.js";
 import {
   seedStore, fixtureContext, installFakeStorage, withActiveContext as inContext,
   CI_MATHS, CURATOR, APPROVER,
@@ -71,7 +74,7 @@ async function seedCatalog(target: KgNodeStore): Promise<void> {
   await target.ensurePointer(SHARED_CATALOG_NAMESPACE, "a");
 }
 
-beforeAll(() => { installFakeStorage(); });
+beforeAll(async () => { installFakeStorage(); await pickLandmarkNames(); });
 beforeEach(async () => {
   store = await seedStore({ only: [CI_MATHS] });
   await seedCatalog(store);
@@ -203,11 +206,33 @@ describe("get_capabilities projects to a digest with every area reachable", () =
 // ── 2c. find_node ─────────────────────────────────────────────────────────────
 
 // Two fixture landmarks, chosen for what they prove: one name that resolves to
-// exactly one node, and one that two nodes carry (the ci/maths Course and the
-// standards framework are both « Planification ») — ambiguity is the normal case
-// here, and a batch must report it rather than pick.
-const UNIQUE_NAME = "Guide de l'enseignant";
-const AMBIGUOUS_NAME = "Planification";
+// exactly one node, and one that several nodes carry — ambiguity is the normal
+// case here, and a batch must report it rather than pick.
+//
+// Both are READ OFF THE SEED rather than spelled out. The names that happen to
+// be unique or repeated in ci/maths are curriculum content, and the previous
+// pair ("Guide de l'enseignant" / "Planification") stopped existing when the
+// curriculum was revised — which broke these tests without anything being wrong
+// with find_node. What is being tested is the one-vs-many behaviour, so the
+// fixture is asked which names have it.
+let UNIQUE_NAME: string;
+let AMBIGUOUS_NAME: string;
+
+// First line of `description` is the display name find_node matches on.
+const firstLine = (node: { properties?: Record<string, unknown> }): string =>
+  String(node.properties?.description ?? "").split("\n")[0].trim();
+
+async function pickLandmarkNames(): Promise<void> {
+  const raw = JSON.parse(readFileSync(resolve(subjectDir("senegal", "ci", "maths"), KG_FIXTURE), "utf8"));
+  const counts = new Map<string, number>();
+  for (const node of raw.nodes) {
+    const name = firstLine(node);
+    if (name) counts.set(name, (counts.get(name) ?? 0) + 1);
+  }
+  const sorted = [...counts].sort(([a], [b]) => a.localeCompare(b));
+  UNIQUE_NAME = sorted.find(([name, n]) => n === 1 && name.length > 3 && name.length < 40)![0];
+  AMBIGUOUS_NAME = sorted.find(([, n]) => n > 1)![0];
+}
 
 describe("find_node resolves a batch of names against one graph load", () => {
   it("keys results by the query the caller sent", async () => {

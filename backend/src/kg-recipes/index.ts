@@ -26,7 +26,7 @@ export {
   addCatalogEntry, catalogRootId,
   type CatalogEntry, type CatalogScope, type CatalogKind, type CatalogMaterial, type ClonedSubtree,
   type UseRoutineArgs, type UseFormatterArgs, type UseRubricArgs, type AddCatalogEntryArgs,
-} from "./catalog.js";
+} from "./catalog/index.js";
 export {
   containmentEdgeFor, deriveTemplate, isKnownLabel, orderPathsOf,
   ALIGNMENT_EDGE, POSITION, type NodeTemplate,

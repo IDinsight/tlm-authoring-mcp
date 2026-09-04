@@ -22,6 +22,9 @@ backend/dist
 !firebase.json
 # Committed test fixtures (golden snapshots) live under __fixtures__ dirs.
 !backend/src/adapters/__fixtures__/*.json
+# The pinned shape of the committed fixture graphs — the review gate a fixture
+# refresh has to pass. By exact path, per the rule above.
+!/backend/test/fixtures/SHAPE.json
 
 # Frontend explorer (Vite/React) — its own package tree. Track its config JSON
 # (rescued from the blanket *.json ignore above), but not its build artefacts.
