@@ -15,8 +15,11 @@
  *      the DELTA vs the live slot (writeSlotDelta), not a full rewrite of every
  *      doc — the full rewrite is what times out (DEADLINE_EXCEEDED) over a slow
  *      link on a large graph;
- *   4. writes the subject-profile config cell — from --profile <path> ({ core,
- *      guide }) when given, else the in-repo literal for that grade/subject;
+ *   4. writes the subject-profile config cell. --profile <path> ({ core, guide })
+ *      wins outright; otherwise `core` comes from the in-repo literal and the
+ *      GUIDE IS KEPT FROM THE LIVE CELL — the repo copy at
+ *      assets/<ws>/<grade>/<subject>/GRAPH_GUIDE.md only seeds a cell that has
+ *      none. Replacing a graph must not revert the subject's authored prose;
  *   5. initializes the pointer { publishedSlot, draftSlot: null } if absent
  *      (ensurePointer is a no-op on an existing pointer, so a re-import never
  *      silently moves a published draft).
@@ -127,21 +130,58 @@ const { nodes, edges } = rawMode
   : serializeModel(adapter.parse(envelope), namespace);
 const meta = { contentHash, seededAt: new Date().toISOString(), adapterId: adapter?.id ?? "raw-envelope", nodeCount: nodes.length, edgeCount: edges.length };
 
-// The profile config cell: an explicit --profile file wins; otherwise the
-// in-repo { core, guide } literal for this grade/subject.
+/*
+ * The profile config cell. Built AFTER the store is open, because the guide has
+ * to be read off the live cell rather than rebuilt from the repo — see
+ * buildConfig() below the store connection.
+ */
 let config;
-if (rawMode) {
-  config = null;
-} else if (profilePath) {
-  config = JSON.parse(readFileSync(resolve(profilePath), "utf8"));
-} else {
-  const core = getRegisteredProfile(workspace, grade, subject);
-  const guide = getRegisteredGuide(workspace, grade, subject);
-  config = guide !== undefined ? { core, guide } : { core };
-}
 
 const store = dryRun ? createMemoryKgStore() : createFirestoreKgStore();
 console.error(`import-kg: backend=${store.kind}, ns='${namespace}'${rawMode ? " (raw)" : ""}, nodes=${nodes.length}, edges=${edges.length}, hash=${contentHash.slice(0, 12)}…`);
+
+/*
+ * The config cell is written WHOLE — { core, guide } replaces, it does not
+ * patch — so the half this import is not about has to be carried across
+ * deliberately. The guide is ~24 KB of authored prose that experts edit LIVE
+ * through edit_profile; assets/<ws>/<grade>/<subject>/GRAPH_GUIDE.md is only the seed a namespace
+ * started from and goes stale the moment the live one is edited.
+ *
+ * That mattered most here, of all places: you reach for import-kg to replace a
+ * GRAPH, and rebuilding the guide from the repo meant it quietly reverted the
+ * subject's authored prose at the same time — a side effect nobody running a
+ * graph import is thinking about.
+ *
+ *   --profile <file>   wins outright — you named that record
+ *   live cell has one  keep it verbatim, refresh `core` from the repo
+ *   no cell yet        fall back to the repo guide (a first import has nothing
+ *                      to preserve — the case this seed path exists for)
+ */
+async function buildConfig(targetSlot) {
+  if (rawMode) return null;
+  if (profilePath) {
+    console.error(`import-kg: profile from --profile ${profilePath}.`);
+    return JSON.parse(readFileSync(resolve(profilePath), "utf8"));
+  }
+  const core = getRegisteredProfile(workspace, grade, subject);
+  const live = await store.readConfig(namespace, targetSlot);
+  const liveGuide = live && typeof live.guide === "string" ? live.guide : undefined;
+  const guide = liveGuide ?? getRegisteredGuide(workspace, grade, subject);
+  if (dryRun) {
+    // --dry-run runs against a MEMORY store, so there is no live cell to read
+    // here and the choice below is not the one a real run would make. Say so,
+    // rather than printing a reassuring "seeding from the repo" that is an
+    // artifact of the dry-run backend.
+    console.error("import-kg: (dry-run) the live config cell is not readable from the memory backend — a real run would keep the live guide if the cell has one.");
+  } else {
+    console.error(
+      liveGuide !== undefined
+        ? `import-kg: keeping the LIVE guide (${liveGuide.length} chars) — core refreshed from the repo.`
+        : "import-kg: no live guide on this cell; seeding the guide from the repo assets.",
+    );
+  }
+  return guide !== undefined ? { core, guide } : { core };
+}
 
 try {
   const existing = await store.readPointer(namespace);
@@ -182,6 +222,7 @@ try {
     // so write the whole slot.
     await store.writeSlot(namespace, targetSlot, { nodes, edges, meta });
   }
+  config = await buildConfig(targetSlot);
   if (config?.core) await store.writeConfig(namespace, targetSlot, config);
   await store.ensurePointer(namespace, targetSlot);
   console.error("import-kg: done.");
