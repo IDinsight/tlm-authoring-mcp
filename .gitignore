@@ -6,7 +6,6 @@ backend/dist
 *.json
 .DS_Store
 !knowledge_graph.json
-!terminology.json
 !example_domains.json
 !package.json
 !package-lock.json

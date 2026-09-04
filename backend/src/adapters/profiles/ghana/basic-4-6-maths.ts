@@ -19,5 +19,5 @@ export const GHANA_MATHS_PROFILE: SubjectProfile = {
 };
 
 // The authored GRAPH GUIDE for this subject ships as DATA, not a literal here:
-// assets/ghana/basic-4-6/maths/GRAPH_GUIDE.md, read at seed time by
+// seeds/ghana/basic-4-6/maths/GRAPH_GUIDE.md, read at seed time by
 // getRegisteredGuide (adapters/index.ts). See docs/design-notes/authorable-catalog.md.

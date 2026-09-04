@@ -5,7 +5,7 @@ The deep operational + design reference, split by concern (one file per topic). 
 current architecture summary; [DEPLOY.md](../../DEPLOY.md) is the production runbook.
 
 > **Repo layout.** The server is a self-contained package under **`backend/`** (`backend/src`,
-> `backend/scripts`, `backend/test`, `backend/assets`, its own `package.json`/`Dockerfile`); the
+> `backend/scripts`, `backend/test`, `backend/seeds`, its own `package.json`/`Dockerfile`); the
 > explorer UI is its own package under `frontend/`. Run `npm` commands from `backend/`, and read
 > the bare `src/…`, `scripts/…`, `test/…`, `assets/…` paths throughout these notes as relative to it.
 

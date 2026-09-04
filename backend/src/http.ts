@@ -594,7 +594,7 @@ async function main() {
   });
 
   app.listen(PORT, () => {
-    console.error(`${LOG} listening on :${PORT} (${sessions.size} sessions, assets: ${CONFIG.assetsDir})`);
+    console.error(`${LOG} listening on :${PORT} (${sessions.size} sessions, seeds: ${CONFIG.seedsDir})`);
   });
 }
 

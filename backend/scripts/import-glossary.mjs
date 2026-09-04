@@ -65,7 +65,7 @@ if (positional.length !== 3) {
 const [workspace, grade, subject] = positional;
 
 // ── Read the source terminology.json ─────────────────────────────────────────
-const sourcePath = resolve(CONFIG.assetsDir, workspace, grade, subject, CONFIG.terminologyFile);
+const sourcePath = resolve(CONFIG.seedsDir, workspace, grade, subject, CONFIG.terminologyFile);
 if (!existsSync(sourcePath)) {
   console.error(`import-glossary: no terminology file at ${sourcePath}.`);
   process.exit(1);

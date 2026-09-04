@@ -20,5 +20,5 @@ export const GHANA_ENGLISH_PROFILE: SubjectProfile = {
 };
 
 // The authored GRAPH GUIDE for this subject ships as DATA, not a literal here:
-// assets/ghana/basic-1-3/english/GRAPH_GUIDE.md, read at seed time by
+// seeds/ghana/basic-1-3/english/GRAPH_GUIDE.md, read at seed time by
 // getRegisteredGuide (adapters/index.ts). See docs/design-notes/authorable-catalog.md.

@@ -25,7 +25,7 @@
  *
  * Config source: --profile <path> ({ core, guide } JSON) wins outright.
  * Otherwise `core` comes from the in-repo literal and the GUIDE IS TAKEN FROM
- * THE LIVE CELL — the repo's assets/<ws>/<grade>/<subject>/GRAPH_GUIDE.md is used only when the cell
+ * THE LIVE CELL — the repo's seeds/<ws>/<grade>/<subject>/GRAPH_GUIDE.md is used only when the cell
  * has no guide to preserve (a first seed). Repairing `core` must not revert
  * authored prose; see the note at the write site.
  *
@@ -88,7 +88,7 @@ try {
    * patch — so the half you are not trying to change has to be carried across
    * deliberately. The guide is authored prose (~24 KB of coverage expectations
    * and authoring conventions) that experts edit LIVE through edit_profile, and
-   * the in-repo assets/<ws>/<grade>/<subject>/GRAPH_GUIDE.md copy is only the seed a namespace was
+   * the in-repo seeds/<ws>/<grade>/<subject>/GRAPH_GUIDE.md copy is only the seed a namespace was
    * seeded from. Rebuilding the guide from the repo on every write meant a
    * one-word `core` repair silently reverted months of authored prose, with no
    * draft, no audit record and no undo.

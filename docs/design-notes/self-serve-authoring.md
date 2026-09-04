@@ -11,7 +11,7 @@
 >   [`server/check.ts`](../../backend/src/server/check.ts)), which also rides
 >   `publish_draft`'s dry-run as `checks`.
 > - **Phase 2** — Rung 1 as one shared guide composed into every subject's
->   ([`assets/AUTHORING_CONVERSATION.md`](../../backend/assets/AUTHORING_CONVERSATION.md));
+>   ([`seeds/AUTHORING_CONVERSATION.md`](../../backend/seeds/AUTHORING_CONVERSATION.md));
 >   Rung 2 as **`start_here`**, **`find_node`** + server-side name resolution
 >   ([`curriculum/find.ts`](../../backend/src/curriculum/find.ts)), and `nextSteps`
 >   on every write ([`server/next-steps.ts`](../../backend/src/server/next-steps.ts));

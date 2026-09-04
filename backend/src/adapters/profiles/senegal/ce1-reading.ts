@@ -10,7 +10,7 @@
  * docs/design-notes/graph-native-authoring.md (Scope B/C).
  *
  * The authored GRAPH GUIDE for this subject is NOT a literal here — it lives as
- * data at assets/senegal/ce1/reading/GRAPH_GUIDE.md, read at seed time by
+ * data at seeds/senegal/ce1/reading/GRAPH_GUIDE.md, read at seed time by
  * getRegisteredGuide (adapters/index.ts). Keeping the long markdown out of this
  * module leaves it a small, typed `core`. See docs/design-notes/authorable-catalog.md.
  */

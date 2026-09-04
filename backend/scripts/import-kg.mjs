@@ -18,7 +18,7 @@
  *   4. writes the subject-profile config cell. --profile <path> ({ core, guide })
  *      wins outright; otherwise `core` comes from the in-repo literal and the
  *      GUIDE IS KEPT FROM THE LIVE CELL — the repo copy at
- *      assets/<ws>/<grade>/<subject>/GRAPH_GUIDE.md only seeds a cell that has
+ *      seeds/<ws>/<grade>/<subject>/GRAPH_GUIDE.md only seeds a cell that has
  *      none. Replacing a graph must not revert the subject's authored prose;
  *   5. initializes the pointer { publishedSlot, draftSlot: null } if absent
  *      (ensurePointer is a no-op on an existing pointer, so a re-import never
@@ -144,7 +144,7 @@ console.error(`import-kg: backend=${store.kind}, ns='${namespace}'${rawMode ? " 
  * The config cell is written WHOLE — { core, guide } replaces, it does not
  * patch — so the half this import is not about has to be carried across
  * deliberately. The guide is ~24 KB of authored prose that experts edit LIVE
- * through edit_profile; assets/<ws>/<grade>/<subject>/GRAPH_GUIDE.md is only the seed a namespace
+ * through edit_profile; seeds/<ws>/<grade>/<subject>/GRAPH_GUIDE.md is only the seed a namespace
  * started from and goes stale the moment the live one is edited.
  *
  * That mattered most here, of all places: you reach for import-kg to replace a

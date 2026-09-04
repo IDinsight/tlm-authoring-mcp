@@ -16,7 +16,7 @@ The [README](../../README.md#adding-a-new-subject) has the step-by-step recipe w
 
 3. **Register it** in `src/adapters/index.ts` under the `"<workspace>/<grade>/<subject>"` key. Every literal is Zod-validated at module load, so a malformed profile fails loudly at startup rather than as a silent mis-parse in a later read.
 
-4. **Ship the authoring guide as an asset**, at `assets/<workspace>/<grade>/<subject>/GRAPH_GUIDE.md` — never as a code literal. `getRegisteredGuide` composes it with the shared `assets/AUTHORING_CONVERSATION.md`, and `import-kg` writes the pair into the namespace's config cell as `{ core, guide }`.
+4. **Ship the authoring guide as an asset**, at `seeds/<workspace>/<grade>/<subject>/GRAPH_GUIDE.md` — never as a code literal. `getRegisteredGuide` composes it with the shared `seeds/AUTHORING_CONVERSATION.md`, and `import-kg` writes the pair into the namespace's config cell as `{ core, guide }`.
 
 5. **Import, deploy, then verify live.** The profile is code: a data-only import is not enough, because the deployed server must also carry the new profile module. `activateContext` resolves the in-repo adapter purely as a *registration check* — "is this grade/subject supported at all" — and then **rebuilds the adapter from the namespace's stored config cell**, which is the live source of truth. A namespace with no cell falls back to the in-repo literal; an invalid cell is refused rather than approximated, and `scripts/write-profile.mjs` is the repair path for a cell too broken to activate.
 

@@ -24,7 +24,7 @@ only interchange is an explicit export (backup) and import (bootstrap / new grap
 | # | Decision | Choice |
 |---|---|---|
 | F1 | `sources/` as a source of truth | **Removed.** The KG lives only in Firestore. The graph JSONs leave the repo; the realistic graphs tests need are relocated to `test/fixtures/**` as plain committed test data (not synced, no parity). |
-| F2 | Per-subject on-disk assets (`terminology.json`) | **Kept on disk** as static subject assets under `assets/<ws>/<grade>/<subject>/` — a rarely-changing glossary fallback, not curriculum a curator edits through the loop. `example_domains`' default pool moves into config. |
+| F2 | Per-subject on-disk assets (`terminology.json`) | **Kept on disk** as static subject assets under `seeds/<ws>/<grade>/<subject>/` — a rarely-changing glossary fallback, not curriculum a curator edits through the loop. `example_domains`' default pool moves into config. |
 | F3 | Import / export surface | **Operator scripts.** Repurpose `seed-kg-store.mjs` → `import-kg.mjs` (a provided LC-graph JSON + optional profile/guide → a namespace's published slot); keep the export script as the backup. No new runtime tool surface. |
 | F4 | Context discovery | **From the store.** `listAvailableContexts()` enumerates the store's namespaces (via `listNamespaces()`), not an on-disk `sources/` scan. |
 

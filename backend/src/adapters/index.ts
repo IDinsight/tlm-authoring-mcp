@@ -78,7 +78,7 @@ export function getRegisteredProfile(workspace: string, grade: string, subject: 
 }
 
 // The authored GRAPH GUIDE (markdown, phase 2c) for a (grade, subject): every
-// subject ships it as a DATA file at assets/<ws>/<grade>/<subject>/GRAPH_GUIDE.md
+// subject ships it as a DATA file at seeds/<ws>/<grade>/<subject>/GRAPH_GUIDE.md
 // — no code literals (the long markdown stays out of the typed profile modules).
 // The seed writes it into the config cell alongside the core; the guide is for the
 // LLM, never for reads — the live get_graph_guide reads the store cell, not this.
@@ -93,17 +93,34 @@ export function getRegisteredProfile(workspace: string, grade: string, subject: 
 // apart subject by subject. A subject with no guide of its own still gets it.
 const SHARED_CONVERSATION_GUIDE = "AUTHORING_CONVERSATION.md";
 
-const readAsset = (...segments: string[]): string | undefined => {
+/*
+ * Each seed file opens with an HTML-comment banner saying it is a SEED and not
+ * the guide in force. That warning is for whoever opens the file in the repo —
+ * it must not travel INTO the config cell, where it would become part of the
+ * prose the authoring model reads and would start describing the live guide as
+ * "not the source of truth". So it is stripped here, on the way in.
+ *
+ * Only a banner at the very start is removed, and only the first one: a comment
+ * further down is the author's, not ours.
+ */
+const stripSeedBanner = (text: string): string => {
+  const trimmed = text.trimStart();
+  if (!trimmed.startsWith("<!--")) return text;
+  const end = trimmed.indexOf("-->");
+  return end < 0 ? text : trimmed.slice(end + 3).trimStart();
+};
+
+const readSeed = (...segments: string[]): string | undefined => {
   try {
-    return readFileSync(resolve(CONFIG.assetsDir, ...segments), "utf8");
+    return stripSeedBanner(readFileSync(resolve(CONFIG.seedsDir, ...segments), "utf8"));
   } catch {
     return undefined;
   }
 };
 
 export function getRegisteredGuide(workspace: string, grade: string, subject: string): string | undefined {
-  const shared = readAsset(SHARED_CONVERSATION_GUIDE);
-  const subjectGuide = readAsset(workspace, grade, subject, "GRAPH_GUIDE.md");
+  const shared = readSeed(SHARED_CONVERSATION_GUIDE);
+  const subjectGuide = readSeed(workspace, grade, subject, "GRAPH_GUIDE.md");
   if (shared === undefined) return subjectGuide;
   return subjectGuide === undefined ? shared : `${shared}\n${subjectGuide}`;
 }

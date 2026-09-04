@@ -22,5 +22,5 @@ export const CBSE_SCIENCE_PROFILE: SubjectProfile = {
 };
 
 // The authored GRAPH GUIDE for this subject ships as DATA, not a literal here:
-// assets/cbse/class-9-10/science/GRAPH_GUIDE.md, read at seed time by
+// seeds/cbse/class-9-10/science/GRAPH_GUIDE.md, read at seed time by
 // getRegisteredGuide (adapters/index.ts). See docs/design-notes/authorable-catalog.md.
