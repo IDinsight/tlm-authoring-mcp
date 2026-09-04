@@ -95,6 +95,61 @@ describe("firestore mode", () => {
     });
   });
 
+  /*
+   * The guide must survive a core-only edit.
+   *
+   * edit_profile REPLACES the { core, guide } record, so a caller changing one
+   * parsing value used to have the subject's ~24 KB of authored prose dropped
+   * beside it — silently, on the path the tool called "a bare core is accepted
+   * for back-compat". Worse, avoiding it meant round-tripping the whole guide
+   * back verbatim through a language model, which is lossy by construction.
+   *
+   * These pin the rule: absent means "leave the prose alone", empty string means
+   * "make it empty". Asserted on the DIFF the dry-run shows, because that is
+   * what a reviewer reads before confirming.
+   */
+  it("keeps the live guide when the submitted record omits it", async () => {
+    await inContext(maths, CURATOR, async () => {
+      const live = (await readProfile()) as { profile: { guide?: string } };
+      expect(typeof live.profile.guide).toBe("string");
+
+      const coreOnly = { core: getRegisteredProfile("senegal", "ci", "maths") };
+      const res = await runEditProfile(coreOnly as Record<string, unknown>) as { phase: string; diff: { after: { guide?: string } } };
+
+      expect(res.phase).toBe("preview");
+      expect(res.diff.after.guide).toBe(live.profile.guide);
+    });
+  });
+
+  it("blanks the guide only when one is passed explicitly", async () => {
+    await inContext(maths, CURATOR, async () => {
+      const rec = { core: getRegisteredProfile("senegal", "ci", "maths"), guide: "" };
+      const res = await runEditProfile(rec as Record<string, unknown>) as { phase: string; diff: { after: { guide?: string } } };
+
+      expect(res.phase).toBe("preview");
+      expect(res.diff.after.guide).toBe("");
+    });
+  });
+
+  // The dry-run above proves what is PREVIEWED. This proves what is WRITTEN:
+  // the flow hashes the record into its confirmation token, so the merge has to
+  // happen before that or a core-only re-send would fail its own token check.
+  it("the confirmed edit lands with the live guide intact", async () => {
+    await inContext(maths, CURATOR, async () => {
+      const live = (await readProfile()) as { profile: { guide?: string } };
+      const coreOnly = { core: getRegisteredProfile("senegal", "ci", "maths") } as Record<string, unknown>;
+
+      const preview = await runEditProfile(coreOnly) as { phase: string; confirmationToken: string; payloadStored?: boolean };
+      expect(preview.phase).toBe("preview");
+      // Re-send the same core-only record, exactly as a caller would.
+      const applied = await runEditProfile(coreOnly, true, preview.confirmationToken) as { phase: string; ok: boolean };
+      expect(applied).toMatchObject({ phase: "apply", ok: true });
+
+      const staged = (await readProfile("draft")) as { profile: { guide?: string } };
+      expect(staged.profile.guide).toBe(live.profile.guide);
+    });
+  });
+
   it("review_draft bundles the guide and structural facts (published)", async () => {
     await inContext(maths, CURATOR, async () => {
       const res = await reviewDraft();

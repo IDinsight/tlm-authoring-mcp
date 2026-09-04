@@ -97,11 +97,47 @@ export async function readGraphGuide(slot?: "published" | "draft"): Promise<Reco
   return { source: "store", slot: slot ?? "published", namespace, hasGuide: guide !== undefined, guide: guide ?? null };
 }
 
+/*
+ * An omitted `guide` means KEEP THE LIVE ONE — it never means "delete it".
+ *
+ * The config cell is a { core, guide } record written WHOLE: edit_profile
+ * replaces, it does not patch. So a caller who sends only `core` — to change one
+ * parsing value — used to have the ~24 KB of authored prose beside it silently
+ * dropped, on a path the tool advertised as "a bare core is accepted for
+ * back-compat". That is the same full-replace hazard the seed scripts had, and
+ * it is worse here: to change one machine field through the tool, every caller
+ * had to round-trip the whole guide back VERBATIM through a language model,
+ * which is lossy by construction and near-undetectable when it goes wrong.
+ *
+ * The merge is done HERE, in the app layer, rather than inside the two-phase
+ * flow: the flow hashes the record for its confirmation token, so it has to be
+ * handed the record that will actually be written. Merging first means the
+ * dry-run diff, the token hash and the applied bytes all describe the same
+ * thing.
+ *
+ * It re-merges identically on the confirm leg: the base is CAS-checked against
+ * the dry-run, so the guide it reads is the one it read then, and the re-sent
+ * record hashes to the same `pv`. If someone else edited the guide in between,
+ * the hashes disagree and the confirm is refused — which is correct, because the
+ * record previewed is no longer the record that would be written.
+ *
+ * Deleting a guide on purpose is still possible: pass `guide: ""`. Absent means
+ * "leave it alone"; empty means "make it empty".
+ */
+async function keepLiveGuide(namespace: string, profile: Record<string, unknown> | undefined): Promise<Record<string, unknown> | undefined> {
+  if (profile === undefined || "guide" in profile) return profile;
+  const store = getKgStore();
+  const pointer = await store.readPointer(namespace);
+  if (!pointer) return profile; // unseeded — the flow reports it
+  const live = await store.readConfig(namespace, pointer.draftSlot ?? pointer.publishedSlot);
+  return typeof live?.guide === "string" ? { ...profile, guide: live.guide } : profile;
+}
+
 export async function runEditProfile(profile: Record<string, unknown> | undefined, confirm?: boolean, token?: string): Promise<unknown> {
   const adapter = getActiveAdapter();
   const namespace = kgNamespace(activeWorkspace(), adapter.grade, adapter.subject);
 
-  return editProfileWithConfirm(namespace, profile, {
+  return editProfileWithConfirm(namespace, await keepLiveGuide(namespace, profile), {
     confirm, token,
     validate: makeValidator(namespace),
   });
@@ -264,7 +300,7 @@ export function registerProfileTools(server: McpServer) {
     {
       title: "Edit the subject profile",
       description:
-        "Replace the active grade/subject's SUBJECT PROFILE record with a new one — the two-phase, curator-gated way to change the machine `core` (parsing) AND the authored `guide` markdown as DATA, with no redeploy (phase 2b/2c). Pass the WHOLE { core, guide } record (get_profile first, edit, pass it back); this replaces, it does not patch. A bare core (no guide) is accepted for back-compat. The core is validated against its schema and the guide length-checked AT THIS STEP — a malformed record is BLOCKED at dry-run (no token). A dry-run returns the before/after diff + any referential warnings (e.g. a rule naming a kind no node has) + a confirmationToken, changing nothing; confirm STAGES it onto the draft (a profile edit and curriculum edits share one draft). " + PARKED_PAYLOAD_NOTE + " Nothing reaches generation until you publish_draft. firestore mode only — in bundle/dev mode the profile is the in-repo record, edited in the repo.",
+        "Replace the active grade/subject's SUBJECT PROFILE record with a new one — the two-phase, curator-gated way to change the machine `core` (parsing) AND the authored `guide` markdown as DATA, with no redeploy (phase 2b/2c). Pass the WHOLE { core, guide } record (get_profile first, edit, pass it back); this replaces, it does not patch — with ONE exception, so a `core`-only change need not round-trip the guide: OMIT `guide` and the LIVE guide is kept as it is. Absent means 'leave the prose alone'; to blank it deliberately, pass `guide` as an empty string. The core is validated against its schema and the guide length-checked AT THIS STEP — a malformed record is BLOCKED at dry-run (no token). A dry-run returns the before/after diff + any referential warnings (e.g. a rule naming a kind no node has) + a confirmationToken, changing nothing; confirm STAGES it onto the draft (a profile edit and curriculum edits share one draft). " + PARKED_PAYLOAD_NOTE + " Nothing reaches generation until you publish_draft. firestore mode only — in bundle/dev mode the profile is the in-repo record, edited in the repo.",
       inputSchema: {
         profile: z.record(z.string(), z.unknown()).optional(),
         confirm: z.boolean().optional(),
