@@ -1,6 +1,6 @@
 ---
-description: Take an expert's corrected document back into the graph
-argument-hint: [document or lesson the expert corrected]
+description: Reprendre dans le graphe un document corrigé par un expert
+argument-hint: [le document ou la leçon que l'expert a corrigé]
 ---
 
 The expert has handed back corrections on: $ARGUMENTS

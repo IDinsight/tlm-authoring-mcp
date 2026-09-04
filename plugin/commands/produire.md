@@ -1,6 +1,6 @@
 ---
-description: Produce a sheet or document, then check that it fits
-argument-hint: [what to produce — a lesson, a section, a document]
+description: Produire une fiche ou un document, puis vérifier que ça tient
+argument-hint: [ce qu'il faut produire — une leçon, une section, un document]
 ---
 
 Produce: $ARGUMENTS

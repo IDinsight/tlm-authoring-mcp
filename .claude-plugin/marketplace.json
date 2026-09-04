@@ -8,7 +8,7 @@
     {
       "name": "tlm-autorat",
       "source": "./plugin",
-      "description": "Procedures for authoring teaching materials with the TLM MCP server: session discipline, taking expert corrections back into the graph, producing and measuring sheets, illustrations, review and publication.",
+      "description": "Procédures d'autorat de matériels pédagogiques avec le serveur MCP TLM : discipline de session, reprise des corrections d'un expert dans le graphe, production et mesure des fiches, illustrations, relecture et publication.",
       "category": "authoring",
       "keywords": ["curriculum", "docx", "senegal", "mohebs", "teaching-materials"]
     }

@@ -1,6 +1,6 @@
 ---
 name: illustrations
-description: Build and verify a lesson's illustration dossier — prompt, single cell, assembled band, answer marker — checking the produced image rather than the prompt, and regenerating nothing without an explicit go-ahead. Use when asked about illustrations, images, vignettes, dossiers d'illustration, or "refaire les images".
+description: Construire et vérifier le dossier d'illustration d'une leçon — prompt, vignette seule, bande assemblée, marqueur de réponse — en contrôlant l'image produite plutôt que le prompt, et sans rien régénérer sans accord explicite. À utiliser quand on parle d'illustrations, d'images, de vignettes, de dossiers d'illustration, ou de « refaire les images ».
 ---
 
 # Illustration dossiers

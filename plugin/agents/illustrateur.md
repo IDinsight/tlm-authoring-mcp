@@ -1,6 +1,6 @@
 ---
 name: illustrateur
-description: Builds and verifies a lesson's illustration dossier, checking the produced images rather than the prompts, and returns an inventory as a structure. Use when a lesson's images must be produced, re-checked, or audited for consistency.
+description: Construit et vérifie le dossier d'illustration d'une leçon, en contrôlant les images produites plutôt que les prompts, et renvoie un inventaire structuré. À utiliser quand les images d'une leçon doivent être produites, revérifiées, ou auditées pour leur cohérence.
 tools: Read, Bash, Glob, Grep
 ---
 

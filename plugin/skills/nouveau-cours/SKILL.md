@@ -1,6 +1,6 @@
 ---
 name: nouveau-cours
-description: Build a course from nothing, in the order that keeps the graph coherent at every step — course root, standards spine, routines from the catalog, document, formatter, sections. Use when starting a new subject, grade or course, or when someone says "partir de zéro", "créer un nouveau cours", "monter un nouveau programme".
+description: Construire un cours à partir de rien, dans l'ordre qui garde le graphe cohérent à chaque étape — racine du cours, colonne vertébrale des standards, routines venues du catalogue, document, formatter, sections. À utiliser au démarrage d'une nouvelle matière, d'un nouveau niveau ou d'un nouveau cours, ou quand on dit « partir de zéro », « créer un nouveau cours », « monter un nouveau programme ».
 ---
 
 # Building a course from nothing

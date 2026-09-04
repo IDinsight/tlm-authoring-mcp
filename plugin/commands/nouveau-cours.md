@@ -1,6 +1,6 @@
 ---
-description: Build a new course from nothing, in the right order
-argument-hint: [the course — grade, subject, what it covers]
+description: Construire un nouveau cours à partir de rien, dans le bon ordre
+argument-hint: [le cours — niveau, matière, ce qu'il couvre]
 ---
 
 I want to build a new course: $ARGUMENTS

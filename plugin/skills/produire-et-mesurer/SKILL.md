@@ -1,6 +1,6 @@
 ---
 name: produire-et-mesurer
-description: Produce a sheet and check that it fits — render, count the pages, tighten, and never arbitrate on an estimate. Use when asked to generate, produce, preview or measure a document, or when someone says "produire la fiche", "est-ce que ça tient", "combien de pages", "ça déborde".
+description: Produire une fiche et vérifier qu'elle tient — rendre, compter les pages, resserrer, et ne jamais trancher sur une estimation. À utiliser quand on demande de générer, produire, prévisualiser ou mesurer un document, ou quand on dit « produire la fiche », « est-ce que ça tient », « combien de pages », « ça déborde ».
 ---
 
 # Produce, then measure

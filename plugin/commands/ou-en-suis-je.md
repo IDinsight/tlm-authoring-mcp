@@ -1,5 +1,5 @@
 ---
-description: Where am I, what can I do, and what is unfinished?
+description: Où en suis-je, qu'est-ce que je peux faire, et qu'est-ce qui reste ouvert ?
 ---
 
 Give me a situation report on the authoring work.

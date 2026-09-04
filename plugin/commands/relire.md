@@ -1,5 +1,5 @@
 ---
-description: Review the current draft before it goes to an approver
+description: Relire le brouillon en cours avant de l'envoyer à un approbateur
 ---
 
 Review the current draft.

@@ -1,6 +1,6 @@
 ---
 name: relecteur
-description: Scores a document or draft against the rubrics and expectations it is actually governed by, and returns findings as a structure. Use for review passes where the main thread needs the findings, not the reasoning that produced them.
+description: Évalue un document ou un brouillon au regard des grilles et des attentes qui le régissent réellement, et renvoie ses constats sous forme structurée. À utiliser pour les passes de relecture où le fil principal a besoin des constats, pas du raisonnement qui les a produits.
 tools: Read, Grep, Glob, Bash
 ---
 

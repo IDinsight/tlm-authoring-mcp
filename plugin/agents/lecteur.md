@@ -1,6 +1,6 @@
 ---
 name: lecteur
-description: Reads a large source — a rendered PDF, a long document, a pile of notes — and returns a structured edit proposal rather than a narrative. Use for any bulk read whose conclusion, not whose content, is needed in the main thread.
+description: Lit une source volumineuse — un PDF rendu, un long document, une pile de notes — et renvoie une proposition de modifications structurée plutôt qu'un récit. À utiliser pour toute lecture en masse dont seule la conclusion, et non le contenu, doit remonter dans le fil principal.
 tools: Read, Grep, Glob, Bash
 ---
 
