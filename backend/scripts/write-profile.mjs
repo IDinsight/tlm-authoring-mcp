@@ -23,8 +23,11 @@
  * Usage (after `npm run build`):
  *   node scripts/write-profile.mjs <workspace> <grade> <subject> [--profile p.json] [--slot a|b|published] [--dry-run]
  *
- * Config source: --profile <path> ({ core, guide } JSON) wins; otherwise the
- * in-repo { core, guide } literal for that grade/subject.
+ * Config source: --profile <path> ({ core, guide } JSON) wins outright.
+ * Otherwise `core` comes from the in-repo literal and the GUIDE IS TAKEN FROM
+ * THE LIVE CELL — the repo's seeds/<ws>/<grade>/<subject>/GRAPH_GUIDE.md is used only when the cell
+ * has no guide to preserve (a first seed). Repairing `core` must not revert
+ * authored prose; see the note at the write site.
  *
  * Env (same as import-kg): SERVICE_ACCOUNT_KEY_PATH (or SERVICE_ACCOUNT_KEY_JSON),
  * FIREBASE_STORAGE_BUCKET, TLM_BUCKET_PREFIX (match the runtime prefix so the
@@ -65,29 +68,6 @@ if (positional.length !== 3) {
 }
 const [workspace, grade, subject] = positional;
 
-// Config source: an explicit --profile file wins; otherwise the in-repo literal.
-let config;
-if (profilePath) {
-  config = JSON.parse(readFileSync(resolve(profilePath), "utf8"));
-} else {
-  const core = getRegisteredProfile(workspace, grade, subject);
-  if (!core) {
-    console.error(`write-profile: no in-repo profile for '${workspace}/${grade}/${subject}'. Pass --profile <path>.`);
-    process.exit(1);
-  }
-  const guide = getRegisteredGuide(workspace, grade, subject);
-  config = guide !== undefined ? { core, guide } : { core };
-}
-
-// Validate exactly as the server does on activation, so we never write a cell
-// that would refuse to activate.
-try {
-  buildAdapterFromStoredProfile(workspace, grade, subject, config);
-} catch (e) {
-  console.error(`write-profile: REFUSED — config would not activate: ${(e && e.message) || e}`);
-  process.exit(2);
-}
-
 const namespace = kgNamespace(workspace, grade, subject);
 const store = createFirestoreKgStore();
 
@@ -102,8 +82,60 @@ try {
     console.error(`write-profile: bad --slot '${slotArg}' (expected a | b | published).`);
     process.exit(1);
   }
+
+  /*
+   * The config cell is written WHOLE — { core, guide } replaces, it does not
+   * patch — so the half you are not trying to change has to be carried across
+   * deliberately. The guide is authored prose (~24 KB of coverage expectations
+   * and authoring conventions) that experts edit LIVE through edit_profile, and
+   * the in-repo seeds/<ws>/<grade>/<subject>/GRAPH_GUIDE.md copy is only the seed a namespace was
+   * seeded from. Rebuilding the guide from the repo on every write meant a
+   * one-word `core` repair silently reverted months of authored prose, with no
+   * draft, no audit record and no undo.
+   *
+   * So: KEEP THE LIVE GUIDE unless the caller explicitly supplies one.
+   *
+   *   --profile <file>   wins outright — you asked for that record by name
+   *   live cell has one  keep it verbatim, refresh `core` from the repo
+   *   no cell yet        fall back to the repo guide (a first seed has nothing
+   *                      to preserve, which is the case this path was born for)
+   */
+  const live = await store.readConfig(namespace, slot);
+  let config;
+  let guideSource;
+  if (profilePath) {
+    config = JSON.parse(readFileSync(resolve(profilePath), "utf8"));
+    guideSource = `--profile ${profilePath}`;
+  } else {
+    const core = getRegisteredProfile(workspace, grade, subject);
+    if (!core) {
+      console.error(`write-profile: no in-repo profile for '${workspace}/${grade}/${subject}'. Pass --profile <path>.`);
+      process.exit(1);
+    }
+    const liveGuide = live && typeof live.guide === "string" ? live.guide : undefined;
+    const guide = liveGuide ?? getRegisteredGuide(workspace, grade, subject);
+    guideSource = liveGuide !== undefined ? "the LIVE cell (preserved)" : "the repo assets (no live guide to preserve)";
+    config = guide !== undefined ? { core, guide } : { core };
+  }
+
+  // Validate exactly as the server does on activation, so we never write a cell
+  // that would refuse to activate.
+  try {
+    buildAdapterFromStoredProfile(workspace, grade, subject, config);
+  } catch (e) {
+    console.error(`write-profile: REFUSED — config would not activate: ${(e && e.message) || e}`);
+    process.exit(2);
+  }
+
   const guideLen = config.guide ? config.guide.length : 0;
-  console.error(`write-profile: ns='${namespace}', publishedSlot='${pointer.publishedSlot}', target slot='${slot}', guide=${guideLen} chars${dryRun ? " (dry-run — no write)" : ""}.`);
+  const liveLen = live && typeof live.guide === "string" ? live.guide.length : 0;
+  console.error(`write-profile: ns='${namespace}', publishedSlot='${pointer.publishedSlot}', target slot='${slot}'.`);
+  console.error(`write-profile: guide=${guideLen} chars from ${guideSource} (live cell holds ${liveLen})${dryRun ? " — dry-run, no write" : ""}.`);
+  // Say it plainly when the caller's own file would shorten the live guide: that
+  // is the one remaining way to lose authored prose here, and it is deliberate.
+  if (profilePath && liveLen > guideLen) {
+    console.error(`write-profile: WARNING — this REPLACES a ${liveLen}-char live guide with a ${guideLen}-char one.`);
+  }
   if (!dryRun) {
     await store.writeConfig(namespace, slot, config);
     console.error("write-profile: done — config cell written.");

@@ -15,13 +15,12 @@ const PKG_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const fromRoot = (p: string) => resolve(PKG_ROOT, p);
 
 export const CONFIG = {
-  // Static per-subject on-disk assets root (override with TLM_ASSETS_DIR). Under
-  // it, one folder per workspace/grade/subject, resolved for the active context
-  // (context/state.ts). The KG itself is NOT here — it lives only in the store;
-  // this holds the terminology glossary fallback (and the legacy prompt files
-  // pending their migration into the graph guides). Filenames are fixed conventions.
-  assetsDir: env.TLM_ASSETS_DIR ? resolve(env.TLM_ASSETS_DIR) : fromRoot("assets"),
-  terminologyFile: "terminology.json",
+  // On-disk SEED root (override with TLM_SEEDS_DIR): one folder per
+  // workspace/grade/subject, holding the GRAPH_GUIDE.md a namespace is seeded
+  // FROM. Nothing here is on a runtime path — the server reads the guide from
+  // the store's config cell, and the graph from the store — so only the seed
+  // scripts and the tests resolve against this. It is not shipped in the image.
+  seedsDir: env.TLM_SEEDS_DIR ? resolve(env.TLM_SEEDS_DIR) : fromRoot("seeds"),
   // Firebase Storage (shared source of truth for documents + history).
   serviceAccountKeyPath: env.SERVICE_ACCOUNT_KEY_PATH ?? "",
   // Alternative to the key path: the key's JSON content directly (for hosts

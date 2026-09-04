@@ -26,7 +26,7 @@ Paths written as `src/…`, `scripts/…`, `test/…`, `assets/…` below are re
 |---|---|
 | Knowledge graph (curriculum, catalog, glossary) | **Firestore** node/edge store — the single source of truth (`import-kg` / `export-kg`) |
 | Subject profile + authoring guide | **Firestore**, as a per-slot config cell that rides the same draft/published pointer (`get_profile` / `edit_profile`, `get_graph_guide`) |
-| `terminology.json` glossary fallback, `GRAPH_GUIDE.md` seed source | **Local** `assets/<workspace>/<grade>/<subject>/` |
+| `GRAPH_GUIDE.md` — the SEED a namespace's guide is created from (never read at runtime; see [`backend/seeds/README.md`](backend/seeds/README.md)) | **Local** `seeds/<workspace>/<grade>/<subject>/` |
 | Generated `.docx` + `history.json` | **Firebase Storage**, under `<workspace>/<grade>/<subject>/…` |
 | Converted graphs staged for import | **Local** `imports/<workspace>/<grade>/<subject>/` (see [`backend/imports/README.md`](backend/imports/README.md)) |
 
@@ -49,7 +49,7 @@ npm run start:http     # HTTP MCP server (dist/http.js) — remote / Cloud Run
 
 **Required in HTTP mode:** `SUPABASE_URL` · `SUPABASE_ANON_KEY` · `PUBLIC_URL`. The server refuses to start without `SUPABASE_URL` unless `ALLOW_UNAUTHENTICATED=1` — **never set that in production**. `TLM_SUPER_ADMINS` (comma-separated JWT `sub`s or emails) is the root of trust: it must be set before any workspace exists, because only a super admin can create the first one.
 
-**Optional:** `TLM_WORKSPACE` / `TLM_GRADE` / `TLM_SUBJECT` (pre-select a context at startup) · `TLM_BUCKET_PREFIX` (namespace all storage under a prefix — match it in the CLI scripts) · `TLM_ASSETS_DIR` · `GEMINI_API_KEY` / `GEMINI_MODEL` (the `translate` tool) · `SUPABASE_SERVICE_ROLE_KEY` (enables `list_unaffiliated_users`) · `KG_EXPLORER_PUBLIC=1` (anonymous **published** explorer reads; it can never reach a draft) · `KG_ALLOWED_ORIGINS` · `TLM_ALLOW_SELF_APPROVE=0` (strict separation of duties) · `PORT` · the response-size caps `TLM_MAX_RESPONSE_BYTES` / `TLM_WALK_MAX_PAGE_BYTES` / `TLM_SUBTREE_MAX_BYTES` / `TLM_DOCUMENT_MAX_BYTES` · `TLM_CONFIRM_TTL_MS` / `TLM_CONFIRM_STORE_BYTES` · `TLM_DEBUG` / `TLM_TIMING`.
+**Optional:** `TLM_WORKSPACE` / `TLM_GRADE` / `TLM_SUBJECT` (pre-select a context at startup) · `TLM_BUCKET_PREFIX` (namespace all storage under a prefix — match it in the CLI scripts) · `TLM_SEEDS_DIR` · `GEMINI_API_KEY` / `GEMINI_MODEL` (the `translate` tool) · `SUPABASE_SERVICE_ROLE_KEY` (enables `list_unaffiliated_users`) · `KG_EXPLORER_PUBLIC=1` (anonymous **published** explorer reads; it can never reach a draft) · `KG_ALLOWED_ORIGINS` · `TLM_ALLOW_SELF_APPROVE=0` (strict separation of duties) · `PORT` · the response-size caps `TLM_MAX_RESPONSE_BYTES` / `TLM_WALK_MAX_PAGE_BYTES` / `TLM_SUBTREE_MAX_BYTES` / `TLM_DOCUMENT_MAX_BYTES` · `TLM_CONFIRM_TTL_MS` / `TLM_CONFIRM_STORE_BYTES` · `TLM_DEBUG` / `TLM_TIMING`.
 
 Full semantics: [technical reference → deployment](docs/technical-reference/deployment.md).
 
@@ -126,7 +126,7 @@ The knobs that exist are the genuine per-subject differences: `numberFrom` (`ord
 
 **3. Register it** in `src/adapters/index.ts` under the `"<workspace>/<grade>/<subject>"` key. Two keys may point at the same profile when the graphs share a shape — the builder still stamps each with its own identity.
 
-**4. Write the authoring guide** at `assets/<workspace>/<grade>/<subject>/GRAPH_GUIDE.md` — authored markdown that the authoring/generating LLM reads (via `get_graph_guide`) to interpret and modify the graph, including the subject's **coverage expectations in prose**. It ships as a data file, never a code literal, and is composed at read time with the shared [`assets/AUTHORING_CONVERSATION.md`](backend/assets/AUTHORING_CONVERSATION.md) so the conversation rules cannot drift across subjects. Optionally add `terminology.json` (the glossary fallback).
+**4. Write the authoring guide** at `seeds/<workspace>/<grade>/<subject>/GRAPH_GUIDE.md` — authored markdown that the authoring/generating LLM reads (via `get_graph_guide`) to interpret and modify the graph, including the subject's **coverage expectations in prose**. It ships as a data file, never a code literal, and is composed at seed time with the shared [`seeds/AUTHORING_CONVERSATION.md`](backend/seeds/AUTHORING_CONVERSATION.md) so the conversation rules cannot drift across subjects. It is a **seed**: once the namespace exists, the guide in force lives in its config cell and is edited with `edit_profile`. The workspace's FR/Wolof lexicon is authored separately, in its `_glossary` namespace (`add_terms`).
 
 **5. Dry-run, then import.** The dry-run parses the graph against your profile in memory and writes nothing:
 

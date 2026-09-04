@@ -42,5 +42,5 @@ export const CI_MATHS_PROFILE: SubjectProfile = {
 };
 
 // The authored GRAPH GUIDE for this subject ships as DATA, not a literal here:
-// assets/senegal/ci/maths/GRAPH_GUIDE.md, read at seed time by
+// seeds/senegal/ci/maths/GRAPH_GUIDE.md, read at seed time by
 // getRegisteredGuide (adapters/index.ts). See docs/design-notes/authorable-catalog.md.

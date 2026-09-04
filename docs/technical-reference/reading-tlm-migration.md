@@ -31,7 +31,7 @@ Code (needs a Cloud Run redeploy):
   child is a `Lesson` **or** an `Activity` (a canonicalised session is an `Activity`).
   **Backward-compatible** (still accepts `Lesson`), so it is safe to deploy *before*
   the data migrates — the old live data keeps parsing identically.
-- `assets/senegal/ce1/reading/GRAPH_GUIDE.md` — rewritten for the new shape + the
+- `seeds/senegal/ce1/reading/GRAPH_GUIDE.md` — rewritten for the new shape + the
   TLM-based document model. `import-kg` writes this into the published config cell, so
   the guide updates **atomically with the graph** (no separate `edit_profile`).
 

@@ -17,7 +17,6 @@
 import { activeWorkspace, getActiveContext } from "../context/index.js";
 import { noAccents } from "../utils/index.js";
 import { readGlossaryEntries, entryApplies, glossaryNamespace, type LexiconEntry, type Renderings } from "../glossary/index.js";
-import { allTerminologyEntries } from "../curriculum/index.js";
 
 // Legacy-compatible term shape plus the general renderings map.
 export type TermResult = {
@@ -38,24 +37,24 @@ function fromStoredEntry(entry: LexiconEntry): TermResult {
   };
 }
 
-function fromJsonEntry(entry: { francais: string; wolof: string | null; exemple: string | null; section: string | null }): TermResult {
-  const renderings: Renderings = {};
-  if (entry.francais) renderings.fr = entry.francais;
-  if (entry.wolof) renderings.wo = entry.wolof;
-  return { francais: entry.francais ?? "", wolof: entry.wolof ?? null, exemple: entry.exemple ?? null, section: entry.section ?? null, renderings };
-}
-
-// The term list in effect for the active context: store-backed if the workspace
-// has a glossary, otherwise the on-disk fallback.
+/*
+ * The term list in effect for the active context, from the workspace's stored
+ * lexicon — narrowed to the entries that apply to this subject/grade.
+ *
+ * There used to be a fallback here to an on-disk terminology.json, so the store
+ * could be populated without a flag day. That migration is done (senegal's
+ * `_glossary` namespace is live), and the fallback was worse than nothing once
+ * it stopped being needed: a workspace whose lexicon failed to load would
+ * quietly serve a frozen snapshot instead of reporting an empty glossary, and
+ * `translate` would ground on wording nobody had maintained in months. An empty
+ * list is the honest answer.
+ */
 export async function effectiveTerms(): Promise<TermResult[]> {
   const stored = await readGlossaryEntries(glossaryNamespace(activeWorkspace()));
-  if (stored.length > 0) {
-    const ctx = getActiveContext();
-    return stored
-      .filter((entry) => entryApplies(entry, { subject: ctx?.subject, grade: ctx?.grade }))
-      .map(fromStoredEntry);
-  }
-  return allTerminologyEntries().map(fromJsonEntry);
+  const ctx = getActiveContext();
+  return stored
+    .filter((entry) => entryApplies(entry, { subject: ctx?.subject, grade: ctx?.grade }))
+    .map(fromStoredEntry);
 }
 
 const renderingValues = (term: TermResult): string[] => Object.values(term.renderings);

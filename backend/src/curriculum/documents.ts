@@ -264,7 +264,8 @@ const FORMATTER_LABELS = new Set(["Formatter", "FormatterSpec"]);
 const ROUTINE_EDGE = "usesRoutine";
 // A routine subtree hangs off its entry node by hasPart, like every other content
 // subtree: the entry plus its ordered steps, each step carrying its own script in
-// `description` (no Material children — see migrate-routine-materials-inline.mjs).
+// `description` — no Material children, since a 2026-08 migration folded each
+// step's script onto the step itself.
 const ROUTINE_EDGE_CONTENT = "hasPart";
 
 // The induced subgraph over `ids`: those nodes plus every edge of the given types

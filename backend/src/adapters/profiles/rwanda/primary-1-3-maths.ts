@@ -24,5 +24,5 @@ export const RWANDA_MATHS_PROFILE: SubjectProfile = {
 };
 
 // The authored GRAPH GUIDE for this subject ships as DATA, not a literal here:
-// assets/rwanda/primary-1-3/maths/GRAPH_GUIDE.md, read at seed time by
+// seeds/rwanda/primary-1-3/maths/GRAPH_GUIDE.md, read at seed time by
 // getRegisteredGuide (adapters/index.ts). See docs/design-notes/authorable-catalog.md.

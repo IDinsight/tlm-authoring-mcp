@@ -39,8 +39,11 @@ ENV NODE_ENV=production
 COPY package.json package-lock.json ./
 RUN npm ci --omit=dev --no-audit --no-fund
 COPY --from=build /app/dist ./dist
-# Static per-subject assets (the terminology glossary fallback). The KG itself
-# lives only in Firestore now; test fixtures are not shipped in the image.
-COPY assets ./assets
+# NOTE: assets/ is deliberately NOT copied. Everything under it is SEED data —
+# the GRAPH_GUIDE.md a namespace is created from — and nothing reads it at
+# runtime: the server takes the guide from the store's config cell, the graph
+# from the store, and the glossary from the workspace's `_glossary` namespace.
+# Shipping it would put a stale second copy of the guide next to the running
+# server, which is exactly how one gets mistaken for the source of truth.
 EXPOSE 8080
 CMD ["node", "dist/http.js"]

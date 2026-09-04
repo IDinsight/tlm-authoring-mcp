@@ -63,14 +63,11 @@ export function requireContext(): ActiveContext {
   return active;
 }
 
-// -- Context-scoped path + object-key helpers --------------------------------
-// The active subject's on-disk ASSET directory (terminology glossary, legacy
-// prompt files). The KG is not here — it lives only in the store.
-export function activeAssetDir(): string {
-  const { workspace, grade, subject } = requireContext();
-  return resolve(CONFIG.assetsDir, workspace, grade, subject);
-}
-export const assetPath = (name: string) => resolve(activeAssetDir(), name);
+// -- Context-scoped object-key helpers ---------------------------------------
+// There were on-disk path helpers here (activeAssetDir / assetPath) for reading
+// the active subject's assets at runtime. Nothing does that any more: the KG,
+// the guide and the glossary all live in the store, so assets/ is seed-only and
+// the seed scripts resolve it themselves.
 
 // The active workspace — the tenant segment production namespace/storage keys
 // hang off. Throws (via requireContext) if no context is set.
