@@ -1,6 +1,6 @@
 ---
 name: reprendre-corrections
-description: Take an expert's corrected document back into the graph — propose_from_document when the sheet carries its anchors, the PDF render in a subagent when it does not, then one batched edit, and never object to something you have not seen yourself. Use when someone hands back a marked-up or corrected .docx, or says "voici les corrections", "l'expert a relu", "reprendre ses remarques", "intégrer les corrections".
+description: Reprendre dans le graphe un document corrigé par un expert — `propose_from_document` quand la fiche porte ses ancres, le rendu PDF dans un sous-agent quand elle ne les porte pas, puis une seule modification groupée, et ne jamais contester ce qu'on n'a pas vu soi-même. À utiliser quand quelqu'un rend un .docx annoté ou corrigé, ou dit « voici les corrections », « l'expert a relu », « reprendre ses remarques », « intégrer les corrections ».
 ---
 
 # Taking an expert's corrections back into the graph

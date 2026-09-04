@@ -1,6 +1,6 @@
 ---
 name: session-autorat
-description: Session discipline for authoring teaching materials with the TLM server — orient before acting, resolve names instead of asking for ids, show every change in French before confirming it, and publish only on explicit consent. Use at the START of any authoring session and whenever writing to the graph, the catalog, or the document history. Triggers include "où en suis-je", "reprendre le travail", "modifier le programme", "ajouter une leçon", or any request that will write.
+description: Discipline de session pour l'autorat de matériels pédagogiques avec le serveur TLM — s'orienter avant d'agir, résoudre les noms plutôt que réclamer des identifiants, montrer chaque modification en français avant de la confirmer, et ne publier que sur accord explicite. À utiliser au DÉBUT de toute session d'autorat et à chaque écriture dans le graphe, le catalogue ou l'historique des documents. Se déclenche notamment sur « où en suis-je », « reprendre le travail », « modifier le programme », « ajouter une leçon », ou toute demande qui va écrire.
 ---
 
 # Session discipline

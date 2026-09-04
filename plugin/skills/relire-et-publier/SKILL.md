@@ -1,6 +1,6 @@
 ---
 name: relire-et-publier
-description: Review a draft and hand it over — wiring check, coverage against the subject guide, evaluation rubrics, then request review or publish. Use when someone says "relire", "vérifier avant publication", "est-ce que c'est prêt", "publier", "faire relire", or asks what is left to do before a draft goes live.
+description: Relire un brouillon et le transmettre — vérification du câblage, couverture au regard du guide de la matière, grilles d'évaluation, puis demande de relecture ou publication. À utiliser quand on dit « relire », « vérifier avant publication », « est-ce que c'est prêt », « publier », « faire relire », ou quand on demande ce qu'il reste à faire avant qu'un brouillon parte en production.
 ---
 
 # Review, then hand over

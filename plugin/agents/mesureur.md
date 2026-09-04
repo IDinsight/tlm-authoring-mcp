@@ -1,6 +1,6 @@
 ---
 name: mesureur
-description: Renders a document and returns measurements — pages, lines, overflow — as numbers, never as an opinion about whether it looks right. Use whenever a question about a produced document can be settled by measuring it.
+description: Rend un document et renvoie des mesures — pages, lignes, débordement — sous forme de nombres, jamais sous forme d'avis sur son apparence. À utiliser dès qu'une question sur un document produit peut être tranchée en le mesurant.
 tools: Read, Bash, Glob
 ---
 

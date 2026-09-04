@@ -1,5 +1,5 @@
 ---
-description: What is waiting on a person to decide?
+description: Qu'est-ce qui attend une décision humaine ?
 ---
 
 Show me every open arbitration — the questions waiting on a human, not on a tool.

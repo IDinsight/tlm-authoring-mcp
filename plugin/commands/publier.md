@@ -1,5 +1,5 @@
 ---
-description: Publish the current draft, with the checks first
+description: Publier le brouillon en cours, avec les vérifications d'abord
 ---
 
 I want to publish the current draft.
