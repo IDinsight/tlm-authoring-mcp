@@ -21,7 +21,7 @@ import { asJson, guarded } from "./shared.js";
 import { getActiveAdapter } from "../adapters/index.js";
 import { activeWorkspace, sessionState } from "../context/index.js";
 import { getKgStore, kgNamespace, toAuditActor, diffGraphs, type GraphDiff, nextAuditSeq } from "../kg-store/index.js";
-import { exportSubtree } from "../kg-export.js";
+import { exportSubtree } from "../kg-export/index.js";
 import { walkGraph, computeGraphStats, documentSubgraph, documentSectionSubgraph, findNodes, toFindable, PRELOADED_SLOT_KEY, type WalkDirection, type FindableGraph, type FoundNode } from "../curriculum/index.js";
 import { resolveDraftModel } from "./preview.js";
 import { authorize } from "../authz.js";

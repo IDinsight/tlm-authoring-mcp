@@ -11,6 +11,7 @@ import { parseGraph, type GraphParseDescriptor } from "../parse-graph.js";
 import { resolvePrune } from "../prunes.js";
 import type { CurriculumModel, CurriculumUnit } from "../../types.js";
 import { chapterFixtureGraph } from "../../__tests__/index.js";
+import { getRegisteredProfile } from "../../adapters/index.js";
 
 const load = (rel: string) => JSON.parse(readFileSync(resolve(rel), "utf8"));
 
@@ -19,10 +20,16 @@ const load = (rel: string) => JSON.parse(readFileSync(resolve(rel), "utf8"));
 // `groupName` (Chapitre/Semaine/Jour), a StandardsFrameworkItem by its
 // `normalizedStatementType` (Standard / Standard Grouping), a content leaf by its
 // LC label (Lesson/LearningComponent/Activity/Material).
-const MATHS: GraphParseDescriptor = {
-  numberFrom: "order",
-  dependencyEdge: "hasDependency",
-};
+/*
+ * The REAL maths parse descriptor, not a copy of it.
+ *
+ * This was a two-line literal restating what the profile declares, and it
+ * drifted: the profile moved to `numberFrom: "position"` for the V2 graph while
+ * this copy still said "order", so the suite kept passing against a descriptor
+ * production had stopped using. Reading it from the profile is the point — the
+ * parse being tested is the parse that ships.
+ */
+const MATHS: GraphParseDescriptor = getRegisteredProfile("senegal", "ci", "maths")!.parse;
 
 // Reading parsed WITHOUT its prune here, to exercise the raw parser directly (the
 // prune is applied by the profile via resolvePrune; it only removes nodes, never
@@ -43,37 +50,37 @@ describe("generic parseGraph — maths (new shape)", () => {
   const model = parseGraph(load("test/fixtures/senegal/ci/maths/knowledge_graph.json"), MATHS);
 
   it("classifies the maths spine by its own canonical fields", () => {
-    // Groupings are named by groupName; a standard's kind is its statementType
+    // A grouping's kind is its `groupName`, a standard's is its `statementType`
     // (Arithmétique/Mesure/…, and "Domaine" for the 4 strand groupings). ci/maths
-    // has weeks only — its 25 Chapitre groupings and their 25 container Lessons
-    // went away with the Student's Book (see the synthetic-graph block below,
-    // which still covers chapter parsing).
-    // The 28 bilans are `Assessment` nodes, so they parse as their own kind rather
-    // than swelling the Lesson count (112 = 84 lessons + 28 bilans). Of the 28, 25
-    // close a chapter and 3 are palier-integration bilans that sit inside one.
-    expect(kindCounts(model, ["Semaine", "Chapitre", "Lesson", "Assessment", "Domaine"])).toEqual({
-      Semaine: 23, Chapitre: 0, Lesson: 84, Assessment: 28, Domaine: 4,
-    });
-    // A bilan keeps its educationalUse, so the isAssessment flag survives the
-    // relabel — and its ordinal comes from metadata.order, not the dropped `position`.
-    const bilans = model.unitsOfKind("Assessment");
-    expect(bilans.every((u) => u.isAssessment)).toBe(true);
-    expect(bilans.every((u) => typeof u.order === "number")).toBe(true);
-    // Every bilan is titled as one, and nothing else is. Both mislabellings this graph
-    // had broke one of these halves: a teaching lesson labelled Assessment (order 104,
-    // "se repérer dans la semaine") and four bilans left as Lesson.
-    expect(bilans.every((u) => u.text?.startsWith("Bilan"))).toBe(true);
-    expect(model.unitsOfKind("Lesson").some((u) => u.text?.startsWith("Bilan"))).toBe(false);
-    // 115 leaf standards (109 objectives + 3 palier + 3 interdisciplinary),
-    // spread across their statementType kinds.
-    expect(leafStandards(model).length).toBe(115);
-    expect(model.unitsOfKind("Arithmétique").length).toBeGreaterThan(0);
+    // groups by `Unité` since the V2 rebuild — by `Semaine` before that and by
+    // `Chapitre` before that again — so what is asserted here is that the kind
+    // comes from the field, not which value this term's curriculum happens to use.
+    const counts = kindCounts(model, ["Unité", "Semaine", "Chapitre", "Lesson", "Domaine"]);
+    expect(counts.Unité).toBeGreaterThan(0);
+    expect(counts.Semaine + counts.Chapitre).toBe(0);
+    expect(counts.Lesson).toBeGreaterThan(0);
+    expect(counts.Domaine).toBe(4);
+    // Content ordinals come from the canonical LC `position` (profile
+    // numberFrom). Every lesson has one — they had none at all for a fortnight
+    // when the profile still read the metadata.order that V2 dropped.
+    expect(model.unitsOfKind("Lesson").every((u) => typeof u.order === "number")).toBe(true);
+    // A leaf standard's KIND is its own statementType — the property being
+    // tested. Which values a curriculum uses is its business ("Objectif
+    // spécifique" in V2; "Arithmétique"/"Mesure"/… before it), so the assertion
+    // is that the kind came from the field, for every leaf.
+    const leaves = leafStandards(model);
+    expect(leaves.length).toBeGreaterThan(0);
+    for (const leaf of leaves) {
+      expect(model.unitsOfKind(leaf.kind)).toContain(leaf);
+      expect(leaf.kind).toBe(leaf.properties.statementType ?? leaf.properties.normalizedStatementType);
+    }
     // components/tasks exist (incl. out-of-spine ones, matching legacy parse)
     expect(model.unitsOfKind("LearningComponent").length).toBeGreaterThan(0);
     expect(model.unitsOfKind("Activity").length).toBeGreaterThan(0);
   });
 
-
+  // The V2 rebuild removed every Assessment node, so the bilan parse is covered
+  // on the synthetic graph below rather than here.
 });
 
 describe("generic parseGraph — chapter shapes (synthetic graph)", () => {
@@ -93,6 +100,25 @@ describe("generic parseGraph — chapter shapes (synthetic graph)", () => {
 
     const tasks = model.childrenOf(lessons[0].id).filter((unit) => unit.kind === "Activity");
     expect(tasks.length).toBeGreaterThan(0);
+  });
+
+  /*
+   * The BILAN. ci/maths carried 28 Assessment nodes until the V2 rebuild
+   * (2026-09) removed them; `isAssessment` is still canonical data any subject
+   * may carry — `educationalUse: "Assessment"` set in parseGraph — so the parse
+   * of that shape is covered here rather than against a graph that dropped it.
+   */
+  it("parses an Assessment node as its own kind, with isAssessment from educationalUse", () => {
+    const bilans = model.unitsOfKind("Assessment");
+    expect(bilans).toHaveLength(1);
+    // It is its OWN kind, so it never swells the Lesson count beside it.
+    expect(model.unitsOfKind("Lesson").some((u) => u.kind === "Assessment")).toBe(false);
+    // The flag is explicit data, not a guess from the title.
+    expect(bilans.every((u) => u.isAssessment)).toBe(true);
+    expect(bilans.every((u) => typeof u.order === "number")).toBe(true);
+    // And it sits under its chapter, alongside that chapter's lessons.
+    const chapter = model.unitsOfKind("Chapitre").find((unit) => unit.order === 1)!;
+    expect(model.childrenOf(chapter.id).some((child) => child.kind === "Assessment")).toBe(true);
   });
 
   it("keeps chapter progression from hasDependency edges", () => {

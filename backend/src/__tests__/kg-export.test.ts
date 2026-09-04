@@ -8,11 +8,24 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import { listAvailableContexts } from "../context/index.js";
-import { seedStore, CI_MATHS, CE1_READING } from "./index.js";
+import { seedStore, seedSyntheticChapters, CI_MATHS, CE1_READING } from "./index.js";
 import { resolveAdapter } from "../adapters/index.js";
 import { serializeModel } from "../curriculum/index.js";
 import { __setKgStoreForTest, getKgStore, kgNamespace, edgeId as makeEdgeId } from "../kg-store/index.js";
-import { exportNamespace, exportCatalog, exportCatalogEntry, exportTerminology, listExportNamespaces } from "../kg-export.js";
+
+/*
+ * The order the explorer's legend must present LC labels in, spelled out here on
+ * purpose: it is the CONTRACT, so reading it from LABEL_DEFS would make this a
+ * test of nothing. Which of these are present varies with the curriculum, so the
+ * assertion filters this list by what the graph holds rather than pinning a
+ * census a revision will invalidate.
+ */
+const CANONICAL_LABEL_ORDER = [
+  "StandardsFramework", "StandardsFrameworkItem", "Course", "LessonGrouping", "Lesson",
+  "Assessment", "Activity", "Material", "LearningComponent",
+  "TeachingLearningMaterial", "DocumentSection", "Formatter", "FormatterSpec", "InstructionalRoutine",
+];
+import { exportNamespace, exportCatalog, exportCatalogEntry, exportTerminology, listExportNamespaces } from "../kg-export/index.js";
 import { SHARED_CATALOG_NAMESPACE, catalogNamespace } from "../kg-recipes/index.js";
 import { glossaryNamespace, buildLexiconNode } from "../glossary/index.js";
 import { DEFAULT_WORKSPACE } from "../config.js";
@@ -118,18 +131,25 @@ describe("kg-export — LC ontology (maths)", () => {
   it("categorizes nodes by LC label; taxonomy lists the present labels in order", async () => {
     const graph = (await exportNamespace(mathsNs))!;
     expect(graph).toBeTruthy();
-    // One Course and 23 week groupings: the Student's Book Course, its 25
-    // chapters, their container Lessons and 218 placeholder Activities all went
-    // away when it became a TeachingLearningMaterial.
-    expect(graph.meta.counts.byKind).toMatchObject({ StandardsFramework: 1, Course: 1, LessonGrouping: 23, Lesson: 84, Assessment: 28, Activity: 104, LearningComponent: 32 });
-    expect(graph.meta.counts.byKind.StandardsFrameworkItem).toBeGreaterThan(0);
+    // WHAT this asserts is that every node is categorised by its LC label and
+    // counted under it. HOW MANY of each the curriculum happens to hold is not
+    // this test's business — those counts are pinned once, for every fixture, in
+    // test/fixtures/SHAPE.json, and duplicating them here only meant a curriculum
+    // revision failed the export tests as well as the shape test.
+    for (const label of ["StandardsFramework", "StandardsFrameworkItem", "Course", "LessonGrouping", "Lesson", "Activity", "LearningComponent"]) {
+      expect(graph.meta.counts.byKind[label]).toBeGreaterThan(0);
+    }
     expect(graph.meta.counts.byKind.Curriculum).toBeUndefined(); // canonical: relabeled to Activity/LessonGrouping
     expect(graph.meta.counts.byKind.Course).toBe(1);             // one content Course since the TLM migration
     // every node's legend category IS its LC label — no subject roles/kinds
     expect(graph.nodes.every((n) => n.cat === n.label && n.kind === n.label)).toBe(true);
     // + Material and InstructionalRoutine: the shared "fiche de leçon" routine
     // (Phase 1); + the document layer the TLM migration added.
-    expect(graph.meta.taxonomy.map((x) => x.key)).toEqual(["StandardsFramework", "StandardsFrameworkItem", "Course", "LessonGrouping", "Lesson", "Assessment", "Activity", "LearningComponent", "TeachingLearningMaterial", "Formatter", "FormatterSpec", "InstructionalRoutine"]);
+    // The taxonomy lists exactly the labels the graph HAS, in the canonical order
+    // LABEL_DEFS declares — so it is checked against the graph, not against a
+    // second copy of the census.
+    const present = new Set(graph.nodes.map((n) => n.label));
+    expect(graph.meta.taxonomy.map((x) => x.key)).toEqual(CANONICAL_LABEL_ORDER.filter((key) => present.has(key)));
     expect(graph.meta.taxonomy.every((x) => /^#[0-9a-f]{6}$/i.test(x.color) && x.label.fr && x.label.en)).toBe(true);
   });
 
@@ -213,12 +233,26 @@ describe("kg-export — LC ontology (maths)", () => {
     // so scope to the containment edges.)
     const course = graph.nodes.find((n) => n.label === "Course")!;
     const courseEdges = graph.edges.filter((e) => e.s === course.id && e.rel === "hasPart");
-    expect(courseEdges.length).toBe(23);   // its 23 weeks
+    expect(courseEdges.length).toBeGreaterThan(0);   // its groupings, however many this term
     expect(courseEdges.every((e) => e.r === "hasChild" && e.rel === "hasPart")).toBe(true);
 
-    // An illustrative Activity is re-parented under the LearningComponent it
-    // exemplifies (metadata.illustratesComponent), rel "illustrates" — NOT left as
-    // a sibling under the standard it merely aligns to.
+  });
+
+  /*
+   * The illustrative-task fold, on the SYNTHETIC graph.
+   *
+   * ci/maths carried 104 Activities with `metadata.illustratesComponent` until
+   * the V2 rebuild (2026-09) left none. The fold is still in the explorer and
+   * still correct for any subject that has them, so it is exercised against a
+   * graph that does rather than deleted along with the data.
+   */
+  it("re-parents an illustrative task under the component it exemplifies", async () => {
+    const store = getKgStore();
+    await seedSyntheticChapters(store, mathsNs);
+    const graph = (await exportNamespace(mathsNs))!;
+
+    // An illustrative Activity nests under the LearningComponent it exemplifies,
+    // rel "illustrates" — NOT left a sibling under the standard it merely aligns to.
     const componentIds = new Set(graph.nodes.filter((n) => n.label === "LearningComponent").map((n) => n.id));
     const activity = graph.nodes.find((n) => n.label === "Activity" && componentIds.has((n.props as any)?.illustratesComponent?.id))!;
     expect(activity).toBeTruthy();
@@ -227,6 +261,9 @@ describe("kg-export — LC ontology (maths)", () => {
     expect(parents).toHaveLength(1);            // exactly one containment parent
     expect(parents[0].s).toBe(componentId);     // and it's the component, not the SFI
     expect(parents[0].rel).toBe("illustrates");
+
+    // Re-seed, so the namespace-wide suites after this one still see ci/maths.
+    __setKgStoreForTest(await seed());
   });
 
   it("curriculum view lets a lesson walk out to its aligned standard, then to that standard's supporting components", async () => {

@@ -22,6 +22,10 @@ current architecture summary; [DEPLOY.md](../../DEPLOY.md) is the production run
 - [`generation-and-storage.md`](generation-and-storage.md) — bucket layout, the
   cross-host generation flow, preview generation, ingesting an externally-authored
   doc, reconciliation.
+- [`rendering.md`](rendering.md) — turning a composed block tree into a `.docx` and
+  reading a corrected one back: the model/formatter split, the formatter stack merge,
+  per-language files, measured page counts, `propose_from_document`, `check_stale`,
+  and the golden corpus that verifies it.
 - [`deployment.md`](deployment.md) — production deployment, remote (HTTP) mode +
   per-request actor identity, wiring into a host.
 - [`architecture-and-extending.md`](architecture-and-extending.md) — architecture,

@@ -1,0 +1,75 @@
+{
+  "note": "The pinned shape of each committed fixture graph. Asserted by src/__tests__/fixture-shape.test.ts so a refresh cannot silently change what the suites stand on. Regenerate with `npm run refresh:fixtures`.",
+  "refreshedAt": "2026-09-04T12:29:57.309Z",
+  "contexts": {
+    "nigeria/primary-1-3/maths": {
+      "nodes": 433,
+      "edges": 448,
+      "nodesByLabel": {
+        "LearningComponent": 190,
+        "StandardsFramework": 1,
+        "StandardsFrameworkItem": 242
+      },
+      "edgesByType": {
+        "hasChild": 242,
+        "supports": 206
+      }
+    },
+    "senegal/ce1/reading": {
+      "nodes": 2152,
+      "edges": 2917,
+      "nodesByLabel": {
+        "Activity": 462,
+        "Course": 1,
+        "DocumentSection": 21,
+        "Formatter": 7,
+        "FormatterSpec": 11,
+        "InstructionalRoutine": 76,
+        "LearningComponent": 1031,
+        "Lesson": 105,
+        "LessonGrouping": 21,
+        "Rubric": 2,
+        "RubricCriterion": 52,
+        "RubricSection": 13,
+        "StandardsFramework": 1,
+        "StandardsFrameworkItem": 348,
+        "TeachingLearningMaterial": 1
+      },
+      "edgesByType": {
+        "covers": 22,
+        "hasChild": 183,
+        "hasEducationalAlignment": 462,
+        "hasPart": 756,
+        "relatesTo": 1,
+        "supports": 1031,
+        "usesRoutine": 462
+      }
+    },
+    "senegal/ci/maths": {
+      "nodes": 2019,
+      "edges": 3455,
+      "nodesByLabel": {
+        "Activity": 519,
+        "Course": 1,
+        "DocumentSection": 1096,
+        "Formatter": 7,
+        "FormatterSpec": 21,
+        "InstructionalRoutine": 10,
+        "LearningComponent": 233,
+        "Lesson": 60,
+        "LessonGrouping": 12,
+        "StandardsFramework": 1,
+        "StandardsFrameworkItem": 57,
+        "TeachingLearningMaterial": 2
+      },
+      "edgesByType": {
+        "covers": 1346,
+        "hasChild": 57,
+        "hasEducationalAlignment": 94,
+        "hasPart": 1724,
+        "supports": 233,
+        "usesRoutine": 1
+      }
+    }
+  }
+}

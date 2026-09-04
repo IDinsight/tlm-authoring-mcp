@@ -20,7 +20,7 @@ and the 100 KB `asJson` cap).
 Two halves, joined by the explorer's existing `DisplayGraph` contract:
 
 1. **Server returns *data*, scoped.** The `export_graph_view` MCP tool
-   (`src/server/graph.ts` → `src/kg-export.ts::exportSubtree`) returns a
+   (`src/server/graph.ts` → `src/kg-export/subtree.ts::exportSubtree`) returns a
    *self-contained slice* of the published graph — the containment subtree of one
    node — in the **exact `DisplayGraph` shape** the explorer already consumes
    (`nodes`, `edges`, `meta.taxonomy`, `meta.viewConfig`, `meta.counts`). It
@@ -78,7 +78,7 @@ is what the hosted explorer is for.
 
 ## Files
 
-- `src/kg-export.ts` — `exportSubtree` + the shared `assembleDisplayGraph`
+- `src/kg-export/subtree.ts` — `exportSubtree`; `src/kg-export/views.ts` — the shared `assembleDisplayGraph`
   projection (also used by the full-graph `/kg` route).
 - `src/server/graph.ts` — the `export_graph_view` tool (read-only, published slot).
 - `frontend/explorer/src/standalone/render.ts` — the vanilla DOM shell over

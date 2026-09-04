@@ -23,7 +23,7 @@ describe("coursesOf / courseSubgraph — generic Course readers", () => {
     const courses = coursesOf(modelFor("ci", "maths"));
     expect(courses).toHaveLength(1);
     expect(courses.every((course) => course.labels.includes("Course"))).toBe(true);
-    expect(courses.map((course) => course.properties.description)).toContain("Planification");
+    expect(String(courses[0].properties.description)).toMatch(/^Planification/);
   });
 
   it("returns the containment subtree under a course, with edges among its nodes", () => {
@@ -35,8 +35,12 @@ describe("coursesOf / courseSubgraph — generic Course readers", () => {
 
     // the course itself + its week LessonGroupings are present
     expect(subgraph.nodes.some((node) => node.id === student.id)).toBe(true);
+    // Not a count: how many groupings the curriculum has is a curriculum
+    // decision (23 weeks in 2026-08, 12 units in 2026-09), and this test is
+    // about the subgraph being complete and self-contained, not about how maths
+    // happens to be organised this term.
     const groupings = subgraph.nodes.filter((node) => node.labels.includes("LessonGrouping"));
-    expect(groupings.length).toBeGreaterThanOrEqual(23);
+    expect(groupings.length).toBeGreaterThan(0);
 
     // every returned edge connects two returned nodes (self-contained subgraph)
     const ids = new Set(subgraph.nodes.map((node) => node.id));

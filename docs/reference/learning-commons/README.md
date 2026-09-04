@@ -63,7 +63,7 @@ Enforced in code — keep these in sync with canon:
 | Content vs standards labels, containment edge per label | [`src/kg-recipes/lc.ts`](../../../backend/src/kg-recipes/lc.ts) (`containmentEdgeFor`, `CONTENT_LABELS`, `STANDARDS_LABELS`) | content→`hasPart`, standards→`hasChild`, LearningComponent→`supports` |
 | Alignment edge | `lc.ts` (`ALIGNMENT_EDGE`) | content→SFI via `hasEducationalAlignment` |
 | Parser folds containment + alignment | [`src/curriculum/parse-graph.ts`](../../../backend/src/curriculum/parse-graph.ts) | `hasChild`+`hasPart` are containment; `supports`+`hasEducationalAlignment` are attachment |
-| Explorer categories/colours by LC label | [`src/kg-export.ts`](../../../backend/src/kg-export.ts) (`LABEL_DEFS`) | one colour per LC label |
+| Explorer categories/colours by LC label | [`src/kg-export/types.ts`](../../../backend/src/kg-export/types.ts) (`LABEL_DEFS`) | one colour per LC label |
 | Non-canonical extras live in a sidecar | `metadata.*` on every node | see below |
 | Document / rendering layer (non-canonical labels + `covers` edge) | [`docs/design-notes/teaching-learning-materials.md`](../../design-notes/teaching-learning-materials.md) | LC defines no document/formatter node — intentional extension (deviation 7) |
 

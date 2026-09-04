@@ -101,7 +101,11 @@ describe("firestore mode", () => {
       expect(res.reviewing).toBe("published");
       expect(String(res.guide)).toContain("Coverage expectations");
       const facts = res.structuralFacts as { nodesByType: Record<string, number>; containers: unknown[]; contentMultiParent: unknown[] };
-      expect(facts.nodesByType.Semaine).toBeGreaterThan(0);
+      // The census is keyed by the graph's OWN kinds, so assert that it reports
+      // some of them rather than naming one: maths' grouping kind is a curriculum
+      // decision (weeks in 2026-08, units in 2026-09) and this test is about
+      // review_draft bundling facts at all.
+      expect(Object.keys(facts.nodesByType).length).toBeGreaterThan(0);
       expect(facts.nodesByType.Lesson).toBeGreaterThan(0);
       expect(facts.containers.length).toBeGreaterThan(0);
       expect(Array.isArray(facts.contentMultiParent)).toBe(true);

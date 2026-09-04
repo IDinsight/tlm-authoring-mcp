@@ -22,6 +22,10 @@ const isDir = (p: string) => { try { return statSync(p).isDirectory(); } catch {
 // The fixture graph filename (was CONFIG.kgFile before the KG left the repo).
 export const KG_FIXTURE = "knowledge_graph.json";
 
+// The pinned shape of every fixture graph — the review gate a refresh has to
+// pass. See fixture-shape.ts for what it holds and why.
+export const SHAPE_MANIFEST = resolve(ROOT, "SHAPE.json");
+
 // The fixture directory for one context (drop-in for the old context.subjectDir).
 export const subjectDir = (workspace: string, grade: string, subject: string): string =>
   resolve(ROOT, workspace, grade, subject);
@@ -32,7 +36,7 @@ export function fixtureContexts(): ActiveContext[] {
   const out: ActiveContext[] = [];
   for (const workspace of readdirSync(ROOT)) {
     const wsPath = resolve(ROOT, workspace);
-    if (!isDir(wsPath)) continue;
+    if (!isDir(wsPath)) continue; // skips SHAPE.json, which sits beside the workspace dirs
     for (const grade of readdirSync(wsPath)) {
       const gradePath = resolve(wsPath, grade);
       if (!isDir(gradePath)) continue;

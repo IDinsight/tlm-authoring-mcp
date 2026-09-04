@@ -28,7 +28,7 @@ import { InvalidTokenError } from "@modelcontextprotocol/sdk/server/auth/errors.
 import type { OAuthTokenVerifier } from "@modelcontextprotocol/sdk/server/auth/provider.js";
 import { isInitializeRequest } from "@modelcontextprotocol/sdk/types.js";
 import { buildServer } from "./server/index.js";
-import { listExportNamespaces, exportNamespace, exportCatalog, exportCatalogEntry, exportTerminology } from "./kg-export.js";
+import { listExportNamespaces, exportNamespace, exportCatalog, exportCatalogEntry, exportTerminology } from "./kg-export/index.js";
 import { CONFIG, basePrefix, DEFAULT_WORKSPACE, explorerOrigins } from "./config.js";
 import { newSessionState, runInSession, listAvailableContexts, type SessionState } from "./context/index.js";
 import { readGlobalObject, writeGlobalObject } from "./storage/index.js";

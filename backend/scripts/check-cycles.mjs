@@ -32,7 +32,7 @@ const SRC = resolve(dirname(fileURLToPath(import.meta.url)), "..", "src");
 // its own top-level module; it sits at the app layer since it exercises app entry
 // points, and tests are layering-up exempt regardless (see isTest below).
 const LAYERS = {
-  server: 3, "index.ts": 3, "activate.ts": 3, "http.ts": 3, "consent.ts": 3, "landing.ts": 3, "kg-export.ts": 3, "__tests__": 3,
+  server: 3, "index.ts": 3, "activate.ts": 3, "http.ts": 3, "consent.ts": 3, "landing.ts": 3, "kg-export": 3, "__tests__": 3,
   // The token bench drives the assembled server, so it sits in the app layer too.
   "__bench__": 3,
   "__golden__": 3,

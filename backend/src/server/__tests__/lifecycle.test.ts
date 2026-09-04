@@ -153,12 +153,18 @@ describe("publish refreshes this session's published reads (no stale snapshot)",
     Object.values(stats.nodeCounts as Record<string, number>).reduce((sum, n) => sum + n, 0);
 
   it("a delete published in-session is reflected by namespace_stats and walk_graph", async () => {
-    // A curator stages a delete of one content leaf (a Material — no dependents,
-    // so exactly one node vanishes) onto the draft.
+    // A curator stages a delete of one content leaf onto the draft.
+    //
+    // A TRUE leaf, found by having no outgoing containment edge — deleting
+    // cascades the whole subtree, and this test asserts that exactly one node
+    // vanishes. Naming a label instead ("a Material — no dependents") stopped
+    // working when maths dropped its Materials: the fallback picked a Lesson and
+    // took nine descendants with it.
     const deletedId = await withActiveContextAs(CURATOR, async () => {
       const nodes = await store.listNodes(ns, "a");
-      const leaf = nodes.find((n) => (n.labels ?? []).includes("Material"))
-        ?? nodes.find((n) => (n.labels ?? []).includes("Lesson"))!;
+      const edges = await store.listEdges(ns, "a");
+      const hasChildren = new Set(edges.filter((e) => e.type === "hasPart" || e.type === "hasChild").map((e) => e.from));
+      const leaf = nodes.find((n) => !hasChildren.has(n.id) && (n.labels ?? []).some((l) => ["Material", "Activity", "LearningComponent"].includes(l)))!;
       const args = { namespace: ns, nodeIds: [leaf.id] };
       const preview = await runGraphMutation({ namespace: ns, mutation: deleteNodes, args });
       if (preview.phase !== "preview") throw new Error("expected a preview");

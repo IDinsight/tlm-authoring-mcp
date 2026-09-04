@@ -35,6 +35,13 @@ export const SYNTHETIC_IDS = {
   weekA: "syn-week-a",
   weekB: "syn-week-b",
   activity: "syn-activity",
+  // Shapes the CI-maths V2 rebuild (2026-09) removed from the live graph. The
+  // parser and the explorer still support all three, so they live here now.
+  bilan: "syn-bilan",
+  frame: "syn-frame",
+  frame2: "syn-frame-2",
+  component: "syn-component",
+  illustrative: "syn-illustrative-activity",
 } as const;
 
 const node = (id: string, label: string, properties: Record<string, unknown>) => ({
@@ -135,6 +142,59 @@ export function chapterFixtureGraph(): RawGraphSnapshot {
       metadata: { order: 1 },
       position: 1,
     }),
+
+    // ── Shapes the live CI-maths graph no longer has (V2, 2026-09) ───────────
+    // The code still supports every one of them — a subject may carry an
+    // Assessment, and the explorer still folds illustrative tasks — so the
+    // suites that cover them run on this graph rather than on a curriculum that
+    // stopped exercising them.
+
+    // A BILAN: a first-class Assessment node whose educationalUse is what makes
+    // `isAssessment` explicit data rather than a parse-time heuristic.
+    node(SYNTHETIC_IDS.bilan, "Assessment", {
+      description: "Bilan du chapitre 1",
+      normalizedType: "Assessment",
+      educationalUse: "Assessment",
+      metadata: { order: 4 },
+      position: 4,
+    }),
+
+    // A DERIVED FRAME and a second one to move between. A frame holds its
+    // components by `hasChild` — the standards axis — which is what makes a
+    // component's parent edge type a property of the GRAPH rather than of its
+    // label (the invariant move_node has to respect).
+    node(SYNTHETIC_IDS.frame, "StandardsFrameworkItem", {
+      description: "Composants dérivés",
+      normalizedStatementType: "Grouping",
+      statementType: "Composants dérivés",
+      metadata: { role: "frame" },
+    }),
+    node(SYNTHETIC_IDS.frame2, "StandardsFrameworkItem", {
+      description: "Composants dérivés (bis)",
+      normalizedStatementType: "Grouping",
+      statementType: "Composants dérivés",
+      metadata: { role: "frame" },
+    }),
+    node(SYNTHETIC_IDS.component, "LearningComponent", {
+      description: "Composant dérivé",
+      normalizedType: "LearningComponent",
+      metadata: { order: 1 },
+      position: 1,
+    }),
+
+    // An ILLUSTRATIVE ACTIVITY. Canonical LC has no Activity→LearningComponent
+    // edge, so the component it exemplifies rides in `metadata.illustratesComponent`
+    // and the explorer re-parents it under that component (rel "illustrates")
+    // instead of leaving it a sibling under the standard it merely aligns to.
+    node(SYNTHETIC_IDS.illustrative, "Activity", {
+      description: "Tâche illustrative",
+      normalizedType: "Activity",
+      metadata: {
+        order: 1,
+        illustratesComponent: { id: SYNTHETIC_IDS.component, name: "Composant dérivé", order: 1 },
+      },
+      position: 1,
+    }),
   ];
 
   const relationships = [
@@ -153,6 +213,19 @@ export function chapterFixtureGraph(): RawGraphSnapshot {
     edge("hasEducationalAlignment", SYNTHETIC_IDS.activity, SYNTHETIC_IDS.standard),
     // Progression: chapter 1 builds towards chapter 2 (parsed into buildsTowards).
     edge("hasDependency", SYNTHETIC_IDS.chapter, SYNTHETIC_IDS.chapter2),
+
+    // The bilan closes chapter 1, alongside its lessons.
+    edge("hasPart", SYNTHETIC_IDS.chapter, SYNTHETIC_IDS.bilan, 3),
+
+    // The derived frames hang off the framework, and the component hangs off a
+    // frame by hasChild — the standards axis, not hasPart.
+    edge("hasChild", SYNTHETIC_IDS.framework, SYNTHETIC_IDS.frame),
+    edge("hasChild", SYNTHETIC_IDS.framework, SYNTHETIC_IDS.frame2, 1),
+    edge("hasChild", SYNTHETIC_IDS.frame, SYNTHETIC_IDS.component),
+    // The illustrative task sits under the same frame and ALIGNS to the standard
+    // (never to the component — canonical LC has no such edge).
+    edge("hasChild", SYNTHETIC_IDS.frame, SYNTHETIC_IDS.illustrative, 1),
+    edge("hasEducationalAlignment", SYNTHETIC_IDS.illustrative, SYNTHETIC_IDS.standard),
   ];
 
   return { nodes, relationships } as unknown as RawGraphSnapshot;

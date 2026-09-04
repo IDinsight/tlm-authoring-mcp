@@ -102,7 +102,7 @@ TLM is minted whenever its first document is authored, using the same tools, no 
 
 **What we're finding.** A live formatter today is an `InstructionalRoutine` whose
 `metadata.catalogKind === "formatter"` **or** `metadata.role === "formatter"` (both count —
-see `src/kg-recipes/catalog.ts::kindOf`). It hangs off a Lesson by a `usesRoutine` edge, and
+see `src/kg-recipes/catalog/entries.ts::kindOf`). It hangs off a Lesson by a `usesRoutine` edge, and
 its rules live in `Material` grandchildren (`Formatter ─hasPart→ FormatterSpec` is the new
 home for those rules).
 
@@ -211,7 +211,7 @@ walk from following `usesRoutine`:
   routine in the Course subtree.
 - **Done:** the catalog write path is repointed. `use_formatter`
   (`src/server/catalog.ts` → `useFormatter` + `relabelClonedFormatter` in
-  `src/kg-recipes/catalog.ts`) now clones the entry, relabels it to `Formatter`/`FormatterSpec`,
+  `src/kg-recipes/catalog/apply.ts`) now clones the entry, relabels it to `Formatter`/`FormatterSpec`,
   and hangs it under the Course's TLM via `hasPart` (targeting a TLM id, or a Course to resolve
   its TLM) — no more `usesRoutine`-under-Course. `use_routine` (real pedagogy → Lessons) is
   untouched. So the write path no longer mints the shape we migrated away from.

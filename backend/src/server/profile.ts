@@ -15,9 +15,6 @@
  *
  * `get_graph_guide` is the LLM-facing read — just the markdown, like
  * get_terminology surfaces per-subject text. See docs/design-notes/authorable-catalog.md.
- *
- * In bundle mode (dev) there is no store: reads return the in-repo record and
- * edit_profile is unavailable (the literal is the source of truth there).
  */
 
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
