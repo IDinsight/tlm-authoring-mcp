@@ -10,6 +10,7 @@ import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { asJson, asText, guarded, requireConfirmation } from "./shared.js";
 import { denyUnlessMember, type MemberAction } from "./membership.js";
+import { contextField, withContextOverrideResult, type WithContext } from "./context-override.js";
 import { getActiveAdapter } from "../adapters/index.js";
 import { activeWorkspace } from "../context/index.js";
 import { kgNamespace } from "../kg-store/index.js";
@@ -38,6 +39,79 @@ function denyNonMember(action: MemberAction) {
   return denyUnlessMember(action, activeNamespace());
 }
 
+/*
+ * Why a path-based response says which namespace it was resolved in.
+ *
+ * Every relPath here is namespace-relative: docKey() prefixes it with
+ * `<workspace>/<grade>/<subject>/documents/`. So the SAME relPath means a
+ * different object depending on the active context — and the active context
+ * belongs to the connection, not to the caller, so it can move between two of
+ * your own calls.
+ *
+ * Reported from a real session: a caller composing a maths sheet had the context
+ * drift to ce1/reading underneath them, asked for a download URL, and got back a
+ * perfectly valid signed URL with `exists: false`. That reads as "the file is not
+ * in the bucket". It actually meant "you are in the wrong subject". Twenty
+ * minutes later the same drift would have had create_upload_url + log_generation
+ * write the sheet into the reading namespace, live, with no draft and no undo.
+ *
+ * The namespace was never hidden — it is inside `objectKey` — but a caller had
+ * to notice it, and nothing invited them to. Naming it as its own field costs a
+ * few bytes and turns a silent misroute into an obvious one.
+ */
+const NAMESPACE_NOTE =
+  "Every relPath is relative to the ACTIVE namespace, so the response echoes `namespace`: check it is the one you meant. " +
+  "Pass `context` to pin the namespace on the call instead of trusting the session's.";
+
+/*
+ * What to say when a signed URL points at nothing.
+ *
+ * "exists: false" alone cannot distinguish the two situations a caller cares
+ * about — the file is genuinely absent, or you are looking in the wrong
+ * namespace. So on a miss (and only on a miss, which is where the extra list
+ * call is affordable) we say how many documents the namespace holds at all, and
+ * whether anything sits under the folder that was asked for.
+ *
+ * A namespace holding ZERO documents is the strongest available signal that the
+ * context is wrong rather than the path.
+ */
+async function missingObjectNote(relPath: string): Promise<string> {
+  const namespace = activeNamespace();
+  let paths: string[];
+  try {
+    paths = (await getStorageAdapter().listDocuments()).map((d) => d.relPath);
+  } catch {
+    return `No object at '${relPath}' in namespace '${namespace}'.`;
+  }
+
+  if (paths.length === 0) {
+    return (
+      `No object at '${relPath}': namespace '${namespace}' holds NO documents at all. ` +
+      `That usually means the active context is not the one you meant — check get_context, or pass \`context\` to pin it.`
+    );
+  }
+
+  // The folder the caller asked in, e.g. "lecon_03/" out of "lecon_03/Fiche.docx".
+  const slash = relPath.indexOf("/");
+  const folder = slash > 0 ? relPath.slice(0, slash + 1) : null;
+  const inFolder = folder ? paths.filter((p) => p.startsWith(folder)) : [];
+
+  if (folder && inFolder.length === 0) {
+    const folders = [...new Set(paths.filter((p) => p.includes("/")).map((p) => p.slice(0, p.indexOf("/") + 1)))];
+    return (
+      `No '${folder}' in namespace '${namespace}' — the path does not exist here, rather than the file being missing from it. ` +
+      `This namespace holds ${paths.length} document(s) under: ${folders.slice(0, 8).join(", ")}` +
+      `${folders.length > 8 ? `, +${folders.length - 8} more` : ""}. Wrong namespace? Check get_context.`
+    );
+  }
+
+  const siblings = (inFolder.length ? inFolder : paths).slice(0, 5);
+  return (
+    `No object at '${relPath}' in namespace '${namespace}', though ${folder ?? "the namespace"} does exist. ` +
+    `It holds: ${siblings.join(", ")}${(inFolder.length || paths.length) > siblings.length ? ", …" : ""}.`
+  );
+}
+
 // ── list_documents pagination + filters ──────────────────────────────────────
 // listEntries() is sorted (unit-hint asc, then nodeId asc) and stable, so we
 // page with an opaque cursor pinned to the last entry's (unit, nodeId) — the
@@ -64,6 +138,7 @@ export const listDocumentsShape = {
   unit: z.number().int().optional().describe("Filter to one chapter/week ordinal (CI maths: chapter number)."),
   documentId: z.string().optional().describe("Filter to files produced from ONE document (the pupil's tool, the teacher's guide)."),
   variant: z.string().optional().describe("Filter to one rendering — 'FR', 'WO' — as the document's formatter declares them."),
+  ...contextField,
 };
 
 // The cursor pins the last row of a page. It carries relPath as well as the
@@ -371,41 +446,61 @@ export async function checkStale(filter?: { nodeId?: string }): Promise<Record<s
 }
 
 export function registerDocumentTools(server: McpServer) {
-  server.registerTool("reconcile", { title: "Reconcile bucket with history", description: "List the .docx documents in Firebase Storage and diff against history BY relPath: tracked docs (present + unchanged), UNTRACKED docs needing a link ('new' = no history entry, 'changed' = bytes differ from the recorded entry), and entries dropped because their object is gone. It no longer classifies filenames — link each untracked doc to the node it covers with record_document_content(nodeId, relPath, content). Link each untracked doc to the node it covers with record_document_content — several files may cover the same node, so the whole list can be walked. `dropped` lists the relPath of each entry whose object is gone. " + WORKSPACE_ROLE_NOTE + "", inputSchema: {} },
-    guarded(async () => (await denyNonMember("readDocuments")) ?? asJson(await reconcile())));
+  server.registerTool("reconcile", { title: "Reconcile bucket with history", description: "List the .docx documents in Firebase Storage and diff against history BY relPath: tracked docs (present + unchanged), UNTRACKED docs needing a link ('new' = no history entry, 'changed' = bytes differ from the recorded entry), and entries dropped because their object is gone. It no longer classifies filenames — link each untracked doc to the node it covers with record_document_content(nodeId, relPath, content). Link each untracked doc to the node it covers with record_document_content — several files may cover the same node, so the whole list can be walked. `dropped` lists the relPath of each entry whose object is gone. " + WORKSPACE_ROLE_NOTE + "", inputSchema: { ...contextField } },
+    guarded(async (a: WithContext) => withContextOverrideResult(a.context, async () =>
+      (await denyNonMember("readDocuments")) ?? asJson({ namespace: activeNamespace(), ...(await reconcile()) }))));
 
   server.registerTool("list_documents", { title: "List tracked documents", description: "Current history: one entry per FILE, keyed by its relPath, ordered by unit ordinal then covered node then path. `detail` defaults to 'names' (relPath, nodeId, updated, plus documentId/variant when known) — the content record is what made this tool unusable, at ~8.5 KB an entry; 'summary' adds source and content COUNTS; 'full' returns the whole record and is trimmed to a byte budget with a cursor rather than refused. A node holds several files (a CI-maths lesson has four), so filtering by `nodeId` returns all of them; narrow further with `documentId` (which document produced it) or `variant` ('FR'/'WO'). Paginated: pass limit (default 25, max 100) and an opaque cursor. Optional filters: nodeId (one scope node) and unit (a chapter/week ordinal). Returns { entries, count, total, totalUnfiltered, nextCursor }; nextCursor is null on the last page — pass it back to fetch the next page. " + WORKSPACE_ROLE_NOTE + "", inputSchema: listDocumentsShape },
-    guarded(async (a: { cursor?: string; limit?: number; nodeId?: string; unit?: number }) => {
-      const denied = await denyNonMember("readDocuments"); if (denied) return denied;
-      const byId = getActiveAdapter().model().byId;
-      return asJson(pageDocuments(await listEntries(), (id) => byId.get(id)?.order ?? null, a));
-    }));
+    guarded(async (a: { cursor?: string; limit?: number; nodeId?: string; unit?: number } & WithContext) =>
+      withContextOverrideResult(a.context, async () => {
+        const denied = await denyNonMember("readDocuments"); if (denied) return denied;
+        const byId = getActiveAdapter().model().byId;
+        const page = pageDocuments(await listEntries(), (id) => byId.get(id)?.order ?? null, a);
+        return asJson({ namespace: activeNamespace(), ...page });
+      })));
 
-  server.registerTool("create_upload_url", { title: "Create document upload URL", description: "Get a short-lived signed URL to upload a generated .docx to the bucket. Upload with an HTTP PUT, Content-Type application/vnd.openxmlformats-officedocument.wordprocessingml.document. relPath is like 'chapitre_05/Manuel - Chapitre 5.docx'. After uploading, call log_generation with the same relPath. REQUIRES CONFIRMATION: called without confirm:true it only returns a needsConfirmation notice — ask the user to approve the upload, then call again with confirm:true. Requires a ROLE in the active workspace (any role): this writes to live storage/history, unlike the open curriculum reads.", inputSchema: { relPath: z.string(), confirm: z.boolean().optional() } },
-    guarded(async (a: { relPath: string; confirm?: boolean }) => {
-      const denied = await denyNonMember("writeDocuments"); if (denied) return denied;
-      const needConfirm = requireConfirmation(a.confirm, `issue an upload URL for '${a.relPath}' — this writes NOW to the live documents bucket (no draft, no undo)`);
-      return needConfirm ?? asJson(await getStorageAdapter().createUploadUrl(a.relPath));
-    }));
+  server.registerTool("create_upload_url", { title: "Create document upload URL", description: "Get a short-lived signed URL to upload a generated .docx to the bucket. Upload with an HTTP PUT, Content-Type application/vnd.openxmlformats-officedocument.wordprocessingml.document. relPath is like 'chapitre_05/Manuel - Chapitre 5.docx'. After uploading, call log_generation with the same relPath. REQUIRES CONFIRMATION: called without confirm:true it only returns a needsConfirmation notice — ask the user to approve the upload, then call again with confirm:true. Requires a ROLE in the active workspace (any role): this writes to live storage/history, unlike the open curriculum reads. " + NAMESPACE_NOTE + " The role is checked against the namespace this call names, so an upload can never be authorized in one workspace and land in another.", inputSchema: { relPath: z.string(), confirm: z.boolean().optional(), ...contextField } },
+    guarded(async (a: { relPath: string; confirm?: boolean } & WithContext) =>
+      withContextOverrideResult(a.context, async () => {
+        // Inside the override, so the role is checked against the namespace this
+        // will actually write to — see context-override.ts, AUTHORIZATION.
+        const denied = await denyNonMember("writeDocuments"); if (denied) return denied;
+        const namespace = activeNamespace();
+        // The confirmation names the NAMESPACE, not just the path: a path alone
+        // cannot tell an approver which subject's bucket is about to be written.
+        const needConfirm = requireConfirmation(a.confirm, `issue an upload URL for '${a.relPath}' in namespace '${namespace}' — this writes NOW to that live documents bucket (no draft, no undo)`);
+        return needConfirm ?? asJson({ namespace, ...(await getStorageAdapter().createUploadUrl(a.relPath)) });
+      })));
 
-  server.registerTool("create_download_url", { title: "Create document download URL", description: "Get a short-lived signed URL to download an EXISTING .docx from the bucket with an HTTP GET (no auth header needed). relPath is documents-relative, like 'chapitre_05/Manuel - Chapitre 5.docx' — the same path used by create_upload_url and get_document_text. Use this to fetch the original binary file (with its images and formatting intact) so you can edit it and re-upload via create_upload_url. Returns { url, objectKey, expiresAt, exists }; exists is false when there is no such object. " + WORKSPACE_ROLE_NOTE + "", inputSchema: { relPath: z.string() } },
-    guarded(async (a: { relPath: string }) =>
-      (await denyNonMember("readDocuments")) ?? asJson(await getStorageAdapter().createDownloadUrl(a.relPath))));
+  server.registerTool("create_download_url", { title: "Create document download URL", description: "Get a short-lived signed URL to download an EXISTING .docx from the bucket with an HTTP GET (no auth header needed). relPath is documents-relative, like 'chapitre_05/Manuel - Chapitre 5.docx' — the same path used by create_upload_url and get_document_text. Use this to fetch the original binary file (with its images and formatting intact) so you can edit it and re-upload via create_upload_url. Returns { namespace, url, objectKey, expiresAt, exists }; exists is false when there is no such object — and then a `note` says WHY, distinguishing 'no such file here' from 'wrong namespace'. " + NAMESPACE_NOTE + " " + WORKSPACE_ROLE_NOTE + "", inputSchema: { relPath: z.string(), ...contextField } },
+    guarded(async (a: { relPath: string } & WithContext) =>
+      withContextOverrideResult(a.context, async () => {
+        const denied = await denyNonMember("readDocuments"); if (denied) return denied;
+        const signed = await getStorageAdapter().createDownloadUrl(a.relPath);
+        return asJson({
+          namespace: activeNamespace(),
+          ...signed,
+          // A miss is explained rather than left as a bare false — the one thing
+          // `exists: false` cannot say is which of the two things went wrong.
+          ...(signed.exists ? {} : { note: await missingObjectNote(a.relPath) }),
+        });
+      })));
 
-  server.registerTool("get_document_text", { title: "Get document text", description: "Extract the plain text of a document in the bucket (by its documents-relative path) so you can read an UNTRACKED document and then record its content. PAGINATED so a long document never overflows the response: one call returns a window of up to `maxChars` characters (default 20000, max 50000) starting at `offset` (default 0), plus a small JSON envelope { offset, returned, total, nextOffset } and the window as a text/plain resource. To read the WHOLE document — you must, characters appear in the opening scene AND in the activities and bilan, not only the amorce — keep calling with offset:<nextOffset> until nextOffset is null. " + WORKSPACE_ROLE_NOTE + "", inputSchema: { relPath: z.string(), offset: z.number().int().optional(), maxChars: z.number().int().optional() } },
+  server.registerTool("get_document_text", { title: "Get document text", description: "Extract the plain text of a document in the bucket (by its documents-relative path) so you can read an UNTRACKED document and then record its content. PAGINATED so a long document never overflows the response: one call returns a window of up to `maxChars` characters (default 20000, max 50000) starting at `offset` (default 0), plus a small JSON envelope { offset, returned, total, nextOffset } and the window as a text/plain resource. To read the WHOLE document — you must, characters appear in the opening scene AND in the activities and bilan, not only the amorce — keep calling with offset:<nextOffset> until nextOffset is null. " + WORKSPACE_ROLE_NOTE + "", inputSchema: { relPath: z.string(), offset: z.number().int().optional(), maxChars: z.number().int().optional(), ...contextField } },
     // Two content blocks: a small JSON envelope (offset/total/nextOffset — how to
     // page) and the window itself as a text/plain resource (labelled by its
     // document path, so the reader gets rendered text, not a JSON-escaped blob).
-    guarded(async (a: { relPath: string; offset?: number; maxChars?: number }) => {
-      const denied = await denyNonMember("readDocuments"); if (denied) return denied;
-      const { text, ...meta } = pageDocumentText(a.relPath, await extractDocxText(a.relPath), a.offset, a.maxChars);
-      return {
-        content: [
-          { type: "text" as const, text: JSON.stringify(meta, null, 2) },
-          ...asText(`tlm://document/${a.relPath}`, text).content,
-        ],
-      };
-    }));
+    guarded(async (a: { relPath: string; offset?: number; maxChars?: number } & WithContext) =>
+      withContextOverrideResult(a.context, async () => {
+        const denied = await denyNonMember("readDocuments"); if (denied) return denied;
+        const { text, ...meta } = pageDocumentText(a.relPath, await extractDocxText(a.relPath), a.offset, a.maxChars);
+        return {
+          content: [
+            { type: "text" as const, text: JSON.stringify({ namespace: activeNamespace(), ...meta }, null, 2) },
+            ...asText(`tlm://document/${a.relPath}`, text).content,
+          ],
+        };
+      })));
 
   server.registerTool(
     "check_stale",
@@ -414,26 +509,31 @@ export function registerDocumentTools(server: McpServer) {
       description:
         "Report which .docx in the bucket quote curriculum that has CHANGED since they were made. Each document records the nodes it drew from and their wording at the time (read out of the file's own anchors, not declared by anyone), so this is per-document: editing one lesson flags the files covering that lesson and nothing else. Returns `stale` (with the node ids that `changed` and those `removed` — kept apart, because reworded text can be regenerated while a vanished node needs a person to decide what the document should say instead), plus counts. " +
         "A document that does not record its sources is reported as UNKNOWN and never as current — everything produced before this existed is in that state, and calling it up to date would be the most misleading thing here. Optional `nodeId` narrows to one lesson. Read-only: it says what is out of date, it does not regenerate anything. " + WORKSPACE_ROLE_NOTE,
-      inputSchema: { nodeId: z.string().optional() },
+      inputSchema: { nodeId: z.string().optional(), ...contextField },
     },
-    guarded(async (a: { nodeId?: string }) => asJson(await checkStale(a))),
+    guarded(async (a: { nodeId?: string } & WithContext) =>
+      withContextOverrideResult(a.context, async () => asJson({ namespace: activeNamespace(), ...(await checkStale(a)) }))),
   );
 
-  server.registerTool("record_document_content", { title: "Record parsed document content", description: "After reading an UNTRACKED document's text, store the structured content you extracted into history so it is never re-parsed. The object must already be in the bucket. `nodeId` is the scope node the document covers (the Chapitre/Semaine/Lesson — find it with walk_graph / namespace_stats). " + FILE_KEYED_NOTE + " REQUIRES CONFIRMATION — without confirm:true you get a needsConfirmation notice; ask the user to approve, then call again. " + WORKSPACE_ROLE_NOTE + " This writes LIVE to history: no draft, no undo.", inputSchema: { nodeId: z.string(), relPath: z.string(), content: z.object(contentSchema), documentId: z.string().optional(), variant: z.string().optional(), replace: z.boolean().optional(), confirm: z.boolean().optional() } },
-    guarded(async (a: { nodeId: string; relPath: string; content: any; documentId?: string; variant?: string; replace?: boolean; confirm?: boolean }) => {
-      const denied = await denyNonMember("writeDocuments"); if (denied) return denied;
-      const err = scopeNodeError(a.nodeId); if (err) return asJson({ error: err });
-      const needConfirm = requireConfirmation(a.confirm, `record content into history for node ${a.nodeId} — this writes NOW to the live history (no draft, no undo)`);
-      return needConfirm ?? asJson(await recordContent("parsed", { nodeId: a.nodeId, relPath: a.relPath, content: a.content, documentId: a.documentId, variant: a.variant, replace: a.replace, sources: await sourcesOf(a.relPath) }));
-    }));
+  server.registerTool("record_document_content", { title: "Record parsed document content", description: "After reading an UNTRACKED document's text, store the structured content you extracted into history so it is never re-parsed. The object must already be in the bucket. `nodeId` is the scope node the document covers (the Chapitre/Semaine/Lesson — find it with walk_graph / namespace_stats). " + FILE_KEYED_NOTE + " REQUIRES CONFIRMATION — without confirm:true you get a needsConfirmation notice; ask the user to approve, then call again. " + WORKSPACE_ROLE_NOTE + " This writes LIVE to history: no draft, no undo. " + NAMESPACE_NOTE, inputSchema: { nodeId: z.string(), relPath: z.string(), content: z.object(contentSchema), documentId: z.string().optional(), variant: z.string().optional(), replace: z.boolean().optional(), confirm: z.boolean().optional(), ...contextField } },
+    guarded(async (a: { nodeId: string; relPath: string; content: any; documentId?: string; variant?: string; replace?: boolean; confirm?: boolean } & WithContext) =>
+      withContextOverrideResult(a.context, async () => {
+        const denied = await denyNonMember("writeDocuments"); if (denied) return denied;
+        const err = scopeNodeError(a.nodeId); if (err) return asJson({ error: err });
+        const namespace = activeNamespace();
+        const needConfirm = requireConfirmation(a.confirm, `record content into history for node ${a.nodeId} in namespace '${namespace}' — this writes NOW to that live history (no draft, no undo)`);
+        return needConfirm ?? asJson({ namespace, ...(await recordContent("parsed", { nodeId: a.nodeId, relPath: a.relPath, content: a.content, documentId: a.documentId, variant: a.variant, replace: a.replace, sources: await sourcesOf(a.relPath) })) });
+      })));
 
-  server.registerTool("log_generation", { title: "Log a generated document", description: "Call after uploading a generated .docx via create_upload_url: it reads the object's hash from storage and records what you produced, so it feeds future consistency + variety. `nodeId` is the scope node the document covers (the Chapitre/Semaine/Lesson). " + FILE_KEYED_NOTE + " REQUIRES CONFIRMATION — without confirm:true you get a needsConfirmation notice; ask the user to approve, then call again. " + WORKSPACE_ROLE_NOTE + " This writes LIVE to history: no draft, no undo.", inputSchema: { nodeId: z.string(), relPath: z.string(), content: z.object(contentSchema), documentId: z.string().optional(), variant: z.string().optional(), replace: z.boolean().optional(), confirm: z.boolean().optional() } },
-    guarded(async (a: { nodeId: string; relPath: string; content: any; documentId?: string; variant?: string; replace?: boolean; confirm?: boolean }) => {
-      const denied = await denyNonMember("writeDocuments"); if (denied) return denied;
-      const err = scopeNodeError(a.nodeId); if (err) return asJson({ error: err });
-      const needConfirm = requireConfirmation(a.confirm, `log the generated document for node ${a.nodeId} into history — this writes NOW to the live history (no draft, no undo)`);
-      return needConfirm ?? asJson(await recordContent("pipeline", { nodeId: a.nodeId, relPath: a.relPath, content: a.content, documentId: a.documentId, variant: a.variant, replace: a.replace, sources: await sourcesOf(a.relPath) }));
-    }));
+  server.registerTool("log_generation", { title: "Log a generated document", description: "Call after uploading a generated .docx via create_upload_url: it reads the object's hash from storage and records what you produced, so it feeds future consistency + variety. `nodeId` is the scope node the document covers (the Chapitre/Semaine/Lesson). " + FILE_KEYED_NOTE + " REQUIRES CONFIRMATION — without confirm:true you get a needsConfirmation notice; ask the user to approve, then call again. " + WORKSPACE_ROLE_NOTE + " This writes LIVE to history: no draft, no undo. " + NAMESPACE_NOTE, inputSchema: { nodeId: z.string(), relPath: z.string(), content: z.object(contentSchema), documentId: z.string().optional(), variant: z.string().optional(), replace: z.boolean().optional(), confirm: z.boolean().optional(), ...contextField } },
+    guarded(async (a: { nodeId: string; relPath: string; content: any; documentId?: string; variant?: string; replace?: boolean; confirm?: boolean } & WithContext) =>
+      withContextOverrideResult(a.context, async () => {
+        const denied = await denyNonMember("writeDocuments"); if (denied) return denied;
+        const err = scopeNodeError(a.nodeId); if (err) return asJson({ error: err });
+        const namespace = activeNamespace();
+        const needConfirm = requireConfirmation(a.confirm, `log the generated document for node ${a.nodeId} into history in namespace '${namespace}' — this writes NOW to that live history (no draft, no undo)`);
+        return needConfirm ?? asJson({ namespace, ...(await recordContent("pipeline", { nodeId: a.nodeId, relPath: a.relPath, content: a.content, documentId: a.documentId, variant: a.variant, replace: a.replace, sources: await sourcesOf(a.relPath) })) });
+      })));
 }
 
 // A document's identity is its scope node, so a write must name a real node in

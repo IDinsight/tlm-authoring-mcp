@@ -113,7 +113,7 @@ describe("a read can name its own context", () => {
     const result = await inActive(() =>
       namespaceStats({ context: { workspace: "nowhere", grade: "x", subject: "y" } }),
     );
-    expect(String(result.error)).toMatch(/Cannot read against workspace 'nowhere'/);
+    expect(String(result.error)).toMatch(/Cannot act on workspace 'nowhere'/);
     expect(String(result.error)).toMatch(/list_workspaces/);
   });
 

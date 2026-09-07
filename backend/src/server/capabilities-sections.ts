@@ -232,10 +232,10 @@ export function documentsSection(actions: Actions) {
     canRead: actions.canReadDocuments,
     canWrite: actions.canWriteDocuments,
     canTranslate: actions.canTranslate,
-    readTools: ["reconcile", "list_documents", "create_download_url", "get_document_text"],
+    readTools: ["reconcile", "list_documents", "create_download_url", "get_document_text", "check_stale"],
     writeTools: ["create_upload_url", "log_generation", "record_document_content"],
     note:
-      "The published CURRICULUM is open — no membership is needed to set_context into a workspace and read its graph (walk_graph, get_standards, find_node, namespace_stats, walk_document, get_graph_guide), matching the public KG explorer that already serves the same data. Its DOCUMENTS are not: signed URLs to produced .docx, the generation history, and the Gemini-backed `translate` all require a ROLE in this workspace (any role — curator is enough). The write tools additionally write LIVE with no draft and no undo, which is why they are held at membership rather than left open with the reads. A non-member gets a `phase:'unauthorized'` payload naming what they'd need, and the refusal is audited.",
+      "The published CURRICULUM is open — no membership is needed to set_context into a workspace and read its graph (walk_graph, get_standards, find_node, namespace_stats, walk_document, get_graph_guide), matching the public KG explorer that already serves the same data. Its DOCUMENTS are not: signed URLs to produced .docx, the generation history, and the Gemini-backed `translate` all require a ROLE in this workspace (any role — curator is enough). The write tools additionally write LIVE with no draft and no undo, which is why they are held at membership rather than left open with the reads. A non-member gets a `phase:'unauthorized'` payload naming what they'd need, and the refusal is audited. Each of these tools takes an optional `context` and is gated against the namespace it NAMES, not the session's — so a role in one workspace can never authorize a write into another.",
   };
 }
 
@@ -290,16 +290,20 @@ export function catalogSection(actions: Actions) {
 export function discoverySection(actions: Actions) {
   return {
     tools: ["walk_graph", "walk_document", "walk_document_section", "find_node", "namespace_stats", "export_graph_view"],
-    // Every graph read takes an optional per-call `context`, because the active
-    // one belongs to the CONNECTION rather than to the caller.
+    // Every namespace-scoped tool takes an optional per-call `context`, because
+    // the active one belongs to the CONNECTION rather than to the caller. The
+    // list is stated here rather than derived because the field is a schema
+    // opt-in per tool; capabilities.test.ts pins the two against each other.
     perCallContext:
-      "walk_graph / walk_document / walk_document_section / find_node / namespace_stats / get_standards each take an optional `context` ({workspace, grade, subject}) applying to THAT CALL ONLY, leaving the session's active context untouched. The active context is per-CONNECTION, not per-caller — anything sharing the connection (a subagent, a parallel call) moves it under you, which surfaces as 'Start node not found' on ids that resolved a moment earlier. Pass `context` whenever you fan out; omit it to use the active context.",
+      "Every namespace-scoped tool takes an optional `context` ({workspace, grade, subject}) applying to THAT CALL ONLY, leaving the session's active context untouched: the graph reads (walk_graph / walk_document / walk_document_section / find_node / namespace_stats / get_standards), the lexicon reads (get_terminology / translate), and every document tool (reconcile / list_documents / create_download_url / get_document_text / check_stale / create_upload_url / log_generation / record_document_content). " +
+      "The active context is per-CONNECTION, not per-caller — anything sharing the connection (a subagent, a parallel call) moves it under you. On a READ that surfaces as 'Start node not found' on ids that resolved a moment earlier. On a path-based DOCUMENT tool it is quieter and worse: a relPath is namespace-relative, so drift returns a valid signed URL to the wrong namespace, and an upload plus log_generation would write the file there LIVE with no draft and no undo. " +
+      "So every document response echoes `namespace`, a download URL that resolved to nothing explains WHY (no such file here, versus wrong namespace entirely), and a write is authorized against the namespace it NAMES — a workspace you hold no role in is refused rather than misrouted. Pass `context` whenever you fan out or cannot be sure you are alone.",
     canWalkDraft: actions.canReadDraft,
     // Name → id resolution. It exists because a human never has an id to give
     // and this client renders no completion dropdown, so the SERVER resolves
     // what the expert types (self-serve-authoring.md, D9).
     findNode: {
-      params: ["query", "queries", "labels", "limit", "slot"],
+      params: ["query", "queries", "labels", "limit", "slot", "context"],
       defaults: { limit: 10 },
       // `queries` resolves a whole list against ONE graph load; its `unresolved`
       // names every entry that did not land on exactly one node.
@@ -309,14 +313,14 @@ export function discoverySection(actions: Actions) {
       ambiguity: "returns `ambiguous:true` + every match with its containment `path` — ask the user which, do not guess",
     },
     walkGraph: {
-      params: ["fromId", "direction", "edgeTypes", "nodeTypes", "maxDepth", "includeEdges", "limit", "cursor", "slot"],
+      params: ["fromId", "direction", "edgeTypes", "nodeTypes", "maxDepth", "includeEdges", "detail", "limit", "cursor", "slot", "context"],
       defaults: { limit: 50, maxDepth: 3 },
       maxLimit: 500,
       // Two independent overflow flags callers should branch on.
       pagination: "nextCursor + truncatedByLimit (more nodes remain) vs truncated (depth cap) vs truncatedBySize (byte budget trimmed the page — see hint)",
     },
     walkDocument: {
-      params: ["tlmId", "limit", "cursor", "slot"],
+      params: ["tlmId", "limit", "cursor", "slot", "context"],
       // How the curriculum-to-render was resolved from the TLM.
       scopes: ["sections", "course", "none"],
       // Every part can overflow, so each degrades in turn — most-reachable-elsewhere
@@ -324,12 +328,16 @@ export function discoverySection(actions: Actions) {
       overflow: "self-bounded in tiers — `curriculum` degrades to { tooLarge, counts, message }, then `document` (both reachable via walk_document_section), then `sections` is trimmed to the byte budget with sectionsTruncated + nextCursor + spineNote; guide and scope always ride",
     },
     walkDocumentSection: {
-      params: ["sectionId", "slot"],
+      params: ["sectionId", "detail", "cursor", "include", "slot", "context"],
       // Anchored on the DocumentSection — the document↔curriculum binding — so the
       // routine resolves nearest-wins document-first: the section's own usesRoutine,
       // else the sections it is nested in, else the owning TLM's, else the covered
       // curriculum's ancestry.
       routineResolution: "nearest-wins, document-first (section → the sections it is nested in, nearest first → owning TLM → covered curriculum's ancestry)",
+      // Producing a document section by section otherwise re-receives its
+      // document-level parts once per section.
+      include:
+        "`include` (a subset of document/curriculum/routine/formatters; omit for all) drops the parts you already hold — the assembly guide, formatter stack and covered curriculum are the SAME for every section of a document, so read it once with walk_document and then ask per section. The section's own node, its `covers` ids and `formatterStackOrder` always ride; `omitted` names what you left out, so a missing `routine` is never read as a section that has none.",
     },
     exportGraphView: {
       params: ["fromId", "maxDepth", "detail"],

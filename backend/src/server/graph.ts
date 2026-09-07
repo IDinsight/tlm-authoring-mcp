@@ -18,7 +18,8 @@ import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { randomUUID } from "node:crypto";
 import { asJson, guarded } from "./shared.js";
-import { withContextOverride, type WithContext } from "./context-override.js";
+import { withContextOverride, contextField, type WithContext } from "./context-override.js";
+import { SECTION_PARTS, type SectionPart } from "../curriculum/index.js";
 import { getActiveAdapter } from "../adapters/index.js";
 import { activeWorkspace, sessionState } from "../context/index.js";
 import { getKgStore, kgNamespace, toAuditActor, diffGraphs, type GraphDiff, nextAuditSeq } from "../kg-store/index.js";
@@ -112,12 +113,14 @@ export type WalkToolArgs = WithContext & {
 };
 
 // The arguments walk_document_section accepts. `cursor` pages the FORMATTER STACK
-// (the only part that can outgrow a response here), `detail` trims the context.
+// (the only part that can outgrow a response here), `detail` trims the context,
+// and `include` drops the document-level parts a caller already holds.
 export type SectionToolArgs = WithContext & {
   sectionId: string;
   detail?: WalkDetail;
   cursor?: string;
   slot?: WalkSlot;
+  include?: SectionPart[];
 };
 
 // The arguments walk_document accepts. `limit`/`cursor` page the SECTION SPINE —
@@ -238,7 +241,7 @@ async function sectionResolved(args: SectionToolArgs): Promise<Record<string, un
     return resolved.notice;
   }
 
-  const section = documentSectionSubgraph(resolved.model, args.sectionId, { detail: args.detail, cursor: args.cursor });
+  const section = documentSectionSubgraph(resolved.model, args.sectionId, { detail: args.detail, cursor: args.cursor, include: args.include });
   if (!section) {
     return { error: `DocumentSection '${args.sectionId}' not found in the ${slot} graph. Call walk_document (its 'sections' spine) or walk_graph (nodeTypes ['DocumentSection']) to find section ids.` };
   }
@@ -454,7 +457,7 @@ export function registerGraphTools(server: McpServer) {
         limit: z.number().int().optional(),
         cursor: z.string().optional(),
         slot: z.enum(["published", "draft"]).optional(),
-        context: z.object({ workspace: z.string(), grade: z.string(), subject: z.string() }).optional(),
+        ...contextField,
       },
     },
     guarded(async (a: WalkToolArgs) => asJson(await walkActiveGraph(a))),
@@ -473,7 +476,7 @@ export function registerGraphTools(server: McpServer) {
         limit: z.number().int().optional(),
         cursor: z.string().optional(),
         slot: z.enum(["published", "draft"]).optional(),
-        context: z.object({ workspace: z.string(), grade: z.string(), subject: z.string() }).optional(),
+        ...contextField,
       },
     },
     guarded(async (a: DocumentToolArgs) => {
@@ -496,7 +499,13 @@ export function registerGraphTools(server: McpServer) {
         detail: z.enum(["skeleton", "full"]).optional(),
         cursor: z.string().optional(),
         slot: z.enum(["published", "draft"]).optional(),
-        context: z.object({ workspace: z.string(), grade: z.string(), subject: z.string() }).optional(),
+        include: z
+          .array(z.enum(SECTION_PARTS))
+          .optional()
+          .describe(
+            "Which parts to return. Omit for all of them. The document's assembly guide, its formatter stack and the covered curriculum are the SAME for every section of a document, so producing one section at a time re-receives them per section — read the document once with walk_document, then pass include:['routine'] (or [] for the section alone) for each section. What always comes back: the section's own node, its `covers` ids, and `formatterStackOrder` — the stack's precedence, which you need to merge `render` bags you already hold. `omitted` lists what you left out, so a missing `routine` is never mistaken for a section that has none.",
+          ),
+        ...contextField,
       },
     },
     guarded(async (a: SectionToolArgs) => asJson(await walkDocumentSection(a))),
@@ -518,7 +527,7 @@ export function registerGraphTools(server: McpServer) {
         labels: z.array(z.string()).optional(),
         limit: z.number().int().optional(),
         slot: z.enum(["published", "draft"]).optional(),
-        context: z.object({ workspace: z.string(), grade: z.string(), subject: z.string() }).optional(),
+        ...contextField,
       },
     },
     guarded(async (a: FindNodeArgs) => asJson(await findActiveNodes(a))),
@@ -532,7 +541,7 @@ export function registerGraphTools(server: McpServer) {
         "A cheap, argument-free snapshot of the active workspace/grade/subject: `nodeCounts` (per LC label), `edgeCounts` (per edge type), `roots` (genuinely unplaced nodes — Course/StandardsFramework/stranded groupings, each with id + labels + description; a node that aligns itself to a standard, or that a lesson attaches by usesRoutine, is NOT a root and is summarised under `attachedByAlignment` instead), `isolatedCount` (nodes NO edge touches in any direction — unlike a root, this is unambiguously wrong and is the number to act on), `draft` (whether one is open and how many edits it stages), and `coverageFlags` (high-level orientation hints). Run this FIRST, before writing any walk_graph query, to see the shape of the graph — and this is where you find the subject's Course content roots (id + name) to walk from (it replaced list_courses; filter `roots` by labels including 'Course'). Also carries `physicalSlot` — the slot ('a'/'b') these counts were read from. Read-only; no audit event. " +
         "`context` (optional {workspace, grade, subject}) reads against THAT namespace for this one call, leaving the session's active context untouched — the active context belongs to the CONNECTION, not to you, so anything sharing the connection (a subagent, a parallel call) can move it under you. Pass `context` whenever you fan out or cannot be sure you are alone; omit it to use the active context.",
       inputSchema: {
-        context: z.object({ workspace: z.string(), grade: z.string(), subject: z.string() }).optional(),
+        ...contextField,
       },
     },
     guarded(async (a: WithContext) => asJson(await namespaceStats(a))),

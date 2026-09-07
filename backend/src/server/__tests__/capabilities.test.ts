@@ -223,7 +223,12 @@ describe("editable and rules come from the real sources (no hand-copied literals
     // walk_document resolves a document's scope one of three ways.
     expect(caps.discovery.walkDocument.scopes).toEqual(["sections", "course", "none"]);
     // walk_document_section is the per-piece entry, anchored on one section id.
-    expect(caps.discovery.walkDocumentSection.params).toEqual(["sectionId", "slot"]);
+    expect(caps.discovery.walkDocumentSection.params).toContain("sectionId");
+    // The FULL param list is not asserted here. A literal is exactly what went
+    // stale — this one still read ["sectionId","slot"] two releases after the tool
+    // gained detail and cursor — so the complete list is pinned against the
+    // server's real schema in "every discovery `params` array IS the tool's real
+    // argument list" below, and re-asserting it here would just rot again.
     // canWalkDraft is the SAME gate diff_draft enforces — it cannot drift.
     expect(caps.discovery.canWalkDraft).toBe(caps.actions.canReadDraft);
     // Feature-detection for the paginated walk.
@@ -295,6 +300,89 @@ describe("editable and rules come from the real sources (no hand-copied literals
     // And the report renders that list rather than a copy of it.
     const caps = await withActiveContext(CURATOR, callGetCapabilities);
     expect(caps.catalog.editVerbs).toEqual(CATALOG_WRITE_VERBS);
+  });
+
+  it("perCallContext names every tool that actually takes a `context` argument", async () => {
+    /*
+     * Same mirror property as catalog.editVerbs above, and the same failure mode.
+     * `perCallContext` is PROSE — it has to be, because it explains a hazard — so
+     * nothing stops a new namespace-scoped tool from being added while the prose
+     * still lists the six graph readers it started with.
+     *
+     * That matters more here than for most fields. A caller reads this to decide
+     * whether it may safely fan out, and the tools most in need of `context` are
+     * the ones where drift is silent: a document write authorized in one namespace
+     * and landing in another. Prose that under-reports the surface would tell a
+     * caller to work around a hazard that is already handled, or worse, that a
+     * tool is safe when it has no override at all.
+     *
+     * So this test IS the derivation: it asks the assembled server which tools
+     * advertise `context` and requires the prose to name each of them.
+     */
+    const client = new Client({ name: "test-client", version: "0.0.0" });
+    const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
+    await Promise.all([client.connect(clientTransport), buildServer().connect(serverTransport)]);
+    let advertising: string[];
+    try {
+      advertising = (await client.listTools()).tools
+        .filter((tool) => "context" in ((tool.inputSchema as { properties?: Record<string, unknown> }).properties ?? {}))
+        .map((tool) => tool.name);
+    } finally {
+      await client.close();
+    }
+
+    // A sanity floor: if this ever reads zero the filter has broken, and every
+    // assertion below would pass vacuously.
+    expect(advertising.length).toBeGreaterThan(10);
+
+    const caps = await withActiveContext(CURATOR, callGetCapabilities);
+    const prose = String(caps.discovery.perCallContext);
+    const unnamed = advertising.filter((tool) => !prose.includes(tool));
+    expect(unnamed).toEqual([]);
+  });
+
+  it("every discovery `params` array IS the tool's real argument list", async () => {
+    /*
+     * These arrays are what a caller reads to know what a tool accepts, and they
+     * had silently under-reported for two releases: `walkGraph.params` was missing
+     * `detail` (shipped with the skeleton projection) and `walkDocumentSection.params`
+     * was still `["sectionId","slot"]` after that tool gained `detail` and `cursor`.
+     * Nothing failed — the report just described an older tool, which is worse than
+     * saying nothing, because a caller believes it.
+     *
+     * The same derivation as editVerbs and perCallContext: ask the assembled server
+     * what each tool actually declares and require the array to match exactly. Note
+     * it must be EQUAL, not a subset — a param listed here but absent from the schema
+     * is the other half of the same lie.
+     */
+    const declaredFor: Record<string, string> = {
+      find_node: "findNode",
+      walk_graph: "walkGraph",
+      walk_document: "walkDocument",
+      walk_document_section: "walkDocumentSection",
+      export_graph_view: "exportGraphView",
+    };
+
+    const client = new Client({ name: "test-client", version: "0.0.0" });
+    const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
+    await Promise.all([client.connect(clientTransport), buildServer().connect(serverTransport)]);
+    let schemas: Record<string, string[]>;
+    try {
+      schemas = Object.fromEntries((await client.listTools()).tools
+        .filter((tool) => tool.name in declaredFor)
+        .map((tool) => [tool.name, Object.keys((tool.inputSchema as { properties?: Record<string, unknown> }).properties ?? {})]));
+    } finally {
+      await client.close();
+    }
+
+    // Every tool in the map must exist, or the map itself has gone stale.
+    expect(Object.keys(schemas).sort()).toEqual(Object.keys(declaredFor).sort());
+
+    const caps = await withActiveContext(CURATOR, callGetCapabilities);
+    for (const [tool, key] of Object.entries(declaredFor)) {
+      const declared = (caps.discovery[key] as { params: string[] }).params;
+      expect(declared.slice().sort(), `${tool} → discovery.${key}.params`).toEqual(schemas[tool].slice().sort());
+    }
   });
 
   it("catalog advertises its tools + browse resource; canUse mirrors the apply gate", async () => {
