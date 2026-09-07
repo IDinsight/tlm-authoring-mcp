@@ -303,7 +303,7 @@ export function discoverySection(actions: Actions) {
     // and this client renders no completion dropdown, so the SERVER resolves
     // what the expert types (self-serve-authoring.md, D9).
     findNode: {
-      params: ["query", "queries", "labels", "limit", "slot"],
+      params: ["query", "queries", "labels", "limit", "slot", "context"],
       defaults: { limit: 10 },
       // `queries` resolves a whole list against ONE graph load; its `unresolved`
       // names every entry that did not land on exactly one node.
@@ -313,14 +313,14 @@ export function discoverySection(actions: Actions) {
       ambiguity: "returns `ambiguous:true` + every match with its containment `path` — ask the user which, do not guess",
     },
     walkGraph: {
-      params: ["fromId", "direction", "edgeTypes", "nodeTypes", "maxDepth", "includeEdges", "limit", "cursor", "slot"],
+      params: ["fromId", "direction", "edgeTypes", "nodeTypes", "maxDepth", "includeEdges", "detail", "limit", "cursor", "slot", "context"],
       defaults: { limit: 50, maxDepth: 3 },
       maxLimit: 500,
       // Two independent overflow flags callers should branch on.
       pagination: "nextCursor + truncatedByLimit (more nodes remain) vs truncated (depth cap) vs truncatedBySize (byte budget trimmed the page — see hint)",
     },
     walkDocument: {
-      params: ["tlmId", "limit", "cursor", "slot"],
+      params: ["tlmId", "limit", "cursor", "slot", "context"],
       // How the curriculum-to-render was resolved from the TLM.
       scopes: ["sections", "course", "none"],
       // Every part can overflow, so each degrades in turn — most-reachable-elsewhere
@@ -328,12 +328,16 @@ export function discoverySection(actions: Actions) {
       overflow: "self-bounded in tiers — `curriculum` degrades to { tooLarge, counts, message }, then `document` (both reachable via walk_document_section), then `sections` is trimmed to the byte budget with sectionsTruncated + nextCursor + spineNote; guide and scope always ride",
     },
     walkDocumentSection: {
-      params: ["sectionId", "slot"],
+      params: ["sectionId", "detail", "cursor", "include", "slot", "context"],
       // Anchored on the DocumentSection — the document↔curriculum binding — so the
       // routine resolves nearest-wins document-first: the section's own usesRoutine,
       // else the sections it is nested in, else the owning TLM's, else the covered
       // curriculum's ancestry.
       routineResolution: "nearest-wins, document-first (section → the sections it is nested in, nearest first → owning TLM → covered curriculum's ancestry)",
+      // Producing a document section by section otherwise re-receives its
+      // document-level parts once per section.
+      include:
+        "`include` (a subset of document/curriculum/routine/formatters; omit for all) drops the parts you already hold — the assembly guide, formatter stack and covered curriculum are the SAME for every section of a document, so read it once with walk_document and then ask per section. The section's own node, its `covers` ids and `formatterStackOrder` always ride; `omitted` names what you left out, so a missing `routine` is never read as a section that has none.",
     },
     exportGraphView: {
       params: ["fromId", "maxDepth", "detail"],
