@@ -22,7 +22,7 @@ import { getActiveAdapter } from "../adapters/index.js";
 import { activeWorkspace, sessionState } from "../context/index.js";
 import { getKgStore, kgNamespace, toAuditActor, diffGraphs, type GraphDiff, nextAuditSeq } from "../kg-store/index.js";
 import { exportSubtree } from "../kg-export/index.js";
-import { walkGraph, computeGraphStats, documentSubgraph, documentSectionSubgraph, findNodes, toFindable, PRELOADED_SLOT_KEY, type WalkDirection, type FindableGraph, type FoundNode } from "../curriculum/index.js";
+import { walkGraph, computeGraphStats, documentSubgraph, documentSectionSubgraph, findNodes, toFindable, PRELOADED_SLOT_KEY, type WalkDirection, type WalkDetail, type FindableGraph, type FoundNode } from "../curriculum/index.js";
 import { resolveDraftModel } from "./preview.js";
 import { authorize } from "../authz.js";
 import { currentActor } from "../actor.js";
@@ -104,6 +104,17 @@ export type WalkToolArgs = {
   nodeTypes?: string[];
   maxDepth?: number;
   includeEdges?: boolean;
+  detail?: WalkDetail;
+  limit?: number;
+  cursor?: string;
+  slot?: WalkSlot;
+};
+
+// The arguments walk_document accepts. `limit`/`cursor` page the SECTION SPINE —
+// the only unbounded-length part of a document payload once the subtree and the
+// curriculum can self-bound.
+export type DocumentToolArgs = {
+  tlmId: string;
   limit?: number;
   cursor?: string;
   slot?: WalkSlot;
@@ -128,6 +139,7 @@ export async function walkActiveGraph(args: WalkToolArgs): Promise<Record<string
     nodeTypes: args.nodeTypes,
     maxDepth: args.maxDepth,
     includeEdges: args.includeEdges,
+    detail: args.detail,
     limit: args.limit,
     cursor: args.cursor,
   });
@@ -142,7 +154,7 @@ export async function walkActiveGraph(args: WalkToolArgs): Promise<Record<string
 // (published default; role-gated draft) like walk_graph, so a curator can inspect
 // a document they are authoring before publishing. Exported so tests drive the
 // real logic directly.
-export async function walkDocument(args: { tlmId: string; slot?: WalkSlot }): Promise<Record<string, unknown>> {
+export async function walkDocument(args: DocumentToolArgs): Promise<Record<string, unknown>> {
   const namespace = activeNamespace();
   const slot = args.slot ?? "published";
 
@@ -151,9 +163,12 @@ export async function walkDocument(args: { tlmId: string; slot?: WalkSlot }): Pr
     return resolved.notice;
   }
 
-  const document = documentSubgraph(resolved.model, args.tlmId);
+  const document = documentSubgraph(resolved.model, args.tlmId, { limit: args.limit, cursor: args.cursor });
   if (!document) {
     return { error: `TeachingLearningMaterial '${args.tlmId}' not found in the ${slot} graph. Call namespace_stats (its roots, filtered by labels including 'TeachingLearningMaterial') for available document ids.` };
+  }
+  if ("error" in document) {
+    return document;
   }
   return { slot, physicalSlot: resolved.physicalSlot, ...document };
 }
@@ -161,11 +176,12 @@ export async function walkDocument(args: { tlmId: string; slot?: WalkSlot }): Pr
 /**
  * What to tell a caller whose walk_document response was withheld for size.
  *
- * The generic oversize hint offers a limit, a cursor and node filters; this tool
- * takes `tlmId` and `slot` and nothing else, so a caller following that advice has
- * no move to make. A section-spined document has a real answer — read it a section
- * at a time — but the withheld payload took the section ids down with it, so the
- * remedy has to say how to get them back.
+ * A LAST-RESORT backstop. documentSubgraph self-bounds — it sheds the curriculum,
+ * then the TLM subtree, then trims the section spine to a cursor — so a payload
+ * reaching this point means the envelope alone overflowed (a single enormous
+ * assemblyGuide, say), which no paging of the spine can fix. The generic oversize
+ * hint would offer node filters this tool does not have, so name the moves it does:
+ * shrink the page with `limit`, or skip the whole-document read.
  */
 export function documentOversizeRemedy(payload: Record<string, unknown>): string | undefined {
   const sections = payload.sections;
@@ -174,11 +190,12 @@ export function documentOversizeRemedy(payload: Record<string, unknown>): string
   }
 
   const tlmId = String(payload.tlm ?? "");
+  const total = payload.sectionsTotal ?? sections.length;
   return (
-    `This document is too large to read whole; it has ${sections.length} sections. ` +
-    `Read it one section at a time: call walk_graph(fromId:'${tlmId}', direction:'out', edgeTypes:['hasPart'], nodeTypes:['DocumentSection']) ` +
-    `for the section ids, then walk_document_section for each. ` +
-    `Do NOT retry walk_document — it has no limit or cursor to narrow.`
+    `This document overflowed even after self-bounding; it has ${total} sections. ` +
+    `Retry with a small \`limit\` (e.g. limit:20) and page with \`cursor\` to walk the spine, ` +
+    `or skip it: walk_graph(fromId:'${tlmId}', direction:'out', edgeTypes:['hasPart'], nodeTypes:['DocumentSection'], detail:'skeleton') ` +
+    `gives the section ids, then walk_document_section reads each one.`
   );
 }
 
@@ -389,8 +406,8 @@ export function registerGraphTools(server: McpServer) {
       title: "Walk the graph from a node",
       description:
         "The single generic read for every 'list / find / enumerate / traverse' need: a paginated BFS over the active subject's graph. Keep the defaults (limit:50, includeEdges:false) and narrow `nodeTypes` on top of them; page via `cursor` until nextCursor is null. Do NOT raise `limit` to fit a big result — the most common misuse, and it overflows the client. `direction:'both'` with no `nodeTypes` reaches the whole graph; narrow first. " +
-        "`direction`: 'out' follows edges from→to (a Course down to its parts), 'in' follows to→from (a standard up to its framework root), 'both' either. `edgeTypes` filters which edges to FOLLOW (empty ⇒ all); `nodeTypes` which nodes to RETURN — non-matching nodes are still traversed through, so filters compose. `maxDepth` default 3, max 10. `includeEdges` (default false) adds the traversed edges when you need the wiring; they dominate a page's size. `limit` max 500. `slot`: 'published' (default) or 'draft' (UNPUBLISHED staged edits — curators/approvers only). Read-only. " +
-        "Three independent flags say why a page stopped: `truncatedByLimit` (more nodes on further pages — call again with the cursor), `truncated` (the maxDepth cap hid deeper nodes — raise it), `truncatedBySize` (a BYTE budget trimmed the page below `limit` — raising limit will NOT help; set includeEdges:false, narrow nodeTypes, and page). `physicalSlot` names the slot ('a'/'b') the data came from, so you can confirm reads and writes agree after a publish. " +
+        "`direction`: 'out' follows edges from→to (a Course down to its parts), 'in' follows to→from (a standard up to its framework root), 'both' either. `edgeTypes` filters which edges to FOLLOW (empty ⇒ all); `nodeTypes` which nodes to RETURN — non-matching nodes are still traversed through, so filters compose. `maxDepth` default 3, max 10. `includeEdges` (default false) adds the traversed edges when you need the wiring; they dominate a page's size. `limit` max 500. `detail`: 'full' (default) returns each node's whole property bag; **'skeleton' returns identity, ordinal and kind only** (id, labels, description, position, and the LC kind fields normalizedType/normalizedStatementType/statementType/groupName/educationalUse), dropping every authored-prose field. USE 'skeleton' FOR ANY STRUCTURAL QUESTION — what is here, in what order, how many, which id is which. Authored prose is where the bytes are: a ci/maths DocumentSection carries several KB of assemblyGuide, so a full page returns ~4 of them where a skeleton page returns ~180. Read the handful of nodes you actually need in full detail afterwards, or via walk_document_section, which always returns full content. `slot`: 'published' (default) or 'draft' (UNPUBLISHED staged edits — curators/approvers only). Read-only. " +
+        "Three independent flags say why a page stopped: `truncatedByLimit` (more nodes on further pages — call again with the cursor), `truncated` (the maxDepth cap hid deeper nodes — raise it), `truncatedBySize` (a BYTE budget trimmed the page below `limit` — raising limit will NOT help; switch to detail:'skeleton', set includeEdges:false, narrow nodeTypes, and page). `physicalSlot` names the slot ('a'/'b') the data came from, so you can confirm reads and writes agree after a publish. " +
         "Examples: framework root → (fromId=<any standard>, direction='in', edgeTypes=['hasChild'], nodeTypes=['StandardsFramework']); the SFI spine → (fromId=<root>, direction='out', edgeTypes=['hasChild'], nodeTypes=['StandardsFrameworkItem']) paged to the end; a course subtree → (fromId=<courseId>, direction='out', edgeTypes=['hasPart','hasChild']).",
       inputSchema: {
         fromId: z.string(),
@@ -399,6 +416,7 @@ export function registerGraphTools(server: McpServer) {
         nodeTypes: z.array(z.string()).optional(),
         maxDepth: z.number().int().optional(),
         includeEdges: z.boolean().optional(),
+        detail: z.enum(["skeleton", "full"]).optional(),
         limit: z.number().int().optional(),
         cursor: z.string().optional(),
         slot: z.enum(["published", "draft"]).optional(),
@@ -413,13 +431,15 @@ export function registerGraphTools(server: McpServer) {
       title: "Resolve a document's generation scope",
       description:
         "The document-side counterpart to walk_graph: walk_graph reads the curriculum to TEACH, this reads the document to PRODUCE. Pass a TeachingLearningMaterial (TLM) id — a document root, from namespace_stats `roots`. Returns `assemblyGuide` (the document's authored 'how to build me' markdown, or null); `scope` — how the curriculum resolved: 'sections' (a DocumentSection spine), 'course' (the TLM→covers→Course fallback) or 'none'; `sections` (the spine in reading order, each naming the `parent` it hangs under — sections nest — and its `covers` targets, an EMPTY covers marking front matter or a pure grouping section); `document` (the TLM subtree: its Formatter/FormatterSpec stack and DocumentSections, with the covers edges); and `curriculum` (what it renders — pure hasPart/hasChild containment, NOT usesRoutine: formatting reaches generation through the TLM, not the curriculum). " +
-        "SELF-BOUNDED: a whole-Course document's curriculum is the whole graph, so when it would overflow, `curriculum` returns `{ tooLarge, counts, message }` while the guide, scope, spine and document subtree still ride. Do NOT retry — follow the message: with a section spine, call walk_document_section per `sections` id; otherwise page with walk_graph. Read-only. `slot`: 'published' (default) or 'draft' (UNPUBLISHED staged edits — curators/approvers only).",
+        "SELF-BOUNDED, so it answers rather than refusing. Parts are shed in order of how reachable they are elsewhere, each replaced by `{ tooLarge, counts, message }`: first `curriculum` (a whole-Course document's is the whole graph), then `document` (on live ci/maths its 579 DocumentSections are 2.3 MB — every one of them, plus the doc-wide formatter stack, comes back from walk_document_section, so this is a redirect and not a loss). `sections` is the part nothing else provides, so it is never dropped — only PAGED: `sectionsTotal` is the document's real count, and when a page is trimmed you get `sectionsTruncated`, a `nextCursor` to pass back as `cursor`, and a `spineNote`. `limit` caps the page yourself. The assemblyGuide and `scope` ride on every page. Do NOT retry a shed part — follow its message: call walk_document_section per `sections` id. Read-only. `slot`: 'published' (default) or 'draft' (UNPUBLISHED staged edits — curators/approvers only).",
       inputSchema: {
         tlmId: z.string(),
+        limit: z.number().int().optional(),
+        cursor: z.string().optional(),
         slot: z.enum(["published", "draft"]).optional(),
       },
     },
-    guarded(async (a: { tlmId: string; slot?: WalkSlot }) => {
+    guarded(async (a: DocumentToolArgs) => {
       const payload = await walkDocument(a);
       return asJson(payload, documentOversizeRemedy(payload));
     }),

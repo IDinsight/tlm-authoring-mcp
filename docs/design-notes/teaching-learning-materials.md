@@ -159,6 +159,38 @@ a dedicated `DocumentSection` label is the honest replacement.
 front-matter and its own chapter rhythm); the **teacher's guide** may be close enough to
 1:1 to stay `covers`-only. Both shapes coexist under one model.
 
+### Reading a document that is too big to read whole
+
+Once the spine is real data, a document can outgrow the response cap — and the biggest
+one does, by a lot. Measured on live `ci/maths`, `walk_document` on `Outil de l'élève`
+assembled **2,780,814 B against the 102,400 B cap**, so the whole payload was
+**withheld**: the caller paid the latency and got nothing. The original reader bounded
+only `curriculum`, on the reasoning that "the small parts (guide, spine, document)
+always ride" — but with 579 sections none of those parts is small: the TLM subtree is
+2.3 MB (≈4 KB of authored `assemblyGuide` per section, plus 55 KB of FormatterSpecs)
+and even the *lean* spine is 88.8 KB.
+
+So `documentSubgraph` sheds parts **in order of how reachable each one is elsewhere**,
+which keeps whatever only this tool can answer:
+
+| tier | shed | why it is safe |
+|---|---|---|
+| 1 | — | everything fits |
+| 2 | `curriculum` → `{tooLarge, counts, message}` | a whole-Course curriculum is essentially the whole graph; per-section via `walk_document_section` |
+| 3 | `document` → same marker | every node in it — sections *and* the doc-wide formatter stack — is returned by `walk_document_section`, so this is a **redirect, not a loss** |
+| 4 | `sections` trimmed to the byte budget | the spine is the fan-out list, so it is **paged, never dropped**: `sectionsTotal`, `sectionsTruncated`, `nextCursor`, `spineNote` |
+
+`limit` and `cursor` page the spine explicitly; without them the tool self-bounds and
+hands back a cursor. `assemblyGuide` and `scope` ride on every page, so a caller holding
+page 3 alone still knows which document it is in. The 2.78 MB refusal becomes **two
+pages of ~82 KB and ~37 KB** carrying all 579 sections, and the `ce1/reading` Guide —
+which also used to be withheld, at 122,905 B — comes back whole in **8.8 KB**.
+
+The cursor is validated by **round-trip**, not `try/catch`: Node's base64 decoder is
+lenient (`Buffer.from("!!!", "base64")` throws nothing and yields garbage), so a
+malformed cursor would otherwise be reported as "section not in this spine" and point
+the caller at the wrong problem.
+
 ## Where the document-specific logic lives — authored markdown, not code
 
 The document needs a place for its *own* generation logic ("one pupil page per lesson,

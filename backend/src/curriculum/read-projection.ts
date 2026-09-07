@@ -228,3 +228,65 @@ export function edgeOut(edge: RawEdge): EdgeOut {
   projectMetadata(out.properties);
   return out;
 }
+
+// ── Skeleton projection: structure without the prose ─────────────────────────
+
+/**
+ * The canonical LC properties a node keeps in SKELETON detail — everything
+ * needed to IDENTIFY a node, ORDER it among its siblings, and CLASSIFY it,
+ * and nothing that carries authored prose.
+ *
+ * Measured on the live ci/maths graph, one field — `metadata.assemblyGuide`,
+ * a section's authored "how to build me" instructions — is 99% of all metadata
+ * and 84% of a walk page. A `DocumentSection` averages 3.8 KB, so a page of the
+ * TLM's 579 sections delivered FOUR of them: enumerating that one document's
+ * spine cost ~145 round trips, and `walk_document`'s own overflow hint routes
+ * callers straight into it. Dropping the prose takes the same page to ~140-180
+ * nodes, which is what makes the structural browse a two-call job.
+ *
+ * These are all canonical LC field names, not subject vocabulary, so the set
+ * holds across subjects: the parser's own kind discriminators are here
+ * (`statementType` keys a StandardsFrameworkItem, `groupName` a LessonGrouping,
+ * `educationalUse` marks an Assessment), so a skeleton node still parses into
+ * the right kind — see docs/design-notes/canonical-lc-migration.md.
+ */
+const SKELETON_KEYS = new Set([
+  // Identity: `description` holds the display title on its first line.
+  "description",
+  // Order among siblings.
+  "position",
+  // Kind: container-vs-leaf, the category on a leaf, a grouping's own type, and
+  // the flag that makes a node an assessment.
+  "normalizedType",
+  "normalizedStatementType",
+  "statementType",
+  "groupName",
+  "educationalUse",
+]);
+
+/**
+ * Project a stored node down to its skeleton — identity, ordinal, kind. Callers
+ * that need a node's content read it in full detail, or reach for the
+ * per-section generation readers (walk_document_section) which always do.
+ */
+export function nodeSkeleton(node: RawNode): NodeOut {
+  const properties = node.properties ?? {};
+  const kept: Record<string, unknown> = {};
+
+  for (const key of SKELETON_KEYS) {
+    if (properties[key] !== undefined) {
+      kept[key] = properties[key];
+    }
+  }
+
+  return { id: node.id, labels: node.labels ?? [], properties: kept };
+}
+
+/**
+ * Project a stored edge down to its skeleton: the wiring only. An edge's
+ * properties are provenance and endpoint echoes once `edgeOut` has run, so in
+ * skeleton detail there is nothing left worth the bytes.
+ */
+export function edgeSkeleton(edge: RawEdge): EdgeOut {
+  return { id: edge.id, type: edge.type, start: edge.start, end: edge.end, properties: {} };
+}

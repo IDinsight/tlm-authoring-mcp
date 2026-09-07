@@ -15,7 +15,7 @@
  * removal it replaces: docs/design-notes/graph-native-authoring.md.
  */
 import type { CurriculumModel, RawGraphSnapshot } from "../types.js";
-import { nodeOut, edgeOut, type NodeOut, type EdgeOut } from "./read-projection.js";
+import { nodeOut, edgeOut, nodeSkeleton, edgeSkeleton, type NodeOut, type EdgeOut } from "./read-projection.js";
 import { responseBytes } from "../utils/index.js";
 
 type RawNode = RawGraphSnapshot["nodes"][number];
@@ -26,6 +26,15 @@ type RawEdge = RawGraphSnapshot["relationships"][number];
 // "both" follows either.
 export type WalkDirection = "out" | "in" | "both";
 
+// How much of each node to return. "skeleton" keeps identity, ordinal and kind
+// and drops every authored-prose field; "full" is the whole projected node.
+// The split exists because the walk serves two different jobs at very different
+// prices: BROWSING structure (what is here, in what order) and READING content.
+// A ci/maths DocumentSection carries ~3.5 KB of authored assembly prose, so a
+// full page of them delivers 4 nodes out of 579 — the browse was paying the
+// generation price on every call.
+export type WalkDetail = "skeleton" | "full";
+
 export type WalkArgs = {
   fromId: string;
   direction: WalkDirection;
@@ -33,6 +42,7 @@ export type WalkArgs = {
   nodeTypes?: string[];   // emit only nodes carrying one of these LC labels; empty/absent ⇒ all
   maxDepth?: number;      // hops from fromId; default 3, clamped to [1, MAX_DEPTH_CAP]
   includeEdges?: boolean; // default FALSE — opt in when you actually need to rebuild the subgraph
+  detail?: WalkDetail;    // default "full"; "skeleton" drops authored prose for ~15-35x more nodes per page
   limit?: number;         // page size; default DEFAULT_LIMIT, clamped to [1, MAX_LIMIT]
   cursor?: string;        // opaque, from a prior response's nextCursor
 };
@@ -71,8 +81,15 @@ const maxPageBytes = (): number => {
 // Told to the caller only when the byte budget (not the count) trimmed the page:
 // raising `limit` cannot help a size-bound page, so it points at the levers that
 // actually shrink each node's payload.
-const SIZE_TRIM_HINT =
-  "This page was trimmed to fit the response byte budget, so it holds fewer nodes than `limit` — raising `limit` will NOT help. To fit more per page: set includeEdges:false, narrow `nodeTypes` to only the labels you need, then keep paging with cursor:<nextCursor>.";
+const SIZE_TRIM_HINT_FULL =
+  "This page was trimmed to fit the response byte budget, so it holds fewer nodes than `limit` — raising `limit` will NOT help. These nodes carry long authored prose (a section's assemblyGuide runs to several KB), so the lever that actually works is detail:'skeleton' — identity, ordinal and kind only, typically 15-35x more nodes per page — and then read the few nodes you really need in full. Also set includeEdges:false and narrow `nodeTypes`, then keep paging with cursor:<nextCursor>.";
+
+// Already at skeleton detail and still size-trimmed: the prose lever is spent,
+// so this points at the remaining ones rather than repeating advice the caller
+// has taken. Telling a caller to "narrow nodeTypes" when they already did is
+// what made the old single hint a dead end.
+const SIZE_TRIM_HINT_SKELETON =
+  "This page was trimmed to fit the response byte budget even at detail:'skeleton', so it holds fewer nodes than `limit` — raising `limit` will NOT help. Set includeEdges:false if you have not, narrow `nodeTypes` to fewer labels, and keep paging with cursor:<nextCursor>: the remaining size is the node titles themselves, so paging is the only way through.";
 
 const clamp = (value: number, low: number, high: number): number => Math.min(high, Math.max(low, value));
 
@@ -191,15 +208,19 @@ function buildPage(
   nodeById: Map<string, RawNode>,
   traversedEdges: Map<string, RawEdge>,
   includeEdges: boolean,
+  detail: WalkDetail,
 ): { nodes: NodeOut[]; edges?: EdgeOut[] } {
-  const nodes = pageIds.map((id) => nodeOut(nodeById.get(id)!));
+  const projectNode = detail === "skeleton" ? nodeSkeleton : nodeOut;
+  const projectEdge = detail === "skeleton" ? edgeSkeleton : edgeOut;
+
+  const nodes = pageIds.map((id) => projectNode(nodeById.get(id)!));
   if (!includeEdges) {
     return { nodes };
   }
   const pageNodeIds = new Set(pageIds);
   const edges = [...traversedEdges.values()]
     .filter((edge) => pageNodeIds.has(edge.start) || pageNodeIds.has(edge.end))
-    .map(edgeOut);
+    .map(projectEdge);
   return { nodes, edges };
 }
 
@@ -217,11 +238,12 @@ function fitByByteBudget(
   nodeById: Map<string, RawNode>,
   traversedEdges: Map<string, RawEdge>,
   includeEdges: boolean,
+  detail: WalkDetail,
   budget: number,
 ): number {
   if (pageIds.length === 0) return 0;
   const bytesForPrefix = (count: number): number =>
-    pageBytes(buildPage(pageIds.slice(0, count), nodeById, traversedEdges, includeEdges));
+    pageBytes(buildPage(pageIds.slice(0, count), nodeById, traversedEdges, includeEdges, detail));
   if (bytesForPrefix(pageIds.length) <= budget) return pageIds.length;
 
   let low = 1;
@@ -261,6 +283,7 @@ export function walkGraph(model: CurriculumModel, args: WalkArgs): { error: stri
   const limit = clamp(args.limit ?? DEFAULT_LIMIT, 1, MAX_LIMIT);
   const nodeTypeFilter = args.nodeTypes && args.nodeTypes.length > 0 ? new Set(args.nodeTypes) : null;
   const includeEdges = args.includeEdges ?? false;
+  const detail = args.detail ?? "full";
 
   const traversal = traverse(raw, args, maxDepth);
   const nodeById = new Map(raw.nodes.map((node) => [node.id, node]));
@@ -295,13 +318,13 @@ export function walkGraph(model: CurriculumModel, args: WalkArgs): { error: stri
   // Page in two steps: first the count window (`limit`), then trim THAT window to
   // the byte budget, so a page never overflows the client on node payload size.
   const countWindowIds = orderedIds.slice(fromIndex, fromIndex + limit);
-  const fitCount = fitByByteBudget(countWindowIds, nodeById, traversal.traversedEdges, includeEdges, maxPageBytes());
+  const fitCount = fitByByteBudget(countWindowIds, nodeById, traversal.traversedEdges, includeEdges, detail, maxPageBytes());
   const pageIds = countWindowIds.slice(0, fitCount);
 
   const truncatedBySize = fitCount < countWindowIds.length;
   const hasMore = fromIndex + pageIds.length < orderedIds.length;
 
-  const page = buildPage(pageIds, nodeById, traversal.traversedEdges, includeEdges);
+  const page = buildPage(pageIds, nodeById, traversal.traversedEdges, includeEdges, detail);
 
   const result: WalkResult = {
     nodes: page.nodes,
@@ -322,7 +345,7 @@ export function walkGraph(model: CurriculumModel, args: WalkArgs): { error: stri
     result.edges = page.edges;
   }
   if (truncatedBySize) {
-    result.hint = SIZE_TRIM_HINT;
+    result.hint = detail === "skeleton" ? SIZE_TRIM_HINT_SKELETON : SIZE_TRIM_HINT_FULL;
   }
 
   return result;

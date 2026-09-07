@@ -10,6 +10,13 @@
  *     digest, with each area reachable by name — and nothing unreachable.
  *   • find_node took one query, so resolving 60 lesson names cost 60 round-trips
  *     and 60 graph loads. It now takes a batch against ONE load.
+ *   • walk_graph returned every node in full, and one authored field —
+ *     metadata.assemblyGuide — was 84% of a ci/maths page. A page of the live
+ *     document's DocumentSections held FOUR of 579, so enumerating one document's
+ *     spine cost ~145 round-trips. detail:'skeleton' drops the prose.
+ *   • walk_document budget-checked only its `curriculum`, so the TLM subtree —
+ *     2.3 MB on that same document — rode unbounded and the whole 2.78 MB payload
+ *     was WITHHELD by the response cap. It now sheds in tiers and pages the spine.
  */
 import { describe, it, expect, beforeAll, beforeEach, afterAll } from "vitest";
 import { readFileSync } from "node:fs";
@@ -25,7 +32,7 @@ import { edgeId as makeEdgeId } from "../../kg-store/index.js";
 import { listCatalog } from "../catalog.js";
 import { buildCapabilitiesReport, projectCapabilities, CAPABILITY_SECTIONS } from "../capabilities.js";
 import { runLintContent } from "../check.js";
-import { findActiveNodes } from "../graph.js";
+import { findActiveNodes, walkActiveGraph, walkDocument } from "../graph.js";
 import { responseBytes } from "../../utils/index.js";
 import type { Actor } from "../../actor.js";
 
@@ -218,6 +225,11 @@ describe("get_capabilities projects to a digest with every area reachable", () =
 let UNIQUE_NAME: string;
 let AMBIGUOUS_NAME: string;
 
+// The fixture's fattest document root — the TLM holding the most DocumentSections.
+// Read off the seed for the same reason the names above are: which document is
+// biggest is curriculum content, and pinning an id here would break on a refresh.
+let DOCUMENT_ROOT_ID: string;
+
 // First line of `description` is the display name find_node matches on.
 const firstLine = (node: { properties?: Record<string, unknown> }): string =>
   String(node.properties?.description ?? "").split("\n")[0].trim();
@@ -232,6 +244,34 @@ async function pickLandmarkNames(): Promise<void> {
   const sorted = [...counts].sort(([a], [b]) => a.localeCompare(b));
   UNIQUE_NAME = sorted.find(([name, n]) => n === 1 && name.length > 3 && name.length < 40)![0];
   AMBIGUOUS_NAME = sorted.find(([, n]) => n > 1)![0];
+
+  DOCUMENT_ROOT_ID = pickFattestDocumentRoot(raw);
+}
+
+// The TLM with the most DocumentSections under it by hasPart — the document whose
+// spine is expensive to enumerate, which is the case detail:'skeleton' exists for.
+function pickFattestDocumentRoot(raw: {
+  nodes: Array<{ id: string; labels?: string[] }>;
+  relationships: Array<{ type: string; start: string; end: string }>;
+}): string {
+  const isSection = new Set(
+    raw.nodes.filter((node) => (node.labels ?? []).includes("DocumentSection")).map((node) => node.id),
+  );
+  const sectionsUnder = new Map<string, number>();
+  for (const edge of raw.relationships) {
+    if (edge.type !== "hasPart" || !isSection.has(edge.end)) continue;
+    sectionsUnder.set(edge.start, (sectionsUnder.get(edge.start) ?? 0) + 1);
+  }
+
+  const roots = raw.nodes.filter((node) => (node.labels ?? []).includes("TeachingLearningMaterial"));
+  const ranked = roots
+    .map((root) => ({ id: root.id, sections: sectionsUnder.get(root.id) ?? 0 }))
+    .sort((left, right) => right.sections - left.sections);
+
+  if (ranked.length === 0 || ranked[0].sections === 0) {
+    throw new Error("Fixture holds no TeachingLearningMaterial with DocumentSections — the walk_graph detail tests need one.");
+  }
+  return ranked[0].id;
 }
 
 describe("find_node resolves a batch of names against one graph load", () => {
@@ -265,6 +305,118 @@ describe("find_node resolves a batch of names against one graph load", () => {
   it("refuses a call with neither query nor queries", async () => {
     const result = await asCurator(() => findActiveNodes({}));
     expect(String(result.error)).toContain("find_node needs");
+  });
+});
+
+// ── walk_graph detail, against the REAL fixture ──────────────────────────────
+// The mechanics are unit-tested in graph.test.ts on a hand-built graph. What
+// matters here is the MEASUREMENT on real authored data: the ci/maths fixture
+// carries the same multi-KB assemblyGuides live does, and it is the size of
+// those, not the node count, that bounds a page. Assertions are RELATIVE so a
+// fixture refresh cannot make them stale — only a regression in the projection
+// itself can fail them.
+describe("walk_graph pages the real document spine at skeleton detail", () => {
+  // Every DocumentSection reachable from the fixture's document root, so the
+  // walk is the one a caller actually makes when listing a document's sections.
+  const walkSections = (detail?: "skeleton" | "full") =>
+    asCurator(() =>
+      walkActiveGraph({
+        fromId: DOCUMENT_ROOT_ID,
+        direction: "out",
+        edgeTypes: ["hasPart"],
+        nodeTypes: ["DocumentSection"],
+        maxDepth: 10,
+        limit: 500,
+        detail,
+      }),
+    );
+
+  it("fits many times more sections per page than full detail", async () => {
+    const full = await walkSections("full");
+    const skeleton = await walkSections("skeleton");
+
+    const fullCount = (full.nodes as unknown[]).length;
+    const skeletonCount = (skeleton.nodes as unknown[]).length;
+
+    // Both pages are bounded by the same byte budget, so the ratio IS the win.
+    // Measured at ~18x on this fixture; 5x is a floor that only a regression trips.
+    expect(skeletonCount).toBeGreaterThan(fullCount * 5);
+  });
+
+  it("drops the authored prose and keeps what identifies and orders a section", async () => {
+    const skeleton = await walkSections("skeleton");
+    const sections = skeleton.nodes as Array<{ properties: Record<string, unknown> }>;
+    expect(sections.length).toBeGreaterThan(0);
+
+    for (const section of sections) {
+      // The field that was 84% of the page is gone everywhere, not just on average.
+      expect(section.properties.metadata).toBeUndefined();
+      expect(section.properties.content).toBeUndefined();
+      // A caller can still name the section and place it in reading order.
+      expect(typeof section.properties.description).toBe("string");
+    }
+  });
+
+  it("still returns the prose at full detail, so generation is unaffected", async () => {
+    const full = await walkSections("full");
+    const sections = full.nodes as Array<{ properties: Record<string, unknown> }>;
+    const withGuide = sections.filter((section) => {
+      const metadata = section.properties.metadata as Record<string, unknown> | undefined;
+      return typeof metadata?.assemblyGuide === "string";
+    });
+    // The fixture's sections are authored, so full detail must still carry them.
+    expect(withGuide.length).toBeGreaterThan(0);
+  });
+});
+
+// ── walk_document self-bounding, against the REAL fixture ────────────────────
+// The tiers and the cursor are unit-tested in graph.test.ts on staged documents.
+// What matters here is that the fixture's genuinely huge document — the one the
+// live server withheld at 2,780,814 B against a 102,400 B cap — now ANSWERS, and
+// that paging it delivers every section exactly once.
+describe("walk_document answers on the fixture's largest document", () => {
+  // Read from the response cap the server actually enforces, so raising the cap
+  // cannot leave this test asserting a stale number.
+  const responseCap = () => Number(process.env.TLM_MAX_RESPONSE_BYTES) || 102_400;
+
+  it("returns every page under the response cap, and the whole spine across them", async () => {
+    const pages: Array<Record<string, unknown>> = [];
+    await asCurator(async () => {
+      let cursor: string | undefined;
+      for (let page = 0; page < 40; page++) {
+        const result = await walkDocument({ tlmId: DOCUMENT_ROOT_ID, cursor });
+        pages.push(result);
+        if (!result.nextCursor) break;
+        cursor = result.nextCursor as string;
+      }
+    });
+
+    // Nothing is withheld any more: the cap is never reached.
+    for (const page of pages) {
+      expect(responseBytes(page)).toBeLessThanOrEqual(responseCap());
+    }
+
+    const total = pages[0].sectionsTotal as number;
+    expect(total).toBeGreaterThan(100); // the fixture's big document, not a stub
+
+    const seen = pages.flatMap((page) => (page.sections as Array<{ id: string }>).map((section) => section.id));
+    expect(seen).toHaveLength(total);       // no section lost to the budget
+    expect(new Set(seen).size).toBe(total); // and none served twice
+  });
+
+  it("keeps the assembly guide on every page and redirects the parts it shed", async () => {
+    const page = await asCurator(() => walkDocument({ tlmId: DOCUMENT_ROOT_ID }));
+
+    // The guide is the document's "how to build me" — small, and useless to defer.
+    expect(typeof page.assemblyGuide).toBe("string");
+    expect((page.assemblyGuide as string).length).toBeGreaterThan(0);
+
+    // This document is far over budget, so both heavy parts are shed — each with a
+    // route, because a marker without one just moves the dead end.
+    const document = page.document as { tooLarge?: true; message?: string };
+    expect(document.tooLarge).toBe(true);
+    expect(document.message).toMatch(/walk_document_section/);
+    expect((page.curriculum as { tooLarge?: true }).tooLarge).toBe(true);
   });
 });
 
