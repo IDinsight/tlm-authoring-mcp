@@ -19,7 +19,8 @@
     "seed:catalog": "npm run build && node scripts/seed-catalog.mjs",
     "import:glossary": "npm run build && node scripts/import-glossary.mjs",
     "refresh:fixtures": "npm run build && node scripts/refresh-fixtures.mjs",
-    "check:fixtures": "npm run build && node scripts/refresh-fixtures.mjs --check"
+    "check:fixtures": "npm run build && node scripts/refresh-fixtures.mjs --check",
+    "extract:render-spec": "npm run build && node scripts/extract-render-spec.mjs"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.29.0",
