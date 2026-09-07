@@ -94,7 +94,7 @@ describe("documentSectionSubgraph — a lesson section inheriting the Course rou
 
   it("renders the covered lesson's pure containment subtree", () => {
     expect(scope.covers).toEqual(["les-1"]);
-    expect(ids(scope.curriculum.nodes)).toEqual(new Set(["les-1", "act-1"]));
+    expect(ids(scope.curriculum!.nodes)).toEqual(new Set(["les-1", "act-1"]));
   });
 
   it("falls through to the covered Course's routine (curriculum tier) when neither the section nor the TLM carries one", () => {
@@ -106,7 +106,7 @@ describe("documentSectionSubgraph — a lesson section inheriting the Course rou
   });
 
   it("unions the TLM's doc-wide stack with the section's own formatters, excluding sibling sections", () => {
-    expect(ids(scope.formatters.nodes)).toEqual(new Set(["fmt-doc", "spec-doc", "fmt-sec"]));
+    expect(ids(scope.formatters!.nodes)).toEqual(new Set(["fmt-doc", "spec-doc", "fmt-sec"]));
   });
 });
 
@@ -125,12 +125,12 @@ describe("documentSectionSubgraph — a front-matter section (empty covers)", ()
 
   it("covers nothing and renders no curriculum, but still resolves its document + formatters", () => {
     expect(scope.covers).toEqual([]);
-    expect(scope.curriculum.nodes).toEqual([]);
+    expect(scope.curriculum!.nodes).toEqual([]);
     expect(scope.document!.id).toBe("tlm");
     // no covers ⇒ no curriculum ancestry, and neither section nor TLM has a routine
     expect(scope.routine).toBeNull();
     // the doc-wide stack still applies; this section's own sibling formatter joins it
-    expect(ids(scope.formatters.nodes)).toEqual(new Set(["fmt-doc", "spec-doc", "fmt-sib"]));
+    expect(ids(scope.formatters!.nodes)).toEqual(new Set(["fmt-doc", "spec-doc", "fmt-sib"]));
   });
 });
 
@@ -191,12 +191,12 @@ describe("documentSectionSubgraph — a section nested inside another section", 
   });
 
   it("unions the stacks on its own path — its own, the part's, the document's — and no sibling's", () => {
-    expect(ids(scope.formatters.nodes)).toEqual(new Set(["fmt-doc", "spec-doc", "fmt-part", "fmt-sec"]));
+    expect(ids(scope.formatters!.nodes)).toEqual(new Set(["fmt-doc", "spec-doc", "fmt-part", "fmt-sec"]));
   });
 
   it("keeps the part's own stack out of a SIBLING section's formatters", () => {
     const sibling = scopeOf(documentSectionSubgraph(modelC, "sec-2"));
-    expect(ids(sibling.formatters.nodes)).toEqual(new Set(["fmt-doc", "spec-doc"]));
+    expect(ids(sibling.formatters!.nodes)).toEqual(new Set(["fmt-doc", "spec-doc"]));
   });
 });
 
@@ -217,7 +217,7 @@ describe("documentSectionSubgraph — edge cases", () => {
     const scope = scopeOf(documentSectionSubgraph(orphan, "lone-sec"));
     expect(scope.document).toBeNull();
     expect(scope.routine).toBeNull();
-    expect(scope.formatters.nodes).toEqual([]);
+    expect(scope.formatters!.nodes).toEqual([]);
   });
 });
 
@@ -260,7 +260,7 @@ describe("documentSectionSubgraph — bounded without ever refusing", () => {
     // what "nearest wins" means when the render bags are merged.
     expect(scope.formatterStackOrder).toEqual(["fmt-doc", "spec-doc", "fmt-sec"]);
     // …and every id in it resolves in `formatters.nodes`, so nothing is dangling.
-    const present = ids(scope.formatters.nodes);
+    const present = ids(scope.formatters!.nodes);
     for (const id of scope.formatterStackOrder) expect(present.has(id)).toBe(true);
   });
 
@@ -299,13 +299,13 @@ describe("documentSectionSubgraph — bounded without ever refusing", () => {
     const skeleton = scopeOf(documentSectionSubgraph(modelA, "sec-1", { detail: "skeleton" }));
 
     // Context thins: the covered curriculum keeps identity but loses its prose.
-    expect(ids(skeleton.curriculum.nodes)).toEqual(ids(full.curriculum.nodes));
-    expect(skeleton.curriculum.nodes.every((n) => n.properties.metadata === undefined)).toBe(true);
+    expect(ids(skeleton.curriculum!.nodes)).toEqual(ids(full.curriculum!.nodes));
+    expect(skeleton.curriculum!.nodes.every((n) => n.properties.metadata === undefined)).toBe(true);
 
     // What you came for does not: the same formatters, in the same order, and the
     // section's own node still carries its full properties.
     expect(skeleton.formatterStackOrder).toEqual(full.formatterStackOrder);
-    expect(ids(skeleton.formatters.nodes)).toEqual(ids(full.formatters.nodes));
+    expect(ids(skeleton.formatters!.nodes)).toEqual(ids(full.formatters!.nodes));
     expect(skeleton.section).toEqual(full.section);
   });
 
@@ -326,5 +326,81 @@ describe("documentSectionSubgraph — bounded without ever refusing", () => {
     const foreign = Buffer.from("fmt-sib", "utf8").toString("base64");
     const wrong = documentSectionSubgraph(modelA, "sec-1", { cursor: foreign });
     expect(wrong && "error" in wrong && wrong.error).toMatch(/not in this section's stack/);
+  });
+});
+
+/*
+ * `include` — dropping the parts a caller already holds.
+ *
+ * THE DEFECT. Every part of a section's scope except the section itself is
+ * DOCUMENT-level: the assembly guide, the formatter stack and the covered
+ * curriculum are identical across all of a document's sections. Producing a
+ * document section by section therefore re-receives them once per section, which
+ * a real session measured at ~78 KB a section on the live ce1/reading Guide.
+ *
+ * `detail:"skeleton"` already thins those parts, but thinner is not the same as
+ * gone: a caller who HAS the formatters wants them absent, not smaller.
+ *
+ * The subtle requirement is what must SURVIVE an omission, and both cases here
+ * are ones a naive implementation gets wrong.
+ */
+describe("documentSectionSubgraph — include", () => {
+  it("returns every part when include is omitted, exactly as before", () => {
+    const all = scopeOf(documentSectionSubgraph(modelA, "sec-1"));
+    const explicit = scopeOf(documentSectionSubgraph(modelA, "sec-1", { include: ["document", "curriculum", "routine", "formatters"] }));
+
+    expect(explicit).toEqual(all);
+    // Nothing was left out, so nothing is reported as left out.
+    expect(all.omitted).toBeUndefined();
+  });
+
+  it("drops the parts not asked for and NAMES them", () => {
+    const lean = scopeOf(documentSectionSubgraph(modelA, "sec-1", { include: [] }));
+
+    expect(lean.curriculum).toBeUndefined();
+    expect(lean.formatters).toBeUndefined();
+    expect(lean.routine).toBeUndefined();
+    // This is the part that matters: `routine: null` means "no routine applies to
+    // this section", and a caller that read a MISSING routine as that would
+    // compose the section with no routine at all. So the omission is stated.
+    expect(lean.omitted).toEqual(["document", "curriculum", "routine", "formatters"]);
+  });
+
+  it("keeps the document's IDENTITY when the document is omitted, and only sheds its weight", () => {
+    const lean = scopeOf(documentSectionSubgraph(modelA, "sec-1", { include: [] }));
+
+    // A caller still has to know which TLM this section belongs to; what it does
+    // not need again is the assembly guide, which is most of the bytes.
+    expect(lean.document!.id).toBe("tlm");
+    expect(lean.document!.assemblyGuide).toBeUndefined();
+    expect(lean.document!.node).toBeUndefined();
+    expect(lean.document!.assemblyGuideOmitted).toBe(true);
+  });
+
+  it("keeps formatterStackOrder when the formatters themselves are omitted", () => {
+    const all = scopeOf(documentSectionSubgraph(modelA, "sec-1"));
+    const lean = scopeOf(documentSectionSubgraph(modelA, "sec-1", { include: ["routine"] }));
+
+    // Without the precedence order the saving would be useless: the caller would
+    // hold the `render` bags and have no idea which one wins.
+    expect(lean.formatterStackOrder).toEqual(all.formatterStackOrder);
+    expect(lean.formatters).toBeUndefined();
+  });
+
+  it("keeps `covers` always, so a front-matter section stays recognisable", () => {
+    // covers is a handful of ids and it is what distinguishes a front-matter
+    // section from one that renders curriculum — omitting it would hide that.
+    expect(scopeOf(documentSectionSubgraph(modelA, "sec-1", { include: [] })).covers).toEqual(["les-1"]);
+    expect(scopeOf(documentSectionSubgraph(modelA, "sec-front", { include: [] })).covers).toEqual([]);
+  });
+
+  it("is materially smaller than the full read", () => {
+    const bytes = (scope: DocumentSectionScope) => JSON.stringify(scope).length;
+    const all = scopeOf(documentSectionSubgraph(modelA, "sec-1"));
+    const lean = scopeOf(documentSectionSubgraph(modelA, "sec-1", { include: [] }));
+
+    // The synthetic graph is tiny; the real one is 78 KB a section. Asserting a
+    // ratio rather than a byte count keeps this honest as the fixture changes.
+    expect(bytes(lean)).toBeLessThan(bytes(all) * 0.7);
   });
 });

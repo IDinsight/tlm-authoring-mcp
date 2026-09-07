@@ -297,6 +297,45 @@ describe("editable and rules come from the real sources (no hand-copied literals
     expect(caps.catalog.editVerbs).toEqual(CATALOG_WRITE_VERBS);
   });
 
+  it("perCallContext names every tool that actually takes a `context` argument", async () => {
+    /*
+     * Same mirror property as catalog.editVerbs above, and the same failure mode.
+     * `perCallContext` is PROSE — it has to be, because it explains a hazard — so
+     * nothing stops a new namespace-scoped tool from being added while the prose
+     * still lists the six graph readers it started with.
+     *
+     * That matters more here than for most fields. A caller reads this to decide
+     * whether it may safely fan out, and the tools most in need of `context` are
+     * the ones where drift is silent: a document write authorized in one namespace
+     * and landing in another. Prose that under-reports the surface would tell a
+     * caller to work around a hazard that is already handled, or worse, that a
+     * tool is safe when it has no override at all.
+     *
+     * So this test IS the derivation: it asks the assembled server which tools
+     * advertise `context` and requires the prose to name each of them.
+     */
+    const client = new Client({ name: "test-client", version: "0.0.0" });
+    const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
+    await Promise.all([client.connect(clientTransport), buildServer().connect(serverTransport)]);
+    let advertising: string[];
+    try {
+      advertising = (await client.listTools()).tools
+        .filter((tool) => "context" in ((tool.inputSchema as { properties?: Record<string, unknown> }).properties ?? {}))
+        .map((tool) => tool.name);
+    } finally {
+      await client.close();
+    }
+
+    // A sanity floor: if this ever reads zero the filter has broken, and every
+    // assertion below would pass vacuously.
+    expect(advertising.length).toBeGreaterThan(10);
+
+    const caps = await withActiveContext(CURATOR, callGetCapabilities);
+    const prose = String(caps.discovery.perCallContext);
+    const unnamed = advertising.filter((tool) => !prose.includes(tool));
+    expect(unnamed).toEqual([]);
+  });
+
   it("catalog advertises its tools + browse resource; canUse mirrors the apply gate", async () => {
     const caps = await withActiveContext(CURATOR, callGetCapabilities);
     expect(caps.catalog.browse).toBe(true);   // list_catalog is an ungated read

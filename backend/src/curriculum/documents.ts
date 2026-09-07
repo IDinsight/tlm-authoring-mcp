@@ -653,11 +653,26 @@ export function formatterStackFor(model: CurriculumModel, nodeId: string): RawNo
 // formatters (doc-wide + this section's own).
 export type DocumentSectionScope = {
   section: NodeOut;
-  document: { id: string; assemblyGuide: string | null; node: NodeOut } | null;
+  /*
+   * The owning document. When `include` leaves the document out, the IDENTITY
+   * survives (`id`, and `assemblyGuideOmitted`) and only the weight goes — a
+   * caller still needs to know which TLM this section belongs to, and on the
+   * live ci/maths spine the assembly guide alone is most of a page's bytes.
+   */
+  document: { id: string; assemblyGuide?: string | null; node?: NodeOut; assemblyGuideOmitted?: true } | null;
   covers: string[];                                    // [] ⇒ front-matter (cover, TOC, intro)
-  curriculum: { nodes: NodeOut[]; edges: EdgeOut[] };  // pure hasPart/hasChild from the covers targets
-  routine: SectionRoutine | null;
-  formatters: { nodes: NodeOut[]; edges: EdgeOut[] };  // the TLM's doc-wide stack ∪ this section's own
+  curriculum?: { nodes: NodeOut[]; edges: EdgeOut[] };  // pure hasPart/hasChild from the covers targets
+  routine?: SectionRoutine | null;
+  formatters?: { nodes: NodeOut[]; edges: EdgeOut[] };  // the TLM's doc-wide stack ∪ this section's own
+  /*
+   * The parts `include` left out.
+   *
+   * Stated explicitly because absence is AMBIGUOUS in this shape and the two
+   * meanings matter: `routine: null` means no routine applies to this section,
+   * while a missing `routine` means you did not ask for it. A caller that read
+   * the second as the first would compose a section with no routine at all.
+   */
+  omitted?: SectionPart[];
   // The formatters' PRECEDENCE ORDER as ids — doc-wide first, this section's own
   // last. Merging their `render` bags in this order is what "nearest wins" means;
   // `formatters` above is the subgraph, which has no order. Ids rather than nodes:
@@ -673,8 +688,29 @@ export type DocumentSectionScope = {
   stackNote?: string;
 };
 
-/** Paging + verbosity for one section's scope. */
-export type SectionScopeOptions = { detail?: "skeleton" | "full"; cursor?: string };
+/*
+ * The parts of a section's scope a caller can ask for.
+ *
+ * WHY AN ALLOWLIST. Every part here is document-level except the section itself:
+ * the assembly guide, the formatter stack and the covered curriculum are
+ * IDENTICAL across all of a document's sections. A caller producing a document
+ * section by section therefore re-receives them once per section — measured at
+ * ~78 KB a section on the live ce1/reading Guide, of which the parts that change
+ * are a small fraction. Fetch the document once, then ask for the section alone.
+ *
+ * `detail:"skeleton"` already trims the same parts, but trimming is not the same
+ * as not sending: a caller who HAS the formatters wants them gone, not smaller.
+ */
+export const SECTION_PARTS = ["document", "curriculum", "routine", "formatters"] as const;
+export type SectionPart = (typeof SECTION_PARTS)[number];
+
+/** Paging + verbosity + which parts to send, for one section's scope. */
+export type SectionScopeOptions = {
+  detail?: "skeleton" | "full";
+  cursor?: string;
+  /** Parts to include. Omitted ⇒ all of them, which is the previous behaviour. */
+  include?: SectionPart[];
+};
 
 /*
  * Why this reader bounds itself DIFFERENTLY from documentSubgraph.
@@ -709,23 +745,33 @@ export function documentSectionSubgraph(
   const skeleton = options.detail === "skeleton";
   const projectContext = skeleton ? nodeSkeleton : nodeOut;
 
+  // No `include` means every part, so an existing caller is unaffected.
+  const wanted = new Set<SectionPart>(options.include ?? SECTION_PARTS);
+  const omitted = SECTION_PARTS.filter((part) => !wanted.has(part));
+
   // Everything above the section on the document axis: the sections it is nested
   // in (nearest first) and the document at the top.
   const ancestry = documentAncestry(raw, sectionId);
   const tlm = ancestry.tlm;
   const document = tlm
-    ? { id: tlm.id, assemblyGuide: assemblyGuideOf(tlm), node: projectContext(tlm) }
+    ? wanted.has("document")
+      ? { id: tlm.id, assemblyGuide: assemblyGuideOf(tlm), node: projectContext(tlm) }
+      : { id: tlm.id, assemblyGuideOmitted: true as const }
     : null;
 
   // The curriculum this slot renders: the section's covers targets and their pure
-  // containment subtree. An empty covers marks a front-matter section.
+  // containment subtree. An empty covers marks a front-matter section. `covers`
+  // itself is always sent — it is a handful of ids, and it is what tells a
+  // front-matter section from one that renders curriculum.
   const covers = raw.relationships.filter((e) => e.type === "covers" && e.start === sectionId).map((e) => e.end);
   const curriculumIds = descendants(raw, covers, CURRICULUM_EDGES);
-  const curriculum = skeleton
-    ? { nodes: raw.nodes.filter((n) => curriculumIds.has(n.id)).map(nodeSkeleton), edges: [] }
-    : inducedSubgraph(raw, curriculumIds, CURRICULUM_EDGES);
+  const curriculum = !wanted.has("curriculum")
+    ? undefined
+    : skeleton
+      ? { nodes: raw.nodes.filter((n) => curriculumIds.has(n.id)).map(nodeSkeleton), edges: [] }
+      : inducedSubgraph(raw, curriculumIds, CURRICULUM_EDGES);
 
-  const routine = resolveSectionRoutine(raw, sectionId, ancestry, covers);
+  const routine = wanted.has("routine") ? resolveSectionRoutine(raw, sectionId, ancestry, covers) : undefined;
 
   // Formatters: every stack on this section's OWN path — its own, those of the
   // sections it is nested in, and the owning TLM's doc-wide stack. Sibling sections'
@@ -747,15 +793,20 @@ export function documentSectionSubgraph(
     section: nodeOut(section),   // always full: it carries this slot's assemblyGuide
     document,
     covers,
-    curriculum,
-    routine,
+    ...(curriculum ? { curriculum } : {}),
+    ...(routine !== undefined ? { routine } : {}),
+    ...(omitted.length ? { omitted } : {}),
   };
+  // `formatterStackOrder` survives even when the formatters themselves are
+  // omitted: it is a list of ids, and it is the PRECEDENCE a caller needs to
+  // merge the `render` bags it already holds. Dropping it would make the saving
+  // useless — you would have the bags and no idea which one wins.
   const assemble = (ids: string[]): DocumentSectionScope => {
-    const truncated = ids.length < remainingIds.length;
+    const truncated = wanted.has("formatters") && ids.length < remainingIds.length;
     const last = ids[ids.length - 1];
     return {
       ...base,
-      formatters: inducedSubgraph(raw, new Set(ids), new Set([DOCUMENT_EDGE])),
+      ...(wanted.has("formatters") ? { formatters: inducedSubgraph(raw, new Set(ids), new Set([DOCUMENT_EDGE])) } : {}),
       formatterStackOrder: ids,
       ...(truncated && last
         ? {

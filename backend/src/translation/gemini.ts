@@ -30,7 +30,18 @@ export type TranslateResult = {
   sourceLanguage: "French" | "Wolof";
   targetLanguage: "French" | "Wolof";
   model: string;
-  glossaryTermsUsed: number;
+  /*
+   * The term bank this translation was actually grounded in — the entries, not a
+   * count of them.
+   *
+   * It used to be `glossaryTermsUsed: 5`, which told a caller that grounding had
+   * happened but nothing about what it grounded ON. Reported from a real session:
+   * a Wolof rendering had mis-grounded a geometry term onto an instrument, and it
+   * was caught only by someone reading the Wolof and noticing. Had the response
+   * said `Droite → Rëdd-jub`, the same mistake would have been visible without
+   * reading Wolof at all. The count is `glossaryTerms.length`.
+   */
+  glossaryTerms: GlossaryTerm[];
 };
 
 // Human-readable direction instruction handed to the model.
@@ -54,8 +65,13 @@ const RESPONSE_SCHEMA = {
 
 // Render the glossary as a term bank the model should prefer over its own
 // wording — this is what keeps translations consistent with existing materials.
+// A term with no Wolof rendering grounds nothing, so it is neither sent to the
+// model nor reported back as used. Shared by the prompt and the response so the
+// term bank a caller is told about is exactly the one the model was given.
+export const usableTerms = (glossary: GlossaryTerm[]): GlossaryTerm[] => glossary.filter((t) => t.wolof);
+
 function glossaryBlock(glossary: GlossaryTerm[]): string {
-  const usable = glossary.filter((t) => t.wolof);
+  const usable = usableTerms(glossary);
   if (usable.length === 0) return "";
   const lines = usable.map((t) => `- ${t.francais} = ${t.wolof}`).join("\n");
   return (
@@ -129,6 +145,6 @@ export async function translate(input: TranslateInput): Promise<TranslateResult>
     sourceLanguage: parsed.sourceLanguage as TranslateResult["sourceLanguage"],
     targetLanguage: parsed.targetLanguage as TranslateResult["targetLanguage"],
     model,
-    glossaryTermsUsed: glossary.filter((t) => t.wolof).length,
+    glossaryTerms: usableTerms(glossary),
   };
 }

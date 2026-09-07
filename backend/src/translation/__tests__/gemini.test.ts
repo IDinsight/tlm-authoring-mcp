@@ -70,7 +70,8 @@ describe("translate — Gemini FR↔Wolof service", () => {
       sourceLanguage: "Wolof",
       targetLanguage: "French",
       model: "gemini-3.6-flash",
-      glossaryTermsUsed: 1,
+      // The term bank the call was grounded in, reported back in full.
+      glossaryTerms: [{ francais: "compter", wolof: "waññ" }],
     });
   });
 
