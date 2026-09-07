@@ -18,7 +18,7 @@ import { getStorageAdapter, extractDocxText, listEntries, recordContent, reconci
 import { readDocx, sourcesFrom, staleness, type DocumentSource } from "../render/index.js";
 import type { HistoryEntry } from "../types.js";
 import { WORKSPACE_ROLE_NOTE } from "./tool-notes.js";
-import { DETAIL_LEVELS, DEFAULT_DETAIL, takeWithinBudget, trimmedBySizeHint, type DetailLevel } from "../utils/index.js";
+import { DETAIL_LEVELS, DEFAULT_DETAIL, takeWithinBudget, trimmedBySizeHint, pageBudgetBytes, type DetailLevel } from "../utils/index.js";
 
 // A file is identified by its path, and a node holds as many as it needs. Both
 // write tools say so, because the mental model they replaced was the opposite.
@@ -188,11 +188,6 @@ function projectDocument(entry: HistoryEntry, detail: DetailLevel): DocumentRow 
   return entry as unknown as DocumentRow;   // 'full' — today's payload, unchanged
 }
 
-// Well under the 100 KB response cap, leaving room for the envelope. At 'full'
-// a page reaches this long before it reaches `limit`, and is trimmed with a
-// cursor rather than refused.
-const DOCUMENTS_PAGE_MAX_BYTES = 60 * 1024;
-
 // A node with no ordinal (or gone from the graph) sorts after every numbered one.
 const unitRank = (u: number | null | undefined): number => (u == null ? Infinity : u);
 
@@ -267,7 +262,10 @@ export function pageDocuments(
   const projected = rows.map(({ e, ord }) => ({ ord, e, row: projectDocument(e, detail) }));
   // Measure only the projected row: `ord` and the full entry ride alongside for
   // the cursor and are never sent.
-  const { page, trimmedBySize } = takeWithinBudget(projected, limit, DOCUMENTS_PAGE_MAX_BYTES, (row) => row.row);
+  // The budget comes from the response cap, leaving room for the envelope: at
+  // 'full' a page reaches it long before it reaches `limit`, and is trimmed with
+  // a cursor rather than refused.
+  const { page, trimmedBySize } = takeWithinBudget(projected, limit, pageBudgetBytes(), (row) => row.row);
 
   const last = page[page.length - 1];
   const nextCursor = projected.length > page.length && last

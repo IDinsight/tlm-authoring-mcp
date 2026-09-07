@@ -191,6 +191,33 @@ lenient (`Buffer.from("!!!", "base64")` throws nothing and yields garbage), so a
 malformed cursor would otherwise be reported as "section not in this spine" and point
 the caller at the wrong problem.
 
+### The budget only helps if it is set below the CLIENT's limit
+
+The self-bounding above was measured against the server's own 100 KB response cap — and
+that cap was set higher than what a client will accept. Claude Code refuses a tool
+result over **25k tokens**; a `walk_document_section` read of one `ci/maths` lesson sheet
+with `include:['formatters'], detail:'skeleton'` — the exact shape a generation session
+asks for — came to **72.8 KB, untruncated**. It cleared the 80 KB document budget,
+cleared the 100 KB cap, and was thrown away on arrival. That is the worst outcome
+available: the caller pays for the read and receives nothing, and the paging built for
+precisely this case never fires.
+
+The error was in the bytes→tokens conversion. ~3.8 bytes/token holds for English; these
+payloads are accented French prose inside JSON, which runs nearer 2.8 — so 100 KB is not
+"~27k tokens" as the constant claimed but nearer 36k, and 72.8 KB is already past 25k.
+
+Two things changed, both in [`backend/src/utils/server.ts`](../../backend/src/utils/server.ts):
+
+- the cap dropped to **60 KB** (~21k tokens of French JSON), which still clears the
+  largest legitimate response — `get_capabilities`, 38.5 KB on the `ci/maths` fixture;
+- every paged reader now **derives** its budget from that cap (`pageBudgetBytes()`,
+  three quarters of it) instead of keeping its own constant. Four readers each carried a
+  hand-written "well under the 100 KB cap" number, and two of them — `list_documents`
+  and `list_catalog` — sat at exactly 60 KB, so a moved cap would have left them
+  overflowing the very ceiling they were sized against.
+
+The 14-formatter stack that used to arrive whole and be discarded now pages in two.
+
 ## Where the document-specific logic lives — authored markdown, not code
 
 The document needs a place for its *own* generation logic ("one pupil page per lesson,

@@ -13,7 +13,7 @@ a hosted React app behind Supabase auth. Inside a Claude chat we want the same
 picture on demand — "show me this chapter" — without sending the user to another
 site, and without shipping a 2000-node app or a big blob through an MCP tool
 response (tool responses are token-budgeted; see `docs/design-notes/kg-mutations/`
-and the 100 KB `asJson` cap).
+and the `asJson` cap).
 
 ## The shape
 

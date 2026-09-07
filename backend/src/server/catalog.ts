@@ -38,7 +38,7 @@ import { parkWrapperContext, readWrapperContext, deleteWrapperContext } from "./
 // verbs (edit_nodes / add_nodes / create_edges) share for their `catalog` redirect.
 import { resolveCatalogTarget } from "./catalog-target.js";
 import { PARKED_PAYLOAD_NOTE } from "./tool-notes.js";
-import { displayName, takeWithinBudget, trimmedBySizeHint } from "../utils/index.js";
+import { displayName, takeWithinBudget, trimmedBySizeHint, pageBudgetBytes } from "../utils/index.js";
 
 // Read one catalog namespace's published slot as a plain MutationGraph. Empty when
 // that namespace has never been seeded (no pointer). Exported for tests.
@@ -452,11 +452,6 @@ const namesOnly = (entry: CatalogEntry): CatalogEntryName => ({
 const DEFAULT_CATALOG_LIMIT = 50;
 const MAX_CATALOG_LIMIT = 200;
 
-// A page's byte budget, well under the 100 KB response cap so the envelope and
-// the scope list always fit. `detail:'full'` entries average ~2.5 KB, so a page
-// of them reaches this long before it reaches `limit`.
-const CATALOG_PAGE_MAX_BYTES = 60 * 1024;
-
 // Stable total order, so a cursor means the same thing on the next call: scope,
 // then kind, then name, with the id as the final tie-break.
 function compareEntries(left: CatalogEntry, right: CatalogEntry): number {
@@ -502,7 +497,10 @@ export async function listCatalog(args: ListCatalogArgs = {}): Promise<Record<st
   const remaining = matching.slice(startIndex);
 
   const projected: Array<CatalogEntry | CatalogEntryName> = detail === "full" ? remaining : remaining.map(namesOnly);
-  const { page, trimmedBySize } = takeWithinBudget(projected, limit, CATALOG_PAGE_MAX_BYTES);
+  // The page's byte budget comes from the response cap so the envelope and the
+  // scope list always fit. `detail:'full'` entries average ~2.5 KB, so a page of
+  // them reaches the budget long before it reaches `limit`.
+  const { page, trimmedBySize } = takeWithinBudget(projected, limit, pageBudgetBytes());
 
   const lastOnPage = page[page.length - 1];
   const hasMore = page.length < remaining.length;
