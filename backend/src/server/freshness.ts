@@ -61,18 +61,42 @@ export type Freshness = {
   /** Only the documents needing attention — a list of "all fine" is noise. */
   documents: DocumentFreshness[];
   note?: string;
+  /** Set when the audit could not be read, so `unknown` rows went unexplained. */
+  auditUnavailable?: string;
 } | { unavailable: string };
 
 /*
- * The newest graph edit to `nodeId` after `since`, or null.
+ * The namespace's audit records, read at most ONCE per call.
  *
- * `since` bounds the query rather than filtering afterwards: the only thing
- * being asked is whether anything happened AFTER the file was written, so a
- * current file reads almost no records.
+ * WHY NOT A BOUNDED QUERY. The natural shape is `namespace == ns AND ts >= the
+ * file's mtime` — only records newer than the file can matter. Firestore needs a
+ * composite (namespace, ts) index for that, and there is none, so the query
+ * fails with FAILED_PRECONDITION. It did, live, on the first section read after
+ * this shipped: no test could catch it because the in-memory test store needs no
+ * indexes. The single-predicate shape below is the one read_audit already uses
+ * in production, so it is known to work.
+ *
+ * The cost is that the whole namespace's audit is read rather than its tail. It
+ * is paid once per call and only when there is an `unknown` document to explain
+ * — see the note in freshnessFor. Creating the (namespace, ts) index would let
+ * the bounded query come back; until then this is correct and slower.
+ *
+ * NEVER THROWS. This field is a convenience on a read whose actual job is the
+ * curriculum. Letting an audit problem take down walk_document_section would be
+ * a far worse defect than the one the field exists to catch — which is exactly
+ * what happened. `null` means "could not ask", and the caller is told so.
  */
-async function lastEditAfter(namespace: string, nodeId: string, since: string): Promise<string | null> {
-  const records: AuditRecord[] = await getKgStore().listAudit({ namespace, sinceTs: since });
-  const touching = records.filter((record) => applyTouchesNode(record, nodeId));
+async function auditRecordsOrNull(namespace: string): Promise<AuditRecord[] | null> {
+  try {
+    return await getKgStore().listAudit({ namespace });
+  } catch {
+    return null;
+  }
+}
+
+/** The newest edit to `nodeId` after `since`, from records already in hand. */
+function lastEditAfter(records: readonly AuditRecord[], nodeId: string, since: string): string | null {
+  const touching = records.filter((record) => record.ts > since && applyTouchesNode(record, nodeId));
   if (touching.length === 0) return null;
   return touching.reduce((newest, record) => (record.ts > newest ? record.ts : newest), touching[0].ts);
 }
@@ -163,11 +187,42 @@ export async function freshnessFor(
     }
 
     counts.unknown += 1;
-    // The audit fallback, for this bucket only. A file with no mtime cannot be
-    // compared to anything, so it stays a plain unknown.
-    const lastEdit = entry.updated ? await lastEditAfter(namespace, entry.nodeId, entry.updated) : null;
-    rows.push(lastEdit ? { ...base, lastGraphEdit: lastEdit, olderThanGraph: true } : base);
+    rows.push(base);
   }
 
-  return { counts, documents: rows, note: summarise(rows, counts) };
+  /*
+   * Explain the unknown rows from ONE audit read, or say that could not be done.
+   *
+   * Deferred to here rather than done per row so the audit is read once, and
+   * skipped entirely when every document has an anchored verdict — an anchored
+   * verdict is a content comparison and must not be second-guessed by a
+   * timestamp anyway.
+   */
+  const unknownRows = rows.filter((row) => row.state === "unknown" && row.updated);
+  let auditUnavailable = false;
+  if (unknownRows.length > 0) {
+    const records = await auditRecordsOrNull(namespace);
+    if (records === null) {
+      auditUnavailable = true;
+    } else {
+      for (const row of unknownRows) {
+        const lastEdit = lastEditAfter(records, row.nodeId, row.updated!);
+        if (lastEdit) {
+          row.lastGraphEdit = lastEdit;
+          row.olderThanGraph = true;
+        }
+      }
+    }
+  }
+
+  return {
+    counts,
+    documents: rows,
+    note: summarise(rows, counts),
+    // Said out loud: an unknown row with no timestamp verdict because the audit
+    // could not be read must not read as one that was checked and found current.
+    ...(auditUnavailable
+      ? { auditUnavailable: "The audit could not be read, so the unknown documents above were NOT compared against the graph's last edit. Their state is unestablished, not current." }
+      : {}),
+  };
 }
