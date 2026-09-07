@@ -5,7 +5,7 @@
  * subjects, curricula or Firestore: it takes the tree an authoring model
  * composed and the spec a formatter stack resolved to, and lays out a page.
  */
-export { documentSchema, blockSchema, validateDocumentTree } from "./document.js";
+export { documentSchema, blockSchema, validateDocumentTree, missingMediaNames } from "./document.js";
 export type { Block, Cell, Run, ImageRun, DocumentTree } from "./document.js";
 export { renderDocx } from "./docx.js";
 export { resolveRenderSpec, type ResolvedSpec, type SpecCarrier } from "./resolve-spec.js";

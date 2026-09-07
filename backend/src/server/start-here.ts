@@ -159,6 +159,16 @@ export async function startHere(): Promise<Record<string, unknown>> {
           "One edit went wrong? undo_last takes back just the last one; discard_draft throws the whole draft away.",
         ]
       : []),
+    /*
+     * Say that the three checkers exist, and what each one is for.
+     *
+     * A real session hand-rolled greps for things lint_content already checks —
+     * a placeholder left in clear, an answer label out of sequence, a colour
+     * that should not be there — without knowing a linter was there to ask. The
+     * checks were not missing; the pointer to them was. So the pointer is here,
+     * where a session starts, rather than left to be discovered.
+     */
+    "Before anything goes out, three different checks — they do not overlap: check_draft (is it wired up?), lint_content (does what is written contradict itself? pass `document` + `nodeId` and it checks a composed PAGE against its formatter geometry too), review_draft (does it teach what the subject's guide expects?).",
     ...(draftOpen && !review ? ["Finished for now? request_review marks the draft ready so whoever publishes knows to look."] : []),
     ...(findings.length > 0 ? ["Pick up the unfinished work listed in `unfinished`."] : []),
   ];

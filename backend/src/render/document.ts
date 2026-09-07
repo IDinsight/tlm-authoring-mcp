@@ -167,3 +167,42 @@ export function validateDocumentTree(tree: unknown): string[] {
     return `document.${path}: ${issue.message}`;
   });
 }
+
+/*
+ * Pictures the page places that the document does not carry.
+ *
+ * Its own function because two callers need the same answer for different
+ * reasons, and a second copy would be the one that goes wrong: `lint_content`
+ * reports these as findings before a render is attempted, and `render_document`
+ * REFUSES on them.
+ *
+ * The refusal is the important half. `drawingXml` resolves a picture's
+ * relationship id with `?? "rId1"`, so a name matching no media entry does not
+ * fail — it embeds THE FIRST PICTURE IN THE DOCUMENT instead. The output looks
+ * finished, is wrong in that one slot, and nothing about it invites a second
+ * look. Refusing costs a caller one corrected name; not refusing costs somebody
+ * a proof-read they had no reason to make.
+ */
+export function missingMediaNames(tree: { blocks: Block[]; media?: { name: string }[] }): string[] {
+  const carried = new Set((tree.media ?? []).map((entry) => entry.name));
+  const missing = new Set<string>();
+
+  const walk = (blocks: readonly Block[]): void => {
+    for (const block of blocks) {
+      if (block.kind === "line") {
+        for (const run of block.runs) {
+          if ("image" in run && !carried.has(run.image.media)) missing.add(run.image.media);
+        }
+      }
+      if (block.kind === "table") {
+        // Cells hold blocks and a block may be another table — the pupil tool's
+        // answer grids nest, and most of its pictures are inside them.
+        for (const row of block.rows) {
+          for (const cell of row) walk(cell.blocks);
+        }
+      }
+    }
+  };
+  walk(tree.blocks);
+  return [...missing];
+}

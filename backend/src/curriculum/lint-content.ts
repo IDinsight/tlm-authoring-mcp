@@ -16,16 +16,19 @@
  *
  * WHAT EACH RULE NEEDS, AND WHY IT IS DECLARED
  *
- * The roadmap defines this checker over a rendered BLOCK TREE — the ordered
- * banners, bullets and image slots a renderer produces. That block tree does not
- * exist yet (it is WP4's, and WP4 is blocked). But most of the rules that pay for
- * themselves today read the GRAPH, not a page: whether a total matches its parts
- * has nothing to do with how anything is printed.
+ * The roadmap defines this checker over two things: the authored GRAPH, and a
+ * composed BLOCK TREE. Most of the rules that pay for themselves read the graph
+ * — whether a total matches its parts has nothing to do with how anything is
+ * printed — so those are here, and each declares `requires: "graph"`.
  *
- * So every rule declares its `requires`. The graph rules run now; the block-tree
- * rules are added against the same interface when there is a page to read, with
- * no redesign. `lintableRules()` is what the tool runs; the rest are advertised
- * as pending so what is NOT yet checked stays visible.
+ * The block-tree rules now exist too, in `lint-page.ts`: they run when a caller
+ * passes a page, against the merged `render` geometry the server resolves for
+ * it. They live in their own file because they read a different thing, not
+ * because they are lesser — a mistyped style silently renders as body text, and
+ * that is the class of error a human proof-reader is worst at.
+ *
+ * `lintableRules()` is what the tool runs from HERE; `rulesPending` reports the
+ * page rules only while no page was sent, so what is not checked stays visible.
  *
  * FINDINGS ARE ENGLISH, like every other server-authored string — one deployment
  * serves six workspaces and only one works in French, so the payload cannot pick
@@ -58,8 +61,10 @@ const titleOf = (node: MutationNode): string =>
  * `metadata.lintIgnore: ["rubric-weights-sum"]` on the node suppresses that rule
  * there, and only there. A curator adds one without a deploy.
  */
-function ignoredRules(node: MutationNode): Set<string> {
-  const declared = metaOf(node).lintIgnore;
+export function ignoredRules(node: MutationNode | undefined): Set<string> {
+  // Absent is legitimate: a page can be composed for a node the caller is not
+  // also reading the graph of. Nothing is silenced, which is the safe default.
+  const declared = node ? metaOf(node).lintIgnore : undefined;
   return new Set(Array.isArray(declared) ? declared.filter((rule): rule is string => typeof rule === "string") : []);
 }
 
@@ -450,10 +455,95 @@ const centimetresIn = (text: string): number[] =>
 const pointsIn = (text: string): number[] =>
   [...text.matchAll(/(\d+(?:[.,]\d+)?)\s*(?:pt|points?)\b/gi)].map(([, value]) => Number(value.replace(",", ".")));
 
+/*
+ * Colour names a formatter's prose might use, and the hex each one means.
+ *
+ * WHY NAMES AND NOT SHADES. This rule only ever compares a name against a name.
+ * A declared `1F7A1F` is a brand green, not "vert", so it is never matched
+ * against prose saying vert — the two sides may legitimately differ in shade and
+ * a lint that argued about it would cry wolf. Both spellings are listed because
+ * the Senegal catalog is French while another subject's guide may not be.
+ *
+ * The consequence of getting this wrong is the worst kind: white text on a white
+ * fill is INVISIBLE, the page count is unaffected, and no measurement catches
+ * it. Someone has to look at the page — which is how the live case was found.
+ */
+const COLOUR_NAMES: Record<string, string> = {
+  noir: "000000", black: "000000",
+  blanc: "FFFFFF", white: "FFFFFF",
+  rouge: "FF0000", red: "FF0000",
+  vert: "008000", green: "008000",
+  bleu: "0000FF", blue: "0000FF",
+  jaune: "FFFF00", yellow: "FFFF00",
+  gris: "808080", grey: "808080", gray: "808080",
+};
+
+/** A declared hex, normalised for comparison: no '#', upper case. */
+const normaliseHex = (value: unknown): string | null =>
+  typeof value === "string" && /^#?[0-9a-fA-F]{6}$/.test(value) ? value.replace("#", "").toUpperCase() : null;
+
+/** The canonical NAME a declared hex spells exactly, or null for any other shade. */
+function nameOfHex(hex: string): string | null {
+  for (const [name, value] of Object.entries(COLOUR_NAMES)) {
+    if (value === hex) return name;
+  }
+  return null;
+}
+
+/*
+ * The colour the prose says the TEXT is, if it says exactly one.
+ *
+ * Scoped to the CLAUSE the word "texte" sits in, not a character window around
+ * it. A formatter's prose routinely names several colours in one sentence —
+ * « fond vert, texte NOIR gras » — and any window wide enough to catch the
+ * colour after the noun also catches the fill's colour six characters before it,
+ * which reads as ambiguity and silences the rule on the very case it is for.
+ *
+ * The clause is the natural unit: the comma is what separates the fill from the
+ * lettering, in both languages. It also keeps the rule working where the
+ * adjective LEADS the noun ("black text") rather than following it.
+ *
+ * Two different colours in the clauses that mention text means the prose really
+ * is describing more than one thing, so nothing is claimed.
+ */
+function proseTextColour(prose: string): string | null {
+  const names = new Set<string>();
+  for (const clause of prose.split(/[,;.:!?—–\n\r()]+/)) {
+    if (!/\b(?:textes?|text|lettrage|police)\b/i.test(clause)) {
+      continue;
+    }
+    const lower = clause.toLowerCase();
+    for (const [name, hex] of Object.entries(COLOUR_NAMES)) {
+      if (new RegExp(`\\b${name}\\b`).test(lower)) names.add(hex);
+    }
+  }
+  return names.size === 1 ? [...names][0] : null;
+}
+
+/*
+ * Every declared text colour in a render bag, with a label saying where it is.
+ *
+ * `type.colour` is the body text; each entry of `blocks` may override it for one
+ * block kind. Both are checked, because the live disagreement was on a BLOCK
+ * (a phase banner) and a rule that only read `type` would have missed it.
+ */
+function declaredTextColours(render: Record<string, any>): Array<{ where: string; hex: string }> {
+  const out: Array<{ where: string; hex: string }> = [];
+  const body = normaliseHex(render.type?.colour);
+  if (body) out.push({ where: "type.colour", hex: body });
+
+  const blocks = render.blocks as Record<string, { textColour?: unknown }> | undefined;
+  for (const [kind, style] of Object.entries(blocks ?? {})) {
+    const hex = normaliseHex(style?.textColour);
+    if (hex) out.push({ where: `blocks.${kind}.textColour`, hex });
+  }
+  return out;
+}
+
 const renderContradictsProse: ContentRule = {
   id: "render-contradicts-prose",
   requires: "graph",
-  summary: "A formatter's `render` values must not contradict the prose beside them.",
+  summary: "A formatter's `render` values must not contradict the prose beside them — page size, body size, margins, and the text colour.",
   check: ({ graph }) => {
     const findings: LintFinding[] = [];
     for (const node of graph.nodes) {
@@ -494,6 +584,20 @@ const renderContradictsProse: ContentRule = {
       const namedCm = [...new Set(centimetresIn(prose))];
       if (uniqueDeclared.length === 1 && namedCm.length === 1 && namedCm[0] !== uniqueDeclared[0]) {
         conflicts.push(`render says the margins are ${uniqueDeclared[0]} cm, the prose says ${namedCm[0]} cm`);
+      }
+
+      // Text colour: only when the prose names ONE colour for the text and the
+      // declared value spells a DIFFERENT canonical colour exactly. The live
+      // case was `blocks.<banner>.textColour: "FFFFFF"` beside prose reading
+      // « texte NOIR gras » — white lettering where black was specified.
+      const proseColour = proseTextColour(prose);
+      if (proseColour) {
+        for (const declared of declaredTextColours(render)) {
+          const declaredName = nameOfHex(declared.hex);
+          if (declaredName && declared.hex !== proseColour) {
+            conflicts.push(`render says ${declared.where} is ${declared.hex} (${declaredName}), the prose says the text is ${nameOfHex(proseColour)}`);
+          }
+        }
       }
 
       if (conflicts.length === 0) {

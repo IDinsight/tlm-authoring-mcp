@@ -262,6 +262,63 @@ describe("a formatter's declared values against its own prose", () => {
     expect(lintContent({ graph })[0].message).toContain("11 pt");
   });
 
+  /*
+   * Text colour, added after a live formatter was found declaring
+   * `textColour: "FFFFFF"` next to prose reading « texte NOIR gras ». The rule
+   * covered page size, body size and margins and so had no opinion on it.
+   *
+   * It is the worst kind of disagreement to leave to a human: white lettering on
+   * a white fill is INVISIBLE, the page count is unaffected, and no measurement
+   * catches it. Someone has to look at the page, which is how it was found.
+   */
+  it("catches the live case: white lettering where the prose says black", () => {
+    const graph = formatter({
+      content: "BANDEAU DE PHASE — fond vert, texte NOIR gras, centré.",
+      render: { blocks: { bandeau: { fill: "1F7A1F", textColour: "FFFFFF" } } },
+    });
+    const [finding] = lintContent({ graph });
+
+    expect(finding.rule).toBe("render-contradicts-prose");
+    expect(finding.message).toContain("blocks.bandeau.textColour");
+    expect(finding.message).toContain("blanc");
+    expect(finding.message).toContain("noir");
+  });
+
+  it("checks the body text colour too, not only a block's", () => {
+    const graph = formatter({ content: "Le texte du corps est en noir.", render: { type: { colour: "#FFFFFF" } } });
+    expect(lintContent({ graph })[0].message).toContain("type.colour");
+  });
+
+  it("stays quiet when the declared colour is a SHADE rather than a named colour", () => {
+    // A brand green is not "vert", and arguing about which green would make the
+    // rule cry wolf — so a name is only ever compared against a name.
+    const shade = formatter({ content: "Le texte est vert.", render: { type: { colour: "1F7A1F" } } });
+    expect(lintContent({ graph: shade })).toEqual([]);
+  });
+
+  it("stays quiet when the prose names a colour for the FILL, not the text", () => {
+    // The commonest shape in the live catalog — a coloured panel with white
+    // lettering — and a rule that pooled every colour in the prose would flag it.
+    const fillOnly = formatter({
+      content: "BANDEAU — fond noir, pleine largeur.",
+      render: { blocks: { bandeau: { fill: "000000", textColour: "FFFFFF" } } },
+    });
+    expect(lintContent({ graph: fillOnly })).toEqual([]);
+  });
+
+  it("stays quiet when the prose names two colours near the text", () => {
+    const ambiguous = formatter({
+      content: "Le texte est noir, sauf le texte des bandeaux qui est blanc.",
+      render: { type: { colour: "000000" } },
+    });
+    expect(lintContent({ graph: ambiguous })).toEqual([]);
+  });
+
+  it("agrees when they agree", () => {
+    const agreeing = formatter({ content: "Texte en blanc sur le bandeau.", render: { blocks: { b: { textColour: "FFFFFF" } } } });
+    expect(lintContent({ graph: agreeing })).toEqual([]);
+  });
+
   it("stays quiet when the prose names SEVERAL sizes — it cannot tell which is meant", () => {
     const ambiguous = formatter({
       content: "Le corps est à 11 points ; les en-têtes à 12 points.",
