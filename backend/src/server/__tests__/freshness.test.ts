@@ -166,6 +166,100 @@ describe("the unknown bucket — where the reported case actually sat", () => {
   });
 });
 
+/*
+ * The regression this suite could not have caught, and now does.
+ *
+ * The audit fallback was first written as `listAudit({ namespace, sinceTs })` —
+ * only records newer than the file can matter, so bounding the query was the
+ * obvious shape. Firestore needs a composite (namespace, ts) index for it and
+ * there is none, so live it failed with FAILED_PRECONDITION. The in-memory test
+ * store needs no indexes, so all nine tests above passed against it.
+ *
+ * And the blast radius was the whole read: no live document has anchors, so
+ * every document is `unknown`, so every section covering one threw — taking
+ * walk_document_section down for a convenience field on it.
+ *
+ * Two lessons, both pinned below: the query uses the single-predicate shape
+ * read_audit already runs in production, and a failure here degrades instead of
+ * propagating.
+ */
+describe("an audit that cannot be read", () => {
+  const brokenAudit = (base: KgNodeStore): KgNodeStore => ({
+    ...base,
+    listAudit: async () => { throw new Error("9 FAILED_PRECONDITION: The query requires an index."); },
+  });
+
+  it("degrades to an unexplained unknown instead of failing the read", async () => {
+    const result = await run(CURATOR, async () => {
+      const node = aNodeWithContent();
+      __setStorageForTest(storageWithHistory([entry({ nodeId: node.id, relPath: "lecon_03/Pupil.docx" })]));
+      __setKgStoreForTest(brokenAudit(store));
+      return freshnessFor(ns, getActiveAdapter().model(), [node.id]);
+    });
+
+    // The curriculum read this field rides must survive: nothing thrown.
+    expect((result as any).documents[0].state).toBe("unknown");
+    expect((result as any).documents[0].olderThanGraph).toBeUndefined();
+    // And an unchecked row must not read as a checked-and-clean one.
+    expect(String((result as any).auditUnavailable)).toMatch(/NOT compared/);
+  });
+
+  it("does not read the audit at all when every document has an anchored verdict", async () => {
+    let reads = 0;
+    const counting: KgNodeStore = { ...store, listAudit: async (q) => { reads += 1; return store.listAudit(q); } };
+
+    await run(CURATOR, async () => {
+      const node = aNodeWithContent();
+      __setStorageForTest(storageWithHistory([
+        entry({ nodeId: node.id, relPath: "a.docx", sources: [{ nodeId: node.id, hash: hashContent(node.content) }] }),
+      ]));
+      __setKgStoreForTest(counting);
+      return freshnessFor(ns, getActiveAdapter().model(), [node.id]);
+    });
+
+    // An anchored verdict is a CONTENT comparison and must not be second-guessed
+    // by a timestamp, so there is nothing to ask the audit about.
+    expect(reads).toBe(0);
+  });
+
+  it("reads the audit ONCE however many unknown documents there are", async () => {
+    let reads = 0;
+    const counting: KgNodeStore = { ...store, listAudit: async (q) => { reads += 1; return store.listAudit(q); } };
+
+    await run(CURATOR, async () => {
+      const node = aNodeWithContent();
+      __setStorageForTest(storageWithHistory([
+        entry({ nodeId: node.id, relPath: "a.docx" }),
+        entry({ nodeId: node.id, relPath: "b.docx" }),
+        entry({ nodeId: node.id, relPath: "c.docx" }),
+      ]));
+      __setKgStoreForTest(counting);
+      return freshnessFor(ns, getActiveAdapter().model(), [node.id]);
+    });
+
+    // A CI-maths lesson has four files. Without the index the whole namespace's
+    // audit is read, so reading it per row would be four times the cost.
+    expect(reads).toBe(1);
+  });
+
+  it("asks with the single-predicate shape production is known to serve", async () => {
+    const queries: unknown[] = [];
+    const spying: KgNodeStore = { ...store, listAudit: async (q) => { queries.push(q); return store.listAudit(q); } };
+
+    await run(CURATOR, async () => {
+      const node = aNodeWithContent();
+      __setStorageForTest(storageWithHistory([entry({ nodeId: node.id, relPath: "a.docx" })]));
+      __setKgStoreForTest(spying);
+      return freshnessFor(ns, getActiveAdapter().model(), [node.id]);
+    });
+
+    // `sinceTs` alongside `namespace` is what needed the missing composite index.
+    // The date filter is applied in memory instead. If a (namespace, ts) index is
+    // ever created, this assertion is the thing to revisit — deliberately.
+    expect(queries).toEqual([{ namespace: ns }]);
+  });
+});
+
 describe("what it costs and who may see it", () => {
   it("says nothing at all when the read covers nothing — a front-matter section", async () => {
     const result = await run(CURATOR, () => freshnessFor(ns, getActiveAdapter().model(), []));
