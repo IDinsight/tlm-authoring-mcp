@@ -5,20 +5,38 @@
 `backend/src/__golden__/` (renamed from `__spike__` when it stopped being throwaway work). The operational manual for the live tools is [`docs/technical-reference/rendering.md`](../technical-reference/rendering.md). Still missing before WP4 is done: writing the CANONICAL bucket and history (output is preview-only
 today). Page counting is built but **unverified end to end** — see below.
 
+> **Nothing has ever been rendered from graph geometry.** Not one node in either Senegal subject
+> carries a `properties.render` bag — zero in both committed fixtures, zero across the live ci/maths
+> nodes. Every field of the spec below is optional, so an empty stack used to parse as a VALID spec
+> and produce a clean-looking unstyled file with `formatters: []`, which reads as success;
+> `render_document` now refuses instead, naming the formatters that apply and carry no geometry.
+> Until one formatter carries a bag, the whole path downstream of the stack merge is unreachable —
+> and that includes `measure:true`, so the page budget cannot be checked either. The values to
+> transcribe are in `producteur-fiches-v5`'s `build.py`.
+
 ## Why a spike rather than a decision
 
 WP4 needs a program that turns authored curriculum into a `.docx`. That program existed — seven
 Python scripts on one laptop — and the roadmap called WP4 "blocked without them: they are the
 specification of correct output."
 
-They are gone. `producteur-fiches-v4.tgz`, which held the renderer and its three checking tools, is
-not on the machine, in Spotlight, or in the Trash; only the illustration-dossier bundle survived.
-So WP4 is a rebuild whichever language it lands in, and "port the Python or ship Python alongside"
-was never the real question.
+They were gone when this spike began: `producteur-fiches-v4.tgz`, which held the renderer and its
+three checking tools, was not on the machine, in Spotlight, or in the Trash. So WP4 was a rebuild
+whichever language it landed in, and "port the Python or ship Python alongside" was never the real
+question.
 
-What survived is better: the **twenty sheets produced on 2 September 2026** — lessons 1–10, French
-and Wolof — plus the preview PDF and the note recording what was changed and why. Output, not
-specification. That turns the language question into an empirical one: build one sheet in the
+**Since then the Python has been rebuilt as `producteur-fiches-v5`, and it is the authoritative
+geometry** — `~/Desktop/Maths CI new lessons/Guide d'utilisation de l'outil de l'élève/Outputs/_producteur/`,
+6 September 2026, whose readme says it replaces v4 "qui avait disparu avec son environnement". Its
+`build.py` carries the page, type, banner colours and image ceilings; `controle.py` runs ten checks
+on the produced document; `autofit.py`/`degraisse.py`/`ajuste.py` are the measured tightening loop.
+Read `build.py` before trusting any geometry written down here or anywhere else. It still does not
+read the graph — it reads a transcription in `data/lNN.py` — which its own readme names as the next
+thing to do, and which is what `render_document` exists to end. It lives on one laptop, like the
+corpus.
+
+What survived is better: the **twenty sheets** — lessons 11–20, French and Wolof — plus a preview
+PDF per lesson and the note recording what was changed and why. Output, not specification. That turns the language question into an empirical one: build one sheet in the
 server's own runtime, hold it against the real file, and see what fights back.
 
 ## What the corpus settled first
@@ -30,15 +48,22 @@ produced sheet. All twenty real sheets agree with each other and with the notes:
 
 | | bucket draft | the produced sheets |
 |---|---|---|
-| Margins | 1.4 / 1.5 cm | **2.5 cm, all four** |
-| Line height | 12 pt, automatic | **15.5 pt, exact** |
-| Body | 10 pt | **12 pt** |
+| Margins | 1.4 / 1.5 cm | **1.22 top / 1.07 bottom / 1.27 left / 1.27 right** |
+| Line height | 12 pt, automatic | **14 pt, exact** |
+| Body | 10 pt | **12 pt Andika** |
 | Pictures | none | 9–10, at most 2 embedded per séance |
 | Page break | none | carried by the séance banner |
 
-Nineteen pages in the preview PDF: nine lessons at two pages, plus lesson 5 — a single séance — at
-one. The languages are two files from one source: every French file carries black and red and never
-blue, every Wolof file black and blue and never red.
+Twenty pages across the ten French PDFs — **every sheet exactly two**, which is what makes
+`budget.maxPages: 2` a measurement rather than an aspiration. The languages are two files from one
+source: every French file carries black and red and never blue, every Wolof file black and blue and
+never red.
+
+> **Measure the applied style, never `docDefaults`.** A sheet's `docDefaults` reads 11 pt with
+> automatic leading — the Word template's own default, overridden by the `Normal` style that every
+> paragraph uses (`w:ascii="Andika"`, `w:sz="24"`, `w:line="280" w:lineRule="exact"`). Reading the
+> defaults is how the margins and leading in this table came to be wrong for a fortnight; they now
+> agree with `build.py` and with the twenty sheets' own XML.
 
 ## What the spike is
 
@@ -56,9 +81,17 @@ same code carries a second document type (`PUPIL_DIR`). Neither runs without its
 `__golden__/teacher-sheet.golden.test.ts` reads `Guide-Lecon-1-ensembles-FR.docx` into the model, renders it again from
 scratch, and compares. It skips unless `GOLDEN_DIR` names the folder holding the sheets.
 
+> **That target no longer exists, so the teacher-sheet comparison cannot run.** The corpus on disk
+> is lessons 11–20, each sheet one level down in its own `lecon_NN/` folder — there is no lesson 1
+> and nothing flat at the `Outputs` root for `join(GOLDEN_DIR, …)` to find. The test does not fail;
+> it SKIPS, exactly as it does when the corpus is absent altogether, which is why this went unnoticed.
+> Repointing it is not a path fix: its expectations are lesson 1's own counts and leading
+> distribution, so a new target needs its expectations re-derived from that sheet.
+
 **The corpus lives on one laptop and nowhere else.** It is not in the bucket, not in the repo (a
-megabyte a sheet), and it is the only definition of correct output the project has. Backing it up
-somewhere durable is worth doing before it is needed.
+megabyte a sheet), and — with `producteur-fiches-v5` beside it — it is the only definition of
+correct output the project has. Backing both up somewhere durable is worth doing before it is
+needed.
 
 ## What it reproduces
 

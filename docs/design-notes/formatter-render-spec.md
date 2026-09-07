@@ -1,7 +1,9 @@
 # The formatter's declarative half — `properties.render`
 
-**Status:** Live (schema + authoring-time validation). The renderer that consumes it does not exist
-yet — see "What this does not do" below.
+**Status:** Live (schema + authoring-time validation). **The renderer that consumes it now exists** —
+`backend/src/render/`, reachable as `render_document`; see
+[`renderer-spike.md`](renderer-spike.md). What is still missing is DATA: no formatter in either
+Senegal subject carries a `render` bag, so the renderer refuses for want of geometry.
 
 ## The problem
 
@@ -85,7 +87,7 @@ that make these knobs rather than constants.
 
 The transcribed fixtures came from the formatters' prose. On 3 September 2026 the same document
 type was read a second way: straight out of the twenty `.docx` produced on 2 September (lessons
-1–10, FR and WO), by measuring the XML rather than believing a note. Everything validated on the
+11–20, FR and WO), by measuring the XML rather than believing a note. Everything validated on the
 first attempt — ten banner fills, three language variants routed by colour and file suffix, image
 heights by role, the aspect-ratio rule that sends a band full width, the banner-carried page break
 — **except two keys, both about the line-height RULE**:
@@ -98,18 +100,26 @@ heights by role, the aspect-ratio rule that sends a band full width, the banner-
 So the schema could hold the setting that caused the worst defect of the production run and not the
 one that fixed it. Both keys are now in it, with `atLeast` alongside — the three rules OOXML has.
 
-The measured fixture also disagrees with the transcribed one on three values: leading 15.5 vs 19.35
-pt, 45 vs 36 lines per page, 0.547 vs 0.68 cm per line. The graph still carries Andika's natural
-leading; every produced sheet carries the tightened value. Both are valid specs and nothing in this
-schema can say which is current — that is WP7's job, and this is a worked example of why it exists.
+The measured fixture also disagrees with the transcribed one: the graph still carries Andika's
+natural leading, every produced sheet carries the tightened value, and nothing in this schema can
+say which is current — that is WP7's job, and this is a worked example of why it exists.
+
+**The measured column was itself wrong, and its three numbers came from one misreading.** It gave
+leading as 15.5 pt with 45 lines per page and 0.547 cm per line. The sheets' tightened leading is
+**14 pt exact** (`producteur-fiches-v5`'s `build.py`, and the `Normal` style in all twenty sheets:
+`w:line="280" w:lineRule="exact"`) — and 0.547 cm is exactly 15.5 pt converted, so the lines-per-page
+and cm-per-line figures were derived from the bad value rather than measured. They are not restated
+here on purpose: this schema's own comment records that a computed budget ran a third optimistic, so
+`budget.linesPerPage` wants a render and a count, not arithmetic from `type`.
 
 ## What this does not do
 
-It does not render anything. `generate_document` and `measure_document` do not exist, and building
-them needs a decision that has not been made: rebuild the renderer in Node, or ship Python alongside
-the server. This is no longer a *porting* choice — the renderer's source (`producteur-fiches-v4.tgz`)
-is lost, so either path is a rebuild against the golden corpus. Nothing here depends on that choice — the schema was written from the two
-formatters' prose, not from any renderer's API.
+It did not render anything when it was written, and that has changed: the decision went to a Node
+rebuild, and `generate_document`/`measure_document` landed as the single **`render_document`** (page
+counting behind `measure:true`). `producteur-fiches-v4.tgz` was lost at the time, which is what made
+either path a rebuild; the Python has since been rebuilt as `producteur-fiches-v5` and is now the
+source the `render` values are transcribed FROM, not a candidate to ship. Nothing here depended on
+that choice — the schema was written from the two formatters' prose, not from any renderer's API.
 
 It also does not check `content` prose against `render` values. Where both are machine-readable —
 leading, page size, character limits — they can contradict each other silently. That check belongs
