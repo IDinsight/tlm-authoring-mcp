@@ -17,6 +17,9 @@
  *   • walk_document budget-checked only its `curriculum`, so the TLM subtree —
  *     2.3 MB on that same document — rode unbounded and the whole 2.78 MB payload
  *     was WITHHELD by the response cap. It now sheds in tiers and pages the spine.
+ *   • walk_document_section — the tool walk_document ROUTES TO — had no budget at
+ *     all, and all 21 ce1/reading sections came to ~121 KB, so every one was
+ *     refused. 92 KB of that was the same 18 formatters serialized twice.
  */
 import { describe, it, expect, beforeAll, beforeEach, afterAll } from "vitest";
 import { readFileSync } from "node:fs";
@@ -24,7 +27,7 @@ import { resolve } from "node:path";
 import { subjectDir, KG_FIXTURE } from "../../__tests__/index.js";
 import {
   seedStore, fixtureContext, installFakeStorage, withActiveContext as inContext,
-  CI_MATHS, CURATOR, APPROVER,
+  CI_MATHS, CE1_READING, CURATOR, APPROVER,
 } from "../../__tests__/index.js";
 import { __setKgStoreForTest, kgNamespace, type KgNodeStore, type StoredMeta, type StoredNode, type StoredEdge } from "../../kg-store/index.js";
 import { SHARED_CATALOG_NAMESPACE } from "../../kg-recipes/index.js";
@@ -32,7 +35,8 @@ import { edgeId as makeEdgeId } from "../../kg-store/index.js";
 import { listCatalog } from "../catalog.js";
 import { buildCapabilitiesReport, projectCapabilities, CAPABILITY_SECTIONS } from "../capabilities.js";
 import { runLintContent } from "../check.js";
-import { findActiveNodes, walkActiveGraph, walkDocument } from "../graph.js";
+import { findActiveNodes, walkActiveGraph, walkDocument, walkDocumentSection } from "../graph.js";
+import { readStandards as readStandardsBatch } from "../curriculum.js";
 import { responseBytes } from "../../utils/index.js";
 import type { Actor } from "../../actor.js";
 
@@ -83,7 +87,9 @@ async function seedCatalog(target: KgNodeStore): Promise<void> {
 
 beforeAll(async () => { installFakeStorage(); await pickLandmarkNames(); });
 beforeEach(async () => {
-  store = await seedStore({ only: [CI_MATHS] });
+  // ce1/reading rides along because the walk_document_section suite needs the
+  // Guide whose 18-formatter stack put all 21 of its sections over the cap.
+  store = await seedStore({ only: [CI_MATHS, CE1_READING] });
   await seedCatalog(store);
   __setKgStoreForTest(store);
 });
@@ -417,6 +423,155 @@ describe("walk_document answers on the fixture's largest document", () => {
     expect(document.tooLarge).toBe(true);
     expect(document.message).toMatch(/walk_document_section/);
     expect((page.curriculum as { tooLarge?: true }).tooLarge).toBe(true);
+  });
+});
+
+// ── find_node reaches a grouping by its human name ───────────────────────────
+// A LessonGrouping splits its name in two: the type word in `groupName`, the
+// ordinal in `description`. Live, that is EVERY grouping in both subjects — 21
+// reading weeks with description "11", 12 maths units with description "5" — so
+// « Semaine 11 » and « Unité 5 » found nothing, and the expert is told to search
+// by name and never by id.
+describe("find_node resolves a grouping by « <groupName> <ordinal> »", () => {
+  // Composed from the fixture, not hardcoded: which groupings exist is content.
+  const aGrouping = (): { id: string; groupName: string; ordinal: string } => {
+    const raw = JSON.parse(readFileSync(resolve(subjectDir("senegal", "ci", "maths"), KG_FIXTURE), "utf8"));
+    for (const node of raw.nodes as Array<{ id: string; labels?: string[]; properties?: Record<string, unknown> }>) {
+      if (!(node.labels ?? []).includes("LessonGrouping")) continue;
+      const groupName = node.properties?.groupName;
+      const description = node.properties?.description;
+      // Only the split-name shape is interesting: a grouping already titled
+      // "Unité 1 : …" was always findable and must stay untouched.
+      if (typeof groupName === "string" && typeof description === "string"
+          && groupName.length > 0 && !description.toLowerCase().startsWith(groupName.toLowerCase())) {
+        return { id: node.id, groupName, ordinal: description };
+      }
+    }
+    throw new Error("Fixture holds no LessonGrouping with a split name — this test needs one.");
+  };
+
+  it("finds the grouping by the name a person would type", async () => {
+    const { id, groupName, ordinal } = aGrouping();
+    const typed = `${groupName} ${ordinal}`;            // e.g. « Unité 5 »
+
+    const result = await asCurator(() => findActiveNodes({ query: typed, limit: 10 }));
+    const matches = result.matches as Array<{ id: string; title: string }>;
+
+    // The curriculum node itself comes back — this returned nothing before.
+    expect(matches.map((match) => match.id)).toContain(id);
+    // …and it reports the composed name, so a caller can tell it apart from a
+    // similarly-named DocumentSection rather than seeing a bare "5".
+    expect(matches.find((match) => match.id === id)!.title).toBe(typed);
+  });
+
+  it("does not double the prefix on a grouping already named in full", async () => {
+    // Synthetic, because the live graphs happen to have none of this shape — the
+    // rule still has to hold for a graph that names its groupings properly.
+    const { findNodes } = await import("../../curriculum/find.js");
+    const graph = {
+      nodes: [
+        { id: "g1", labels: ["LessonGrouping"], properties: { groupName: "Unité", description: "Unité 1 : Les nombres" } },
+      ],
+      edges: [],
+    };
+    const hits = findNodes(graph, { query: "Unité 1 : Les nombres" });
+    expect(hits[0].title).toBe("Unité 1 : Les nombres");
+    expect(hits[0].match).toBe("exact");
+  });
+});
+
+// ── get_standards takes a batch ──────────────────────────────────────────────
+// Same defect find_node's `queries` fixed: a week of reading is 22 sessions, and
+// asking for each one's objectives separately re-read and re-parsed the graph
+// every time.
+describe("get_standards resolves a batch against one graph load", () => {
+  const lessonIds = (count: number): string[] => {
+    const raw = JSON.parse(readFileSync(resolve(subjectDir("senegal", "ci", "maths"), KG_FIXTURE), "utf8"));
+    return (raw.nodes as Array<{ id: string; labels?: string[] }>)
+      .filter((node) => (node.labels ?? []).includes("Lesson"))
+      .slice(0, count)
+      .map((node) => node.id);
+  };
+
+  it("keys each result by the id sent, and says what did not resolve", async () => {
+    const ids = lessonIds(3);
+    const batch = await asCurator(async () => readStandardsBatch({ nodeIds: [...ids, "no-such-node"] }));
+
+    const results = batch.results as Record<string, unknown>;
+    expect(Object.keys(results).sort()).toEqual([...ids].sort());
+    expect(batch.notFound).toEqual(["no-such-node"]);
+    expect(batch.count).toBe(ids.length);
+  });
+
+  it("says exactly what a lone call says, for the same node", async () => {
+    const [one] = lessonIds(1);
+    const single = await asCurator(async () => readStandardsBatch({ nodeId: one }));
+    const batch = await asCurator(async () => readStandardsBatch({ nodeIds: [one] }));
+    expect((batch.results as Record<string, unknown>)[one]).toEqual(single);
+  });
+
+  it("deduplicates, so the same id twice is one entry", async () => {
+    const [one] = lessonIds(1);
+    const batch = await asCurator(async () => readStandardsBatch({ nodeIds: [one, one] }));
+    expect(batch.count).toBe(1);
+  });
+
+  it("refuses a call with neither nodeId nor nodeIds", async () => {
+    const result = await asCurator(async () => readStandardsBatch({}));
+    expect(String(result.error)).toContain("get_standards needs");
+  });
+});
+
+// ── walk_document_section, against the REAL ce1/reading Guide ────────────────
+// This document is why the bounding exists: every one of its 21 sections carries
+// the TLM's 18-formatter doc-wide stack, so each section was ~121 KB and refused —
+// the routed-to tool being the dead end. Assertions are relative to the cap the
+// server enforces, so they track it rather than pinning a number.
+describe("walk_document_section fits the reading Guide's sections", () => {
+  const responseCap = () => Number(process.env.TLM_MAX_RESPONSE_BYTES) || 102_400;
+  const readingContext = fixtureContext(CE1_READING);
+  const asReadingCurator = <T>(fn: () => Promise<T>): Promise<T> => inContext(readingContext, CURATOR, fn);
+
+  // Every DocumentSection in that Guide, read off the seed like the landmarks above.
+  const sectionIds = (): string[] => {
+    const raw = JSON.parse(readFileSync(resolve(subjectDir("senegal", "ce1", "reading"), KG_FIXTURE), "utf8"));
+    return raw.nodes
+      .filter((node: { labels?: string[] }) => (node.labels ?? []).includes("DocumentSection"))
+      .map((node: { id: string }) => node.id);
+  };
+
+  it("returns EVERY section under the response cap", async () => {
+    const ids = sectionIds();
+    expect(ids.length).toBeGreaterThan(10); // the real Guide, not a stub
+
+    const sizes = await asReadingCurator(async () => {
+      const measured: number[] = [];
+      for (const sectionId of ids) {
+        measured.push(responseBytes(await walkDocumentSection({ sectionId })));
+      }
+      return measured;
+    });
+
+    // Before the fix this was 21 of 21 OVER the cap.
+    expect(sizes.filter((bytes) => bytes > responseCap())).toEqual([]);
+  });
+
+  it("serves each formatter once, not twice, while keeping its precedence", async () => {
+    const [first] = sectionIds();
+    const scope = await asReadingCurator(() => walkDocumentSection({ sectionId: first }));
+
+    const order = scope.formatterStackOrder as string[];
+    const nodes = (scope.formatters as { nodes: Array<{ id: string }> }).nodes;
+    expect(order.length).toBeGreaterThan(10);           // the real 18-entry stack
+
+    // The order is stated, every id resolves, and the node set is not duplicated.
+    expect(new Set(order).size).toBe(order.length);
+    const present = new Set(nodes.map((node) => node.id));
+    for (const id of order) expect(present.has(id)).toBe(true);
+
+    // The old shape returned the same nodes again under `formatterStack`; if that
+    // ever comes back, this document goes straight back over the cap.
+    expect(scope.formatterStack).toBeUndefined();
   });
 });
 

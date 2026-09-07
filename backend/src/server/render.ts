@@ -125,6 +125,33 @@ export async function renderDocument(a: RenderArgs): Promise<Record<string, unkn
     };
   }
 
+  /*
+   * NO GEOMETRY IS A REFUSAL, NOT A RENDER.
+   *
+   * Every field of a render spec is optional, so an EMPTY merge parses as valid:
+   * `resolveRenderSpec` returned ok with `spec: {}` and `from: []`, and this went
+   * on to lay out an unstyled document and report `formatters: []`. That reads as
+   * "no formatters were found" when the truth is "N formatters apply and not one
+   * of them declares any geometry" — and it hands back a plausible-looking file,
+   * which is the worst outcome: it reads as success. Reported from a real session
+   * where an expert rebuilt an entire bilingual layout by hand after trusting it.
+   *
+   * `from` lists only the formatters that actually contributed a `render` bag, so
+   * an empty `from` against a non-empty stack is exactly this case. Refuse, and
+   * name the formatters that would have had to carry the geometry.
+   */
+  if (spec.from.length === 0) {
+    const applicable = stack.map((node) => node.id);
+    return {
+      preview: true,
+      error: applicable.length === 0
+        ? `No formatter applies to '${a.nodeId}' in the ${renderedFrom} graph, so there is no geometry to lay a page out with. Attach one with use_formatter.`
+        : `${applicable.length} formatter(s) apply to '${a.nodeId}', but NONE declares a \`render\` bag, so there is no geometry to lay a page out with — every page size, style and margin would be undefined. This is a gap in the formatters, not in your tree: their prose is authored but their \`render\` geometry is not. Add it with edit_nodes (properties.render) on the formatter(s) below, or render outside the server.`,
+      formatters: applicable,
+      geometryFrom: spec.from,
+    };
+  }
+
   const tree = documentSchema.safeParse(a.document);
   if (!tree.success) {
     return {

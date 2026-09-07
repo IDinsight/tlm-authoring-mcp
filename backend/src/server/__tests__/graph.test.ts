@@ -341,7 +341,9 @@ const SIGNED_IN_NO_ROLE: Actor = { id: "guest-uid", email: "guest@test", unknown
 
 let store: KgNodeStore;
 // The fixture contexts this suite asserts against — seeding only these
-// keeps each beforeEach off the graphs it never reads.
+// keeps each beforeEach off the graphs it never reads. (Seeding a second fixture
+// here pushed several tests past the 5s timeout, which is why the per-call
+// context suite — which needs two — lives in context-override.test.ts.)
 const SEED_CONTEXTS = [CI_MATHS];
 const contexts = seededContexts(SEED_CONTEXTS);
 const targetCtx = contexts.find((c) => c.grade === "ci" && c.subject === "maths")!;

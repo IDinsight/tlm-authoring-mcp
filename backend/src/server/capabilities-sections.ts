@@ -290,6 +290,10 @@ export function catalogSection(actions: Actions) {
 export function discoverySection(actions: Actions) {
   return {
     tools: ["walk_graph", "walk_document", "walk_document_section", "find_node", "namespace_stats", "export_graph_view"],
+    // Every graph read takes an optional per-call `context`, because the active
+    // one belongs to the CONNECTION rather than to the caller.
+    perCallContext:
+      "walk_graph / walk_document / walk_document_section / find_node / namespace_stats / get_standards each take an optional `context` ({workspace, grade, subject}) applying to THAT CALL ONLY, leaving the session's active context untouched. The active context is per-CONNECTION, not per-caller — anything sharing the connection (a subagent, a parallel call) moves it under you, which surfaces as 'Start node not found' on ids that resolved a moment earlier. Pass `context` whenever you fan out; omit it to use the active context.",
     canWalkDraft: actions.canReadDraft,
     // Name → id resolution. It exists because a human never has an id to give
     // and this client renders no completion dropdown, so the SERVER resolves

@@ -88,7 +88,7 @@ const titleOf = (node: { properties?: Record<string, unknown> }): string => {
 // CI maths every chapter shares its name with the lesson inside it, so the write
 // tests below pass the `id` — which is exactly how a caller answers a
 // `needsChoice`, and proves an id still resolves to itself.
-const aChapter = (): Promise<{ id: string; title: string }> => aContentGrouping(store, ns);
+const aChapter = (): Promise<{ id: string; title: string; kind: string }> => aContentGrouping(store, ns);
 
 // A title TWO nodes share. CI maths has these naturally — a lesson and the
 // standard it aligns to carry the same wording — which is exactly the ambiguity
@@ -119,7 +119,14 @@ afterAll(() => {
 describe("find_node — the expert types a name, never an id", () => {
   it("finds a chapter by its exact title, and reports where it sits", async () => {
     const chapter = await aChapter();
-    const result = await withActiveContext(CURATOR, () => findActiveNodes({ query: chapter.title }));
+    /*
+     * A grouping's stored `title` is only its ORDINAL — "10" — because the type
+     * word lives in `groupName` ("Unité") alongside it. The name a person types,
+     * and the one find_node now matches and reports, is the two composed. Asking
+     * for the bare ordinal is a `contains` match on that name, not an exact one.
+     */
+    const typed = `${chapter.kind} ${chapter.title}`;
+    const result = await withActiveContext(CURATOR, () => findActiveNodes({ query: typed }));
     const matches = result.matches as Array<{ id: string; match: string; path: string[] }>;
 
     expect(matches.some((m) => m.id === chapter.id)).toBe(true);

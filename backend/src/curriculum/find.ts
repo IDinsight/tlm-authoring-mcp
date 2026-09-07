@@ -86,7 +86,7 @@ function normalize(text: string): string {
 // model's raw envelope carries the LC props flat (`description`), while a stored
 // node carries normalized fields plus a `raw` bag. Trying all of them is what
 // lets one implementation serve a read path and a write path.
-function displayTitle(node: FindableNode): string {
+function rawTitle(node: FindableNode): string {
   const properties = (node.properties ?? {}) as Record<string, unknown>;
   const raw = (properties.raw ?? {}) as Record<string, unknown>;
   for (const candidate of [properties.title, properties.text, properties.description, raw.description]) {
@@ -95,6 +95,44 @@ function displayTitle(node: FindableNode): string {
     if (typeof candidate === "string" && candidate.length > 0) return displayName(candidate);
   }
   return "";
+}
+
+/**
+ * A grouping's own type word — `groupName` ("Semaine", "Unité", "Chapitre",
+ * "Jour"), from either node shape.
+ */
+function groupNameOf(node: FindableNode): string {
+  const properties = (node.properties ?? {}) as Record<string, unknown>;
+  const raw = (properties.raw ?? {}) as Record<string, unknown>;
+  for (const candidate of [properties.groupName, raw.groupName]) {
+    if (typeof candidate === "string" && candidate.length > 0) return candidate;
+  }
+  return "";
+}
+
+/**
+ * The name a PERSON would type for this node.
+ *
+ * A `LessonGrouping` splits its human name across two properties: the type word
+ * lives in `groupName` and only the ordinal in `description`. Live, EVERY grouping
+ * in both Senegal subjects is affected — 21 reading weeks with `description: "11"`
+ * and 12 maths units with `description: "5"` — so `find_node("Semaine 11")` and
+ * `find_node("Unité 5")` both missed the curriculum node entirely, and « Semaine 11 »
+ * matched only the similarly-named DocumentSection. Since the expert is told to
+ * search by name and never by id, that made the graph's own chapter nodes
+ * unreachable by their name.
+ *
+ * So a grouping answers to `"<groupName> <description>"`. The prefix is added only
+ * when the title does not already carry it, so a graph that names its groupings
+ * properly ("Unité 1 : Les nombres") is left exactly as it is.
+ */
+function displayTitle(node: FindableNode): string {
+  const title = rawTitle(node);
+  const groupName = groupNameOf(node);
+  if (!groupName || !title) return title;
+
+  const alreadyPrefixed = normalize(title).startsWith(normalize(groupName));
+  return alreadyPrefixed ? title : `${groupName} ${title}`;
 }
 
 // How the query matches this title, or null when it doesn't. "words" is the

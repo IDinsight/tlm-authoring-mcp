@@ -707,6 +707,29 @@ describe("render_document refuses rather than guesses", () => {
     expect(uploaded).toBeNull();
   });
 
+  it("REFUSES when formatters apply but none declares geometry, naming them", async () => {
+    /*
+     * The worst failure this tool had, from a real session: it returned a
+     * plausible unstyled .docx and `formatters: []`, which reads as success and
+     * as "no formatters found". Both were wrong — 18 formatters applied, and not
+     * one carried a `render` bag. (Live, ZERO of the 46 formatter nodes across
+     * both subjects carry one: the prose half is authored, the geometry half is
+     * not.) An empty render spec parses as valid because every field is
+     * optional, which is how the silence got through.
+     */
+    const out = await withCtx(APPROVER, async () =>
+      renderDocument({ nodeId: sectionId, document: TREE }),
+    );
+
+    expect(out.error).toMatch(/NONE declares a `render` bag/);
+    // It must name the formatters that would have had to carry the geometry —
+    // "no geometry" is only actionable if you know where it was meant to live.
+    expect((out.formatters as string[]).length).toBeGreaterThan(1);
+    expect(out.formatters as string[]).toContain(specId);
+    // And it must not have written a file.
+    expect(uploaded).toBeNull();
+  });
+
   it("renders from PUBLISHED when no draft is open", async () => {
     /*
      * It used to refuse here, and that was the bug: a person who wants a sheet
@@ -718,16 +741,35 @@ describe("render_document refuses rather than guesses", () => {
      * The render bag has to be published for this: with no draft, published is
      * what gets read.
      */
-    const out = await withCtx(APPROVER, async () => {
+    await withCtx(APPROVER, async () => {
       await stageRenderBag(RENDER_BAG);
       const { publishDraft, kgNamespace } = await import("../../kg-store/index.js");
       await publishDraft(kgNamespace(ctx.workspace, ctx.grade, ctx.subject));
-      return renderDocument({ nodeId: sectionId, document: TREE });
     });
+
+    /*
+     * A SECOND session to render in, deliberately. `activateContext` pins the
+     * published model in the session bag, so the session that did the publishing
+     * still holds the model it hydrated BEFORE it — and rendering there reads a
+     * graph without the bag it just published. In production each call opens a
+     * fresh MCP session, so this is the realistic shape; here it has to be
+     * spelled out.
+     *
+     * This assertion used to pass from the same session, which was VACUOUS: the
+     * stale model carried no `render` bag, resolveRenderSpec merged nothing into
+     * a valid-because-all-optional empty spec, and an unstyled file counted as a
+     * pass. render_document now refuses when no formatter declares geometry,
+     * which is what turned this test honest.
+     */
+    const out = await withCtx(APPROVER, async () =>
+      renderDocument({ nodeId: sectionId, document: TREE }),
+    );
     expect(out.error).toBeUndefined();
     expect(out.renderedFrom).toBe("published");
     expect(out.blocks).toBe(3);
     expect(uploaded!.length).toBeGreaterThan(500);
+    // The bag really arrived this time — an empty spec cannot produce these.
+    expect(out.formatters).toContain(specId);
   });
 
   it("says which graph it rendered from, so a sheet is not mistaken for a draft", async () => {
