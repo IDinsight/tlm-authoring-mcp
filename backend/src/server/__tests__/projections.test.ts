@@ -37,7 +37,7 @@ import { buildCapabilitiesReport, projectCapabilities, CAPABILITY_SECTIONS } fro
 import { runLintContent } from "../check.js";
 import { findActiveNodes, walkActiveGraph, walkDocument, walkDocumentSection } from "../graph.js";
 import { readStandards as readStandardsBatch } from "../curriculum.js";
-import { responseBytes } from "../../utils/index.js";
+import { responseBytes, maxResponseBytes } from "../../utils/index.js";
 import type { Actor } from "../../actor.js";
 
 const context = fixtureContext(CI_MATHS);
@@ -381,9 +381,9 @@ describe("walk_graph pages the real document spine at skeleton detail", () => {
 // live server withheld at 2,780,814 B against a 102,400 B cap — now ANSWERS, and
 // that paging it delivers every section exactly once.
 describe("walk_document answers on the fixture's largest document", () => {
-  // Read from the response cap the server actually enforces, so raising the cap
+  // Read from the response cap the server actually enforces, so moving the cap
   // cannot leave this test asserting a stale number.
-  const responseCap = () => Number(process.env.TLM_MAX_RESPONSE_BYTES) || 102_400;
+  const responseCap = maxResponseBytes;
 
   it("returns every page under the response cap, and the whole spine across them", async () => {
     const pages: Array<Record<string, unknown>> = [];
@@ -528,7 +528,7 @@ describe("get_standards resolves a batch against one graph load", () => {
 // the routed-to tool being the dead end. Assertions are relative to the cap the
 // server enforces, so they track it rather than pinning a number.
 describe("walk_document_section fits the reading Guide's sections", () => {
-  const responseCap = () => Number(process.env.TLM_MAX_RESPONSE_BYTES) || 102_400;
+  const responseCap = maxResponseBytes;
   const readingContext = fixtureContext(CE1_READING);
   const asReadingCurator = <T>(fn: () => Promise<T>): Promise<T> => inContext(readingContext, CURATOR, fn);
 
@@ -558,20 +558,97 @@ describe("walk_document_section fits the reading Guide's sections", () => {
 
   it("serves each formatter once, not twice, while keeping its precedence", async () => {
     const [first] = sectionIds();
-    const scope = await asReadingCurator(() => walkDocumentSection({ sectionId: first }));
 
-    const order = scope.formatterStackOrder as string[];
-    const nodes = (scope.formatters as { nodes: Array<{ id: string }> }).nodes;
+    // The 18-entry stack no longer fits one response, so the contract — every
+    // formatter exactly once, in precedence order — is a property of the pages
+    // read end to end. Merging their `render` bags in arrival order is what the
+    // caller does, and it only works if this holds.
+    const pages = await asReadingCurator(async () => {
+      const collected: Array<Record<string, unknown>> = [];
+      let cursor: string | undefined;
+      for (let page = 0; page < 20; page++) {
+        const result = await walkDocumentSection({ sectionId: first, cursor });
+        collected.push(result);
+        cursor = result.nextCursor as string | undefined;
+        if (!cursor) break;
+      }
+      return collected;
+    });
+
+    const order = pages.flatMap((page) => page.formatterStackOrder as string[]);
     expect(order.length).toBeGreaterThan(10);           // the real 18-entry stack
 
-    // The order is stated, every id resolves, and the node set is not duplicated.
+    // The order is stated, every id resolves on the page that carried it, and no
+    // formatter is served twice across the pages.
     expect(new Set(order).size).toBe(order.length);
-    const present = new Set(nodes.map((node) => node.id));
-    for (const id of order) expect(present.has(id)).toBe(true);
+    for (const page of pages) {
+      const present = new Set((page.formatters as { nodes: Array<{ id: string }> }).nodes.map((node) => node.id));
+      for (const id of page.formatterStackOrder as string[]) expect(present.has(id)).toBe(true);
+      // The old shape returned the same nodes again under `formatterStack`; if
+      // that ever comes back, this document goes straight back over the cap.
+      expect(page.formatterStack).toBeUndefined();
+    }
+  });
+});
 
-    // The old shape returned the same nodes again under `formatterStack`; if that
-    // ever comes back, this document goes straight back over the cap.
-    expect(scope.formatterStack).toBeUndefined();
+// ── walk_document_section against the REAL ci/maths lesson sheets ────────────
+// The defect this pins: the budgets were bytes measured against a 100 KB cap that
+// was itself ABOVE what a client accepts, so a read could clear every check here
+// and still be refused on arrival. One ci/maths section asked for exactly the way
+// a generation session asks for it — include:['formatters'], detail:'skeleton' —
+// came to 72.8 KB, untruncated, and was thrown away by the client.
+describe("walk_document_section fits the ci/maths sections", () => {
+  const responseCap = maxResponseBytes;
+
+  // Sampled, not exhaustive: this document has ~1,100 sections and they share one
+  // formatter stack, so every 100th is the same read with different prose.
+  const sampledSectionIds = (): string[] => {
+    const raw = JSON.parse(readFileSync(resolve(subjectDir("senegal", "ci", "maths"), KG_FIXTURE), "utf8"));
+    return raw.nodes
+      .filter((node: { labels?: string[] }) => (node.labels ?? []).includes("DocumentSection"))
+      .map((node: { id: string }) => node.id)
+      .filter((_: string, index: number) => index % 100 === 0);
+  };
+
+  it("returns the generation-shaped read under the response cap", async () => {
+    const ids = sampledSectionIds();
+    expect(ids.length).toBeGreaterThan(5); // the real spine, not a stub
+
+    const sizes = await asCurator(async () => {
+      const measured: number[] = [];
+      for (const sectionId of ids) {
+        // The exact call shape a generation session makes, freshness off.
+        measured.push(responseBytes(await walkDocumentSection({ sectionId, include: ["formatters"], detail: "skeleton", freshness: false })));
+      }
+      return measured;
+    });
+
+    expect(sizes.filter((bytes) => bytes > responseCap())).toEqual([]);
+  });
+
+  it("pages that stack instead of overflowing, and the pages reassemble it", async () => {
+    const [sectionId] = sampledSectionIds();
+
+    const pages = await asCurator(async () => {
+      const collected: Array<Record<string, unknown>> = [];
+      let cursor: string | undefined;
+      for (let page = 0; page < 20; page++) {
+        const result = await walkDocumentSection({ sectionId, include: ["formatters"], detail: "skeleton", freshness: false, cursor });
+        collected.push(result);
+        cursor = result.nextCursor as string | undefined;
+        if (!cursor) break;
+      }
+      return collected;
+    });
+
+    // The whole stack still arrives, in precedence order and once each — paging
+    // is what makes it fit, so a page count of 1 here would mean the budget went
+    // back up rather than that the read got smaller.
+    expect(pages.length).toBeGreaterThan(1);
+    const paged = pages.flatMap((page) => page.formatterStackOrder as string[]);
+    expect(new Set(paged).size).toBe(paged.length);
+    expect(pages[0].formattersTruncated).toBe(true);
+    expect(pages[pages.length - 1].nextCursor).toBeUndefined();
   });
 });
 

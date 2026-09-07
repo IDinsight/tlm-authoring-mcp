@@ -283,8 +283,11 @@ describe("documentSectionSubgraph — bounded without ever refusing", () => {
     expect(pages[pages.length - 1].nextCursor).toBeUndefined();
 
     // Concatenating the pages reproduces the full stack, in order and once each.
+    // "Full" has to be read at a budget nothing can trim — at the DEFAULT budget
+    // this fat stack pages too, so comparing against it would compare two
+    // truncated first pages and pass on a bug.
     const seen = pages.flatMap((page) => page.formatterStackOrder);
-    const whole = scopeOf(documentSectionSubgraph(fatModel, "sec-1")).formatterStackOrder;
+    const whole = withBudget(String(64 * 1024 * 1024), () => scopeOf(documentSectionSubgraph(fatModel, "sec-1")).formatterStackOrder);
     expect(seen).toEqual(whole);
 
     // The two things the tool exists for ride on EVERY page.

@@ -29,7 +29,7 @@
  */
 import type { CurriculumModel, RawGraphSnapshot } from "../types.js";
 import { nodeOut, edgeOut, nodeSkeleton, type NodeOut, type EdgeOut } from "./read-projection.js";
-import { responseBytes } from "../utils/index.js";
+import { responseBytes, pageBudgetBytes } from "../utils/index.js";
 
 type RawNode = RawGraphSnapshot["nodes"][number];
 type RawEdge = RawGraphSnapshot["relationships"][number];
@@ -48,7 +48,7 @@ const CURRICULUM_EDGES = new Set(["hasPart", "hasChild"]);
 
 // walk_document assembles a whole document, and EVERY part of it can be too big
 // to inline — so, exactly as exportSubtree bounds a visualization slice, the
-// payload self-bounds here rather than letting the ~100 KB response cap withhold
+// payload self-bounds here rather than letting the response cap withhold
 // it whole.
 //
 // The parts are shed in order of how REPLACEABLE each one is elsewhere, so what
@@ -65,12 +65,18 @@ const CURRICULUM_EDGES = new Set(["hasPart", "hasChild"]);
 //      This is the one part nothing else provides: it is the fan-out list.
 // The assembly guide and `scope` are small and always ride.
 //
-// Budget sits under the response cap with headroom for the envelope; tunable via
-// TLM_DOCUMENT_MAX_BYTES.
-const DEFAULT_DOCUMENT_MAX_BYTES = 80 * 1024;
+// The budget sits under the response cap with headroom for the envelope, and is
+// DERIVED from it (45 KB today) rather than written down again. It used to be a
+// fixed 80 KB, chosen against a 100 KB cap that was itself above what a client
+// accepts — see DEFAULT_MAX_RESPONSE_BYTES — so the self-bounding here never
+// fired on the payloads that actually failed. Measured on the ci/maths fixture,
+// one section read with include:['formatters'] came to 72.8 KB (14 formatter
+// specs, 1.4 to 10 KB each), cleared the 80 KB budget untruncated, and was then
+// refused by the client for size. At 45 KB that same stack pages in two, which is
+// what the cursor was built for. Tunable via TLM_DOCUMENT_MAX_BYTES.
 const documentMaxBytes = (): number => {
   const override = Number(process.env.TLM_DOCUMENT_MAX_BYTES);
-  return Number.isFinite(override) && override > 0 ? override : DEFAULT_DOCUMENT_MAX_BYTES;
+  return Number.isFinite(override) && override > 0 ? override : pageBudgetBytes();
 };
 const byteLength = (value: unknown): number => responseBytes(value);
 

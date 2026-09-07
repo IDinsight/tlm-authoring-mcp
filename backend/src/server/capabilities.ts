@@ -13,6 +13,7 @@
  *   editable.recipes     ← RECIPES                       (the generic edit verbs)
  *   rules.structural     ← STRUCTURAL_RULES              (from #6)
  *   rules.confirmation   ← CONFIRMATION_RULE            (from shared.ts, the gate)
+ *   responseCap.maxBytes ← maxResponseBytes()          (from utils, the backstop)
  *
  * Any calculation of "who can do what" done here would be a copy that could
  * drift. The mirror-property test asserts every actions.* value matches
@@ -22,6 +23,7 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { asJson, guarded } from "./shared.js";
+import { maxResponseBytes } from "../utils/index.js";
 import { getActiveAdapter } from "../adapters/index.js";
 import { activeWorkspace } from "../context/index.js";
 import { currentActor } from "../actor.js";
@@ -195,7 +197,10 @@ export async function buildCapabilitiesReport(): Promise<Record<string, unknown>
     // over the cap is replaced by a small RESPONSE_TOO_LARGE envelope (isError).
     // Advertised so a caller can feature-detect it and knows to paginate/narrow.
     responseCap: {
-      maxBytes: Number(process.env.TLM_MAX_RESPONSE_BYTES) > 0 ? Number(process.env.TLM_MAX_RESPONSE_BYTES) : 100 * 1024,
+      // Read from the module that enforces the cap — a copy of the number here
+      // would drift the moment the real one moved, which is how it came to
+      // advertise 100 KB while a client refused anything over ~25k tokens.
+      maxBytes: maxResponseBytes(),
       overflowCode: "RESPONSE_TOO_LARGE",
       envVar: "TLM_MAX_RESPONSE_BYTES",
       note: "Every tool response is capped. Well-behaved reads paginate (walk_graph, get_document_text, list_documents, read_audit, diff_draft limit) and never approach it; an oversized response returns { error: { code: 'RESPONSE_TOO_LARGE', bytes, cap }, shape, hint } instead of the payload.",

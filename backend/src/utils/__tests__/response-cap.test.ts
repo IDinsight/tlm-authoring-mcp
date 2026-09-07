@@ -7,7 +7,7 @@
  * math + a one-level shape so the caller sees what overflowed and how to narrow.
  */
 import { describe, it, expect, afterEach } from "vitest";
-import { asJson, asResource, asText } from "../server.js";
+import { asJson, asResource, asText, maxResponseBytes } from "../server.js";
 
 const textOf = (r: { content: Array<{ type: string; text?: string; resource?: { text: string } }> }) => {
   const block = r.content[0];
@@ -61,11 +61,12 @@ describe("asJson response cap", () => {
     expect(Buffer.byteLength(textOf(res), "utf8")).toBeLessThan(2000);
   });
 
-  it("honours the default cap (~100 KB) when no override is set", () => {
-    const justUnder = { blob: "z".repeat(90 * 1024) };   // ~90 KB < 100 KB default
-    expect(asJson(justUnder).isError).toBeFalsy();
-    const over = { blob: "z".repeat(120 * 1024) };        // ~120 KB > 100 KB default
-    expect(asJson(over).isError).toBe(true);
+  it("honours the default cap (~60 KB) when no override is set", () => {
+    // Sized off the default the module actually enforces, so moving it moves the
+    // test with it — the point is that SOME default applies, not which number.
+    const cap = maxResponseBytes();
+    expect(asJson({ blob: "z".repeat(cap - 4 * 1024) }).isError).toBeFalsy();
+    expect(asJson({ blob: "z".repeat(cap + 4 * 1024) }).isError).toBe(true);
   });
 });
 

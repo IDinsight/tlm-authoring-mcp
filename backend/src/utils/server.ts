@@ -22,10 +22,20 @@ export type ToolResult = { content: (TextBlock | ResourceBlock)[]; isError?: boo
 // enough to blow its token budget. This is the last line of defence, not the
 // primary UX: well-behaved tools (walk_graph, get_document_text, list_documents,
 // …) paginate so they never approach it; the cap catches the unbounded read, the
-// misuse (limit:500 + includeEdges), and the tool nobody remembered to bound. The
-// ceiling is deliberately generous — above the largest legitimate response
-// (get_capabilities) — and tunable for ops via TLM_MAX_RESPONSE_BYTES.
-const DEFAULT_MAX_RESPONSE_BYTES = 100 * 1024; // ~100 KB ≈ ~27k tokens
+// misuse (limit:500 + includeEdges), and the tool nobody remembered to bound.
+//
+// The ceiling only defends anything if it sits BELOW the CLIENT's own tool-output
+// limit. It did not: Claude Code refuses a tool result over 25k tokens, and at
+// 100 KB this cap sat above that wall — a 72.8 KB walk_document_section page
+// passed every budget here and was thrown away on arrival, which is the worst
+// outcome (the caller pays for the read and gets nothing).
+//
+// Bytes → tokens is where the old number went wrong: ~3.8 bytes/token holds for
+// English, but these payloads are accented French prose inside JSON, nearer 2.8.
+// 60 KB is ~21k tokens at that rate, leaving headroom under 25k for the envelope
+// and still well above the largest legitimate response (get_capabilities, 38.5 KB
+// measured on the ci/maths fixture). Tunable for ops via TLM_MAX_RESPONSE_BYTES.
+const DEFAULT_MAX_RESPONSE_BYTES = 60 * 1024; // ~60 KB ≈ ~21k tokens of French JSON
 
 // THE serialization every tool response uses. Compact, not pretty-printed:
 // indentation cost 21-34% of a payload's bytes (measured on a walk_graph page
@@ -37,10 +47,25 @@ export const serializeResponse = (data: unknown): string => JSON.stringify(data)
 /** Byte size of `data` exactly as a tool response would carry it. */
 export const responseBytes = (data: unknown): number =>
   Buffer.byteLength(serializeResponse(data), "utf8");
-const maxResponseBytes = (): number => {
+/**
+ * The live response cap. Exported so get_capabilities mirrors the number this
+ * module enforces rather than keeping a second copy of it in sync by hand.
+ */
+export const maxResponseBytes = (): number => {
   const override = Number(process.env.TLM_MAX_RESPONSE_BYTES);
   return Number.isFinite(override) && override > 0 ? override : DEFAULT_MAX_RESPONSE_BYTES;
 };
+
+/**
+ * The byte budget a PAGED read should trim itself to: three quarters of the cap,
+ * leaving room for the response envelope the tool wraps the page in.
+ *
+ * Derived, not written down again. Four readers each carried their own constant
+ * "well under the 100 KB cap"; when the cap moved they would all have kept their
+ * old number, and two of them (list_documents, list_catalog) sat at 60 KB — which
+ * would have made every full page overflow the very cap they were sized against.
+ */
+export const pageBudgetBytes = (): number => Math.floor(maxResponseBytes() * 0.75);
 
 // A compact, one-level description of what overflowed — top-level keys with each
 // value's kind and size (array length, string length, object key count) — so the

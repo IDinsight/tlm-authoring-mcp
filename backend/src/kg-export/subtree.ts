@@ -8,7 +8,7 @@
  * response the caller cannot use.
  */
 import { getKgStore, kgNamespace } from "../kg-store/index.js";
-import { responseBytes } from "../utils/index.js";
+import { responseBytes, pageBudgetBytes } from "../utils/index.js";
 import type { DisplayNode, DisplayEdge, DisplayGraph } from "./types.js";
 import { toDisplayNode } from "./display.js";
 import { assembleDisplayGraph, projectDisplayEdges } from "./views.js";
@@ -23,15 +23,15 @@ import { assembleDisplayGraph, projectDisplayEdges } from "./views.js";
 
 const SUBTREE_DEFAULT_DEPTH = 4;
 const SUBTREE_MAX_DEPTH = 12;
-// Keep the scoped payload under the 100 KB global asJson cap, so the artifact
-// data comes back as a normal response rather than being withheld. Measured the
-// way asJson serializes it (pretty-printed). Leaves headroom for the wrapper.
-// Tunable for ops (and tests) via TLM_SUBTREE_MAX_BYTES, mirroring walk_graph's
+// Keep the scoped payload under the global asJson cap, so the artifact data comes
+// back as a normal response rather than being withheld. Derived from that cap
+// (not a second copy of it — as a fixed 80 KB it outgrew a 60 KB cap and every
+// full payload would have been withheld), with headroom for the wrapper. Tunable
+// for ops (and tests) via TLM_SUBTREE_MAX_BYTES, mirroring walk_graph's
 // TLM_WALK_MAX_PAGE_BYTES.
-const DEFAULT_SUBTREE_MAX_BYTES = 80 * 1024;
 const subtreeMaxBytes = (): number => {
   const override = Number(process.env.TLM_SUBTREE_MAX_BYTES);
-  return Number.isFinite(override) && override > 0 ? override : DEFAULT_SUBTREE_MAX_BYTES;
+  return Number.isFinite(override) && override > 0 ? override : pageBudgetBytes();
 };
 
 const clampDepth = (depth: number): number =>
