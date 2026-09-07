@@ -119,7 +119,15 @@ function edgeEntryTouches(entry: { id: string; before?: unknown; after?: unknown
   return false;
 }
 
-function applyTouchesNode(r: AuditRecord, nodeId: string): boolean {
+/*
+ * Does this record's diff touch `nodeId` — as a node, or as an edge endpoint?
+ *
+ * Exported because `server/freshness.ts` asks the same question for a different
+ * reason ("was this file written before the last edit to what it covers?"), and
+ * a second copy of the endpoint matching is exactly the kind that drifts: the
+ * before/after check and the parsed-id fallback below are both load-bearing.
+ */
+export function applyTouchesNode(r: AuditRecord, nodeId: string): boolean {
   const d = r.diff;
   if (!d) return false;
   for (const group of [d.nodes.added, d.nodes.removed, d.nodes.changed]) {

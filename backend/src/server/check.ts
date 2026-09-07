@@ -23,7 +23,8 @@ import { activeWorkspace } from "../context/index.js";
 import {
   getKgStore, kgNamespace, lintGraph, toAuditActor, diffGraphs,
   type LintFinding, type MutationGraph, type StoredNode, type StoredEdge, type Slot, nextAuditSeq,} from "../kg-store/index.js";
-import { lintContent, lintableRules, CONTENT_RULES, resolvableIds } from "../curriculum/index.js";
+import { lintContent, lintableRules, CONTENT_RULES, resolvableIds, ignoredRules, lintPage, PAGE_RULES, formatterStackFor, type PageInput } from "../curriculum/index.js";
+import { validateDocumentTree, resolveRenderSpec } from "../render/index.js";
 import { readCatalog } from "./catalog.js";
 import { SHARED_CATALOG_NAMESPACE, catalogNamespace } from "../kg-recipes/index.js";
 import { authorize } from "../authz.js";
@@ -162,7 +163,22 @@ export function registerCheckTools(server: McpServer) {
 // are resolved against BOTH, so a catalog entry citing a subject node is not
 // reported as dangling.
 
-export type LintContentArgs = { scope?: "subject" | "catalog" | "all"; rules?: string[]; slot?: Slot | "draft" | "published" };
+export type LintContentArgs = {
+  scope?: "subject" | "catalog" | "all";
+  rules?: string[];
+  slot?: Slot | "draft" | "published";
+  /*
+   * A COMPOSED PAGE to check as well as the graph — the same block tree
+   * render_document takes, plus the node it was composed for.
+   *
+   * The page rules need the geometry that governs the tree, and that is not the
+   * caller's to supply: it is the merged `render` bag of the formatter stack on
+   * `nodeId`'s own path, which the server resolves. So the caller sends what it
+   * made and the server brings what it will be judged against.
+   */
+  document?: unknown;
+  nodeId?: string;
+};
 
 // The core, exported so tests drive the real logic (the shape every tool group
 // here uses).
@@ -198,20 +214,122 @@ export async function runLintContent(args: LintContentArgs = {}): Promise<Record
     catalogNamespaces.forEach((ns, index) => checked.push({ where: ns, graph: catalogs[index] }));
   }
 
-  const findings = checked.flatMap(({ where, graph }) =>
+  const graphFindings = checked.flatMap(({ where, graph }) =>
     lintContent({ graph, knownIds }, { rules: args.rules }).map((finding) => ({ ...finding, where })));
 
+  // The page half, only when a caller sent a page. It reports its own problems
+  // separately from a refusal to check: "I found nothing" and "I could not look"
+  // are different answers and a composer must not read one as the other.
+  const page = args.document !== undefined
+    ? await lintComposedPage(args, subject, namespace)
+    : null;
+  const findings = [...graphFindings, ...(page && "findings" in page ? page.findings : [])];
+
+  const ranPageRules = Boolean(page && "findings" in page);
   return {
     findings,
     count: findings.length,
     checked: checked.map(({ where, graph }) => ({ where, nodes: graph.nodes.length })),
-    rulesRun: lintableRules().map((rule) => rule.id),
-    // What is NOT checked yet, so the gap is visible rather than assumed closed.
-    rulesPending: CONTENT_RULES.filter((rule) => rule.requires !== "graph").map((rule) => ({ id: rule.id, needs: rule.requires, summary: rule.summary })),
-    note:
+    rulesRun: [
+      ...lintableRules().map((rule) => rule.id),
+      ...(ranPageRules ? PAGE_RULES.map((rule) => rule.id) : []),
+    ],
+    ...(page && "error" in page ? { page } : {}),
+    ...(ranPageRules ? { page: (page as { checked: unknown }).checked } : {}),
+    // What is NOT checked, so the gap stays visible rather than assumed closed.
+    // The page rules are pending only while no page was sent — they run now.
+    rulesPending: [
+      ...CONTENT_RULES.filter((rule) => rule.requires !== "graph").map((rule) => ({ id: rule.id, needs: rule.requires, summary: rule.summary })),
+      ...(ranPageRules ? [] : PAGE_RULES.map((rule) => ({ id: rule.id, needs: "a composed page — pass `document` + `nodeId`", summary: rule.summary }))),
+    ],
+    // The note says what was found; the PAGE hint rides both branches, because a
+    // caller with findings in front of them is exactly who is reading it, and
+    // burying "the page rules did not run" in the all-clear branch is how a
+    // caller concludes everything was checked.
+    note: [
       findings.length === 0
-        ? "No contradictions found in the content checked. This checks CONSISTENCY only — check_draft covers wiring and review_draft covers coverage; run all three before publishing."
-        : "Each finding is a statement in the authored data that contradicts another statement in it. Relay them in the expert's own language, with what to do about each. None of them blocks a publish.",
+        ? `No contradictions found in the content checked${ranPageRules ? ", the composed page included" : ""}. This checks CONSISTENCY only — check_draft covers wiring and review_draft covers coverage; run all three before publishing.`
+        : "Each finding is a statement that contradicts another — in the authored data, or between the page you composed and the formatter geometry that governs it. Relay them in the expert's own language, with what to do about each. None of them blocks a publish.",
+      ...(ranPageRules
+        ? []
+        : ["The PAGE rules did NOT run, so nothing here says anything about a composed page: pass `document` (the block tree you composed) + `nodeId` (the section it is for) to check one against the geometry that will lay it out."]),
+    ].join(" "),
+  };
+}
+
+/*
+ * Check one composed page against the geometry that will lay it out.
+ *
+ * Two things must line up before a rule can say anything, and each failure is
+ * reported as itself rather than as an empty result:
+ *
+ *   • the tree must be a VALID block tree — the same validation render_document
+ *     applies, reused rather than re-implemented, so a page that would be
+ *     refused at render time is refused here in the same words;
+ *   • the scope node must resolve a formatter stack carrying `render` geometry.
+ *     A stack with none is the known live state of both subjects, and it is a
+ *     REFUSAL, not a pass: with no limits to check against every rule would
+ *     return nothing, which reads exactly like a clean page.
+ */
+async function lintComposedPage(
+  args: LintContentArgs, subject: MutationGraph, namespace: string,
+): Promise<{ findings: LintFinding[]; checked: Record<string, unknown> } | { error: string }> {
+  if (!args.nodeId) {
+    return { error: "Checking a `document` needs `nodeId` too — the node it was composed for. That is what resolves the formatter stack the page is judged against; without it there is no geometry to check." };
+  }
+
+  const treeErrors = validateDocumentTree(args.document);
+  if (treeErrors.length > 0) {
+    return { error: `That is not a valid block tree, so no page rule could read it: ${treeErrors.slice(0, 5).join("; ")}${treeErrors.length > 5 ? `; +${treeErrors.length - 5} more` : ""}.` };
+  }
+
+  const model = getActiveAdapter().model();
+  const stack = formatterStackFor(model, args.nodeId);
+  if (stack === null) {
+    return { error: `No node '${args.nodeId}' in the active graph, or it is neither a DocumentSection nor a TeachingLearningMaterial — those are what carry a formatter stack. Find the section with find_node or walk_document.` };
+  }
+
+  const resolved = resolveRenderSpec(stack);
+  if (!resolved.ok) {
+    return { error: `The formatter stack on '${args.nodeId}' does not validate, so the page cannot be checked against it: ${resolved.errors.slice(0, 5).join("; ")}. Fix the formatter's \`render\` bag first (edit_nodes), then re-run.` };
+  }
+  if (resolved.from.length === 0) {
+    return {
+      error:
+        `No formatter on '${args.nodeId}'s stack carries a \`render\` bag, so there is no geometry to check this page against. ` +
+        `This is a REFUSAL, not a pass: with no declared limits every page rule would find nothing, which is indistinguishable from a clean page. ` +
+        `Author the geometry on the applicable formatter (its \`render\` key) and re-run — render_document refuses for the same reason.`,
+    };
+  }
+
+  const scopeNode = subject.nodes.find((node) => node.id === args.nodeId);
+  // Which formatters the verdict actually used, and from which slot.
+  //
+  // Said out loud because render_document resolves its geometry from the DRAFT
+  // and this reads PUBLISHED, like the rest of lint_content. With no open draft
+  // those are the same bag. With one open they can differ, and then a clean lint
+  // would be a clean bill on geometry the render is not going to use — so the
+  // caller is told, rather than left to assume the two agree.
+  const draftOpen = Boolean((await getKgStore().readPointer(namespace))?.draftSlot);
+  return {
+    findings: lintPage({
+      tree: args.document as PageInput["tree"],
+      spec: resolved.spec,
+      scopeId: args.nodeId,
+      ignore: ignoredRules(scopeNode),
+    }).map((finding) => ({ ...finding, where: namespace })),
+    checked: {
+      nodeId: args.nodeId,
+      geometryFrom: resolved.from,
+      geometrySlot: "published",
+      blocks: (args.document as PageInput["tree"]).blocks.length,
+      ...(draftOpen
+        ? {
+            warning:
+              "A draft is open. This checked the page against the PUBLISHED formatter geometry; render_document uses the draft's. If the draft changes a formatter's `render` bag, re-check after publishing — or treat render_document's own refusal as the authority.",
+          }
+        : {}),
+    },
   };
 }
 
@@ -224,10 +342,20 @@ export function registerContentLintTools(server: McpServer) {
         "The CONSISTENCY checker — the third beside check_draft (wiring) and review_draft (coverage). It reports statements in the authored data that contradict each other: a routine whose declared duration disagrees with the sum of its steps, a routine that times itself but not its steps, a weighted grid whose sections do not total 100%, an id cited in prose that resolves to nothing, and a formatter whose declared `render` values disagree with its own prose. " +
         "It reads the active subject AND both catalog libraries by default (`scope`: 'subject' | 'catalog' | 'all'), resolving references across both so a cross-library citation is not reported as broken. Narrow with `rules`. " +
         "Each finding carries the rule, the node, what is wrong and what to do — English, like every payload here; relay them in the expert's language. Nothing blocks a publish. A finding that is deliberate is silenced ON THE NODE with metadata.lintIgnore: [\"rule-id\"], which needs no deploy. " +
-        "`rulesPending` lists the rules that cannot run yet because they need a rendered page — read it rather than assuming everything is checked. Read-only.",
+        "PASS A COMPOSED PAGE and it checks that too: `document` (the block tree, exactly as render_document takes it) plus `nodeId` (the DocumentSection or TLM it was composed for, which is what resolves the formatter stack it will be laid out with). The page rules ask whether the page contradicts its own geometry — a `style` no formatter defines, a line over the `maxChars` its style declares, more pictures than images.maxPerSection allows, a picture missing from the document's own `media`. Every one of those RENDERS SUCCESSFULLY and wrongly: an undefined style silently becomes body text, and an unresolvable picture silently becomes the document's FIRST picture. Run it before render_document, not after. " +
+        "The thirty-odd control points a particular fiche is checked against — speech-colour purity, answer labels, no placeholder left in clear — are SUBJECT knowledge and stay in that subject's guide, where a curator changes them without a deploy. A rule here only ever asks a question the DATA answers. " +
+        "`rulesPending` lists what did not run and why — the page rules appear there until you send a page, so read it rather than assuming everything was checked. Read-only.",
       inputSchema: {
         scope: z.enum(["subject", "catalog", "all"]).optional(),
         rules: z.array(z.string()).optional(),
+        document: z
+          .unknown()
+          .optional()
+          .describe("A composed page to check as well as the graph — the same { blocks, media } block tree render_document takes. Needs `nodeId`."),
+        nodeId: z
+          .string()
+          .optional()
+          .describe("The DocumentSection or TeachingLearningMaterial `document` was composed for. It is what resolves the formatter stack the page is judged against, so a page cannot be checked without it."),
       },
     },
     guarded(async (a: LintContentArgs) => asJson(await runLintContent(a))),

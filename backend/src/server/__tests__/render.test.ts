@@ -39,7 +39,7 @@ const translated: { text: string; direction: string; glossaryTerms: number }[] =
 vi.mock("../../translation/index.js", () => ({
   translate: async (input: { text: string; direction: string; glossary?: unknown[] }) => {
     translated.push({ text: input.text, direction: input.direction, glossaryTerms: (input.glossary ?? []).length });
-    return { translation: `wo:${input.text}`, sourceLanguage: "French", targetLanguage: "Wolof", model: "stub", glossaryTermsUsed: 0 };
+    return { translation: `wo:${input.text}`, sourceLanguage: "French", targetLanguage: "Wolof", model: "stub", glossaryTerms: [] };
   },
 }));
 
@@ -672,6 +672,33 @@ describe("render_document refuses rather than guesses", () => {
     });
     expect(out.error).toContain("not valid");
     expect((out.problems as string[]).join(" ")).toContain("colour");
+    expect(uploaded).toBeNull();
+  });
+
+  it("refuses a picture the tree does not carry, rather than embedding a different one", async () => {
+    /*
+     * The layout resolves an unknown media name with `?? "rId1"` — it embeds the
+     * document's FIRST picture. So this has to be refused BEFORE the render, not
+     * reported after: what it produced was a plausible-looking file with the
+     * wrong image in one slot, which is exactly the kind of wrong that never
+     * gets re-examined.
+     */
+    const out = await withCtx(CURATOR, async () => {
+      await stageRenderBag(RENDER_BAG);
+      return renderDocument({
+        nodeId: sectionId,
+        document: {
+          blocks: [{ kind: "line", runs: [{ image: { media: "absent.png", role: "band", aspectRatio: 1 } }] }],
+          media: [{ name: "present.png", data: "AAAA" }],
+        },
+      });
+    });
+
+    expect(String(out.error)).toContain("'absent.png'");
+    expect(String(out.error)).toMatch(/FIRST picture/);
+    // What IS carried, so the caller can see the name they meant.
+    expect(out.media).toEqual(["present.png"]);
+    // And nothing was produced: a refusal, not a partial render.
     expect(uploaded).toBeNull();
   });
 

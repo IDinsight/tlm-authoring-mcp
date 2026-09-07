@@ -20,6 +20,7 @@ import { randomUUID } from "node:crypto";
 import { asJson, guarded } from "./shared.js";
 import { withContextOverride, contextField, type WithContext } from "./context-override.js";
 import { SECTION_PARTS, type SectionPart } from "../curriculum/index.js";
+import { freshnessFor } from "./freshness.js";
 import { getActiveAdapter } from "../adapters/index.js";
 import { activeWorkspace, sessionState } from "../context/index.js";
 import { getKgStore, kgNamespace, toAuditActor, diffGraphs, type GraphDiff, nextAuditSeq } from "../kg-store/index.js";
@@ -121,6 +122,7 @@ export type SectionToolArgs = WithContext & {
   cursor?: string;
   slot?: WalkSlot;
   include?: SectionPart[];
+  freshness?: boolean;
 };
 
 // The arguments walk_document accepts. `limit`/`cursor` page the SECTION SPINE —
@@ -131,6 +133,7 @@ export type DocumentToolArgs = WithContext & {
   limit?: number;
   cursor?: string;
   slot?: WalkSlot;
+  freshness?: boolean;
 };
 
 // ── Core: walk_graph ──────────────────────────────────────────────────────────
@@ -191,7 +194,22 @@ async function documentResolved(args: DocumentToolArgs): Promise<Record<string, 
   if ("error" in document) {
     return document;
   }
-  return { slot, physicalSlot: resolved.physicalSlot, ...document };
+
+  /*
+   * At the document level the question is narrower, on purpose: the state of the
+   * files already produced FOR THIS DOCUMENT.
+   *
+   * Not a fan-out over its sections' covers. The spine here is one PAGE, so a
+   * fan-out would report a different set depending on where the caller was in
+   * the pagination — a freshness field that changes meaning per page is worse
+   * than none. The per-section read is where the production question is asked,
+   * and it asks it for exactly the section in hand.
+   */
+  const freshness = args.freshness === false
+    ? undefined
+    : await freshnessFor(namespace, resolved.model, [document.tlm]);
+
+  return { slot, physicalSlot: resolved.physicalSlot, ...document, ...(freshness ? { sourceFreshness: freshness } : {}) };
 }
 
 /**
@@ -248,7 +266,20 @@ async function sectionResolved(args: SectionToolArgs): Promise<Record<string, un
   if ("error" in section) {
     return section;
   }
-  return { slot, physicalSlot: resolved.physicalSlot, ...section };
+
+  /*
+   * Whether the documents already covering this section's curriculum are still
+   * current. This is the production read, so it is where the question has to be
+   * answered: a CE1 Guide was once composed against a pupil render five days
+   * behind the lesson, and the machinery to notice had existed the whole time
+   * as a separate call nobody was prompted to make (see server/freshness.ts).
+   * Opt out with freshness:false when composing something new from scratch.
+   */
+  const freshness = args.freshness === false
+    ? undefined
+    : await freshnessFor(namespace, resolved.model, section.covers);
+
+  return { slot, physicalSlot: resolved.physicalSlot, ...section, ...(freshness ? { sourceFreshness: freshness } : {}) };
 }
 
 // ── Core: find_node ───────────────────────────────────────────────────────────
@@ -476,6 +507,12 @@ export function registerGraphTools(server: McpServer) {
         limit: z.number().int().optional(),
         cursor: z.string().optional(),
         slot: z.enum(["published", "draft"]).optional(),
+        freshness: z
+          .boolean()
+          .optional()
+          .describe(
+            "Report whether the documents already produced here are out of date (default true). `sourceFreshness` gives counts plus a row per document needing attention: `stale` means it quotes curriculum that has CHANGED since (compared against the anchors the renderer wrote into the file, so this is a content comparison, not a timestamp), `unknown` means it records no sources — and for those, `olderThanGraph` + `lastGraphEdit` say whether the graph moved after the file was written. Composing against a document that is behind the graph reproduces decisions that have been superseded, and nothing in its own text says so. Pass false when composing something new and the existing files are irrelevant."
+          ),
         ...contextField,
       },
     },
@@ -499,6 +536,12 @@ export function registerGraphTools(server: McpServer) {
         detail: z.enum(["skeleton", "full"]).optional(),
         cursor: z.string().optional(),
         slot: z.enum(["published", "draft"]).optional(),
+        freshness: z
+          .boolean()
+          .optional()
+          .describe(
+            "Report whether the documents already produced here are out of date (default true). `sourceFreshness` gives counts plus a row per document needing attention: `stale` means it quotes curriculum that has CHANGED since (compared against the anchors the renderer wrote into the file, so this is a content comparison, not a timestamp), `unknown` means it records no sources — and for those, `olderThanGraph` + `lastGraphEdit` say whether the graph moved after the file was written. Composing against a document that is behind the graph reproduces decisions that have been superseded, and nothing in its own text says so. Pass false when composing something new and the existing files are irrelevant."
+          ),
         include: z
           .array(z.enum(SECTION_PARTS))
           .optional()

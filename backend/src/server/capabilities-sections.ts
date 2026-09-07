@@ -24,7 +24,7 @@ import { activeWorkspace } from "../context/index.js";
 import { STRUCTURAL_RULES } from "../kg-store/index.js";
 import { RECIPES, SHARED_CATALOG_NAMESPACE, catalogNamespace, renderSpecSchema } from "../kg-recipes/index.js";
 import { documentSchema } from "../render/index.js";
-import { lintableRules, CONTENT_RULES } from "../curriculum/index.js";
+import { lintableRules, CONTENT_RULES, PAGE_RULES } from "../curriculum/index.js";
 import { KIND_PROPERTIES } from "./authoring.js";
 import { CATALOG_WRITE_VERBS } from "./catalog-target.js";
 
@@ -320,7 +320,7 @@ export function discoverySection(actions: Actions) {
       pagination: "nextCursor + truncatedByLimit (more nodes remain) vs truncated (depth cap) vs truncatedBySize (byte budget trimmed the page — see hint)",
     },
     walkDocument: {
-      params: ["tlmId", "limit", "cursor", "slot", "context"],
+      params: ["tlmId", "limit", "cursor", "slot", "freshness", "context"],
       // How the curriculum-to-render was resolved from the TLM.
       scopes: ["sections", "course", "none"],
       // Every part can overflow, so each degrades in turn — most-reachable-elsewhere
@@ -328,7 +328,7 @@ export function discoverySection(actions: Actions) {
       overflow: "self-bounded in tiers — `curriculum` degrades to { tooLarge, counts, message }, then `document` (both reachable via walk_document_section), then `sections` is trimmed to the byte budget with sectionsTruncated + nextCursor + spineNote; guide and scope always ride",
     },
     walkDocumentSection: {
-      params: ["sectionId", "detail", "cursor", "include", "slot", "context"],
+      params: ["sectionId", "detail", "cursor", "include", "slot", "freshness", "context"],
       // Anchored on the DocumentSection — the document↔curriculum binding — so the
       // routine resolves nearest-wins document-first: the section's own usesRoutine,
       // else the sections it is nested in, else the owning TLM's, else the covered
@@ -336,6 +336,8 @@ export function discoverySection(actions: Actions) {
       routineResolution: "nearest-wins, document-first (section → the sections it is nested in, nearest first → owning TLM → covered curriculum's ancestry)",
       // Producing a document section by section otherwise re-receives its
       // document-level parts once per section.
+      sourceFreshness:
+        "`sourceFreshness` (on by default; `freshness:false` opts out) reports whether the documents already covering this material are out of date, because a production read is where that has to be asked — it was a separate call nobody was prompted to make, and a Guide once got composed against a pupil render five days behind the lesson. `stale` is a CONTENT comparison (the anchors the renderer wrote into the file vs the graph now); `unknown` means the file records no sources, and then `olderThanGraph` + `lastGraphEdit` fall back to asking the audit whether the graph moved after the file was written. Needs a role in the workspace, like every other document read.",
       include:
         "`include` (a subset of document/curriculum/routine/formatters; omit for all) drops the parts you already hold — the assembly guide, formatter stack and covered curriculum are the SAME for every section of a document, so read it once with walk_document and then ask per section. The section's own node, its `covers` ids and `formatterStackOrder` always ride; `omitted` names what you left out, so a missing `routine` is never read as a section that has none.",
     },
@@ -379,17 +381,29 @@ export function checksSection(actions: Actions) {
     // commonest mistake is to run one and believe the draft is checked.
     checkers: {
       check_draft: "WIRING — is it connected? Mechanical, subject-agnostic.",
-      lint_content: "CONSISTENCY — do the authored statements contradict each other? A declared total against the sum of its parts, a cited id that resolves to nothing, declared values against the prose beside them.",
+      lint_content: "CONSISTENCY — do the authored statements contradict each other? A declared total against the sum of its parts, a cited id that resolves to nothing, declared values against the prose beside them. Pass `document` + `nodeId` and it also checks a COMPOSED PAGE against the formatter geometry that will lay it out.",
       review_draft: "COVERAGE — does it teach what the subject guide expects? A judgement the model makes, not the server.",
     },
     contentLint: {
       tool: "lint_content",
       rules: lintableRules().map((rule) => ({ id: rule.id, summary: rule.summary })),
+      /*
+       * The page rules, listed apart from the graph rules because they only run
+       * when a caller SENDS a page. Listing them among `rules` would say they
+       * ran; listing them among `pending` would say they cannot.
+       */
+      pageRules: {
+        needs: "`document` (the block tree) + `nodeId` (the DocumentSection or TLM it is for)",
+        rules: PAGE_RULES.map((rule) => ({ id: rule.id, summary: rule.summary })),
+        why: "Each of these catches a page that renders SUCCESSFULLY and wrongly — an undefined style silently becomes body text, an unresolvable picture silently becomes the document's FIRST picture. No page count catches either, so run this before render_document.",
+        geometryFrom: "the merged `render` bag of the formatter stack on `nodeId`'s own path, resolved by the server from the PUBLISHED slot. render_document resolves the DRAFT's, so with a draft open the two can differ — the response says which was used.",
+        limits: "Every limit a page rule applies comes from the render bag, never from code: the subject's own thirty-odd control points stay in its GUIDE, where a curator changes them without a deploy.",
+      },
       // What cannot run yet, so a caller does not assume everything is checked.
       pending: CONTENT_RULES.filter((rule) => rule.requires !== "graph").map((rule) => ({ id: rule.id, needs: rule.requires })),
       scopes: ["subject", "catalog", "all"],
       defaultScope: "all",
-      suppression: "metadata.lintIgnore: [\"rule-id\"] on the node silences one rule there — data, so it needs no deploy",
+      suppression: "metadata.lintIgnore: [\"rule-id\"] on the node silences one rule there — data, so it needs no deploy; it reaches the page rules too, declared on the scope node",
     },
     availableOnDraft: actions.canReadDraft,
     // The rules, named so a caller can anticipate them. They are WIRING only —

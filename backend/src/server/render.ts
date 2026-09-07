@@ -33,7 +33,7 @@ import { getKgStore, kgNamespace, toAuditActor, nextAuditSeq } from "../kg-store
 import { currentActor } from "../actor.js";
 import { getStorageAdapter } from "../storage/index.js";
 import { formatterStackFor } from "../curriculum/index.js";
-import { documentSchema, renderDocx, resolveRenderSpec, splitByVariant, deriveVariant, hasVariant, measureDocx, readDocx, proposeEdits, editItems, documentText, normalise, type DocumentTree, type TextSlot } from "../render/index.js";
+import { documentSchema, renderDocx, resolveRenderSpec, missingMediaNames, splitByVariant, deriveVariant, hasVariant, measureDocx, readDocx, proposeEdits, editItems, documentText, normalise, type DocumentTree, type TextSlot } from "../render/index.js";
 import { displayName, descriptionBody } from "../utils/index.js";
 import { translate } from "../translation/index.js";
 import { effectiveTerms, filterByText } from "./glossary-read.js";
@@ -162,6 +162,31 @@ export async function renderDocument(a: RenderArgs): Promise<Record<string, unkn
         return `document.${path}: ${issue.message}`;
       }),
       hint: "get_capabilities section:'document' describes the tree. Geometry does not belong in it: a block names a `style` and a picture a `role`, and the formatter says what those look like.",
+    };
+  }
+
+  /*
+   * A PICTURE THE DOCUMENT DOES NOT CARRY IS A REFUSAL, for the same reason no
+   * geometry is.
+   *
+   * `drawingXml` resolves a picture's relationship id with `?? "rId1"`, so a
+   * name matching no media entry does not fail — it embeds THE FIRST PICTURE IN
+   * THE DOCUMENT instead. The file comes out looking finished with the wrong
+   * image in one slot, and nothing about it invites the second look that would
+   * catch it. Refusing costs the caller a corrected name.
+   *
+   * `missingMediaNames` is the same function lint_content reports on, so a page
+   * that passed the lint is never refused here for this.
+   */
+  const missingMedia = missingMediaNames({ blocks: tree.data.blocks, media: tree.data.media });
+  if (missingMedia.length > 0) {
+    return {
+      preview: true,
+      error:
+        `The tree places ${missingMedia.length} picture(s) that are not in its own \`media\`: ${missingMedia.map((name) => `'${name}'`).join(", ")}. Nothing was rendered. ` +
+        `This is refused rather than rendered because the layout falls back to the document's FIRST picture for a name it cannot resolve — the file would look complete with the wrong image in that slot.`,
+      hint: "Add each file to `media` (name + base64 data), or correct the name to one already there. lint_content reports this too, before you render.",
+      media: (tree.data.media ?? []).map((m) => m.name),
     };
   }
 
