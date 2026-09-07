@@ -12,22 +12,35 @@ FROM node:22-slim
 # render and never estimated from the source — an estimate once put a document
 # at 2.5 pages that rendered at eleven.
 #
-# It is OPT-IN because it is not free: MEASURED at 149 MB (108 -> 257 MB) plus
-# several seconds of cold start, and every other tool works without it. Build
-# with --build-arg WITH_LAYOUT_ENGINE=1 to enable `render_document`'s
-# `measure:true`; without it that call reports `available:false` and the render
-# itself is unaffected.
+# It is NOT free: MEASURED at 149 MB (108 -> 257 MB) plus several seconds of
+# cold start, and every other tool works without it. It was opt-in (default 0)
+# for as long as it bought nothing — no formatter carried a `render` bag, so
+# `render_document` could not lay a page out at all, let alone count one.
 #
-# VERIFIED 2026-09-03 on this recipe: all twenty CI-maths teacher sheets came
-# out at their documented page count on A4 — nine lessons at two pages, lesson 5
-# at one. That is the first and so far only end-to-end run of the measurement
-# path.
+# DEFAULT IS NOW 1, because that changed: the CI-maths teacher-sheet formatter
+# carries the gabarit's geometry, so the measurement path is reachable and
+# `budget.maxPages: 2` can finally produce a verdict instead of a shrug. The ARG
+# stays the switch — build with --build-arg WITH_LAYOUT_ENGINE=0 for a lean
+# image, and `measure:true` then reports `available:false` rather than guessing
+# (the render itself is unaffected either way).
+#
+# NOTE ON THE DEPLOY PATH: .github/workflows/deploy.yml deploys with
+# `gcloud run deploy --source backend`, which builds through Cloud Build and has
+# nowhere to pass --build-arg. So for the deployed service this DEFAULT is the
+# only switch there is; changing it here is what turns measuring on in production.
+#
+# VERIFIED 2026-09-03 on this recipe: the CI-maths teacher sheets came out at
+# their documented page count on A4. That run reported nineteen pages over ten
+# lessons; the corpus now on disk is lessons 11-20 and every one of its ten
+# French sheets is two pages (twenty total, counted from the PDFs on
+# 2026-09-07), so that run measured a set that is no longer present. Treat the
+# recipe as verified and the page figures as describing the older corpus.
 #
 # ANDIKA IS PART OF THE MEASUREMENT, not a nicety. It is a literacy face with an
 # unusually generous natural leading, and substituting another changes glyph
 # advances, which changes line counts, which changes the page count this exists
 # to report. fonts-sil-andika ships it; pin the image if the version matters.
-ARG WITH_LAYOUT_ENGINE=0
+ARG WITH_LAYOUT_ENGINE=1
 RUN if [ "$WITH_LAYOUT_ENGINE" = "1" ]; then \
       apt-get update && apt-get install -y --no-install-recommends \
         libreoffice-writer poppler-utils fonts-sil-andika \
