@@ -534,7 +534,7 @@ that; all four preserve namespace scoping and (writes) the two-phase confirm con
 
 **Reads.**
 
-- **`walk_graph(fromId, direction, edgeTypes?, nodeTypes?, maxDepth?, includeEdges?, limit?, cursor?, slot?)`**
+- **`walk_graph(fromId, direction, edgeTypes?, nodeTypes?, maxDepth?, includeEdges?, detail?, limit?, cursor?, slot?)`**
   — one directional (`out`/`in`/`both`), edge- and label-filtered, paginated BFS over the
   echoed raw graph. It is the single generic traversal and **replaced `get_course`** (which
   blew the token cap on any non-trivial course): a course subtree is `walk_graph(course,
@@ -544,6 +544,29 @@ that; all four preserve namespace scoping and (writes) the two-phase confirm con
   deterministic re-run sliced by an opaque `(depth,id)` cursor, like `read_audit`).
   `slot:"draft"` walks the unpublished draft (curator/approver only, same tier as
   `diff_draft`), closing the gap `get_course`'s removal left. Reader: `curriculum/walk.ts`.
+
+  `detail` splits the walk's two jobs, which have very different prices. Browsing
+  structure — what is here, in what order, which id is which — needs a node's identity,
+  ordinal and kind; reading content needs its authored prose. The walk returned both on
+  every call, and on the live ci/maths graph the prose is where the bytes are: one field,
+  `metadata.assemblyGuide`, is **99% of all metadata and 84% of a page**. A
+  `DocumentSection` averages ~3.5 KB, so a page of the `Outil de l'élève`'s **579**
+  sections held **four** of them — ~145 round-trips and ~1.5M tokens to enumerate one
+  document's spine, which is what `walk_document`'s own overflow message routed callers
+  into. `detail:"skeleton"` keeps `description`, `position` and the canonical LC kind
+  fields (`normalizedType`, `normalizedStatementType`, `statementType`, `groupName`,
+  `educationalUse`) and drops the rest, taking the same page to **227 nodes** — measured
+  on the fixture, matching live. `"full"` stays the default, so no existing caller
+  changes, and the generation readers (`walk_document_section`) are always full.
+
+  Why a `detail` level and not a `fields` allowlist: the win is concentrated in one
+  field, not spread across many — once the prose is gone the remaining properties are
+  30–60 bytes each, so `fields:[description,position]` measures **identical** to
+  `skeleton`. An allowlist would buy that same nothing in exchange for making the caller
+  know per-subject, per-label key names (a maths SFI carries `osTexte`/`statementCode`, a
+  reading one `caseIdentifierURI`/`notes`), where a wrong guess yields a silently thin
+  node and the extra round-trip the caller was avoiding. Projections:
+  `curriculum/read-projection.ts`.
 - **`namespace_stats()`** — an argument-free orientation snapshot: node counts by label,
   edge counts by type, structural roots (no inbound `hasPart`/`hasChild`), draft state
   (open + staged-edit count), and cheap heuristic `coverageFlags`. Run it first to see the

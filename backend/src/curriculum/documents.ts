@@ -46,16 +46,27 @@ const DOCUMENT_EDGE = "hasPart";
 const CURRICULUM_EDGES = new Set(["hasPart", "hasChild"]);
 
 
-// walk_document inlines the WHOLE curriculum a document renders. For a
-// whole-Course document (a pupil manual whose section spine covers the full
-// Course) that subtree is essentially the entire graph and would blow the 100 KB
-// response cap — so, exactly as exportSubtree bounds a visualization slice, bound
-// it here: measure the assembled scope and, when the curriculum pushes it over
-// budget, drop the curriculum nodes/edges for a {tooLarge, …} marker that steers
-// the caller to the per-section path. The small, always-useful parts (assembly
-// guide, scope, the sections spine, the document subtree) still come back with the
-// section ids the caller needs. Budget sits under the response cap with headroom
-// for the document subtree + envelope; tunable via TLM_DOCUMENT_MAX_BYTES.
+// walk_document assembles a whole document, and EVERY part of it can be too big
+// to inline — so, exactly as exportSubtree bounds a visualization slice, the
+// payload self-bounds here rather than letting the ~100 KB response cap withhold
+// it whole.
+//
+// The parts are shed in order of how REPLACEABLE each one is elsewhere, so what
+// survives is what only this tool can answer:
+//   1. `curriculum` — a whole-Course document's curriculum is essentially the
+//      entire graph. Reachable per-section via walk_document_section.
+//   2. `document` — the TLM subtree. Measured on live ci/maths, its 579
+//      DocumentSections are 2,276 KB of a 2,707 KB payload (~4 KB of authored
+//      assemblyGuide each) and its 9 FormatterSpecs another 55 KB. Every one of
+//      those nodes is returned by walk_document_section, which also carries the
+//      TLM's doc-wide formatter stack, so nothing here is lost — only relocated.
+//   3. `sections` — trimmed to the budget with a `nextCursor`, because even the
+//      LEAN spine of that document is 88.8 KB at 579 entries (three UUIDs each).
+//      This is the one part nothing else provides: it is the fan-out list.
+// The assembly guide and `scope` are small and always ride.
+//
+// Budget sits under the response cap with headroom for the envelope; tunable via
+// TLM_DOCUMENT_MAX_BYTES.
 const DEFAULT_DOCUMENT_MAX_BYTES = 80 * 1024;
 const documentMaxBytes = (): number => {
   const override = Number(process.env.TLM_DOCUMENT_MAX_BYTES);
@@ -154,6 +165,17 @@ export type CurriculumTooLarge = {
   message: string;
 };
 
+// The TLM subtree inlined when it fits, or the same self-bounding marker shape
+// when it would blow the cap. Separate type from CurriculumTooLarge only so its
+// `message` can route to the document-side remedy.
+export type DocumentTooLarge = {
+  tooLarge: true;
+  counts: { nodes: number; edges: number };
+  approxBytes: number;
+  softCapBytes: number;
+  message: string;
+};
+
 // The full document scope generation composes over. `scope` records HOW the
 // curriculum was resolved: "sections" (a DocumentSection spine), "course" (the
 // simple TLM→covers→Course fallback), or "none" (the TLM covers nothing yet).
@@ -161,8 +183,12 @@ export type DocumentScope = {
   tlm: string;
   assemblyGuide: string | null;
   scope: "sections" | "course" | "none";
-  sections: DocumentSectionOut[];              // ordered by position; [] when there is no spine
-  document: { nodes: NodeOut[]; edges: EdgeOut[] };   // the TLM subtree: TLM + hasPart(sections/formatters/specs) + covers edges
+  sections: DocumentSectionOut[];              // this PAGE of the spine, in reading order; [] when there is no spine
+  sectionsTotal: number;                       // how many the document has in all, however many this page holds
+  sectionsTruncated?: true;                    // this page is not the whole spine — page on with nextCursor
+  nextCursor?: string;                          // opaque; pass back as `cursor` for the next page of sections
+  spineNote?: string;                           // present only when the BUDGET (not `limit`) trimmed the spine
+  document: { nodes: NodeOut[]; edges: EdgeOut[] } | DocumentTooLarge;   // the TLM subtree: TLM + hasPart(sections/formatters/specs) + covers edges
   curriculum: { nodes: NodeOut[]; edges: EdgeOut[] } | CurriculumTooLarge;  // the resolved curriculum, inlined or self-bounded
 };
 
@@ -182,9 +208,94 @@ function curriculumTooLargeMessage(
   return `The curriculum this document renders is ${size}. ${route}`;
 }
 
+// How to fetch the document subtree once it is too big to inline. Every node in it
+// — each DocumentSection, and the TLM's doc-wide Formatter/FormatterSpec stack —
+// comes back from walk_document_section, so this is a redirect, not a loss.
+function documentTooLargeMessage(sections: number, bytes: number, budget: number): string {
+  return (
+    `This document's own subtree (its DocumentSections and its Formatter/FormatterSpec stack) is ` +
+    `~${Math.round(bytes / 1024)} KB, over the ~${Math.round(budget / 1024)} KB budget for one document payload. ` +
+    `Nothing is lost: call walk_document_section on each of the ${sections} ids in \`sections\` — each returns that ` +
+    `section in full ALONG WITH this document's doc-wide formatter stack, which is what you would have read here.`
+  );
+}
+
+// How to page on when even the lean spine does not fit. Said only when it happens,
+// so a document whose spine fits whole never reads about a cursor.
+function spineTruncatedMessage(shown: number, total: number): string {
+  return (
+    `This page holds ${shown} of the document's ${total} sections — the spine is too large for one response. ` +
+    `Call walk_document again with cursor:<nextCursor> for the next page; the assemblyGuide and scope repeat on every page.`
+  );
+}
+
+// ── Section-spine paging ──────────────────────────────────────────────────────
+// The spine is recomputed identically on every call (a deterministic depth-first
+// walk), so resuming needs only the id the previous page stopped at — the same
+// stateless-cursor approach walk_graph and read_audit use. No frontier state, and
+// a garbage cursor decodes to null so the caller gets a clear error, not a wrong
+// page.
+const encodeSpineCursor = (lastId: string): string => Buffer.from(lastId, "utf8").toString("base64");
+
+/**
+ * Decode a spine cursor, or null if it was not one we issued.
+ *
+ * The validity check is a ROUND-TRIP, not a try/catch: Node's base64 decoder is
+ * lenient — `Buffer.from("!!!not-base64!!!", "base64")` throws nothing and yields
+ * garbage bytes — so a malformed cursor would otherwise sail through and be
+ * reported as "section not in this spine", pointing the caller at the wrong
+ * problem. Re-encoding the decoded id and comparing rejects anything that is not
+ * the canonical encoding of some id. (walk.ts's cursor gets this for free because
+ * it JSON.parses the payload, which does throw.)
+ */
+const decodeSpineCursor = (cursor: string): string | null => {
+  try {
+    const id = Buffer.from(cursor, "base64").toString("utf8");
+    if (id.length === 0 || encodeSpineCursor(id) !== cursor) return null;
+    return id;
+  } catch {
+    return null;
+  }
+};
+
+/**
+ * Largest prefix of `sections` whose serialized size fits `budget`. Binary search
+ * over prefix length — the same size-monotonic-window trick walk.ts uses — so it
+ * costs O(log n) measurements rather than n. Always yields at least one section
+ * when there is any: a caller must be able to make progress, even one section per
+ * page, and truncating a section's own fields would corrupt the shape.
+ */
+function fitSpineToBudget(sections: DocumentSectionOut[], budget: number): number {
+  if (sections.length === 0) return 0;
+  const bytesForPrefix = (count: number): number => byteLength(sections.slice(0, count));
+  if (bytesForPrefix(sections.length) <= budget) return sections.length;
+
+  let low = 1;
+  let high = sections.length;
+  let best = 1;
+  while (low <= high) {
+    const mid = (low + high) >> 1;
+    if (bytesForPrefix(mid) <= budget) {
+      best = mid;
+      low = mid + 1;
+    } else {
+      high = mid - 1;
+    }
+  }
+  return best;
+}
+
+/** Paging over the section spine; both optional, both caller-supplied. */
+export type DocumentScopeOptions = { limit?: number; cursor?: string };
+
 // The document rooted at one TLM. Returns null if `tlmId` is not a
-// TeachingLearningMaterial node in this graph.
-export function documentSubgraph(model: CurriculumModel, tlmId: string): DocumentScope | null {
+// TeachingLearningMaterial node in this graph, or { error } for a bad cursor —
+// the one caller mistake that must not silently return the wrong page.
+export function documentSubgraph(
+  model: CurriculumModel,
+  tlmId: string,
+  options: DocumentScopeOptions = {},
+): DocumentScope | { error: string } | null {
   const raw = model.rawGraph;
   if (!raw) return null;
   const tlm = raw.nodes.find((n) => n.id === tlmId);
@@ -229,26 +340,85 @@ export function documentSubgraph(model: CurriculumModel, tlmId: string): Documen
     edges: raw.relationships.filter((e) => curriculumIds.has(e.start) && curriculumIds.has(e.end)).map(edgeOut),
   };
 
-  // Self-bound: when inlining the curriculum pushes the scope over budget, return
-  // its counts + a route to the bounded fetch instead of the nodes/edges, so the
-  // caller gets an actionable response (and the section ids) rather than the hard
-  // RESPONSE_TOO_LARGE cap. The small parts (guide, spine, document) always ride.
-  const base = { tlm: tlmId, assemblyGuide: assemblyGuideOf(tlm), scope, sections, document };
+  // 4. Resolve the caller's page of the spine before measuring anything, so the
+  //    budget is spent on the sections actually being returned.
+  const sectionsTotal = sections.length;
+  const cursorId = options.cursor ? decodeSpineCursor(options.cursor) : null;
+  if (options.cursor && !cursorId) {
+    return { error: "Invalid cursor — pass a cursor returned by a prior walk_document page, unmodified." };
+  }
+  if (cursorId && !sections.some((section) => section.id === cursorId)) {
+    return { error: `Cursor points at section '${cursorId}', which is not in this document's spine. Start a fresh walk_document without a cursor.` };
+  }
+  const resumeIndex = cursorId ? sections.findIndex((section) => section.id === cursorId) + 1 : 0;
+  const requested = options.limit !== undefined
+    ? sections.slice(resumeIndex, resumeIndex + Math.max(1, options.limit))
+    : sections.slice(resumeIndex);
+
+  // 5. Self-bound: shed the replaceable parts in order until the payload fits,
+  //    then trim the spine itself. Each step is measured, never estimated, so the
+  //    result is bounded by what the response will actually carry.
   const budget = documentMaxBytes();
-  if (byteLength({ ...base, curriculum }) > budget) {
+  const guide = assemblyGuideOf(tlm);
+  const curriculumMarker = (): CurriculumTooLarge => {
     const approxBytes = byteLength(curriculum);
     return {
-      ...base,
-      curriculum: {
-        tooLarge: true,
-        counts: { nodes: curriculum.nodes.length, edges: curriculum.edges.length },
-        approxBytes,
-        softCapBytes: budget,
-        message: curriculumTooLargeMessage(scope, sections, approxBytes, budget),
-      },
+      tooLarge: true,
+      counts: { nodes: curriculum.nodes.length, edges: curriculum.edges.length },
+      approxBytes,
+      softCapBytes: budget,
+      message: curriculumTooLargeMessage(scope, sections, approxBytes, budget),
     };
+  };
+  const documentMarker = (): DocumentTooLarge => {
+    const approxBytes = byteLength(document);
+    return {
+      tooLarge: true,
+      counts: { nodes: document.nodes.length, edges: document.edges.length },
+      approxBytes,
+      softCapBytes: budget,
+      message: documentTooLargeMessage(sectionsTotal, approxBytes, budget),
+    };
+  };
+
+  const assemble = (
+    parts: { document: DocumentScope["document"]; curriculum: DocumentScope["curriculum"]; sections: DocumentSectionOut[] },
+  ): DocumentScope => {
+    const truncated = parts.sections.length < requested.length
+      || resumeIndex + parts.sections.length < sectionsTotal;
+    const last = parts.sections[parts.sections.length - 1];
+    return {
+      tlm: tlmId,
+      assemblyGuide: guide,
+      scope,
+      sections: parts.sections,
+      sectionsTotal,
+      ...(truncated && last ? { sectionsTruncated: true as const, nextCursor: encodeSpineCursor(last.id) } : {}),
+      document: parts.document,
+      curriculum: parts.curriculum,
+    };
+  };
+
+  // Tier 1-3: everything, then without the curriculum, then without the subtree.
+  const tiers: Array<{ document: DocumentScope["document"]; curriculum: DocumentScope["curriculum"] }> = [
+    { document, curriculum },
+    { document, curriculum: curriculumMarker() },
+    { document: documentMarker(), curriculum: curriculumMarker() },
+  ];
+  for (const tier of tiers) {
+    const candidate = assemble({ ...tier, sections: requested });
+    if (byteLength(candidate) <= budget) {
+      return candidate;
+    }
   }
-  return { ...base, curriculum };
+
+  // Tier 4: even the lean spine does not fit. Trim it against the budget left
+  // once the envelope and guide are accounted for, and hand back a cursor.
+  const shed = { document: documentMarker(), curriculum: curriculumMarker() };
+  const envelopeBytes = byteLength(assemble({ ...shed, sections: [] }));
+  const fitCount = fitSpineToBudget(requested, Math.max(budget - envelopeBytes, 0));
+  const page = assemble({ ...shed, sections: requested.slice(0, Math.max(fitCount, 1)) });
+  return { ...page, spineNote: spineTruncatedMessage(page.sections.length, sectionsTotal) };
 }
 
 // ── walk_document_section ──────────────────────────────────────────────────────

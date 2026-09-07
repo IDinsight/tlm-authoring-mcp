@@ -126,6 +126,123 @@ describe("walkGraph (pure BFS)", () => {
   });
 });
 
+// ── detail: "skeleton" ────────────────────────────────────────────────────────
+// Shaped like the live ci/maths document that motivated the flag: a TLM holding
+// many DocumentSections, each carrying a ~3.5 KB authored `assemblyGuide`. At
+// that size a 40 KB page fits only a handful of full sections, which is what
+// made enumerating a 579-section spine cost ~145 round trips.
+const PROSE = "Consigne d'assemblage de la section. ".repeat(95); // ~3.5 KB, as live
+const SECTION_COUNT = 30;
+
+const DETAILED: RawGraphSnapshot = {
+  nodes: [
+    { id: "doc", labels: ["TeachingLearningMaterial"], properties: { description: "Outil de l'élève" } },
+    ...Array.from({ length: SECTION_COUNT }, (_unused, index) => ({
+      id: `sec-${String(index + 1).padStart(2, "0")}`,
+      labels: ["DocumentSection"],
+      properties: {
+        description: `Leçon ${index + 1} — une section`,
+        position: index + 1,
+        normalizedType: "container",
+        statementType: "Objectif spécifique",
+        groupName: "Unité",
+        educationalUse: "Assessment",
+        content: PROSE,
+        metadata: { assemblyGuide: PROSE, summary: "un résumé" },
+      },
+    })),
+  ],
+  relationships: Array.from({ length: SECTION_COUNT }, (_unused, index) => ({
+    id: `hasPart:doc->sec-${index + 1}`,
+    type: "hasPart",
+    start: "doc",
+    end: `sec-${String(index + 1).padStart(2, "0")}`,
+    properties: { note: "kept in full detail" },
+  })),
+} as unknown as RawGraphSnapshot;
+const detailedModel = { rawGraph: DETAILED } as unknown as CurriculumModel;
+
+const sectionOf = (result: { nodes: Array<{ id: string; properties: Record<string, unknown> }> }) =>
+  result.nodes.find((node) => node.id === "sec-01")!.properties;
+
+describe("walkGraph detail", () => {
+  it("keeps identity, ordinal and kind but drops authored prose at skeleton detail", () => {
+    const result = walkGraph(detailedModel, { fromId: "doc", direction: "out", detail: "skeleton" });
+    if ("error" in result) throw new Error(result.error);
+    const properties = sectionOf(result);
+
+    // Identity + ordinal survive: without these a skeleton could not be read or ordered.
+    expect(properties.description).toBe("Leçon 1 — une section");
+    expect(properties.position).toBe(1);
+    // The kind discriminators the parser itself keys on survive, so a skeleton
+    // node still classifies into the right kind.
+    expect(properties.normalizedType).toBe("container");
+    expect(properties.statementType).toBe("Objectif spécifique");
+    expect(properties.groupName).toBe("Unité");
+    expect(properties.educationalUse).toBe("Assessment");
+    // The prose — 84% of a live ci/maths page — does not.
+    expect(properties.content).toBeUndefined();
+    expect(properties.metadata).toBeUndefined();
+  });
+
+  it("returns the whole property bag by default, so an existing caller sees no change", () => {
+    const result = walkGraph(detailedModel, { fromId: "doc", direction: "out" });
+    if ("error" in result) throw new Error(result.error);
+    const properties = sectionOf(result);
+    expect(properties.content).toBe(PROSE);
+    expect((properties.metadata as Record<string, unknown>).assemblyGuide).toBe(PROSE);
+  });
+
+  it("keeps edge wiring but drops edge properties at skeleton detail", () => {
+    const skeleton = walkGraph(detailedModel, { fromId: "doc", direction: "out", detail: "skeleton", includeEdges: true });
+    if ("error" in skeleton) throw new Error(skeleton.error);
+    // The wiring is the point of an edge in skeleton detail; its props are not.
+    expect(skeleton.edges![0]).toMatchObject({ type: "hasPart", start: "doc" });
+    expect(skeleton.edges![0].properties).toEqual({});
+
+    const full = walkGraph(detailedModel, { fromId: "doc", direction: "out", includeEdges: true });
+    if ("error" in full) throw new Error(full.error);
+    expect(full.edges![0].properties).toEqual({ note: "kept in full detail" });
+  });
+
+  it("fits the whole section spine in ONE skeleton page where full detail needs many", () => {
+    // This is the defect the flag exists for: the byte budget, not `limit`, is
+    // what bounds a page of prose-carrying nodes.
+    const full = walkGraph(detailedModel, { fromId: "doc", direction: "out" });
+    if ("error" in full) throw new Error(full.error);
+    expect(full.truncatedBySize).toBe(true);
+    expect(full.nodes.length).toBeLessThan(SECTION_COUNT / 2);
+
+    const skeleton = walkGraph(detailedModel, { fromId: "doc", direction: "out", detail: "skeleton", limit: 500 });
+    if ("error" in skeleton) throw new Error(skeleton.error);
+    expect(skeleton.truncatedBySize).toBe(false);
+    expect(skeleton.nodes).toHaveLength(SECTION_COUNT + 1); // every section plus the TLM
+    expect(skeleton.nextCursor).toBeNull();
+  });
+
+  it("names detail:'skeleton' in the size hint at full detail, and stops naming it once taken", () => {
+    const full = walkGraph(detailedModel, { fromId: "doc", direction: "out" });
+    if ("error" in full) throw new Error(full.error);
+    expect(full.hint).toMatch(/detail:'skeleton'/);
+
+    // Already at skeleton detail: the prose lever is spent, so the hint must
+    // point at the remaining levers instead of advice the caller has taken.
+    // TLM_WALK_MAX_PAGE_BYTES forces a trim without needing a huge fixture.
+    const previous = process.env.TLM_WALK_MAX_PAGE_BYTES;
+    process.env.TLM_WALK_MAX_PAGE_BYTES = "600";
+    try {
+      const skeleton = walkGraph(detailedModel, { fromId: "doc", direction: "out", detail: "skeleton" });
+      if ("error" in skeleton) throw new Error(skeleton.error);
+      expect(skeleton.truncatedBySize).toBe(true);
+      expect(skeleton.hint).toMatch(/even at detail:'skeleton'/);
+      expect(skeleton.hint).not.toMatch(/the lever that actually works/);
+    } finally {
+      if (previous === undefined) delete process.env.TLM_WALK_MAX_PAGE_BYTES;
+      else process.env.TLM_WALK_MAX_PAGE_BYTES = previous;
+    }
+  });
+});
+
 // A wide star: one root with 60 children, to exercise the default page size.
 const WIDE: RawGraphSnapshot = {
   nodes: [
@@ -402,15 +519,19 @@ describe("walk_document oversize remedy", () => {
     });
 
     const remedy = documentOversizeRemedy(payload)!;
-    // The generic hint offers a limit and a cursor; this tool has neither, so the
-    // remedy has to name the tool that CAN read the document, and — since the
-    // withheld payload took the section ids with it — how to get those ids back.
+    // The generic hint offers node filters this tool does not have. Since the
+    // payload self-bounds, reaching this backstop means the envelope itself
+    // overflowed — so the remedy names the two moves that remain: a smaller
+    // `limit`, or skipping the whole-document read entirely.
+    expect(remedy).toMatch(/limit:20/);
+    expect(remedy).toMatch(/cursor/);
     expect(remedy).toMatch(/walk_document_section/);
     expect(remedy).toMatch(/walk_graph/);
     expect(remedy).toMatch(/DocumentSection/);
     expect(remedy).toContain(tlmId);
     expect(remedy).toMatch(/3 sections/);
-    expect(remedy).toMatch(/Do NOT retry/);
+    // It must NOT still claim the tool cannot narrow — it can now.
+    expect(remedy).not.toMatch(/no limit or cursor/);
   });
 
   it("REACHES the caller: the registered tool puts the remedy in the refusal", async () => {
@@ -478,24 +599,126 @@ describe("walk_document (tool core)", () => {
     }
   });
 
-  it("self-bounds an oversized curriculum: a tooLarge marker, small parts still ride", async () => {
+  it("sheds the curriculum FIRST, keeping the document subtree, when only it is over budget", async () => {
+    // A budget that the curriculum alone exceeds but the rest fits: tier 2. This
+    // is the ordering that matters — the curriculum is the most replaceable part,
+    // so it must be the first to go, not the last.
     const prior = process.env.TLM_DOCUMENT_MAX_BYTES;
-    process.env.TLM_DOCUMENT_MAX_BYTES = "1"; // force any non-empty curriculum over budget
+    process.env.TLM_DOCUMENT_MAX_BYTES = "3000";
     try {
       const result = await withActiveContext(CURATOR, async () => {
         const { tlmId } = await stageADocument();
         return walkDocument({ tlmId, slot: "draft" });
       });
-      const curriculum = result.curriculum as { tooLarge?: true; counts?: { nodes: number; edges: number }; message?: string };
+      const curriculum = result.curriculum as { tooLarge?: true; counts?: { nodes: number }; message?: string };
       expect(curriculum.tooLarge).toBe(true);
       expect(curriculum.counts!.nodes).toBeGreaterThan(0);      // the counts survive
       expect(curriculum.message).toMatch(/walk_graph/);         // Course-fallback route (no section spine)
-      expect(result.scope).toBe("course");                      // scope + document still resolve
+      expect(result.scope).toBe("course");
+      // The subtree fits at this budget, so it must NOT have been shed with it.
       expect((result.document as { nodes: unknown[] }).nodes.length).toBeGreaterThan(0);
     } finally {
       if (prior === undefined) delete process.env.TLM_DOCUMENT_MAX_BYTES;
       else process.env.TLM_DOCUMENT_MAX_BYTES = prior;
     }
+  });
+
+  it("sheds the document subtree too, rather than letting the response cap withhold everything", async () => {
+    const prior = process.env.TLM_DOCUMENT_MAX_BYTES;
+    process.env.TLM_DOCUMENT_MAX_BYTES = "1"; // nothing but the envelope can fit
+    try {
+      const result = await withActiveContext(CURATOR, async () => {
+        const { tlmId } = await stageADocument();
+        return walkDocument({ tlmId, slot: "draft" });
+      });
+      const document = result.document as { tooLarge?: true; counts?: { nodes: number }; message?: string };
+      expect(document.tooLarge).toBe(true);
+      expect(document.counts!.nodes).toBeGreaterThan(0);
+      // The subtree is a REDIRECT, not a loss: every node in it is returned by
+      // walk_document_section, which the message has to say.
+      expect(document.message).toMatch(/walk_document_section/);
+      expect(document.message).toMatch(/formatter stack/);
+      // The parts nothing else provides still ride at any budget.
+      expect(result.assemblyGuide).toBe("Une leçon par page.");
+      expect(result.scope).toBe("course");
+    } finally {
+      if (prior === undefined) delete process.env.TLM_DOCUMENT_MAX_BYTES;
+      else process.env.TLM_DOCUMENT_MAX_BYTES = prior;
+    }
+  });
+
+  it("pages the section spine instead of dropping it, and every section arrives exactly once", async () => {
+    // The spine is the one part with no substitute — it IS the fan-out list — so
+    // it pages rather than degrading. A tiny budget forces several pages.
+    const prior = process.env.TLM_DOCUMENT_MAX_BYTES;
+    process.env.TLM_DOCUMENT_MAX_BYTES = "800";
+    try {
+      const pages = await withActiveContext(CURATOR, async () => {
+        const { tlmId } = await stageADocument();
+        await stageSections(tlmId, 12);
+
+        const collected: Array<Record<string, unknown>> = [];
+        let cursor: string | undefined;
+        for (let page = 0; page < 20; page++) {
+          const result = await walkDocument({ tlmId, cursor, slot: "draft" });
+          collected.push(result);
+          if (!result.nextCursor) break;
+          cursor = result.nextCursor as string;
+        }
+        return collected;
+      });
+
+      expect(pages.length).toBeGreaterThan(1);            // it really paged
+      const seen = pages.flatMap((page) => (page.sections as Array<{ id: string }>).map((section) => section.id));
+      expect(seen).toHaveLength(12);                      // no gaps
+      expect(new Set(seen).size).toBe(12);                // and no overlap
+
+      // Every page carries the total and the always-riding parts, so a caller
+      // reading page 3 alone still knows what document they are in.
+      for (const page of pages) {
+        expect(page.sectionsTotal).toBe(12);
+        expect(page.assemblyGuide).toBe("Une leçon par page.");
+      }
+      expect(pages[0].sectionsTruncated).toBe(true);
+      expect(pages[0].spineNote).toMatch(/of the document's 12 sections/);
+      expect(pages[pages.length - 1].nextCursor).toBeUndefined();  // the last page says so
+    } finally {
+      if (prior === undefined) delete process.env.TLM_DOCUMENT_MAX_BYTES;
+      else process.env.TLM_DOCUMENT_MAX_BYTES = prior;
+    }
+  });
+
+  it("caps the page at `limit` when the caller asks, without any budget pressure", async () => {
+    const result = await withActiveContext(CURATOR, async () => {
+      const { tlmId } = await stageADocument();
+      await stageSections(tlmId, 12);
+      return walkDocument({ tlmId, limit: 5, slot: "draft" });
+    });
+    expect((result.sections as unknown[]).length).toBe(5);
+    expect(result.sectionsTotal).toBe(12);
+    expect(result.sectionsTruncated).toBe(true);
+    expect(result.nextCursor).toBeTruthy();
+  });
+
+  it("rejects a malformed cursor rather than silently returning the first page", async () => {
+    const result = await withActiveContext(CURATOR, async () => {
+      const { tlmId } = await stageADocument();
+      await stageSections(tlmId, 3);
+      return walkDocument({ tlmId, cursor: "!!!not-base64!!!", slot: "draft" });
+    });
+    expect(result.error as string).toMatch(/Invalid cursor/);
+  });
+
+  it("rejects a cursor from a DIFFERENT document's spine", async () => {
+    // Silently restarting would hand back page 1 of the wrong document, which a
+    // caller mid-fan-out has no way to notice.
+    const result = await withActiveContext(CURATOR, async () => {
+      const { tlmId } = await stageADocument();
+      await stageSections(tlmId, 3);
+      const foreign = Buffer.from("no-such-section-id", "utf8").toString("base64");
+      return walkDocument({ tlmId, cursor: foreign, slot: "draft" });
+    });
+    expect(result.error as string).toMatch(/not in this document's spine/);
   });
 
   it("errors clearly for an id that is not a TeachingLearningMaterial", async () => {

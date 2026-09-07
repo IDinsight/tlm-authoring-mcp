@@ -72,15 +72,29 @@ const EDGES: E[] = [
 const model = { rawGraph: { nodes: NODES, relationships: EDGES } } as CurriculumModel;
 const ids = (ns: { id: string }[]) => new Set(ns.map((n) => n.id));
 
-// These fixtures always fit the budget, so `curriculum` is inlined; narrow the
-// self-bounding union to the { nodes, edges } branch for the assertions below.
+// These fixtures always fit the budget, so `curriculum` and `document` are both
+// inlined; narrow each self-bounding union to its { nodes, edges } branch for the
+// assertions below. The shedding itself is tested against the real fixture in
+// server/__tests__/graph.test.ts, where a document is big enough to trigger it.
 const inlined = (c: DocumentScope["curriculum"]) => {
   if ("tooLarge" in c) throw new Error("fixture curriculum unexpectedly self-bounded");
   return c;
 };
+const inlinedDoc = (d: DocumentScope["document"]) => {
+  if ("tooLarge" in d) throw new Error("fixture document subtree unexpectedly self-bounded");
+  return d;
+};
+
+// documentSubgraph also reports a bad cursor as { error }; these fixtures pass no
+// cursor, so narrow to the scope for the assertions.
+const scopeOf = (result: ReturnType<typeof documentSubgraph>): DocumentScope => {
+  if (result === null) throw new Error("expected a document scope, got null");
+  if ("error" in result) throw new Error(`expected a document scope, got error: ${result.error}`);
+  return result;
+};
 
 describe("documentSubgraph — the section-spine document", () => {
-  const doc = documentSubgraph(model, "tlm-manual")!;
+  const doc = scopeOf(documentSubgraph(model, "tlm-manual"));
 
   it("resolves the curriculum from the section spine and reads the assembly guide", () => {
     expect(doc).not.toBeNull();
@@ -121,19 +135,19 @@ describe("documentSubgraph — the section-spine document", () => {
       },
     } as CurriculumModel;
 
-    const spine = documentSubgraph(nested, "tlm-manual")!.sections;
+    const spine = scopeOf(documentSubgraph(nested, "tlm-manual")).sections;
     expect(spine.map((s) => s.id)).toEqual(["sec-cover", "sec-1", "sec-2", "part-1", "sheet-a", "sheet-b"]);
     expect(spine.find((s) => s.id === "sheet-a")!.parent).toBe("part-1");
   });
 
   it("includes the whole rendering stack (doc-wide + per-section) in the document subtree", () => {
-    const docIds = ids(doc.document.nodes);
+    const docIds = ids(inlinedDoc(doc.document).nodes);
     for (const id of ["tlm-manual", "sec-cover", "sec-1", "sec-2", "fmt-art", "spec-art", "fmt-sec", "spec-sec"]) {
       expect(docIds.has(id)).toBe(true);
     }
     // covers edges ride the document subtree on their own axis (section→lesson + the coarse TLM→course hint).
-    expect(doc.document.edges.some((e) => e.type === "covers" && e.start === "sec-1" && e.end === "les-1")).toBe(true);
-    expect(doc.document.edges.some((e) => e.type === "covers" && e.start === "tlm-manual" && e.end === "crs")).toBe(true);
+    expect(inlinedDoc(doc.document).edges.some((e) => e.type === "covers" && e.start === "sec-1" && e.end === "les-1")).toBe(true);
+    expect(inlinedDoc(doc.document).edges.some((e) => e.type === "covers" && e.start === "tlm-manual" && e.end === "crs")).toBe(true);
   });
 
   it("renders exactly the covered lessons — no formatter and no routine leak into the curriculum", () => {
@@ -148,7 +162,7 @@ describe("documentSubgraph — the section-spine document", () => {
 });
 
 describe("documentSubgraph — the covers-only document (Course fallback)", () => {
-  const doc = documentSubgraph(model, "tlm-guide")!;
+  const doc = scopeOf(documentSubgraph(model, "tlm-guide"));
 
   it("falls back to the covered Course when there is no section spine", () => {
     expect(doc.scope).toBe("course");
@@ -161,7 +175,7 @@ describe("documentSubgraph — the covers-only document (Course fallback)", () =
   });
 
   it("carries only its own doc-wide formatter in the document subtree", () => {
-    const docIds = ids(doc.document.nodes);
+    const docIds = ids(inlinedDoc(doc.document).nodes);
     expect(docIds.has("fmt-guide")).toBe(true);
     expect(docIds.has("fmt-art")).toBe(false);   // the other document's formatter stays out
   });
@@ -169,7 +183,7 @@ describe("documentSubgraph — the covers-only document (Course fallback)", () =
 
 describe("documentSubgraph — edge cases", () => {
   it("scope is 'none' with an empty curriculum when the TLM covers nothing", () => {
-    const doc = documentSubgraph(model, "tlm-empty")!;
+    const doc = scopeOf(documentSubgraph(model, "tlm-empty"));
     expect(doc.scope).toBe("none");
     expect(inlined(doc.curriculum).nodes).toEqual([]);
     expect(doc.sections).toEqual([]);
