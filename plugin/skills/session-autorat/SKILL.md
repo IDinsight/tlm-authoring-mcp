@@ -23,6 +23,35 @@ next" for a person. Prefer `start_here` when talking to someone. When you do nee
 answer, it returns a digest — pass `section:'editable'`, `'catalog'`, `'lifecycle'` and so on for
 one area's detail rather than trying to fetch everything.
 
+## Read a subtree in one call, not one call per hop
+
+`walk_graph` takes a `maxDepth`, and that is how you read a container and everything under it in a
+single call. **Descending one level per call is the defect this prevents.** A real session spent
+dozens of reads assembling what a handful would have returned, because it walked down from the top
+of the graph a hop at a time instead of jumping to the container and reading its subtree.
+
+1. **`find_node`** for the name the expert used. That jump is what replaces the descent.
+2. **`walk_graph`** from that id, `direction:'out'`, with `maxDepth` set to cover the subtree. How
+   deep a container runs is a property of the graph, never something to assume: `truncated` in the
+   response says the cap hid deeper nodes, so raise it and call again.
+3. **`detail:'skeleton'`** whenever the question is structural — what is here, in what order, how
+   many, which id is which. It drops authored prose and returns many times more nodes per page. Read
+   in full only the few nodes you are going to write from.
+
+Believe the three flags rather than retrying the same call: `truncatedByLimit` means page with the
+cursor, `truncated` means raise `maxDepth`, `truncatedBySize` means a byte budget trimmed the page
+and a larger `limit` cannot help.
+
+## A subagent names its own context
+
+The active workspace, grade and subject belong to the **connection**, not to the caller — a subagent
+shares its parent's session. A `set_context` inside a subagent therefore moves the graph under
+everyone, the parent included, mid-task. This has already happened: a parent's next two reads failed
+on ids that had resolved seconds earlier.
+
+**A subagent never calls `set_context`.** The graph reads take a per-call `context` of workspace,
+grade and subject that applies to that call alone. Pass it on every read in the fan-out.
+
 ## An open draft may be someone else's
 
 `start_here` reports `draftActivity` — how many edits are staged, when, and by whom. **An open draft

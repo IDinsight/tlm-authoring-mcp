@@ -94,11 +94,18 @@ pages; it rendered at eleven. So `measure: true` lays each file out and **counts
 the page size actually produced and the whitespace left below the last line of each page; with
 `budget.maxPages` declared it also reports `fits`.
 
-Measuring is **opt-in** because it is not free. It needs a layout engine in the image, which the
-Dockerfile installs only under `--build-arg WITH_LAYOUT_ENGINE=1` — measured at **149 MB** (108 → 257
-MB) plus several seconds of cold start. Without it the call reports `available: false` rather than a
-guess, and the render itself is unaffected. A wrong page count is worse than no page count, because a
-wrong one gets believed and a missing one gets chased.
+Measuring is not free: it needs a layout engine in the image, measured at **149 MB** (108 → 257 MB)
+plus several seconds of cold start. It was **opt-in** (`WITH_LAYOUT_ENGINE=0`) for as long as it
+bought nothing — with no formatter carrying a `render` bag, `render_document` could not lay a page
+out at all. The Dockerfile's **default is now `1`**, because the CI-maths teacher-sheet formatter
+carries the gabarit's geometry and `budget.maxPages: 2` can now produce a verdict. Build with
+`--build-arg WITH_LAYOUT_ENGINE=0` for a lean image; the call then reports `available: false` rather
+than a guess, and the render itself is unaffected either way. A wrong page count is worse than no
+page count, because a wrong one gets believed and a missing one gets chased.
+
+The deploy workflow uses `gcloud run deploy --source backend`, which builds through Cloud Build and
+has nowhere to pass `--build-arg` — so for the deployed service that Dockerfile default is the only
+switch, and changing it is what turns measuring on in production.
 
 **Andika is part of the measurement, not a nicety.** It is a literacy face with unusually generous
 natural leading; substituting another changes glyph advances, which changes line counts, which changes

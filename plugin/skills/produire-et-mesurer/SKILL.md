@@ -13,6 +13,10 @@ whether it will fit — produce the artifact and measure the artifact.
 - **`walk_document_section`** for one slot of a document. This is the unit a sheet is produced from,
   and it is the one to prefer. It hands you the section, the curriculum it covers, the routine that
   applies, and every formatter on its path.
+- **`walk_graph`** when what the section covers is a grouping rather than a single lesson: the
+  section names the curriculum it covers, not everything underneath it. Read that subtree with ONE
+  walk from its id — `session-autorat` carries the depth discipline — never by descending into it
+  call by call.
 - **`walk_document`** for a whole document — but a large document will not fit in one response, and
   it will tell you so and point you back at the per-section read. Believe it; do not retry.
 - **`preview_generation`** when the material should reflect an unpublished draft. Preview the
