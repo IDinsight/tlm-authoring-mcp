@@ -18,6 +18,7 @@ import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { randomUUID } from "node:crypto";
 import { asJson, guarded } from "./shared.js";
+import { withContextOverride, type WithContext } from "./context-override.js";
 import { getActiveAdapter } from "../adapters/index.js";
 import { activeWorkspace, sessionState } from "../context/index.js";
 import { getKgStore, kgNamespace, toAuditActor, diffGraphs, type GraphDiff, nextAuditSeq } from "../kg-store/index.js";
@@ -97,7 +98,7 @@ async function resolveWalkModel(
 
 // The arguments walk_graph accepts, shared by the tool handler and the exported
 // core so tests drive the real logic (slot resolution + gating included).
-export type WalkToolArgs = {
+export type WalkToolArgs = WithContext & {
   fromId: string;
   direction: WalkDirection;
   edgeTypes?: string[];
@@ -110,10 +111,19 @@ export type WalkToolArgs = {
   slot?: WalkSlot;
 };
 
+// The arguments walk_document_section accepts. `cursor` pages the FORMATTER STACK
+// (the only part that can outgrow a response here), `detail` trims the context.
+export type SectionToolArgs = WithContext & {
+  sectionId: string;
+  detail?: WalkDetail;
+  cursor?: string;
+  slot?: WalkSlot;
+};
+
 // The arguments walk_document accepts. `limit`/`cursor` page the SECTION SPINE —
 // the only unbounded-length part of a document payload once the subtree and the
 // curriculum can self-bound.
-export type DocumentToolArgs = {
+export type DocumentToolArgs = WithContext & {
   tlmId: string;
   limit?: number;
   cursor?: string;
@@ -124,6 +134,10 @@ export type DocumentToolArgs = {
 // Resolve the slot (published, or a role-gated draft), then run the generic BFS.
 // Exported so tests drive the real logic directly (like buildCapabilitiesReport).
 export async function walkActiveGraph(args: WalkToolArgs): Promise<Record<string, unknown>> {
+  return withContextOverride(args.context, () => walkResolved(args)) as Promise<Record<string, unknown>>;
+}
+
+async function walkResolved(args: WalkToolArgs): Promise<Record<string, unknown>> {
   const namespace = activeNamespace();
   const slot = args.slot ?? "published";
 
@@ -155,6 +169,10 @@ export async function walkActiveGraph(args: WalkToolArgs): Promise<Record<string
 // a document they are authoring before publishing. Exported so tests drive the
 // real logic directly.
 export async function walkDocument(args: DocumentToolArgs): Promise<Record<string, unknown>> {
+  return withContextOverride(args.context, () => documentResolved(args)) as Promise<Record<string, unknown>>;
+}
+
+async function documentResolved(args: DocumentToolArgs): Promise<Record<string, unknown>> {
   const namespace = activeNamespace();
   const slot = args.slot ?? "published";
 
@@ -207,7 +225,11 @@ export function documentOversizeRemedy(payload: Record<string, unknown>): string
 // generation produces a document from, section by section. Slot-aware (published
 // default; role-gated draft) like the other walk_* readers. Exported so tests drive
 // the real logic directly.
-export async function walkDocumentSection(args: { sectionId: string; slot?: WalkSlot }): Promise<Record<string, unknown>> {
+export async function walkDocumentSection(args: SectionToolArgs): Promise<Record<string, unknown>> {
+  return withContextOverride(args.context, () => sectionResolved(args)) as Promise<Record<string, unknown>>;
+}
+
+async function sectionResolved(args: SectionToolArgs): Promise<Record<string, unknown>> {
   const namespace = activeNamespace();
   const slot = args.slot ?? "published";
 
@@ -216,9 +238,12 @@ export async function walkDocumentSection(args: { sectionId: string; slot?: Walk
     return resolved.notice;
   }
 
-  const section = documentSectionSubgraph(resolved.model, args.sectionId);
+  const section = documentSectionSubgraph(resolved.model, args.sectionId, { detail: args.detail, cursor: args.cursor });
   if (!section) {
     return { error: `DocumentSection '${args.sectionId}' not found in the ${slot} graph. Call walk_document (its 'sections' spine) or walk_graph (nodeTypes ['DocumentSection']) to find section ids.` };
+  }
+  if ("error" in section) {
+    return section;
   }
   return { slot, physicalSlot: resolved.physicalSlot, ...section };
 }
@@ -254,7 +279,7 @@ function resolveOneQuery(graph: FindableGraph, query: string, args: { labels?: s
   return { matches };
 }
 
-export type FindNodeArgs = {
+export type FindNodeArgs = WithContext & {
   query?: string;
   /** Batch form: resolve many names against ONE graph load (WP2c). */
   queries?: string[];
@@ -264,6 +289,10 @@ export type FindNodeArgs = {
 };
 
 export async function findActiveNodes(args: FindNodeArgs): Promise<Record<string, unknown>> {
+  return withContextOverride(args.context, () => findResolved(args)) as Promise<Record<string, unknown>>;
+}
+
+async function findResolved(args: FindNodeArgs): Promise<Record<string, unknown>> {
   const namespace = activeNamespace();
   const slot = args.slot ?? "published";
 
@@ -310,7 +339,11 @@ export async function findActiveNodes(args: FindNodeArgs): Promise<Record<string
 
 // ── Core: namespace_stats ─────────────────────────────────────────────────────
 // Exported so tests drive the real logic directly (like buildCapabilitiesReport).
-export async function namespaceStats(): Promise<Record<string, unknown>> {
+export async function namespaceStats(args: WithContext = {}): Promise<Record<string, unknown>> {
+  return withContextOverride(args.context, () => statsResolved()) as Promise<Record<string, unknown>>;
+}
+
+async function statsResolved(): Promise<Record<string, unknown>> {
   const adapter = getActiveAdapter();
   const namespace = kgNamespace(activeWorkspace(), adapter.grade, adapter.subject);
   const stats = computeGraphStats(adapter.model());
@@ -407,6 +440,7 @@ export function registerGraphTools(server: McpServer) {
       description:
         "The single generic read for every 'list / find / enumerate / traverse' need: a paginated BFS over the active subject's graph. Keep the defaults (limit:50, includeEdges:false) and narrow `nodeTypes` on top of them; page via `cursor` until nextCursor is null. Do NOT raise `limit` to fit a big result — the most common misuse, and it overflows the client. `direction:'both'` with no `nodeTypes` reaches the whole graph; narrow first. " +
         "`direction`: 'out' follows edges from→to (a Course down to its parts), 'in' follows to→from (a standard up to its framework root), 'both' either. `edgeTypes` filters which edges to FOLLOW (empty ⇒ all); `nodeTypes` which nodes to RETURN — non-matching nodes are still traversed through, so filters compose. `maxDepth` default 3, max 10. `includeEdges` (default false) adds the traversed edges when you need the wiring; they dominate a page's size. `limit` max 500. `detail`: 'full' (default) returns each node's whole property bag; **'skeleton' returns identity, ordinal and kind only** (id, labels, description, position, and the LC kind fields normalizedType/normalizedStatementType/statementType/groupName/educationalUse), dropping every authored-prose field. USE 'skeleton' FOR ANY STRUCTURAL QUESTION — what is here, in what order, how many, which id is which. Authored prose is where the bytes are: a ci/maths DocumentSection carries several KB of assemblyGuide, so a full page returns ~4 of them where a skeleton page returns ~180. Read the handful of nodes you actually need in full detail afterwards, or via walk_document_section, which always returns full content. `slot`: 'published' (default) or 'draft' (UNPUBLISHED staged edits — curators/approvers only). Read-only. " +
+        "`context` (optional {workspace, grade, subject}) reads against THAT namespace for this one call, leaving the session's active context untouched — the active context belongs to the CONNECTION, not to you, so anything sharing the connection (a subagent, a parallel call) can move it under you. Pass `context` whenever you fan out or cannot be sure you are alone; omit it to use the active context. " +
         "Three independent flags say why a page stopped: `truncatedByLimit` (more nodes on further pages — call again with the cursor), `truncated` (the maxDepth cap hid deeper nodes — raise it), `truncatedBySize` (a BYTE budget trimmed the page below `limit` — raising limit will NOT help; switch to detail:'skeleton', set includeEdges:false, narrow nodeTypes, and page). `physicalSlot` names the slot ('a'/'b') the data came from, so you can confirm reads and writes agree after a publish. " +
         "Examples: framework root → (fromId=<any standard>, direction='in', edgeTypes=['hasChild'], nodeTypes=['StandardsFramework']); the SFI spine → (fromId=<root>, direction='out', edgeTypes=['hasChild'], nodeTypes=['StandardsFrameworkItem']) paged to the end; a course subtree → (fromId=<courseId>, direction='out', edgeTypes=['hasPart','hasChild']).",
       inputSchema: {
@@ -420,6 +454,7 @@ export function registerGraphTools(server: McpServer) {
         limit: z.number().int().optional(),
         cursor: z.string().optional(),
         slot: z.enum(["published", "draft"]).optional(),
+        context: z.object({ workspace: z.string(), grade: z.string(), subject: z.string() }).optional(),
       },
     },
     guarded(async (a: WalkToolArgs) => asJson(await walkActiveGraph(a))),
@@ -431,12 +466,14 @@ export function registerGraphTools(server: McpServer) {
       title: "Resolve a document's generation scope",
       description:
         "The document-side counterpart to walk_graph: walk_graph reads the curriculum to TEACH, this reads the document to PRODUCE. Pass a TeachingLearningMaterial (TLM) id — a document root, from namespace_stats `roots`. Returns `assemblyGuide` (the document's authored 'how to build me' markdown, or null); `scope` — how the curriculum resolved: 'sections' (a DocumentSection spine), 'course' (the TLM→covers→Course fallback) or 'none'; `sections` (the spine in reading order, each naming the `parent` it hangs under — sections nest — and its `covers` targets, an EMPTY covers marking front matter or a pure grouping section); `document` (the TLM subtree: its Formatter/FormatterSpec stack and DocumentSections, with the covers edges); and `curriculum` (what it renders — pure hasPart/hasChild containment, NOT usesRoutine: formatting reaches generation through the TLM, not the curriculum). " +
-        "SELF-BOUNDED, so it answers rather than refusing. Parts are shed in order of how reachable they are elsewhere, each replaced by `{ tooLarge, counts, message }`: first `curriculum` (a whole-Course document's is the whole graph), then `document` (on live ci/maths its 579 DocumentSections are 2.3 MB — every one of them, plus the doc-wide formatter stack, comes back from walk_document_section, so this is a redirect and not a loss). `sections` is the part nothing else provides, so it is never dropped — only PAGED: `sectionsTotal` is the document's real count, and when a page is trimmed you get `sectionsTruncated`, a `nextCursor` to pass back as `cursor`, and a `spineNote`. `limit` caps the page yourself. The assemblyGuide and `scope` ride on every page. Do NOT retry a shed part — follow its message: call walk_document_section per `sections` id. Read-only. `slot`: 'published' (default) or 'draft' (UNPUBLISHED staged edits — curators/approvers only).",
+        "SELF-BOUNDED, so it answers rather than refusing. Parts are shed in order of how reachable they are elsewhere, each replaced by `{ tooLarge, counts, message }`: first `curriculum` (a whole-Course document's is the whole graph), then `document` (on live ci/maths its 579 DocumentSections are 2.3 MB — every one of them, plus the doc-wide formatter stack, comes back from walk_document_section, so this is a redirect and not a loss). `sections` is the part nothing else provides, so it is never dropped — only PAGED: `sectionsTotal` is the document's real count, and when a page is trimmed you get `sectionsTruncated`, a `nextCursor` to pass back as `cursor`, and a `spineNote`. `limit` caps the page yourself. The assemblyGuide and `scope` ride on every page. Do NOT retry a shed part — follow its message: call walk_document_section per `sections` id. Read-only. `slot`: 'published' (default) or 'draft' (UNPUBLISHED staged edits — curators/approvers only). " +
+        "`context` (optional {workspace, grade, subject}) reads against THAT namespace for this one call, leaving the session's active context untouched — the active context belongs to the CONNECTION, not to you, so anything sharing the connection (a subagent, a parallel call) can move it under you. Pass `context` whenever you fan out or cannot be sure you are alone; omit it to use the active context.",
       inputSchema: {
         tlmId: z.string(),
         limit: z.number().int().optional(),
         cursor: z.string().optional(),
         slot: z.enum(["published", "draft"]).optional(),
+        context: z.object({ workspace: z.string(), grade: z.string(), subject: z.string() }).optional(),
       },
     },
     guarded(async (a: DocumentToolArgs) => {
@@ -451,13 +488,18 @@ export function registerGraphTools(server: McpServer) {
       title: "Resolve one document section's generation scope",
       description:
         "The PER-PIECE generation entry: everything needed to produce ONE slot of a document, which is the unit a `.docx` is produced from section by section. Section ids come from walk_document's `sections` spine, or walk_graph (nodeTypes ['DocumentSection']). A DocumentSection already IS the document↔curriculum binding — it hangs under exactly one document and `covers` its curriculum — so its document, routine and formatters are unambiguous, never reverse-searched. " +
-        "Returns `section` (its position + any per-section assemblyGuide); `document` (the owning TLM: id, assemblyGuide, audience/mediumType — null if not under one yet); `covers` (the curriculum id(s) it renders; EMPTY marks front matter); `curriculum` (the covered subtree, pure hasPart/hasChild); `routine` (the one that APPLIES, nearest-wins document-first — the section's own usesRoutine, else its parent sections' nearest-first, else the TLM's, else up the covered curriculum's ancestry — with `resolvedFrom` and `resolvedFromScope`; null when nothing in the chain uses one); and `formatters` (every stack on this section's own path — its own, its parent sections', the TLM's doc-wide one; sibling sections' stacks excluded). Read-only. `slot`: 'published' (default) or 'draft' (curators/approvers only).",
+        "Returns `section` (its position + any per-section assemblyGuide); `document` (the owning TLM: id, assemblyGuide, audience/mediumType — null if not under one yet); `covers` (the curriculum id(s) it renders; EMPTY marks front matter); `curriculum` (the covered subtree, pure hasPart/hasChild); `routine` (the one that APPLIES, nearest-wins document-first — the section's own usesRoutine, else its parent sections' nearest-first, else the TLM's, else up the covered curriculum's ancestry — with `resolvedFrom` and `resolvedFromScope`; null when nothing in the chain uses one); and `formatters` (every stack on this section's own path — its own, its parent sections', the TLM's doc-wide one; sibling sections' stacks excluded), with `formatterStackOrder` giving their PRECEDENCE as ids: merge their `render` bags in that order, so nearest wins. Look each id up in `formatters.nodes`. " +
+        "NEVER REFUSES FOR SIZE. Nothing here is shed — this is the bottom read, so there is nowhere to redirect to. Instead: `detail:'skeleton'` trims the CONTEXT (the covered curriculum, the owning TLM's node) and never the section's own node or the formatter stack, which are what you came for; and if it still will not fit, the formatter stack PAGES in precedence order with `formattersTruncated` + `nextCursor` + `stackNote` — merge the `render` bags in the order received ACROSS pages and nearest still wins. Read-only. `slot`: 'published' (default) or 'draft' (curators/approvers only). " +
+        "`context` (optional {workspace, grade, subject}) reads against THAT namespace for this one call, leaving the session's active context untouched — the active context belongs to the CONNECTION, not to you, so anything sharing the connection (a subagent, a parallel call) can move it under you. Pass `context` whenever you fan out or cannot be sure you are alone; omit it to use the active context.",
       inputSchema: {
         sectionId: z.string(),
+        detail: z.enum(["skeleton", "full"]).optional(),
+        cursor: z.string().optional(),
         slot: z.enum(["published", "draft"]).optional(),
+        context: z.object({ workspace: z.string(), grade: z.string(), subject: z.string() }).optional(),
       },
     },
-    guarded(async (a: { sectionId: string; slot?: WalkSlot }) => asJson(await walkDocumentSection(a))),
+    guarded(async (a: SectionToolArgs) => asJson(await walkDocumentSection(a))),
   );
 
   server.registerTool(
@@ -468,13 +510,15 @@ export function registerGraphTools(server: McpServer) {
         "Turn a NAME into node ids — the way to get an id when the user says « chapter 5 » or « le guide de l'enseignant ». NEVER ask the user for a node id or a UUID: ask for the name, in their own language, and resolve it here. Matching ignores case and accents, so « chapitre 5 les nombres jusqu'a 20 » finds « Chapitre 5 : Les nombres jusqu'à 20 ». " +
         "`query` is what the user typed; `labels` narrows to LC labels (e.g. ['LessonGrouping'] for a chapter/week, ['Course'], ['TeachingLearningMaterial'] for a document, ['Lesson']); `limit` caps the list (default 10). Each match carries `id`, `title`, `labels`, `path` (its containment ancestors — what tells two « Chapitre 5 » apart) and `match` (exact | prefix | contains | words). " +
         "`queries` (an array) resolves MANY names in ONE call against a single graph load — use it whenever you have a list (60 lesson names is 1 call, not 60). It returns `results` keyed by each query string, every entry carrying the same `matches`/`ambiguous` fields a single call would, plus `unresolved`: the names that did NOT land on exactly one node and so still need the user's answer. Pass `query` OR `queries`. " +
-        "When several match, the response sets `ambiguous`: ASK the user which one, quoting the `path`, and do not guess — picking wrong silently writes against another document. `slot`: 'published' (default) or 'draft' (unpublished staged edits — curators/approvers only), so a chapter you just created is findable before publishing. Read-only.",
+        "When several match, the response sets `ambiguous`: ASK the user which one, quoting the `path`, and do not guess — picking wrong silently writes against another document. `slot`: 'published' (default) or 'draft' (unpublished staged edits — curators/approvers only), so a chapter you just created is findable before publishing. Read-only. " +
+        "`context` (optional {workspace, grade, subject}) reads against THAT namespace for this one call, leaving the session's active context untouched — the active context belongs to the CONNECTION, not to you, so anything sharing the connection (a subagent, a parallel call) can move it under you. Pass `context` whenever you fan out or cannot be sure you are alone; omit it to use the active context.",
       inputSchema: {
         query: z.string().optional(),
         queries: z.array(z.string()).optional(),
         labels: z.array(z.string()).optional(),
         limit: z.number().int().optional(),
         slot: z.enum(["published", "draft"]).optional(),
+        context: z.object({ workspace: z.string(), grade: z.string(), subject: z.string() }).optional(),
       },
     },
     guarded(async (a: FindNodeArgs) => asJson(await findActiveNodes(a))),
@@ -485,10 +529,13 @@ export function registerGraphTools(server: McpServer) {
     {
       title: "Namespace orientation snapshot",
       description:
-        "A cheap, argument-free snapshot of the active workspace/grade/subject: `nodeCounts` (per LC label), `edgeCounts` (per edge type), `roots` (genuinely unplaced nodes — Course/StandardsFramework/stranded groupings, each with id + labels + description; a node that aligns itself to a standard, or that a lesson attaches by usesRoutine, is NOT a root and is summarised under `attachedByAlignment` instead), `isolatedCount` (nodes NO edge touches in any direction — unlike a root, this is unambiguously wrong and is the number to act on), `draft` (whether one is open and how many edits it stages), and `coverageFlags` (high-level orientation hints). Run this FIRST, before writing any walk_graph query, to see the shape of the graph — and this is where you find the subject's Course content roots (id + name) to walk from (it replaced list_courses; filter `roots` by labels including 'Course'). Also carries `physicalSlot` — the slot ('a'/'b') these counts were read from. Read-only; no audit event.",
-      inputSchema: {},
+        "A cheap, argument-free snapshot of the active workspace/grade/subject: `nodeCounts` (per LC label), `edgeCounts` (per edge type), `roots` (genuinely unplaced nodes — Course/StandardsFramework/stranded groupings, each with id + labels + description; a node that aligns itself to a standard, or that a lesson attaches by usesRoutine, is NOT a root and is summarised under `attachedByAlignment` instead), `isolatedCount` (nodes NO edge touches in any direction — unlike a root, this is unambiguously wrong and is the number to act on), `draft` (whether one is open and how many edits it stages), and `coverageFlags` (high-level orientation hints). Run this FIRST, before writing any walk_graph query, to see the shape of the graph — and this is where you find the subject's Course content roots (id + name) to walk from (it replaced list_courses; filter `roots` by labels including 'Course'). Also carries `physicalSlot` — the slot ('a'/'b') these counts were read from. Read-only; no audit event. " +
+        "`context` (optional {workspace, grade, subject}) reads against THAT namespace for this one call, leaving the session's active context untouched — the active context belongs to the CONNECTION, not to you, so anything sharing the connection (a subagent, a parallel call) can move it under you. Pass `context` whenever you fan out or cannot be sure you are alone; omit it to use the active context.",
+      inputSchema: {
+        context: z.object({ workspace: z.string(), grade: z.string(), subject: z.string() }).optional(),
+      },
     },
-    guarded(async () => asJson(await namespaceStats())),
+    guarded(async (a: WithContext) => asJson(await namespaceStats(a))),
   );
 
   server.registerTool(

@@ -28,7 +28,7 @@
  * walk" separation, expressed additively — courseSubgraph is left untouched).
  */
 import type { CurriculumModel, RawGraphSnapshot } from "../types.js";
-import { nodeOut, edgeOut, type NodeOut, type EdgeOut } from "./read-projection.js";
+import { nodeOut, edgeOut, nodeSkeleton, type NodeOut, type EdgeOut } from "./read-projection.js";
 import { responseBytes } from "../utils/index.js";
 
 type RawNode = RawGraphSnapshot["nodes"][number];
@@ -658,33 +658,72 @@ export type DocumentSectionScope = {
   curriculum: { nodes: NodeOut[]; edges: EdgeOut[] };  // pure hasPart/hasChild from the covers targets
   routine: SectionRoutine | null;
   formatters: { nodes: NodeOut[]; edges: EdgeOut[] };  // the TLM's doc-wide stack ∪ this section's own
-  // The same formatters as an ORDERED list — doc-wide first, this section's own
-  // last. Merging their `render` bags in this order is what "nearest wins"
-  // means; `formatters` above is the subgraph, which has no order.
-  formatterStack: NodeOut[];   // projected, because this one rides a tool response
+  // The formatters' PRECEDENCE ORDER as ids — doc-wide first, this section's own
+  // last. Merging their `render` bags in this order is what "nearest wins" means;
+  // `formatters` above is the subgraph, which has no order. Ids rather than nodes:
+  // this used to repeat every node in full, and on the live ce1/reading Guide those
+  // 18 formatters were 44.8 KB served twice — 92 KB of a 118 KB payload, which put
+  // ALL 21 of that document's sections over the response cap. Look each id up in
+  // `formatters.nodes`.
+  formatterStackOrder: string[];
+  // Present only when the byte budget paged the stack — the remaining ids, in
+  // order, and the cursor that fetches them.
+  formattersTruncated?: true;
+  nextCursor?: string;
+  stackNote?: string;
 };
 
-// The generation scope rooted at one DocumentSection. Returns null if `sectionId`
-// is not a DocumentSection node in this graph.
-export function documentSectionSubgraph(model: CurriculumModel, sectionId: string): DocumentSectionScope | null {
+/** Paging + verbosity for one section's scope. */
+export type SectionScopeOptions = { detail?: "skeleton" | "full"; cursor?: string };
+
+/*
+ * Why this reader bounds itself DIFFERENTLY from documentSubgraph.
+ *
+ * walk_document can shed parts because walk_document_section sits below it. This
+ * is the bottom — there is no finer read to redirect to — so nothing here may be
+ * dropped with a "fetch it over there" marker. Measured on the live ce1/reading
+ * Guide, every one of its 21 sections came to ~121 KB and so was refused WHOLE,
+ * with the error text admitting it had "no limit or cursor" to narrow. That made
+ * the routed-to tool the dead end.
+ *
+ * Three levers, in the order they are applied:
+ *   1. Stop repeating the formatters (see formatterStackOrder) — 92 KB → 45 KB on
+ *      that document, with nothing lost. This alone fits every reading section.
+ *   2. `detail:"skeleton"` trims the CONTEXT parts — the covered curriculum and the
+ *      owning TLM's node — and never the two things this tool exists to deliver:
+ *      the section's own node (which carries its assemblyGuide) and the formatter
+ *      stack. Trimming those would defeat the read.
+ *   3. Only if it still does not fit, the formatter stack PAGES, nearest-last order
+ *      preserved, with a cursor. A caller always makes progress.
+ */
+export function documentSectionSubgraph(
+  model: CurriculumModel,
+  sectionId: string,
+  options: SectionScopeOptions = {},
+): DocumentSectionScope | { error: string } | null {
   const raw = model.rawGraph;
   if (!raw) return null;
   const section = raw.nodes.find((n) => n.id === sectionId);
   if (!section || !labelsOf(section).includes(SECTION_LABEL)) return null;
+
+  const skeleton = options.detail === "skeleton";
+  const projectContext = skeleton ? nodeSkeleton : nodeOut;
 
   // Everything above the section on the document axis: the sections it is nested
   // in (nearest first) and the document at the top.
   const ancestry = documentAncestry(raw, sectionId);
   const tlm = ancestry.tlm;
   const document = tlm
-    ? { id: tlm.id, assemblyGuide: assemblyGuideOf(tlm), node: nodeOut(tlm) }
+    ? { id: tlm.id, assemblyGuide: assemblyGuideOf(tlm), node: projectContext(tlm) }
     : null;
 
   // The curriculum this slot renders: the section's covers targets and their pure
   // containment subtree. An empty covers marks a front-matter section.
   const covers = raw.relationships.filter((e) => e.type === "covers" && e.start === sectionId).map((e) => e.end);
   const curriculumIds = descendants(raw, covers, CURRICULUM_EDGES);
-  const curriculum = inducedSubgraph(raw, curriculumIds, CURRICULUM_EDGES);
+  const curriculum = skeleton
+    ? { nodes: raw.nodes.filter((n) => curriculumIds.has(n.id)).map(nodeSkeleton), edges: [] }
+    : inducedSubgraph(raw, curriculumIds, CURRICULUM_EDGES);
 
   const routine = resolveSectionRoutine(raw, sectionId, ancestry, covers);
 
@@ -692,9 +731,86 @@ export function documentSectionSubgraph(model: CurriculumModel, sectionId: strin
   // sections it is nested in, and the owning TLM's doc-wide stack. Sibling sections'
   // stacks are excluded, because each walk walls at a section boundary.
   const stackIds = formatterStackIds(raw, sectionId, ancestry.sections, tlm?.id ?? null);
-  const formatters = inducedSubgraph(raw, new Set(stackIds), new Set([DOCUMENT_EDGE]));
-  const byId = new Map(raw.nodes.map((n) => [n.id, n]));
-  const formatterStack = stackIds.map((id) => nodeOut(byId.get(id)!));
 
-  return { section: nodeOut(section), document, covers, curriculum, routine, formatters, formatterStack };
+  const cursorId = options.cursor ? decodeSpineCursor(options.cursor) : null;
+  if (options.cursor && !cursorId) {
+    return { error: "Invalid cursor — pass a cursor returned by a prior walk_document_section page, unmodified." };
+  }
+  if (cursorId && !stackIds.includes(cursorId)) {
+    return { error: `Cursor points at formatter '${cursorId}', which is not in this section's stack. Start a fresh walk_document_section without a cursor.` };
+  }
+  const remainingIds = cursorId ? stackIds.slice(stackIds.indexOf(cursorId) + 1) : stackIds;
+
+  // The section's own node and the stack are never trimmed, so they are built once
+  // and the only thing the budget can move is HOW MANY formatters ride this page.
+  const base = {
+    section: nodeOut(section),   // always full: it carries this slot's assemblyGuide
+    document,
+    covers,
+    curriculum,
+    routine,
+  };
+  const assemble = (ids: string[]): DocumentSectionScope => {
+    const truncated = ids.length < remainingIds.length;
+    const last = ids[ids.length - 1];
+    return {
+      ...base,
+      formatters: inducedSubgraph(raw, new Set(ids), new Set([DOCUMENT_EDGE])),
+      formatterStackOrder: ids,
+      ...(truncated && last
+        ? {
+            formattersTruncated: true as const,
+            nextCursor: encodeSpineCursor(last),
+            stackNote: sectionStackTruncatedMessage(ids.length, stackIds.length),
+          }
+        : {}),
+    };
+  };
+
+  const whole = assemble(remainingIds);
+  const budget = documentMaxBytes();
+  if (byteLength(whole) <= budget) {
+    return whole;
+  }
+
+  // Trim the stack against what is left once the un-trimmable parts are counted.
+  const envelopeBytes = byteLength(assemble([]));
+  const fitCount = fitStackToBudget(raw, remainingIds, Math.max(budget - envelopeBytes, 0));
+  return assemble(remainingIds.slice(0, Math.max(fitCount, 1)));
+}
+
+// Said only when the stack was actually paged, so a section whose formatters all
+// fit never reads about a cursor.
+function sectionStackTruncatedMessage(shown: number, total: number): string {
+  return (
+    `This page carries ${shown} of the section's ${total} formatters, in precedence order — the stack is too large for one ` +
+    `response. Call walk_document_section again with cursor:<nextCursor> for the rest; merge their \`render\` bags in the ` +
+    `order received, across pages, so nearest still wins. Try detail:'skeleton' to fit more per page.`
+  );
+}
+
+/**
+ * Largest prefix of `ids` whose formatter subgraph fits `budget`. Binary search
+ * over prefix length, like the spine's — the stack is small (18 on the live
+ * reading Guide), but a formatter spec runs to 10 KB, so measuring beats guessing.
+ */
+function fitStackToBudget(raw: RawGraphSnapshot, ids: string[], budget: number): number {
+  if (ids.length === 0) return 0;
+  const bytesForPrefix = (count: number): number =>
+    byteLength(inducedSubgraph(raw, new Set(ids.slice(0, count)), new Set([DOCUMENT_EDGE])));
+  if (bytesForPrefix(ids.length) <= budget) return ids.length;
+
+  let low = 1;
+  let high = ids.length;
+  let best = 1;
+  while (low <= high) {
+    const mid = (low + high) >> 1;
+    if (bytesForPrefix(mid) <= budget) {
+      best = mid;
+      low = mid + 1;
+    } else {
+      high = mid - 1;
+    }
+  }
+  return best;
 }
