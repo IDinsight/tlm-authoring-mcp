@@ -17,6 +17,9 @@ This applies to every authoring session. The other skills assume it and do not r
    another.
 3. **`namespace_stats`** — before writing any traversal. It is argument-free and cheap, and it saves
    you from a `walk_graph` that returns the wrong shape.
+4. **Announce the subagents this session will use, and for what** — measuring, bulk reading, review —
+   before you act. Commit the delegation while there is nothing to carry: once momentum builds, the
+   main thread does the work itself and only notices afterwards, from the bill.
 
 `get_capabilities` answers "what is possible" for a machine; `start_here` answers "what do I do
 next" for a person. Prefer `start_here` when talking to someone. When you do need the machine
