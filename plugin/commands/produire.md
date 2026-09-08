@@ -1,5 +1,5 @@
 ---
-description: Produire une fiche ou un document, puis vérifier que ça tient
+description: Produire un document, puis vérifier que ça tient
 argument-hint: [ce qu'il faut produire — une leçon, une section, un document]
 ---
 

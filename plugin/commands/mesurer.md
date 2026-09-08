@@ -1,6 +1,6 @@
 ---
 description: Mesurer un document produit — pages, débordement, est-ce que ça tient
-argument-hint: [le document ou la fiche à mesurer]
+argument-hint: [le document à mesurer]
 ---
 
 Measure: $ARGUMENTS

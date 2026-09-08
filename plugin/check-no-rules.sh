@@ -13,8 +13,23 @@
 # Usage:  ./check-no-rules.sh        (from the plugin directory)
 set -eu
 
-TOKENS='72|boucle|\[N\]|X/O|Andika'
+# One subject's rule, written into a procedure file, is invisible until someone
+# points the plugin at a different subject. These are the tokens that leaked
+# before: a measured line length, a page budget, a typeface, a printed prefix,
+# an answer marker, a phase name, a boilerplate id, an image-name fragment, and
+# the vocabulary of one document type ("fiche", "séance"). A second subject calls
+# its documents something else.
+TOKENS='\b(72|88|47)\b|2 pages|boucle|\[N\]|X/O|Andika|[Ww]olof|\[WO\]|séance|fiche|phase 9|PT-0|amorce|nf-|tf-'
 SEARCH_IN='skills commands agents'
+
+# Run from the wrong directory this used to find nothing and print OK — the same
+# lie a regression test tells when its corpus has moved. Missing paths are fatal.
+for dir in $SEARCH_IN; do
+  if [ ! -d "$dir" ]; then
+    echo "check-no-rules: '$dir' not found — run this from the plugin directory." >&2
+    exit 2
+  fi
+done
 
 hits=$(grep -rnE "$TOKENS" $SEARCH_IN 2>/dev/null || true)
 
