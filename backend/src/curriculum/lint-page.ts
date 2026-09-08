@@ -175,7 +175,7 @@ const lineOverMaxChars: PageRule = {
     return [finding(
       input, "page-line-over-max-chars",
       `${over.length} line(s) exceed the character budget their style declares. ${over.slice(0, 5).join("; ")}${over.length > 5 ? `; +${over.length - 5} more` : ""}.`,
-      "Shorten the line, or raise `maxChars` on that style if the budget itself is wrong. These budgets were measured on a real page, so an over-long line wraps and the sheet grows by a line nobody costed for — which is how a two-page fiche becomes three.",
+      "Shorten the line, or raise `maxChars` on that style if the budget itself is wrong. These budgets were measured on a real page, so an over-long line wraps and the sheet grows by a line nobody costed for — which is how a document that fits becomes one that does not.",
     )];
   },
 };

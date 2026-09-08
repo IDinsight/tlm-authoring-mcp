@@ -1,6 +1,6 @@
 ---
 name: produire-et-mesurer
-description: Produire une fiche et vérifier qu'elle tient — rendre, compter les pages, resserrer, et ne jamais trancher sur une estimation. À utiliser quand on demande de générer, produire, prévisualiser ou mesurer un document, ou quand on dit « produire la fiche », « est-ce que ça tient », « combien de pages », « ça déborde ».
+description: Produire un document et vérifier qu'il tient — rendre, compter les pages, resserrer, et ne jamais trancher sur une estimation. À utiliser quand on demande de générer, produire, prévisualiser ou mesurer un document, ou quand on dit « produire le document », « est-ce que ça tient », « combien de pages », « ça déborde ».
 ---
 
 # Produce, then measure
@@ -39,9 +39,11 @@ inventée est REFUSÉE, et rien n'est rendu tant que l'arbre n'est pas valide.
 
 Deux options qui comptent :
 
-- **`translateInto:'wo'`** — le serveur dérive le wolof du français que porte l'arbre, adossé au
-  glossaire MOHEBS, et sort un fichier par langue. Un arbre qui porte déjà le wolof est laissé tel
-  quel : on ne retraduit jamais ce qu'un auteur a écrit à la main.
+- **`translateInto`** — le serveur dérive la langue cible de celle que porte l'arbre, adossé au
+  glossaire de l'espace de travail, et sort un fichier par langue. **Quelle langue produire est
+  déclaré par la mise en forme du document** (`language.variants`) : lisez-la, ne la devinez pas et
+  ne l'écrivez jamais en dur — un autre document en livre une autre. Un arbre qui porte déjà la
+  langue cible est laissé tel quel : on ne retraduit jamais ce qu'un auteur a écrit à la main.
 - **`measure:true`** — il met la page en page et **compte les pages**. Le compte se fait sur le
   RENDU, jamais sur la lecture du guide : une estimation a déjà donné 2,5 pages pour un document
   qui en faisait onze. Là où le déploiement n'a pas de moteur de mise en page, il répond

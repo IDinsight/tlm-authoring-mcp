@@ -8,7 +8,43 @@ A remote **MCP server** ("Senegal Maths — TLM") that helps experts author teac
 
 ## Communicating with the user
 
-Explain in **plain language** — avoid jargon, and define any technical term you must use. When explaining a concept or weighing a tradeoff, ground it in a **concrete example**: a small worked case, real numbers, or an analogy. Abstract prose on its own is hard to follow. Lead with the plain answer, then show it. This applies to every explanation, not only when asked.
+**Plain language is the default, not a mode.** It holds for status updates, findings and work
+summaries just as much as for explanations — those are exactly where jargon creeps back in.
+
+The test before sending: *would a colleague who has never opened this repo follow it?* If a sentence
+only parses for someone who already knows the codebase, rewrite it.
+
+Four habits that break this, and the fix:
+
+| habit | instead |
+|---|---|
+| Dropping in a code symbol as though it were a household word — "`resolveRenderSpec` already does nearest-wins deep merge" | Say what it does, then name it once: "the code that merges a document's layout settings, closest one winning, already exists (`resolveRenderSpec`)" |
+| Coining shorthand mid-message — "a bag-vs-corpus contradiction" | Spell the comparison out: "the layout settings stored in the graph disagree with the files actually delivered" |
+| Opening with a table of raw values | One sentence saying what the table shows, then the table |
+| Three abstractions stacked in one sentence | One idea per sentence |
+
+Lead with the plain answer, then the supporting detail. Ground every concept or tradeoff in a
+**concrete example** — a small worked case, real numbers, or an analogy. Abstract prose on its own
+is hard to follow.
+
+**Draw it, and make it a real picture.** When explaining how parts fit together, where data flows,
+or which of several designs to choose, draw it beside the prose. A picture settles in five seconds
+what a paragraph takes three readings to convey.
+
+Reach for the **`visualize` widget** (`show_widget`, after its `read_me` — that carries the palette,
+the text classes and the layout rules). A hand-laid-out SVG reads far better than a mermaid
+flowchart, whose automatic layout starts crossing its own arrows as soon as a diagram has more than
+a few boxes. That is the failure this rule was written for, so do not reach for mermaid first.
+
+What works, in practice:
+
+- **Time runs top to bottom**, one row per stage. Sequence should need no arrows to explain it.
+- **Colour encodes status or ownership** — who is blocked, whose move it is — never decoration.
+- **A legend** saying what the colours mean.
+- Only the boxes that carry the decision. Not every module.
+
+Fall back to **mermaid** where the widget cannot run: inside a published artifact, a markdown file,
+a commit message.
 
 ## Repo layout
 

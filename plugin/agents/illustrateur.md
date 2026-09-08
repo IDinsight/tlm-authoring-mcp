@@ -22,9 +22,12 @@ it.** A prompt that reads correctly is not evidence.
 
 ## Naming
 
-`L06-nf-1-v2.png` — lesson, slug, index, version. Versions increment and nothing is overwritten, so
-a regenerated image never silently replaces an approved one. If the formatter declares its own
-convention, follow the formatter.
+**Read the convention out of the document's image formatter, which states it.** Do not carry one
+subject's file names into another: what a name is made of — which parts, in what order, on how many
+digits — is the formatter's to say, and it differs between documents.
+
+The one rule that is yours, because it is procedure and not subject: **a version increments and
+nothing is ever overwritten**, so a regenerated image cannot silently replace one already approved.
 
 ## Do not regenerate on your own initiative
 
@@ -41,7 +44,7 @@ JSON, and nothing else:
   "contactSheet": "path to the assembled contact sheet, or null",
   "images": [
     {
-      "name": "L06-nf-1-v2.png",
+      "name": "the file name, as the formatter's convention builds it",
       "stage": "cell | band | marker",
       "produced": true,
       "checkedVisually": true,

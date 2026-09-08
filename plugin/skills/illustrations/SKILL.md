@@ -19,11 +19,12 @@ discovering a prompt error twenty images later.
 
 ## Naming
 
-`L06-nf-1-v2.png` — lesson, short slug, index, version. Versions increment; nothing is overwritten,
-so a regenerated image never silently replaces the one an expert already approved.
+**The document's image formatter states the convention — read it there.** What a file name is made
+of differs between documents, so a name written down here would be one subject's rule wearing the
+plugin's clothes.
 
-If the document's image formatter declares its own convention, **the formatter wins** — read it
-first and follow it.
+What does not vary, and is procedure rather than subject: **a version increments and nothing is
+overwritten**, so a regenerated image never silently replaces the one an expert already approved.
 
 ## Check the produced image, never the specification
 

@@ -1,6 +1,6 @@
 ---
 name: reprendre-corrections
-description: Reprendre dans le graphe un document corrigé par un expert — `propose_from_document` quand la fiche porte ses ancres, le rendu PDF dans un sous-agent quand elle ne les porte pas, puis une seule modification groupée, et ne jamais contester ce qu'on n'a pas vu soi-même. À utiliser quand quelqu'un rend un .docx annoté ou corrigé, ou dit « voici les corrections », « l'expert a relu », « reprendre ses remarques », « intégrer les corrections ».
+description: Reprendre dans le graphe un document corrigé par un expert — `propose_from_document` quand le document porte ses ancres, le rendu PDF dans un sous-agent quand elle ne les porte pas, puis une seule modification groupée, et ne jamais contester ce qu'on n'a pas vu soi-même. À utiliser quand quelqu'un rend un .docx annoté ou corrigé, ou dit « voici les corrections », « l'expert a relu », « reprendre ses remarques », « intégrer les corrections ».
 ---
 
 # Taking an expert's corrections back into the graph
@@ -10,7 +10,7 @@ their corrections into graph edits — faithfully, and without inventing objecti
 
 ## D'abord : `propose_from_document`. C'est exact, pas approximatif.
 
-Si la fiche a été produite par `render_document`, elle porte l'identifiant de chaque nœud à
+Si le document a été produit par `render_document`, il porte l'identifiant de chaque nœud à
 l'intérieur du fichier — invisible sur la page, conservé quand une personne édite autour. Alors
 **ne devinez rien** : appelez `propose_from_document` avec son `relPath` et le serveur vous rend
 l'appariement exact.
