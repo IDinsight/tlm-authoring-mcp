@@ -1,5 +1,6 @@
 ---
 name: lecteur
+model: sonnet
 description: Lit une source volumineuse — un PDF rendu, un long document, une pile de notes — et renvoie une proposition de modifications structurée plutôt qu'un récit. À utiliser pour toute lecture en masse dont seule la conclusion, et non le contenu, doit remonter dans le fil principal.
 tools: Read, Grep, Glob, Bash
 ---
