@@ -54,7 +54,9 @@ if (batchIndex >= 0 && (!Number.isInteger(batchSize) || batchSize < 1)) {
   console.error("apply-edits: --batch needs a positive whole number.");
   process.exit(1);
 }
-const args = argv.filter((a, i) => i !== batchIndex && i !== batchIndex + 1);
+// Drop the --batch flag and its value ONLY when the flag is present: with no
+// flag indexOf gives -1, and -1 + 1 is 0, which silently ate the first argument.
+const args = batchIndex >= 0 ? argv.filter((a, i) => i !== batchIndex && i !== batchIndex + 1) : argv;
 if (args.length !== 4) {
   console.error("apply-edits: expected `<workspace> <grade> <subject> <edits.json> [--batch N]`.");
   process.exit(1);
