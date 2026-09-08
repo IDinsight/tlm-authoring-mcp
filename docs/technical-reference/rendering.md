@@ -161,7 +161,7 @@ Read-only — it says what is out of date and why; regenerating is a separate, d
 ## Verifying it still produces the real thing
 
 `src/__golden__/` holds the only check that the renderer reproduces the documents the project actually
-ships. `teacher-sheet.golden.test.ts` rebuilds lesson 1's teacher sheet from scratch and compares it
+ships. `teacher-sheet-lecon11.golden.test.ts` rebuilds lesson 11's teacher sheet from scratch and compares it
 against the real file; `pupil-tool.golden.test.ts` checks the same code carries a second document type
 (42 picture placements against nine, grids of images in tables nested inside tables, a page break
 standing on its own).

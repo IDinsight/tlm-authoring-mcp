@@ -197,7 +197,7 @@ describe.skipIf(!havePupil)("does the same renderer carry a second document type
 
   it("so: one renderer, two document types, no new render keys", () => {
     // Stated as an assertion so it cannot quietly stop being true. Between this
-    // file and teacher-sheet.golden.test.ts the same code produces a bannered teacher
+    // file and teacher-sheet-lecon11.golden.test.ts the same code produces a bannered teacher
     // sheet and a picture-grid pupil page, told apart only by their formatters.
     expect(mine.pgMar).toBe(gold.pgMar);
     expect(mine.fills).toEqual(gold.fills);

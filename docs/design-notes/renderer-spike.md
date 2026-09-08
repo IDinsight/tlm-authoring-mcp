@@ -75,18 +75,23 @@ Three files, about 500 lines, no new dependency.
 | `render/docx.ts` | Document model + `RenderSpec` → `.docx` bytes. |
 | `__golden__/golden.ts` | A produced sheet → the same document model, so the comparison is not the renderer marking its own homework. Doubles as a sketch of WP6a. |
 
-`__golden__/teacher-sheet.golden.test.ts` checks the teacher sheet (`GOLDEN_DIR`); `__golden__/pupil-tool.golden.test.ts` checks that the
+`__golden__/teacher-sheet-lecon11.golden.test.ts` checks the teacher sheet (`GOLDEN_DIR`); `__golden__/pupil-tool.golden.test.ts` checks that the
 same code carries a second document type (`PUPIL_DIR`). Neither runs without its corpus.
 
-`__golden__/teacher-sheet.golden.test.ts` reads `Guide-Lecon-1-ensembles-FR.docx` into the model, renders it again from
-scratch, and compares. It skips unless `GOLDEN_DIR` names the folder holding the sheets.
+`__golden__/teacher-sheet-lecon11.golden.test.ts` reads `lecon_11/Guide-Lecon-11-inclusion-partition-FR.docx`
+into the model, renders it again from scratch, and compares. It skips unless `GOLDEN_DIR` names the
+folder holding the `lecon_NN/` folders.
 
-> **That target no longer exists, so the teacher-sheet comparison cannot run.** The corpus on disk
-> is lessons 11–20, each sheet one level down in its own `lecon_NN/` folder — there is no lesson 1
-> and nothing flat at the `Outputs` root for `join(GOLDEN_DIR, …)` to find. The test does not fail;
-> it SKIPS, exactly as it does when the corpus is absent altogether, which is why this went unnoticed.
-> Repointing it is not a path fix: its expectations are lesson 1's own counts and leading
-> distribution, so a new target needs its expectations re-derived from that sheet.
+> **RESOLVED, 8 September 2026.** The previous target — `Guide-Lecon-1-ensembles-FR.docx`, from the
+> 2 September run — no longer exists on disk. Its test SKIPPED rather than failed, so for six days
+> the renderer's only regression check reported success while checking nothing. The replacement is
+> pointed at the 6 September corpus and carries that run's geometry (A4, margins 1,22 / 1,07 / 1,27 /
+> 1,27, Andika 12 pt on an exact 14 pt leading). It compares what a READER sees — every printed
+> line's words, colour and weight — rather than counting runs, which differ harmlessly between the
+> two writers: the delivered sheet keeps its bullet inside the line's own text run, this renderer
+> emits it as a run of its own, and a phase banner's pictogram rides in an empty one. It caught two
+> live defects on its first run: the language variant's BOLD was dropped, so every French and Wolof
+> spoken line came out red-but-plain, and no bullet character was emitted at all.
 
 **The corpus lives on one laptop and nowhere else.** It is not in the bucket, not in the repo (a
 megabyte a sheet), and — with `producteur-fiches-v5` beside it — it is the only definition of

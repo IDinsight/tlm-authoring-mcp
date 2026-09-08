@@ -220,18 +220,25 @@ function lineXml(
   const rule = cropped ? (spec.images?.paragraphLeadingRule ?? spec.type?.leadingRule) : spec.type?.leadingRule;
   const leading = cropped && spec.images?.paragraphLeadingRule === "auto" ? undefined : spec.type?.leadingPt;
 
-  const variantColour = hex(
-    (spec.language?.variants ?? []).find((v) => v.id === block.variant)?.colour,
-  );
-  const colour = hex(style.textColour, variantColour);
+  const variant = (spec.language?.variants ?? []).find((v) => v.id === block.variant);
+  const colour = hex(style.textColour, hex(variant?.colour));
 
-  const marker = style.marker
-    ? `<w:r>${runPropsXml(ctx, style, colour)}<w:t xml:space="preserve">${esc(style.marker)} </w:t></w:r>`
+  /*
+   * A variant carries WEIGHT as well as colour, and reading only the colour is
+   * a silent defect: every French and Wolof speech line came out red-but-plain
+   * where the delivered sheets have them red AND bold — 24 bold runs on one
+   * sheet, none of them reproduced. The block's own style still wins, so a
+   * banner that states its own weight is unaffected.
+   */
+  const styled = { ...style, bold: style.bold ?? variant?.bold };
+
+  const marker = styled.marker
+    ? `<w:r>${runPropsXml(ctx, styled, colour)}<w:t xml:space="preserve">${esc(styled.marker)} </w:t></w:r>`
     : "";
 
   const runs = block.runs.map((run) => {
     if ("image" in run) return drawingXml(run.image, ctx);
-    const runStyle = run.style ? { ...style, ...styleOf(ctx, run.style) } : style;
+    const runStyle = run.style ? { ...styled, ...styleOf(ctx, run.style) } : styled;
     const runColour = hex(styleOf(ctx, run.style).textColour, colour);
     return `<w:r>${runPropsXml(ctx, runStyle, runColour)}<w:t xml:space="preserve">${esc(run.text)}</w:t></w:r>`;
   }).join("");
