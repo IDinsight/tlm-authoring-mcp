@@ -14,7 +14,7 @@
  * Usage (after `npm run build`):
  *   node scripts/apply-edits.mjs <workspace> <grade> <subject> <edits.json>
  *
- * edits.json: [{ "id": "<nodeId>", "field": "content"|"summary"|"title"|"title_en", "value": "<text>" }, …]
+ * edits.json: [{ "id": "<nodeId>", "field": "content"|"summary"|"title"|"title_en"|"assemblyGuide", "value": "<text>" }, …]
  *
  * Env (same as import-kg): SERVICE_ACCOUNT_KEY_PATH (or _JSON), FIREBASE_STORAGE_BUCKET,
  * TLM_BUCKET_PREFIX. Actor: set TLM_ACTOR_EMAIL for the audit trail (else a script actor).
@@ -53,14 +53,31 @@ if (__setKgStoreForTest) __setKgStoreForTest(store);
 
 // Read the current value of a field on a node in the draft-else-published slot, to
 // skip edits already applied. content → raw.content; summary → raw.metadata.summary;
-// title → raw.description; title_en → raw.metadata.en.description.
+// title → raw.description; title_en → raw.metadata.en.description;
+// assemblyGuide → raw.metadata.assemblyGuide.
 function currentValue(node, field) {
   const raw = node?.properties?.raw ?? {};
   if (field === "content") return raw.content;
   if (field === "summary") return (raw.metadata ?? {}).summary;
   if (field === "title") return raw.description;
   if (field === "title_en") return ((raw.metadata ?? {}).en ?? {}).description;
+  if (field === "assemblyGuide") return (raw.metadata ?? {}).assemblyGuide;
   return undefined;
+}
+
+/*
+ * The mutation arguments for one edit.
+ *
+ * Most fields are a named argument on `editNode`. `assemblyGuide` is not — it is
+ * an ordinary LC property, reached through the freeform bag by its dotted path,
+ * which is the same door `edit_nodes` opens for it. Sending it as a named
+ * argument would be silently ignored.
+ */
+function argsFor(namespace, id, field, value) {
+  if (field === "assemblyGuide") {
+    return { namespace, nodeId: id, properties: { "metadata.assemblyGuide": value } };
+  }
+  return { namespace, nodeId: id, [field]: value };
 }
 
 const pointer = await store.readPointer(namespace);
@@ -76,7 +93,7 @@ for (const e of edits) {
   if (!node) { console.error(`  ! ${id} [${e.field}] — node not found in ${readSlot}`); failed++; continue; }
   if (currentValue(node, e.field) === e.value) { console.error(`  = ${id} [${e.field}] — already up to date, skipped`); skipped++; continue; }
 
-  const mutArgs = { namespace, nodeId: id, [e.field]: e.value };
+  const mutArgs = argsFor(namespace, id, e.field, e.value);
   const preview = await runGraphMutation({ namespace, mutation: editNode, args: mutArgs });
   if (preview.phase !== "preview") { console.error(`  ! ${id} [${e.field}] — ${preview.phase}: ${JSON.stringify(preview.errors ?? preview.message ?? "")}`); failed++; continue; }
   const confirm = await runGraphMutation({ namespace, mutation: editNode, args: mutArgs, confirm: true, token: preview.confirmationToken });

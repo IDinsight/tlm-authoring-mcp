@@ -17,7 +17,7 @@
  * TWO SIGNALS, both of which the formatter's own prose describes:
  *
  *   1. ON THE PUPIL'S PAGE — the same words appear in the pupil document.
- *      Proof, not inference. Measured at 546 of 3,974 printed lines on the live
+ *      Proof, not inference. Measured at 606 of 5,119 printed lines on the live
  *      ci/maths guide, and it reaches only ONE of the four protected
  *      categories: the instructions actually printed for the learner.
  *
@@ -122,12 +122,35 @@ if (documents.length < 2) {
 const guide = documents.find((doc) => /guide/i.test(doc.title)) ?? documents[0];
 const pupil = documents.find((doc) => doc.id !== guide.id);
 
+/*
+ * The pupil document's lines, indexed by their words.
+ *
+ * THE FLOOR IS LOAD-BEARING and was wrong. At 25 characters, « Quel objet est
+ * court » — twenty — never entered the index, so a guide line quoting it could
+ * not match however exact the quotation was. Short printed instructions are
+ * common, and they were invisible: a first pass marked 568 lines where 606 were
+ * matchable. Fifteen is the floor now.
+ *
+ * Not lower. At twelve the index starts holding fragments like « écris le
+ * signe », which appears all over both documents, and a line is then protected
+ * for sharing a stock phrase rather than being a quotation. Over-protection is
+ * not the safe direction it looks: lock too much and the tightening pass cannot
+ * reach the page budget, so it refuses and the sheet is produced by hand again.
+ */
+const MIN_MATCH = 15;
+
 const pupilLines = [];
 for (const section of sectionsUnder(pupil.id)) {
   for (const line of String(section.guide).split(/\n/)) {
     const words = normalise(line);
-    if (words.length > 25) pupilLines.push(words);
+    if (words.length >= MIN_MATCH) pupilLines.push(words);
   }
+}
+
+/** One line quotes the other when the SHORTER sits whole inside the longer. */
+function quotes(a, b) {
+  const [shorter, longer] = a.length <= b.length ? [a, b] : [b, a];
+  return shorter.length >= MIN_MATCH && longer.includes(shorter);
 }
 
 const PRINTED = /^\[(N|FR|WO)\]\s*(.*)$/;
@@ -135,7 +158,7 @@ const PRINTED = /^\[(N|FR|WO)\]\s*(.*)$/;
 /** Which signal, if any, says this line is a quotation. */
 function signalFor(marker, body) {
   const words = normalise(body);
-  if (words.length >= 12 && pupilLines.some((line) => line.includes(words) || words.includes(line))) {
+  if (pupilLines.some((line) => quotes(line, words))) {
     return { signal: "on-the-pupil-page", confidence: "proof" };
   }
   // Signal 2: options offered aloud, separated by "·" — the review-question
