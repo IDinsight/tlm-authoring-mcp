@@ -39,7 +39,11 @@
  * reading the accurate ones too. The opening questions are marked by hand.
  *
  * Usage (from backend/):
- *   node scripts/propose-quotation-marks.mjs <graph.json> [--lesson <substring>] [--out proposal.json]
+ *   node scripts/propose-quotation-marks.mjs <graph.json> [--quoted «»] [--lesson <substring>] [--out proposal.json]
+ *
+ * --quoted gives the pair of characters this document's language quotes with
+ * (opening half then closing half). Without it, only numbered lines and
+ * questions are read as utterances, which under-matches rather than over-matches.
  *
  * <graph.json> is an export of the namespace — either the /kg explorer's shape
  * or export-kg's raw envelope; both are read.
@@ -53,7 +57,7 @@ const optionOf = (name) => {
   return index >= 0 ? args[index + 1] : undefined;
 };
 if (!file) {
-  console.error("usage: node scripts/propose-quotation-marks.mjs <graph.json> [--lesson <substring>] [--out proposal.json]");
+  console.error("usage: node scripts/propose-quotation-marks.mjs <graph.json> [--quoted «»] [--lesson <substring>] [--out proposal.json]");
   process.exit(2);
 }
 
@@ -139,11 +143,52 @@ const pupil = documents.find((doc) => doc.id !== guide.id);
  */
 const MIN_MATCH = 15;
 
+/*
+ * What a pupil line contributes to the index: only what the CHILD is given.
+ *
+ * The pupil document carries no prefixes — it is one prose field mixing the
+ * printed instructions with notes to whoever builds the page — so indexing
+ * whole lines matched a teacher's note against a pupil-side note and protected
+ * it as though it were a quotation. Both documents' guides repeat the same
+ * authored prose, so « RÉPONSE ATTENDUE… » matched itself. 37 lines were marked
+ * that way and were caught in review, one step before publishing.
+ *
+ * What separates an utterance from a note is STRUCTURAL, not semantic: an
+ * utterance is quoted, numbered, or a question. A note is none of those. A
+ * semantic rule would have to know the subject, and this script must not.
+ *
+ * The quote delimiters are an ARGUMENT for the same reason: which characters
+ * quote a phrase is a fact about the document's language.
+ */
+const escapeRe = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+const quoted = optionOf("quoted") ?? "";
+const OPEN = quoted.slice(0, quoted.length / 2);
+const CLOSE = quoted.slice(quoted.length / 2);
+const NUMBERED = /^\s*\d+\s*[.)]\s+/;
+
+/** The utterances a pupil-document line offers to the index, if any. */
+function utterancesIn(line) {
+  const trimmed = line.trim();
+  if (OPEN && CLOSE) {
+    const spans = [...trimmed.matchAll(
+      new RegExp(`${escapeRe(OPEN)}([^${escapeRe(CLOSE)}]*)${escapeRe(CLOSE)}`, "g"),
+    )];
+    // A quoting line gives up ONLY its quoted spans. The prose around them is
+    // the note that introduces the instruction, not the instruction.
+    if (spans.length) return spans.map((m) => m[1]);
+  }
+  if (NUMBERED.test(trimmed)) return [trimmed.replace(NUMBERED, "")];
+  if (trimmed.endsWith("?")) return [trimmed];
+  return [];
+}
+
 const pupilLines = [];
 for (const section of sectionsUnder(pupil.id)) {
   for (const line of String(section.guide).split(/\n/)) {
-    const words = normalise(line);
-    if (words.length >= MIN_MATCH) pupilLines.push(words);
+    for (const utterance of utterancesIn(line)) {
+      const words = normalise(utterance);
+      if (words.length >= MIN_MATCH) pupilLines.push(words);
+    }
   }
 }
 
