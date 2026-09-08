@@ -150,6 +150,25 @@ describe("gathering a document's production rules", () => {
     }
   });
 
+  /*
+   * The refusal is not permanent — it is a statement about THIS document's data.
+   * Once the formatter marks its quotations, the same call answers.
+   */
+  it("answers quotations once the document marks them", () => {
+    const marked = JSON.parse(JSON.stringify(NODES)) as N[];
+    const formatter = marked.find((candidate) => candidate.id === "fmt")!;
+    (formatter.properties as Record<string, any>).render.overflow = {
+      policy: "tighten-text",
+      neverShorten: ["N!", "FR!"],
+    };
+    const model = { rawGraph: { nodes: marked, relationships: EDGES } } as unknown as CurriculumModel;
+
+    const contract = documentContract(model, "tlm");
+    if (contract === null || "error" in contract) throw new Error("no contract");
+    expect(contract.quotations).toEqual({ markedBy: ["N!", "FR!"] });
+    expect(contract.unavailable.map((part) => part.part)).toEqual(["controlPoints"]);
+  });
+
   it("returns null for a node that is not a document", () => {
     expect(documentContract(MODEL, "les-1")).toBeNull();
     expect(documentContract(MODEL, "nope")).toBeNull();
@@ -167,7 +186,7 @@ describe("over both committed subjects", () => {
   const documentsIn = (path: string) => {
     const graph = JSON.parse(readFileSync(`test/fixtures/${path}/knowledge_graph.json`, "utf8"));
     const model = { rawGraph: graph } as unknown as CurriculumModel;
-    const tlms = (graph.nodes as N[]).filter((candidate) => candidate.labels.includes("TeachingLearningMaterial"));
+    const tlms = (graph.nodes as N[]).filter((candidate) => (candidate.labels ?? []).includes("TeachingLearningMaterial"));
     return { model, tlms };
   };
 

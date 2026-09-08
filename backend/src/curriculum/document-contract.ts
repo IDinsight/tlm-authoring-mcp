@@ -80,6 +80,13 @@ export type DocumentContract = {
   render: ResolvedSpec;
   /** The sentences written once and called by reference. */
   boilerplate: BoilerplateTable;
+  /**
+   * The line prefixes marking text that may never be shortened, when this
+   * document declares any. null means the document does not mark quotations —
+   * and `unavailable` then says so, because a tightening pass reading null as
+   * "nothing is protected" would cut a quoted instruction silently.
+   */
+  quotations: { markedBy: string[] } | null;
   /** What the data does not mark, stated rather than guessed. */
   unavailable: UnavailablePart[];
 };
@@ -118,18 +125,17 @@ function resolveRoutine(
   return null;
 }
 
-const NOT_MARKED: UnavailablePart[] = [
-  {
-    part: "controlPoints",
-    why: "Nothing in the graph distinguishes a check from any other numbered list. On the live ci/maths formatters, numbered lists hold levers, phases and page structure as often as checks — 16 items in one spec, 15 in another — and no label, property or marker tells them apart.",
-    wouldNeed: "A marked list on the formatter that declares them, or a `checks` field beside `render`. Until then read the formatter prose: `formatterStack` names every node whose text to read.",
-  },
-  {
-    part: "quotations",
-    why: "Which lines are quoted from what a learner sees — and so may never be shortened — is not marked. The producer's script infers it from French keywords, which is exactly the per-subject rule this contract exists to remove.",
-    wouldNeed: "A decision on how a quotation is marked in the data: a line prefix, a property, or derivation by matching the pupil document. Until then a trimming pass must treat every line as protected, or refuse.",
-  },
-];
+const NO_CONTROL_POINTS: UnavailablePart = {
+  part: "controlPoints",
+  why: "Nothing in the graph distinguishes a check from any other numbered list. On the live ci/maths formatters, numbered lists hold levers, phases and page structure as often as checks — 16 items in one spec, 15 in another — and no label, property or marker tells them apart.",
+  wouldNeed: "An evaluation grid attached to the document (use_rubric), which evaluate_document already reads. Until then read the formatter prose: `formatterStack` names every node whose text to read.",
+};
+
+const NO_QUOTATIONS: UnavailablePart = {
+  part: "quotations",
+  why: "This document does not mark which lines are quoted from what a learner sees, so nothing says which may never be shortened. Matching against the pupil document reaches only the lines actually printed there — one of the four protected categories — and never the three that are spoken aloud.",
+  wouldNeed: "`render.overflow.neverShorten`, listing the line prefixes that mark a quotation, and those prefixes applied in the guides. Until then a tightening pass must refuse rather than choose what to cut.",
+};
 
 /**
  * Resolve a document's production rules.
@@ -171,6 +177,8 @@ export function documentContract(
       }]
     : [];
 
+  const neverShorten = (merged.ok ? merged.spec.overflow?.neverShorten : undefined) ?? [];
+
   const documentIds = new Set([documentId, ...scope.sections.map((section) => section.id)]);
   const documentProse = (raw?.nodes ?? [])
     .filter((node) => documentIds.has(node.id))
@@ -193,6 +201,10 @@ export function documentContract(
       [...documentProse, ...stackProse],
       [...stackProse, ...declaredNames],
     ),
-    unavailable: NOT_MARKED,
+    quotations: neverShorten.length > 0 ? { markedBy: neverShorten } : null,
+    unavailable: [
+      NO_CONTROL_POINTS,
+      ...(neverShorten.length > 0 ? [] : [NO_QUOTATIONS]),
+    ],
   };
 }

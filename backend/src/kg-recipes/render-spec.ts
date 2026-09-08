@@ -223,6 +223,26 @@ const languageSchema = z.object({
 const overflowSchema = z.object({
   policy: z.enum(["tighten-text", "allow"]).optional(),
   neverAdjust: z.array(z.enum(["margins", "leading", "typeSize", "images"])).optional(),
+  /*
+   * Line prefixes marking text that may NEVER be shortened.
+   *
+   * `neverAdjust` protects the GEOMETRY; this protects the WORDS, and the two
+   * are different promises. Under `policy: "tighten-text"` something has to give
+   * — and on CI maths what may not is anything quoted from what a learner sees:
+   * the instructions printed on the pupil's page, the oral questions of the
+   * opening, the review questions and their options, the assessment wording.
+   * Shorten one of those and the two documents stop agreeing, silently.
+   *
+   * A LIST OF PREFIXES rather than a rule, because which lines are quotations is
+   * not derivable. Matching them against the pupil document reaches ONE of those
+   * four categories — measured at 546 of 3,974 printed lines — and can never
+   * reach the three that are spoken aloud and printed nowhere. So the marking is
+   * authored, and this is where a renderer or a tightening pass reads it.
+   *
+   * Silence means NOTHING is protected, which is why a tightening pass that
+   * finds this empty must refuse rather than assume it may cut anything.
+   */
+  neverShorten: z.array(z.string().min(1)).optional(),
 }).strict();
 
 /** The whole declarative half. Every group optional; unknown keys refused. */
