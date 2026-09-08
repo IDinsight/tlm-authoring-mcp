@@ -1,5 +1,6 @@
 ---
 name: mesureur
+model: haiku
 description: Rend un document et renvoie des mesures — pages, lignes, débordement — sous forme de nombres, jamais sous forme d'avis sur son apparence. À utiliser dès qu'une question sur un document produit peut être tranchée en le mesurant.
 tools: Read, Bash, Glob
 ---
