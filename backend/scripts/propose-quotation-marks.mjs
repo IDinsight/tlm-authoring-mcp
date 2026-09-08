@@ -17,7 +17,7 @@
  * TWO SIGNALS, both of which the formatter's own prose describes:
  *
  *   1. ON THE PUPIL'S PAGE — the same words appear in the pupil document.
- *      Proof, not inference. Measured at 606 of 5,119 printed lines on the live
+ *      Proof, not inference. Measured at 537 of 5,119 printed lines on the live
  *      ci/maths guide, and it reaches only ONE of the four protected
  *      categories: the instructions actually printed for the learner.
  *
@@ -147,10 +147,34 @@ for (const section of sectionsUnder(pupil.id)) {
   }
 }
 
-/** One line quotes the other when the SHORTER sits whole inside the longer. */
-function quotes(a, b) {
-  const [shorter, longer] = a.length <= b.length ? [a, b] : [b, a];
-  return shorter.length >= MIN_MATCH && longer.includes(shorter);
+/*
+ * A GUIDE line quotes a PUPIL line when the shared text is most of the guide
+ * line — not merely present in it.
+ *
+ * Length alone was doing a proportion's job, and it showed: « E. fait poser le
+ * doigt sur la grande image, ET FAIT RETROUVER LE GARÇON… » was marked because
+ * fifteen characters of it appear on the child's page. That is a stage
+ * direction which happens to name something the child can see, and it is freely
+ * rewordable. Fifty-two lines were locked that way — all of them the teacher's
+ * own prose.
+ *
+ * A line that only PARTLY quotes can be rewritten around the quotation, so it is
+ * shortenable and must not be protected. At 70% the 52 go, along with 17 genuine
+ * borderline cases; 537 remain.
+ *
+ * The asymmetry is deliberate. Marking too little is the dangerous error — a
+ * real quotation gets shortened and nobody sees it. Marking too much is only
+ * obstructive. But fifty-two obviously wrong marks teach a reviewer to distrust
+ * the whole set, and a set nobody trusts protects nothing.
+ */
+const MIN_SHARE = 0.7;
+
+function quotes(pupilLine, guideLine) {
+  const [shorter, longer] = pupilLine.length <= guideLine.length
+    ? [pupilLine, guideLine]
+    : [guideLine, pupilLine];
+  if (shorter.length < MIN_MATCH || !longer.includes(shorter)) return false;
+  return shorter.length / guideLine.length >= MIN_SHARE;
 }
 
 const PRINTED = /^\[(N|FR|WO)\]\s*(.*)$/;

@@ -12,7 +12,20 @@
  * run after some edits were already applied by hand — is safe.
  *
  * Usage (after `npm run build`):
- *   node scripts/apply-edits.mjs <workspace> <grade> <subject> <edits.json>
+ *   node scripts/apply-edits.mjs <workspace> <grade> <subject> <edits.json> [--batch N]
+ *
+ * ONE EDIT PER MUTATION IS THE DEFAULT, and it is slow in a way worth knowing
+ * before starting a large run: every mutation reads the whole graph and diffs it
+ * TWICE — once to preview, once to confirm. Measured on live ci/maths (2,044
+ * nodes), that is ~63 seconds per node, so a 260-section marking pass is four
+ * hours and a bulk pass is not viable at all.
+ *
+ * `--batch N` sends N edits as ONE mutation through the same two-phase, audited
+ * path: one read, one diff, one write, ONE audit record for the batch. The
+ * trade is granularity — a batch is all-or-nothing and the trail records it as
+ * one event, so an edit that fails takes its batch with it. Use it for a
+ * mechanical pass over many nodes; leave it off when each edit is its own
+ * decision and you want each recorded separately.
  *
  * edits.json: [{ "id": "<nodeId>", "field": "content"|"summary"|"title"|"title_en"|"assemblyGuide", "value": "<text>" }, …]
  *
@@ -31,12 +44,19 @@ if (!existsSync(resolve(REPO, "dist"))) {
 
 const { runGraphMutation, createFirestoreKgStore, kgNamespace, __setKgStoreForTest } =
   await import(new URL("../dist/kg-store/index.js", import.meta.url));
-const { editNode } = await import(new URL("../dist/kg-recipes/index.js", import.meta.url));
+const { editNode, editNodes } = await import(new URL("../dist/kg-recipes/index.js", import.meta.url));
 const actorMod = await import(new URL("../dist/actor.js", import.meta.url));
 
-const args = process.argv.slice(2);
+const argv = process.argv.slice(2);
+const batchIndex = argv.indexOf("--batch");
+const batchSize = batchIndex >= 0 ? Number(argv[batchIndex + 1]) : 0;
+if (batchIndex >= 0 && (!Number.isInteger(batchSize) || batchSize < 1)) {
+  console.error("apply-edits: --batch needs a positive whole number.");
+  process.exit(1);
+}
+const args = argv.filter((a, i) => i !== batchIndex && i !== batchIndex + 1);
 if (args.length !== 4) {
-  console.error("apply-edits: expected `<workspace> <grade> <subject> <edits.json>`.");
+  console.error("apply-edits: expected `<workspace> <grade> <subject> <edits.json> [--batch N]`.");
   process.exit(1);
 }
 const [workspace, grade, subject, editsPath] = args;
@@ -87,19 +107,47 @@ const nodes = await store.listNodes(namespace, readSlot);
 const byId = new Map(nodes.map((n) => [n.id, n]));
 
 let applied = 0, skipped = 0, failed = 0;
+
+// Edits still worth making — anything already at its target value is dropped
+// here, so a re-run after an interrupted pass does only what is left.
+const pending = [];
 for (const e of edits) {
   const id = e.id ?? e.nodeId;
   const node = byId.get(id);
   if (!node) { console.error(`  ! ${id} [${e.field}] — node not found in ${readSlot}`); failed++; continue; }
   if (currentValue(node, e.field) === e.value) { console.error(`  = ${id} [${e.field}] — already up to date, skipped`); skipped++; continue; }
+  pending.push({ id, field: e.field, value: e.value });
+}
+console.error(`apply-edits: ${pending.length} to apply, ${skipped} already up to date.`);
 
-  const mutArgs = argsFor(namespace, id, e.field, e.value);
-  const preview = await runGraphMutation({ namespace, mutation: editNode, args: mutArgs });
-  if (preview.phase !== "preview") { console.error(`  ! ${id} [${e.field}] — ${preview.phase}: ${JSON.stringify(preview.errors ?? preview.message ?? "")}`); failed++; continue; }
-  const confirm = await runGraphMutation({ namespace, mutation: editNode, args: mutArgs, confirm: true, token: preview.confirmationToken });
-  if (confirm.phase !== "apply") { console.error(`  ! ${id} [${e.field}] — confirm ${confirm.phase}`); failed++; continue; }
-  console.error(`  ✓ ${id} [${e.field}]`);
-  applied++;
+/** Run one two-phase mutation and say whether it landed. */
+async function run(mutation, mutArgs, label) {
+  const preview = await runGraphMutation({ namespace, mutation, args: mutArgs });
+  if (preview.phase !== "preview") {
+    console.error(`  ! ${label} — ${preview.phase}: ${JSON.stringify(preview.errors ?? preview.message ?? "")}`);
+    return false;
+  }
+  const confirm = await runGraphMutation({ namespace, mutation, args: mutArgs, confirm: true, token: preview.confirmationToken });
+  if (confirm.phase !== "apply") { console.error(`  ! ${label} — confirm ${confirm.phase}`); return false; }
+  return true;
+}
+
+if (batchSize > 0) {
+  for (let start = 0; start < pending.length; start += batchSize) {
+    const chunk = pending.slice(start, start + batchSize);
+    const items = chunk.map((e) => {
+      const { namespace: _ignored, nodeId, ...fields } = argsFor(namespace, e.id, e.field, e.value);
+      return { nodeId, ...fields };
+    });
+    const label = `batch ${start + 1}-${start + chunk.length} of ${pending.length}`;
+    const ok = await run(editNodes, { namespace, items }, label);
+    if (ok) { console.error(`  ✓ ${label}`); applied += chunk.length; } else { failed += chunk.length; }
+  }
+} else {
+  for (const e of pending) {
+    const ok = await run(editNode, argsFor(namespace, e.id, e.field, e.value), `${e.id} [${e.field}]`);
+    if (ok) { console.error(`  ✓ ${e.id} [${e.field}]`); applied++; } else { failed++; }
+  }
 }
 
 console.error(`apply-edits: done — ${applied} applied, ${skipped} skipped, ${failed} failed. Draft on '${namespace}'; review with diff_draft, publish with publish_draft.`);
