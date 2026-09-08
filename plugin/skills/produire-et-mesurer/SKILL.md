@@ -49,10 +49,29 @@ Deux options qui comptent :
   qui en faisait onze. Là où le déploiement n'a pas de moteur de mise en page, il répond
   `available:false` — il ne devine pas.
 
-## Lire les nombres avec le sous-agent `mesureur`
+**Ce que cette route ne peut pas faire.** `render_document` veut chaque image **en clair dans
+l'appel**, encodée en base64 ; une référence à un fichier déjà déposé est REFUSÉE
+(« document.media.0: Unrecognized key(s) »). Un document qui porte de vraies illustrations — quelques
+mégaoctets — ne passe donc pas par là : il est composé par le producteur local, puis déposé avec
+**`create_upload_url`**. `render_document` sert les pages dont les images sont légères ou absentes.
+Dans les deux cas, le compte de pages se mesure sur le RENDU, jamais sur une lecture du guide.
 
-Il rend des **nombres** — pages, lignes par section, débordement, blanc résiduel — pas un avis sur
-l'allure de la page.
+## Mesurer, c'est déléguer
+
+**MESURER, C'EST APPELER `mesureur`.** Le fil principal ne rend pas un PDF lui-même et ne
+regarde pas une page pour compter. Les seuils ne s'écrivent pas dans l'agent : ils se lisent
+dans le `render` du formatter rendu par `walk_document_section` — `budget.maxPages`,
+`budget.reserveBottomCm`, `budget.linesPerPage`, `page.marginsCm`, `type` — et se passent
+dans l'appel. Un agent qui connaîtrait ces valeurs les figerait ; un curateur doit pouvoir
+les changer dans la mise en forme et voir la mesure suivre.
+
+L'appel type :
+
+    Mesure ces fichiers : <chemins>.
+    Budget lu dans la mise en forme (render.budget) : maxPages=…, reserveBottomCm=…,
+    linesPerPage=…, maxCharsPerLine=…, maxCharsBesideImage=…
+    Page attendue : <format, marges, police, interligne>.
+    Rends le tableau et la liste des dépassements. Aucune image.
 
 ## When a sheet overflows
 
@@ -76,7 +95,12 @@ The two most expensive rendering bugs in this project were both invisible to any
 a page size that silently defaulted to the wrong standard, and a spacing setting that cropped
 full-width images to a few millimetres. Both were found by looking at a rendered page.
 
-So look at the page. Report what you measured and how you measured it.
+Regarder la page reste donc nécessaire — mais c'est un **jugement, pas une mesure** : la lisibilité
+d'un bandeau, une image flottante qui rogne un titre. Cela revient à **`relecteur`**, une seule fois,
+sur le rendu final. Le fil principal n'ouvre pas les images d'une page pour compter : compter, c'est
+`mesureur`, et lui ne remonte que des nombres.
+
+Rends compte de ce que tu as mesuré, et de comment tu l'as mesuré.
 
 ## Preview output is segregated — keep it that way
 
