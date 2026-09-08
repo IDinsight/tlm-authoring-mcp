@@ -14,25 +14,29 @@
  * IT WRITES NOTHING. It prints a proposal and, with --out, saves it as JSON.
  * Applying is a separate, reviewed step.
  *
- * THREE SIGNALS, in falling confidence. The first is proof; the others are the
- * shapes the formatter's own prose describes, and both need an eye:
+ * TWO SIGNALS, both of which the formatter's own prose describes:
  *
  *   1. ON THE PUPIL'S PAGE — the same words appear in the pupil document.
  *      Proof, not inference. Measured at 546 of 3,974 printed lines on the live
  *      ci/maths guide, and it reaches only ONE of the four protected
  *      categories: the instructions actually printed for the learner.
  *
- *   2. A SPOKEN QUESTION — a line in the teacher's speech ending in a question
- *      mark. Covers the oral questions of the opening.
- *
- *   3. AN OPTIONS LIST — a spoken line offering choices separated by "·".
+ *   2. AN OPTIONS LIST — a spoken line offering choices separated by "·".
  *      ADDED AFTER THE PILOT, which is the whole reason to pilot: on lesson 11
- *      the two review questions of the Objectivation phase were missed by both
- *      earlier signals. They are not on the pupil's page (they are read aloud)
- *      and they do not end in a question mark (the options follow the colon),
- *      yet the formatter's prose protects "les questions de bilan et leurs
- *      options" by name. Marking sixty lessons without this would have left the
- *      most important lines in that phase unprotected in every one of them.
+ *      the two review questions of the Objectivation phase were missed by every
+ *      other signal. They are not on the pupil's page (they are read aloud) and
+ *      they do not end in a question mark (the options follow the colon), yet
+ *      the formatter's prose protects "les questions de bilan et leurs options"
+ *      by name. Marking sixty lessons without this would have left the most
+ *      important lines of that phase unprotected in every one of them.
+ *
+ * A THIRD SIGNAL WAS TRIED AND DROPPED: any spoken line ending in a question
+ * mark, meant to catch the oral questions of the opening. On lesson 11 it
+ * proposed eight lines and three were a bare « Pourquoi ? » — a follow-up
+ * prompt, which the same prose puts in the SHORTEN category, not the protected
+ * one. Wrong a third of the time, sixty times over, is worse than leaving those
+ * lines to a person: a reviewer who learns to click past a noisy signal stops
+ * reading the accurate ones too. The opening questions are marked by hand.
  *
  * Usage (from backend/):
  *   node scripts/propose-quotation-marks.mjs <graph.json> [--lesson <substring>] [--out proposal.json]
@@ -134,11 +138,8 @@ function signalFor(marker, body) {
   if (words.length >= 12 && pupilLines.some((line) => line.includes(words) || words.includes(line))) {
     return { signal: "on-the-pupil-page", confidence: "proof" };
   }
-  if (marker !== "N" && /\?\s*$/.test(body)) {
-    return { signal: "spoken-question", confidence: "review" };
-  }
-  // Signal 3: options offered aloud, separated by "·" — the review-question
-  // shape the pilot showed both other signals miss.
+  // Signal 2: options offered aloud, separated by "·" — the review-question
+  // shape the pupil-page match cannot see.
   if (marker !== "N" && /·/.test(body) && body.split("·").length >= 3) {
     return { signal: "spoken-options", confidence: "review" };
   }
