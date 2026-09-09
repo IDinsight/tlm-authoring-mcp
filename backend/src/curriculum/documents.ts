@@ -692,6 +692,12 @@ export type DocumentSectionScope = {
   formattersTruncated?: true;
   nextCursor?: string;
   stackNote?: string;
+  // A CONTINUATION page (one fetched with a cursor). It carries only the formatters
+  // the caller does not have yet — the section's guide, the document, the routine and
+  // the covered curriculum rode the FIRST page, so re-sending them here (a fixed pile
+  // larger than the page budget) is what stopped the cursor loop from ever converging.
+  // `section` is the skeleton on such a page, and `omitted` lists the shed parts.
+  continued?: true;
 };
 
 /*
@@ -748,37 +754,15 @@ export function documentSectionSubgraph(
   const section = raw.nodes.find((n) => n.id === sectionId);
   if (!section || !labelsOf(section).includes(SECTION_LABEL)) return null;
 
-  const skeleton = options.detail === "skeleton";
-  const projectContext = skeleton ? nodeSkeleton : nodeOut;
-
-  // No `include` means every part, so an existing caller is unaffected.
-  const wanted = new Set<SectionPart>(options.include ?? SECTION_PARTS);
-  const omitted = SECTION_PARTS.filter((part) => !wanted.has(part));
-
   // Everything above the section on the document axis: the sections it is nested
-  // in (nearest first) and the document at the top.
+  // in (nearest first) and the document at the top. Also the covers ids and the
+  // formatter stack — all cheap and structural, needed before the cursor decides
+  // how much of the heavy context to build.
   const ancestry = documentAncestry(raw, sectionId);
   const tlm = ancestry.tlm;
-  const document = tlm
-    ? wanted.has("document")
-      ? { id: tlm.id, assemblyGuide: assemblyGuideOf(tlm), node: projectContext(tlm) }
-      : { id: tlm.id, assemblyGuideOmitted: true as const }
-    : null;
-
-  // The curriculum this slot renders: the section's covers targets and their pure
-  // containment subtree. An empty covers marks a front-matter section. `covers`
-  // itself is always sent — it is a handful of ids, and it is what tells a
-  // front-matter section from one that renders curriculum.
+  // `covers` is always sent — a handful of ids, and it is what tells a front-matter
+  // section (empty covers) from one that renders curriculum.
   const covers = raw.relationships.filter((e) => e.type === "covers" && e.start === sectionId).map((e) => e.end);
-  const curriculumIds = descendants(raw, covers, CURRICULUM_EDGES);
-  const curriculum = !wanted.has("curriculum")
-    ? undefined
-    : skeleton
-      ? { nodes: raw.nodes.filter((n) => curriculumIds.has(n.id)).map(nodeSkeleton), edges: [] }
-      : inducedSubgraph(raw, curriculumIds, CURRICULUM_EDGES);
-
-  const routine = wanted.has("routine") ? resolveSectionRoutine(raw, sectionId, ancestry, covers) : undefined;
-
   // Formatters: every stack on this section's OWN path — its own, those of the
   // sections it is nested in, and the owning TLM's doc-wide stack. Sibling sections'
   // stacks are excluded, because each walk walls at a section boundary.
@@ -793,15 +777,52 @@ export function documentSectionSubgraph(
   }
   const remainingIds = cursorId ? stackIds.slice(stackIds.indexOf(cursorId) + 1) : stackIds;
 
-  // The section's own node and the stack are never trimmed, so they are built once
-  // and the only thing the budget can move is HOW MANY formatters ride this page.
+  // A CONTINUATION page fetches only more formatters. The context — the section's
+  // guide, the document, the routine, the covered curriculum — was delivered on the
+  // first page, and it is a fixed ~50 KB pile larger than the page budget, so
+  // re-sending it here left room for one formatter at a time and the loop never
+  // converged. On a continuation we shed it exactly the way include:['formatters']
+  // does, and drop the section node to its skeleton (its id stitches the page; its
+  // guide was on page one).
+  const isContinuation = cursorId != null;
+
+  const skeleton = options.detail === "skeleton";
+  const projectContext = skeleton ? nodeSkeleton : nodeOut;
+
+  // First page: honour the caller's `include` (all parts by default). Continuation:
+  // formatters only, whatever the caller passed.
+  const wanted = isContinuation
+    ? new Set<SectionPart>(["formatters"])
+    : new Set<SectionPart>(options.include ?? SECTION_PARTS);
+  const omitted = SECTION_PARTS.filter((part) => !wanted.has(part));
+
+  const document = tlm
+    ? wanted.has("document")
+      ? { id: tlm.id, assemblyGuide: assemblyGuideOf(tlm), node: projectContext(tlm) }
+      : { id: tlm.id, assemblyGuideOmitted: true as const }
+    : null;
+
+  const curriculumIds = descendants(raw, covers, CURRICULUM_EDGES);
+  const curriculum = !wanted.has("curriculum")
+    ? undefined
+    : skeleton
+      ? { nodes: raw.nodes.filter((n) => curriculumIds.has(n.id)).map(nodeSkeleton), edges: [] }
+      : inducedSubgraph(raw, curriculumIds, CURRICULUM_EDGES);
+
+  const routine = wanted.has("routine") ? resolveSectionRoutine(raw, sectionId, ancestry, covers) : undefined;
+
+  // The section node and the stack are never trimmed for the budget, so they are
+  // built once and the only thing the budget can move is HOW MANY formatters ride
+  // this page. On the first page the section node is full (it carries this slot's
+  // assemblyGuide); on a continuation it is the skeleton (identity to stitch).
   const base = {
-    section: nodeOut(section),   // always full: it carries this slot's assemblyGuide
+    section: isContinuation ? nodeSkeleton(section) : nodeOut(section),
     document,
     covers,
     ...(curriculum ? { curriculum } : {}),
     ...(routine !== undefined ? { routine } : {}),
     ...(omitted.length ? { omitted } : {}),
+    ...(isContinuation ? { continued: true as const } : {}),
   };
   // `formatterStackOrder` survives even when the formatters themselves are
   // omitted: it is a list of ids, and it is the PRECEDENCE a caller needs to
@@ -840,9 +861,10 @@ export function documentSectionSubgraph(
 // fit never reads about a cursor.
 function sectionStackTruncatedMessage(shown: number, total: number): string {
   return (
-    `This page carries ${shown} of the section's ${total} formatters, in precedence order — the stack is too large for one ` +
-    `response. Call walk_document_section again with cursor:<nextCursor> for the rest; merge their \`render\` bags in the ` +
-    `order received, across pages, so nearest still wins. Try detail:'skeleton' to fit more per page.`
+    `This page carries ${shown} of the section's ${total} formatters, in precedence order — the stack did not fit one ` +
+    `response. Call walk_document_section again with cursor:<nextCursor> for the rest: a continuation page carries ONLY the ` +
+    `remaining formatters (the section guide, document, routine and covered curriculum were sent on this first page), so it ` +
+    `converges quickly. Merge the \`render\` bags in the order received, across pages, so nearest still wins.`
   );
 }
 

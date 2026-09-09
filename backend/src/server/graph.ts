@@ -275,11 +275,32 @@ async function sectionResolved(args: SectionToolArgs): Promise<Record<string, un
    * as a separate call nobody was prompted to make (see server/freshness.ts).
    * Opt out with freshness:false when composing something new from scratch.
    */
-  const freshness = args.freshness === false
+  // Only the FIRST page asks the freshness question — a continuation page covers the
+  // same curriculum, so the answer would repeat, and it is bytes on the very page we
+  // page in order to keep thin.
+  const freshness = args.freshness === false || args.cursor
     ? undefined
     : await freshnessFor(namespace, resolved.model, section.covers);
 
   return { slot, physicalSlot: resolved.physicalSlot, ...section, ...(freshness ? { sourceFreshness: freshness } : {}) };
+}
+
+/**
+ * What to tell a caller whose walk_document_section FIRST page was withheld for size.
+ *
+ * A first page carries the section's own context — its guide, the document, the
+ * routine, the covered curriculum. That is a fixed pile, and on a handful of the
+ * fattest sections it alone exceeds the response cap, so no paging of the formatter
+ * stack (which pages fine) can rescue it. The generic hint offers node filters this
+ * tool does not take; name the two levers that DO shrink the context.
+ */
+export function sectionOversizeRemedy(sectionId: string): string {
+  return (
+    `Section '${sectionId}' carries more context than the response cap allows even after self-bounding — its own guide, ` +
+    `the document, the routine and the covered curriculum. Retry with detail:'skeleton' to trim the covered curriculum and ` +
+    `the owning document's node, or — if you already read the document once with walk_document — include:['formatters'] ` +
+    `(or [] for the section alone) to drop the parts you already hold. The formatter stack itself still pages with cursor.`
+  );
 }
 
 // ── Core: find_node ───────────────────────────────────────────────────────────
@@ -529,7 +550,7 @@ export function registerGraphTools(server: McpServer) {
       description:
         "The PER-PIECE generation entry: everything needed to produce ONE slot of a document, which is the unit a `.docx` is produced from section by section. Section ids come from walk_document's `sections` spine, or walk_graph (nodeTypes ['DocumentSection']). A DocumentSection already IS the document↔curriculum binding — it hangs under exactly one document and `covers` its curriculum — so its document, routine and formatters are unambiguous, never reverse-searched. " +
         "Returns `section` (its position + any per-section assemblyGuide); `document` (the owning TLM: id, assemblyGuide, audience/mediumType — null if not under one yet); `covers` (the curriculum id(s) it renders; EMPTY marks front matter); `curriculum` (the covered subtree, pure hasPart/hasChild); `routine` (the one that APPLIES, nearest-wins document-first — the section's own usesRoutine, else its parent sections' nearest-first, else the TLM's, else up the covered curriculum's ancestry — with `resolvedFrom` and `resolvedFromScope`; null when nothing in the chain uses one); and `formatters` (every stack on this section's own path — its own, its parent sections', the TLM's doc-wide one; sibling sections' stacks excluded), with `formatterStackOrder` giving their PRECEDENCE as ids: merge their `render` bags in that order, so nearest wins. Look each id up in `formatters.nodes`. " +
-        "NEVER REFUSES FOR SIZE. Nothing here is shed — this is the bottom read, so there is nowhere to redirect to. Instead: `detail:'skeleton'` trims the CONTEXT (the covered curriculum, the owning TLM's node) and never the section's own node or the formatter stack, which are what you came for; and if it still will not fit, the formatter stack PAGES in precedence order with `formattersTruncated` + `nextCursor` + `stackNote` — merge the `render` bags in the order received ACROSS pages and nearest still wins. Read-only. `slot`: 'published' (default) or 'draft' (curators/approvers only). " +
+        "SELF-BOUNDS THE FORMATTER STACK, which is the only part that can page: when it does not fit one response you get `formattersTruncated` + `nextCursor` + `stackNote`, and a CONTINUATION page (one fetched with `cursor`) carries ONLY the remaining formatters — the section guide, document, routine and covered curriculum came on the first page, and re-sending them is what once stopped the loop converging — so it arrives thin and `continued:true`, with `omitted` naming the shed parts. Merge the `render` bags in the order received ACROSS pages and nearest still wins. The FIRST page's own context is not paged, so on a few of the fattest sections it alone exceeds the cap and the read is refused with a remedy: pass `detail:'skeleton'` (trims the covered curriculum and the owning TLM's node, never the section's node or the stack) and/or `include` to drop parts you already hold. Read-only. `slot`: 'published' (default) or 'draft' (curators/approvers only). " +
         "`context` (optional {workspace, grade, subject}) reads against THAT namespace for this one call, leaving the session's active context untouched — the active context belongs to the CONNECTION, not to you, so anything sharing the connection (a subagent, a parallel call) can move it under you. Pass `context` whenever you fan out or cannot be sure you are alone; omit it to use the active context.",
       inputSchema: {
         sectionId: z.string(),
@@ -551,7 +572,7 @@ export function registerGraphTools(server: McpServer) {
         ...contextField,
       },
     },
-    guarded(async (a: SectionToolArgs) => asJson(await walkDocumentSection(a))),
+    guarded(async (a: SectionToolArgs) => asJson(await walkDocumentSection(a), sectionOversizeRemedy(a.sectionId))),
   );
 
   server.registerTool(

@@ -264,7 +264,7 @@ describe("documentSectionSubgraph — bounded without ever refusing", () => {
     for (const id of scope.formatterStackOrder) expect(present.has(id)).toBe(true);
   });
 
-  it("pages the stack rather than refusing, and never drops the section's own guide", () => {
+  it("pages the stack rather than refusing, and sends the context once on the first page", () => {
     const pages = withBudget("6000", () => {
       const collected: DocumentSectionScope[] = [];
       let cursor: string | undefined;
@@ -279,7 +279,7 @@ describe("documentSectionSubgraph — bounded without ever refusing", () => {
 
     expect(pages.length).toBeGreaterThan(1);
     expect(pages[0].formattersTruncated).toBe(true);
-    expect(pages[0].stackNote).toMatch(/precedence order/);
+    expect(pages[0].stackNote).toMatch(/continuation page carries ONLY/);
     expect(pages[pages.length - 1].nextCursor).toBeUndefined();
 
     // Concatenating the pages reproduces the full stack, in order and once each.
@@ -290,10 +290,22 @@ describe("documentSectionSubgraph — bounded without ever refusing", () => {
     const whole = withBudget(String(64 * 1024 * 1024), () => scopeOf(documentSectionSubgraph(fatModel, "sec-1")).formatterStackOrder);
     expect(seen).toEqual(whole);
 
-    // The two things the tool exists for ride on EVERY page.
-    for (const page of pages) {
-      expect(page.section.id).toBe("sec-1");
-      expect(page.document!.assemblyGuide).toBe("Une leçon par page.");
+    // The section is identifiable on every page (its id stitches the pages), and the
+    // FIRST page carries the full context — the section's own guide and the document —
+    // that the caller needs to compose from.
+    for (const page of pages) expect(page.section.id).toBe("sec-1");
+    expect(pages[0].continued).toBeUndefined();
+    expect(pages[0].document!.assemblyGuide).toBe("Une leçon par page.");
+
+    // A CONTINUATION page carries only the advancing formatters: it is flagged
+    // `continued`, its context parts are shed (document identity only, no routine or
+    // curriculum) and named in `omitted`, and the fixed pile is NOT re-sent.
+    for (const page of pages.slice(1)) {
+      expect(page.continued).toBe(true);
+      expect(page.omitted).toEqual(expect.arrayContaining(["document", "curriculum", "routine"]));
+      expect((page.document as { assemblyGuide?: string }).assemblyGuide).toBeUndefined();
+      expect(page.routine).toBeUndefined();
+      expect(page.curriculum).toBeUndefined();
     }
   });
 
