@@ -108,3 +108,31 @@ describe("what it refuses", () => {
     expect(validateDocumentTree({ blocks: [{ kind: "table", rows: [] }] }).length).toBeGreaterThan(0);
   });
 });
+
+describe("a media entry: base64 data OR a bucket relPath, exactly one", () => {
+  const withMedia = (media: unknown) => validateDocumentTree({ blocks: [], media });
+
+  it("accepts an inline base64 picture", () => {
+    expect(withMedia([{ name: "a.png", data: "AAAA" }])).toEqual([]);
+  });
+
+  it("accepts a picture named by a bucket relPath", () => {
+    expect(withMedia([{ name: "a.png", relPath: "media/lecon-22/a.png" }])).toEqual([]);
+  });
+
+  it("refuses an entry that gives BOTH data and relPath", () => {
+    const errors = withMedia([{ name: "a.png", data: "AAAA", relPath: "media/a.png" }]);
+    expect(errors.length).toBeGreaterThan(0);
+    expect(errors.join(" ")).toMatch(/exactly one/);
+  });
+
+  it("refuses an entry that gives NEITHER data nor relPath", () => {
+    const errors = withMedia([{ name: "a.png" }]);
+    expect(errors.length).toBeGreaterThan(0);
+    expect(errors.join(" ")).toMatch(/exactly one/);
+  });
+
+  it("still refuses an unknown key on a media entry", () => {
+    expect(withMedia([{ name: "a.png", relPath: "media/a.png", bytes: 10 }]).length).toBeGreaterThan(0);
+  });
+});

@@ -144,11 +144,26 @@ export type Block =
 /** A whole document: its blocks, and the pictures they name. */
 export const documentSchema = z.object({
   blocks: z.array(blockSchema),
-  // Each entry is a file the document embeds; `data` is base64 on the wire.
-  media: z.array(z.object({
-    name: z.string().min(1),
-    data: z.string(),
-  }).strict()).optional(),
+  // Each entry is a picture the document embeds, given EITHER inline as base64
+  // (`data`) OR by a bucket path the server resolves for you (`relPath`, relative
+  // to this namespace's documents/ area). relPath exists so an illustrated document
+  // — 2.5 MB of images — does not have to ride the tool call as base64, which is
+  // what kept it out of this tool entirely. Exactly one of the two per entry.
+  media: z.array(
+    z.object({
+      name: z.string().min(1),
+      data: z.string().optional(),
+      relPath: z.string().min(1).optional(),
+    }).strict().superRefine((entry, ctx) => {
+      const given = (entry.data !== undefined ? 1 : 0) + (entry.relPath !== undefined ? 1 : 0);
+      if (given !== 1) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: "give exactly one of `data` (base64) or `relPath` (a bucket path the server resolves)",
+        });
+      }
+    }),
+  ).optional(),
 }).strict();
 
 export type DocumentTree = { blocks: Block[]; media: { name: string; data: Buffer }[] };

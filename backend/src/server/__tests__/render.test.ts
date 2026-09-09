@@ -813,3 +813,51 @@ describe("render_document refuses rather than guesses", () => {
     expect(uploaded).toBeNull();
   });
 });
+
+describe("resolving a picture from the bucket by relPath", () => {
+  // A tree that PLACES one picture and carries it by a bucket path, not base64.
+  const PICTURE = Buffer.from("\x89PNG-fake-bytes-for-lecon-22");
+  const REL = "media/lecon-22/photo.png";
+  const treeWith = (media: unknown) => ({
+    blocks: [{ kind: "line", runs: [{ image: { media: "photo.png", role: "band", aspectRatio: 6 } }] }],
+    media,
+  });
+
+  it("reads the object and embeds it, so the caller never inlines the bytes", async () => {
+    const out = await withCtx(CURATOR, async () => {
+      await stageRenderBag(RENDER_BAG);
+      // The bucket has the object at REL; downloadObject hands back its bytes.
+      __setStorageForTest({ ...storage, downloadObject: async (rp) => (rp === REL ? PICTURE : null) });
+      return renderDocument({ nodeId: sectionId, document: treeWith([{ name: "photo.png", relPath: REL }]) });
+    });
+
+    expect(out.error).toBeUndefined();
+    expect(out.images).toBe(1);
+    // The rendered .docx carries the resolved bytes verbatim under word/media/.
+    const embedded = unzip(uploaded!).get("word/media/photo.png");
+    expect(embedded).not.toBeUndefined();
+    expect(Buffer.compare(embedded!, PICTURE)).toBe(0);
+  });
+
+  it("refuses, naming the path, when the object is not in the bucket", async () => {
+    const out = await withCtx(CURATOR, async () => {
+      await stageRenderBag(RENDER_BAG);
+      __setStorageForTest({ ...storage, downloadObject: async () => null });   // nothing there
+      return renderDocument({ nodeId: sectionId, document: treeWith([{ name: "photo.png", relPath: REL }]) });
+    });
+
+    expect(String(out.error)).toContain(REL);
+    expect(String(out.error)).toMatch(/no object there/);
+    expect(out.namespace).toBeTruthy();      // relPath is namespace-relative — say which one
+    expect(uploaded).toBeNull();             // a refusal, not a partial render
+  });
+
+  it("still renders a base64 picture — relPath is an alternative, not a replacement", async () => {
+    const out = await withCtx(CURATOR, async () => {
+      await stageRenderBag(RENDER_BAG);
+      return renderDocument({ nodeId: sectionId, document: treeWith([{ name: "photo.png", data: "AAAA" }]) });
+    });
+    expect(out.error).toBeUndefined();
+    expect(out.images).toBe(1);
+  });
+});
