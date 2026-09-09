@@ -233,7 +233,7 @@ export function documentsSection(actions: Actions) {
     canWrite: actions.canWriteDocuments,
     canTranslate: actions.canTranslate,
     readTools: ["reconcile", "list_documents", "create_download_url", "get_document_text", "check_stale"],
-    writeTools: ["create_upload_url", "log_generation", "record_document_content"],
+    writeTools: ["create_upload_url", "create_media_upload_url", "log_generation", "record_document_content"],
     note:
       "The published CURRICULUM is open — no membership is needed to set_context into a workspace and read its graph (walk_graph, get_standards, find_node, namespace_stats, walk_document, get_graph_guide), matching the public KG explorer that already serves the same data. Its DOCUMENTS are not: signed URLs to produced .docx, the generation history, and the Gemini-backed `translate` all require a ROLE in this workspace (any role — curator is enough). The write tools additionally write LIVE with no draft and no undo, which is why they are held at membership rather than left open with the reads. A non-member gets a `phase:'unauthorized'` payload naming what they'd need, and the refusal is audited. Each of these tools takes an optional `context` and is gated against the namespace it NAMES, not the session's — so a role in one workspace can never authorize a write into another.",
   };

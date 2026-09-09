@@ -341,6 +341,39 @@ describe("editable and rules come from the real sources (no hand-copied literals
     expect(unnamed).toEqual([]);
   });
 
+  it("advertises every registered document tool, so a new one reaches `verbs`", async () => {
+    /*
+     * `verbs` is built from the documents section's read/write lists, not from the
+     * registration — so a document tool that is registered but forgotten in those
+     * lists exists and works yet never appears in get_capabilities. That happened
+     * to create_media_upload_url: registered, callable, absent from `verbs` on the
+     * live server. Pin BOTH directions: every read/write tool the section names is
+     * really registered, and a writer's `verbs` carries every write tool.
+     */
+    const client = new Client({ name: "test-client", version: "0.0.0" });
+    const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
+    await Promise.all([client.connect(clientTransport), buildServer().connect(serverTransport)]);
+    let registered: Set<string>;
+    try {
+      registered = new Set((await client.listTools()).tools.map((tool) => tool.name));
+    } finally {
+      await client.close();
+    }
+
+    const caps = await withActiveContext(CURATOR, callGetCapabilities);
+    for (const tool of [...caps.documents.readTools, ...caps.documents.writeTools]) {
+      expect(registered.has(tool)).toBe(true);       // no phantom tool in the mirror
+    }
+    // A curator may write documents, so every write tool must reach `verbs`.
+    expect(caps.actions.canWriteDocuments).toBe(true);
+    for (const tool of caps.documents.writeTools) {
+      expect(caps.verbs).toContain(tool);
+    }
+    // The tool this regression is named for, specifically.
+    expect(registered.has("create_media_upload_url")).toBe(true);
+    expect(caps.verbs).toContain("create_media_upload_url");
+  });
+
   it("every discovery `params` array IS the tool's real argument list", async () => {
     /*
      * These arrays are what a caller reads to know what a tool accepts, and they
