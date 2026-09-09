@@ -23,10 +23,15 @@ pas un seuil, et tu ne reprends pas celui d'une mesure précédente.
 ## Ce que tu fais
 
 1. Rends chaque fichier en PDF (`soffice --headless --convert-to pdf`).
-2. **Vérifie d'abord les polices** : `fc-list` doit contenir chaque police que le document
-   nomme. Une police absente est substituée en silence et TOUTES les mesures deviennent
-   fausses. Si une manque, installe-la si tu peux, sinon arrête-toi et dis-le — un nombre
-   faux est pire que pas de nombre.
+2. **Vérifie la police sur le PDF produit, pas sur le système.** La police que le document
+   déclare (`type.family`, passée dans le budget) doit figurer parmi les polices
+   **réellement intégrées au PDF** que tu viens de rendre (`pdffonts`). `fc-list` dit ce qui
+   est installé, pas ce que LibreOffice a effectivement posé — les deux divergent, et c'est
+   la substitution silencieuse qui rend TOUTES les mesures fausses. Si la police déclarée
+   n'est pas dans le PDF (une autre lui a été substituée), **arrête-toi et dis-le**. Si
+   l'outil qui lit les polices du PDF (`pdffonts`) n'est pas installé, tu ne peux pas
+   vérifier : c'est aussi un arrêt, pas un compte — un nombre non vérifiable est pire que
+   pas de nombre.
 3. Compte : pages ; pour chaque page, le blanc sous la dernière ligne encrée, en cm ; lignes
    par section ; caractères imprimés par unité de pagination ; largeur des images posées.
 4. Compare aux seuils REÇUS, et à eux seuls.

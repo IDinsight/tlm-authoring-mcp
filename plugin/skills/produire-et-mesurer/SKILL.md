@@ -68,10 +68,28 @@ les changer dans la mise en forme et voir la mesure suivre.
 L'appel type :
 
     Mesure ces fichiers : <chemins>.
-    Budget lu dans la mise en forme (render.budget) : maxPages=…, reserveBottomCm=…,
-    linesPerPage=…, maxCharsPerLine=…, maxCharsBesideImage=…
+    Budget lu dans la mise en forme (render.budget) : maxPages=…, type.family=…,
+    reserveBottomCm=…, linesPerPage=…, maxCharsPerLine=…, maxCharsBesideImage=…
     Page attendue : <format, marges, police, interligne>.
     Rends le tableau et la liste des dépassements. Aucune image.
+
+## La police déclarée doit être présente, sinon le compte est faux
+
+Tout le budget est exprimé dans la police que la mise en forme déclare — `type.family`,
+`type.sizePt`, `type.leadingPt`, et le nombre de lignes et de caractères qui en découlent.
+Si cette police est absente du poste qui rend, LibreOffice lui en substitue une autre **en
+silence** ; elle n'a pas la même largeur, et le compte de pages part à la hausse. Un document
+qui tenait se mesure alors une page trop long — et on le resserre pour rien. C'est le même
+piège que « mesurer le rendu, pas le guide » : le nombre a l'air d'une mesure, mais il décrit
+un document que personne ne recevra.
+
+Donc `type.family` fait partie des seuils qu'on lit dans le `render` et qu'on passe à
+`mesureur`, au même titre que `maxPages`. Et `mesureur` le vérifie **sur le PDF produit** —
+les polices réellement intégrées au fichier, pas ce que le système croit qu'il utiliserait,
+car les deux divergent — et refuse de rendre un chiffre si la police déclarée n'y est pas.
+Ne pas pouvoir vérifier est aussi un refus : si l'outil qui lit les polices du PDF manque sur
+le poste, on le dit et on l'installe avant de mesurer, on ne devine pas. Un compte pris sans
+la bonne police n'est pas un résultat.
 
 ## When a sheet overflows
 
