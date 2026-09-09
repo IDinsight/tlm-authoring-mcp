@@ -17,9 +17,11 @@ This applies to every authoring session. The other skills assume it and do not r
    another.
 3. **`namespace_stats`** — before writing any traversal. It is argument-free and cheap, and it saves
    you from a `walk_graph` that returns the wrong shape.
-4. **Announce the subagents this session will use, and for what** — measuring, bulk reading, review —
-   before you act. Commit the delegation while there is nothing to carry: once momentum builds, the
-   main thread does the work itself and only notices afterwards, from the bill.
+4. **Announce the subagents this session will use, and for what** — measuring a produced file,
+   reviewing a render, reading a long external document — before you act. Commit the delegation
+   while there is nothing to carry: once momentum builds, the main thread does the work itself and
+   only notices afterwards, from the bill. The subagents work on FILES, never on the graph (see
+   below), so what you delegate is file work.
 
 `get_capabilities` answers "what is possible" for a machine; `start_here` answers "what do I do
 next" for a person. Prefer `start_here` when talking to someone. When you do need the machine
@@ -45,15 +47,20 @@ Believe the three flags rather than retrying the same call: `truncatedByLimit` m
 cursor, `truncated` means raise `maxDepth`, `truncatedBySize` means a byte budget trimmed the page
 and a larger `limit` cannot help.
 
-## A subagent names its own context
+## The subagents work on files, not the graph
 
-The active workspace, grade and subject belong to the **connection**, not to the caller — a subagent
-shares its parent's session. A `set_context` inside a subagent therefore moves the graph under
-everyone, the parent included, mid-task. This has already happened: a parent's next two reads failed
-on ids that had resolved seconds earlier.
+`mesureur`, `lecteur`, `relecteur` and `terminologue` have Read but no graph tools. They act on
+**files** — a rendered PDF, an uploaded `.docx`, a pile of notes — never on a `walk_graph`. The
+graph and document reads stay in the main thread, because that is where the tool access lives: the
+server reaches this session as a connector, and a plugin cannot hand a connector's tools to a
+subagent, so a shipped agent that named a graph read would name nothing.
 
-**A subagent never calls `set_context`.** The graph reads take a per-call `context` of workspace,
-grade and subject that applies to that call alone. Pass it on every read in the fan-out.
+This decides WHAT to delegate. Give a subagent a job it can finish from a file you did not have to
+read for it: measure a `.docx` you produced (`mesureur`), review a rendered page (`relecteur`),
+check the terminology of a produced file (`terminologue`), read a long external document
+(`lecteur`). Do NOT dump a graph payload to a file just to hand it over — you had to read it to
+write it, so the context is already spent; read it in the main thread. And a subagent never calls
+`set_context`: it makes no graph reads to scope.
 
 ## An open draft may be someone else's
 

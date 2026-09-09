@@ -10,8 +10,9 @@ Gather them from all three places they live:
 2. **The graph itself.** Pending decisions are written into the authored guidance on documents and
    their sections, as lines marking something to confirm, to arbitrate, or to submit to a named
    person. Walk the documents I am working on and collect them — `walk_document` for the section
-   spine, then read each section's own guidance. Do this in the `lecteur` subagent, because the
-   guidance is long and I only want the decisions back.
+   spine, then read each section's own guidance. These are graph reads, so they run in the main
+   thread (a subagent has no graph tools): use `detail:'skeleton'` to find the sections cheaply,
+   then read in full only the guidance you must to pull the decisions out.
 3. **The catalog** — entries whose text refers to something that does not exist, which is a decision
    waiting to be made about what should exist.
 
