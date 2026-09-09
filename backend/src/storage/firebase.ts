@@ -90,6 +90,11 @@ export function createFirebaseStorage(): StorageAdapter {
       const [url] = await bucket().file(docKey(relPath)).getSignedUrl({ version: "v4", action: "write", expires: expiresMs, contentType: DOCX_MIME });
       return { url, objectKey: docKey(relPath), contentType: DOCX_MIME, expiresAt: new Date(expiresMs).toISOString() };
     },
+    async createMediaUpload(relPath, contentType) {
+      const expiresMs = Date.now() + 15 * 60 * 1000;
+      const [url] = await bucket().file(docKey(relPath)).getSignedUrl({ version: "v4", action: "write", expires: expiresMs, contentType });
+      return { url, objectKey: docKey(relPath), contentType, expiresAt: new Date(expiresMs).toISOString() };
+    },
     async createDownloadUrl(relPath) {
       const f = bucket().file(docKey(relPath));
       const [exists] = await f.exists();

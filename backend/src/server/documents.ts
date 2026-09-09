@@ -18,7 +18,7 @@ import { getStorageAdapter, extractDocxText, listEntries, recordContent, reconci
 import { readDocx, sourcesFrom, staleness, type DocumentSource } from "../render/index.js";
 import type { HistoryEntry } from "../types.js";
 import { WORKSPACE_ROLE_NOTE } from "./tool-notes.js";
-import { DETAIL_LEVELS, DEFAULT_DETAIL, takeWithinBudget, trimmedBySizeHint, pageBudgetBytes, type DetailLevel } from "../utils/index.js";
+import { DETAIL_LEVELS, DEFAULT_DETAIL, takeWithinBudget, trimmedBySizeHint, pageBudgetBytes, toolError, type DetailLevel } from "../utils/index.js";
 
 // A file is identified by its path, and a node holds as many as it needs. Both
 // write tools say so, because the mental model they replaced was the opposite.
@@ -443,6 +443,23 @@ export async function checkStale(filter?: { nodeId?: string }): Promise<Record<s
   };
 }
 
+// The image types a render tree can embed, keyed by file extension. Rendering
+// only understands raster pictures, so this is the whole allowlist — anything
+// else is refused rather than signed for, keeping the bucket free of files
+// render_document cannot use.
+const IMAGE_MIME: Record<string, string> = {
+  png: "image/png",
+  jpg: "image/jpeg",
+  jpeg: "image/jpeg",
+  webp: "image/webp",
+  gif: "image/gif",
+};
+function imageMimeFor(relPath: string): string | null {
+  const dot = relPath.lastIndexOf(".");
+  const ext = dot < 0 ? "" : relPath.slice(dot + 1).toLowerCase();
+  return IMAGE_MIME[ext] ?? null;
+}
+
 export function registerDocumentTools(server: McpServer) {
   server.registerTool("reconcile", { title: "Reconcile bucket with history", description: "List the .docx documents in Firebase Storage and diff against history BY relPath: tracked docs (present + unchanged), UNTRACKED docs needing a link ('new' = no history entry, 'changed' = bytes differ from the recorded entry), and entries dropped because their object is gone. It no longer classifies filenames — link each untracked doc to the node it covers with record_document_content(nodeId, relPath, content). Link each untracked doc to the node it covers with record_document_content — several files may cover the same node, so the whole list can be walked. `dropped` lists the relPath of each entry whose object is gone. " + WORKSPACE_ROLE_NOTE + "", inputSchema: { ...contextField } },
     guarded(async (a: WithContext) => withContextOverrideResult(a.context, async () =>
@@ -468,6 +485,23 @@ export function registerDocumentTools(server: McpServer) {
         // cannot tell an approver which subject's bucket is about to be written.
         const needConfirm = requireConfirmation(a.confirm, `issue an upload URL for '${a.relPath}' in namespace '${namespace}' — this writes NOW to that live documents bucket (no draft, no undo)`);
         return needConfirm ?? asJson({ namespace, ...(await getStorageAdapter().createUploadUrl(a.relPath)) });
+      })));
+
+  server.registerTool("create_media_upload_url", { title: "Create image upload URL", description: "Get a short-lived signed URL to upload an IMAGE (png/jpg/jpeg/webp/gif) that a render tree will then embed by relPath. Upload with an HTTP PUT and the returned Content-Type. relPath is documents-relative, like 'media/lecon-22/photo.png' — the SAME keyspace create_upload_url and render_document's media relPath use, so once uploaded you name it in a render `media` entry as {name, relPath} and the server resolves the bytes (no base64 in the call). The file is invisible to list_documents and reconcile, which see only .docx, so an image never looks like a tracked deliverable. A non-image extension is REFUSED — render can only embed raster pictures. REQUIRES CONFIRMATION: without confirm:true you get a needsConfirmation notice; ask the user to approve, then call again. Requires a ROLE in the active workspace: this writes to live storage. " + NAMESPACE_NOTE + " The role is checked against the namespace this call names, so an upload can never be authorized in one workspace and land in another.", inputSchema: { relPath: z.string(), confirm: z.boolean().optional(), ...contextField } },
+    guarded(async (a: { relPath: string; confirm?: boolean } & WithContext) =>
+      withContextOverrideResult(a.context, async () => {
+        const denied = await denyNonMember("writeDocuments"); if (denied) return denied;
+        const mime = imageMimeFor(a.relPath);
+        if (!mime) {
+          return toolError("VALIDATION_ERROR", `'${a.relPath}' is not a supported image. render_document embeds raster pictures, so this accepts only ${Object.keys(IMAGE_MIME).map((e) => "." + e).join(", ")}.`);
+        }
+        const storage = getStorageAdapter();
+        if (!storage.createMediaUpload) {
+          return toolError("VALIDATION_ERROR", "This storage backend does not support image uploads.");
+        }
+        const namespace = activeNamespace();
+        const needConfirm = requireConfirmation(a.confirm, `issue an image upload URL for '${a.relPath}' in namespace '${namespace}' — this writes NOW to that live documents bucket (no draft, no undo)`);
+        return needConfirm ?? asJson({ namespace, ...(await storage.createMediaUpload(a.relPath, mime)) });
       })));
 
   server.registerTool("create_download_url", { title: "Create document download URL", description: "Get a short-lived signed URL to download an EXISTING .docx from the bucket with an HTTP GET (no auth header needed). relPath is documents-relative, like 'chapitre_05/Manuel - Chapitre 5.docx' — the same path used by create_upload_url and get_document_text. Use this to fetch the original binary file (with its images and formatting intact) so you can edit it and re-upload via create_upload_url. Returns { namespace, url, objectKey, expiresAt, exists }; exists is false when there is no such object — and then a `note` says WHY, distinguishing 'no such file here' from 'wrong namespace'. " + NAMESPACE_NOTE + " " + WORKSPACE_ROLE_NOTE + "", inputSchema: { relPath: z.string(), ...contextField } },

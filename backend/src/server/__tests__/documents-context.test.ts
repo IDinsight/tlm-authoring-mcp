@@ -64,6 +64,7 @@ function storageHolding(paths: string[]): StorageAdapter {
     getObjectMd5: async () => "x",
     downloadDocx: async () => Buffer.from(""),
     createUploadUrl: async (relPath) => ({ url: "https://signed/put", objectKey: docKey(relPath), contentType: "docx", expiresAt: "" }),
+    createMediaUpload: async (relPath, contentType) => ({ url: "https://signed/media", objectKey: docKey(relPath), contentType, expiresAt: "" }),
     createDownloadUrl: async (relPath) => ({ url: "https://signed/get", objectKey: docKey(relPath), expiresAt: "", exists: paths.includes(relPath) }),
     readHistory: async () => emptyHistory,
     writeHistory: async () => {},
@@ -224,5 +225,43 @@ describe("the membership gate is applied to the NAMED namespace", () => {
 
     expect(refused(result)).toBe(false);
     expect(String(result.objectKey)).toContain("senegal/ci/maths/documents/");
+  });
+});
+
+describe("create_media_upload_url — an image the render tree references by relPath", () => {
+  it("signs an image URL with the type inferred from the extension, in the named namespace", async () => {
+    const result = await callAs(SENEGAL_CURATOR, "create_media_upload_url", {
+      relPath: "media/lecon-22/photo.png",
+      confirm: true,
+      context: { workspace: "senegal", grade: "ce1", subject: "reading" },
+    });
+
+    expect(result.contentType).toBe("image/png");
+    expect(result.namespace).toBe(kgNamespace("senegal", "ce1", "reading"));
+    // Same documents/ keyspace render resolves a media relPath against.
+    expect(String(result.objectKey)).toContain("senegal/ce1/reading/documents/media/lecon-22/photo.png");
+  });
+
+  it("requires confirmation before it signs, like every live write", async () => {
+    const notice = await callAs(SENEGAL_CURATOR, "create_media_upload_url", { relPath: "media/a.jpg" });
+    expect(notice.needsConfirmation).toBeTruthy();
+    expect(notice.url).toBeUndefined();
+  });
+
+  it("refuses a non-image extension — render can only embed raster pictures", async () => {
+    const result = await callAs(SENEGAL_CURATOR, "create_media_upload_url", { relPath: "notes/plan.docx", confirm: true });
+    expect(String((result.error as { message?: string })?.message ?? result.error)).toMatch(/not a supported image/);
+    expect(result.url).toBeUndefined();
+  });
+
+  it("is gated to the NAMED namespace, so a role elsewhere cannot sign here", async () => {
+    const result = await callAs(SENEGAL_CURATOR, "create_media_upload_url", {
+      relPath: "media/a.png",
+      confirm: true,
+      context: NIGERIA,
+    });
+    expect(refused(result)).toBe(true);
+    expect(result.action).toBe("writeDocuments");
+    expect(result.url).toBeUndefined();
   });
 });
