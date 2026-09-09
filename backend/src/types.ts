@@ -84,6 +84,12 @@ export interface StorageAdapter {
   getObjectMd5(relPath: string): Promise<string | null>;
   downloadDocx(relPath: string): Promise<Buffer>;
   createUploadUrl(relPath: string): Promise<{ url: string; objectKey: string; contentType: string; expiresAt: string }>;
+  // Signed write URL for an IMAGE the caller then references from a render tree by
+  // relPath — the same documents-relative keyspace, so render's downloadObject
+  // resolves it and reconcile/list_documents (which see only .docx) ignore it.
+  // Optional like createPreviewUpload; the tool checks for it. `contentType` is an
+  // image MIME the tool has already validated.
+  createMediaUpload?(relPath: string, contentType: string): Promise<{ url: string; objectKey: string; contentType: string; expiresAt: string }>;
   createDownloadUrl(relPath: string): Promise<{ url: string; objectKey: string; expiresAt: string; exists: boolean }>;
   // Preview output path (Phase 3). Signs a short-lived write+read URL pair for a
   // throwaway .docx under the SIBLING previews/ prefix — never the canonical
