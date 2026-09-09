@@ -167,6 +167,29 @@ export class CodedError extends Error {
   }
 }
 
+/*
+ * Refuse a caller-supplied relative path that tries to climb out of its prefix.
+ *
+ * Every object key is `<namespace prefix>/ + relPath`, glued together with no
+ * validation. On Cloud Storage a `..` does NOT traverse — object names are flat
+ * strings there, so `documents/../x` is a literal key that resolves to nothing —
+ * so this is defensive hardening, not a live hole: it matters for any path-based
+ * backend, and a clear refusal beats a key that silently points nowhere. Called
+ * at the one chokepoint every relPath passes through (docKey / previewKey).
+ */
+export function assertSafeRelPath(relPath: string): void {
+  const unsafe =
+    relPath.length === 0 ||
+    relPath.startsWith("/") ||
+    relPath.split("/").some((segment) => segment === "..");
+  if (unsafe) {
+    throw new CodedError(
+      "VALIDATION_ERROR",
+      `Invalid relPath '${relPath}': it must be a relative path inside the namespace, with no '..' segments and no leading '/'.`,
+    );
+  }
+}
+
 // Debug mode surfaces stacks in the error envelope. Off by default so prod
 // clients never see internals; flip TLM_DEBUG=1 (or NODE_ENV=development) when
 // diagnosing.
