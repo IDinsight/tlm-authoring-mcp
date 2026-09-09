@@ -14,7 +14,7 @@
  */
 import { resolve } from "node:path";
 import { CONFIG, basePrefix } from "../config.js";
-import { slug } from "../utils/index.js";
+import { slug, assertSafeRelPath } from "../utils/index.js";
 import { type ActiveContext, ContextNotSetError } from "./shared.js";
 import { sessionState } from "./session.js";
 
@@ -76,7 +76,7 @@ export const activeWorkspace = (): string => requireContext().workspace;
 const scope = () => { const { workspace, grade, subject } = requireContext(); return `${workspace}/${grade}/${subject}/`; };
 export const docsPrefix = () => basePrefix() + scope() + "documents/";
 export const historyKey = () => basePrefix() + scope() + "history.json";
-export const docKey = (relPath: string) => docsPrefix() + relPath;
+export const docKey = (relPath: string) => { assertSafeRelPath(relPath); return docsPrefix() + relPath; };
 
 // Preview objects live under a SIBLING prefix to documents/ (never inside it),
 // so a preview .docx is observably non-canonical: reconcile/discoverDocuments
@@ -85,4 +85,4 @@ export const docKey = (relPath: string) => docsPrefix() + relPath;
 // separate from docKey deliberately — a preview must not share the canonical
 // documents keyspace.
 export const previewsPrefix = () => basePrefix() + scope() + "previews/";
-export const previewKey = (relPath: string) => previewsPrefix() + relPath;
+export const previewKey = (relPath: string) => { assertSafeRelPath(relPath); return previewsPrefix() + relPath; };
