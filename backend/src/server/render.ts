@@ -185,12 +185,48 @@ export async function renderDocument(a: RenderArgs): Promise<Record<string, unkn
       error:
         `The tree places ${missingMedia.length} picture(s) that are not in its own \`media\`: ${missingMedia.map((name) => `'${name}'`).join(", ")}. Nothing was rendered. ` +
         `This is refused rather than rendered because the layout falls back to the document's FIRST picture for a name it cannot resolve — the file would look complete with the wrong image in that slot.`,
-      hint: "Add each file to `media` (name + base64 data), or correct the name to one already there. lint_content reports this too, before you render.",
+      hint: "Add each file to `media` (name + base64 `data`, or a bucket `relPath` the server resolves), or correct the name to one already there. lint_content reports this too, before you render.",
       media: (tree.data.media ?? []).map((m) => m.name),
     };
   }
 
-  const media = (tree.data.media ?? []).map((m) => ({ name: m.name, data: Buffer.from(m.data, "base64") }));
+  /*
+   * Materialize each picture into bytes. Two ways in: `data` is base64 in the
+   * call; `relPath` names an object already in this namespace's documents/ area,
+   * which the server reads — so an illustrated document (megabytes of images)
+   * need not inline them into the tool call at all.
+   *
+   * A relPath that resolves to nothing is a REFUSAL, not a silent skip, for the
+   * same reason a missing name is above: the layout would fall back to the first
+   * picture and the file would look complete with the wrong image in that slot.
+   */
+  const storage = getStorageAdapter();
+  const media: { name: string; data: Buffer }[] = [];
+  const unresolved: string[] = [];
+  for (const m of tree.data.media ?? []) {
+    if (m.relPath !== undefined) {
+      if (!storage.downloadObject) {
+        return { preview: true, error: "This storage backend cannot resolve a media `relPath`. Inline the image as base64 `data` instead." };
+      }
+      const bytes = await storage.downloadObject(m.relPath);
+      if (!bytes) {
+        unresolved.push(`'${m.name}' (${m.relPath})`);
+        continue;
+      }
+      media.push({ name: m.name, data: bytes });
+    } else {
+      media.push({ name: m.name, data: Buffer.from(m.data as string, "base64") });
+    }
+  }
+  if (unresolved.length > 0) {
+    return {
+      preview: true,
+      namespace: ns,
+      error:
+        `${unresolved.length} media entr${unresolved.length === 1 ? "y names a bucket path" : "ies name bucket paths"} with no object there: ${unresolved.join(", ")}. Nothing was rendered. ` +
+        `A relPath is relative to THIS namespace's documents/ area — check the namespace and the path, or upload the image first (create_upload_url), then render.`,
+    };
+  }
   let composed: DocumentTree = { blocks: tree.data.blocks, media };
 
   // Fill in a language the tree does not carry, before splitting — a variant
@@ -223,7 +259,6 @@ export async function renderDocument(a: RenderArgs): Promise<Record<string, unkn
     );
   }
 
-  const storage = getStorageAdapter();
   if (!storage.createPreviewUpload) {
     return { preview: true, error: "The active storage backend does not support preview uploads." };
   }
@@ -314,6 +349,7 @@ export function registerRenderTools(server: McpServer) {
         "Turn a page YOU composed into a Word file. `nodeId` is the DocumentSection (or TeachingLearningMaterial) being rendered; `document` is the block tree. The server merges that node's formatter stack into one render spec, validates the tree against it, lays out the .docx and returns a short-lived `downloadUrl`. " +
         "YOU decide what is on the page — which banner, in what order, where it turns; the FORMATTER decides what it looks like. So the tree carries NO geometry: no colour, no point size, no centimetre. A block names a `style` and a picture names a `role`, both defined by the formatter; a page break says only `pageBreak:'before'` and the formatter's `pagination.pageBreakCarrier` decides how it is written. The tree shape is in get_capabilities section:'document'; call preview_generation first for the section's curriculum, routine and formatter prose. " +
         "Unknown keys are REFUSED rather than ignored, and nothing is rendered when the tree or the stack is invalid — the response names the path. " +
+        "PICTURES go in the tree's `media`, each as {name, data} with data base64, OR {name, relPath} — a path to an object already in THIS namespace's documents/ area, which the server reads so you need not inline the bytes (an illustrated document is megabytes of base64 the tool call cannot carry). Exactly one of data/relPath per entry; a relPath that resolves to nothing is refused, naming it, not rendered with the wrong image. " +
         "ONE SOURCE, ONE FILE PER LANGUAGE. When the formatter's `language.strategy` is 'per-file', each declared variant gets its own document: lines marked `inAllFiles` print in every one, a line tagged with a variant prints only in that variant's file, and `files[]` comes back with one entry each. Pass `translateInto` (a variant id, e.g. 'wo') to have the server DERIVE that language from the one the tree already carries, translating line by line through the subject's MOHEBS glossary so the wording matches materials already in classrooms — a tree that already has those lines is left alone. Translation spends a metered backend, so it needs a ROLE in the workspace. " +
         "Pass `measure:true` to lay each file out and COUNT ITS PAGES — page counts are measured on the render, never estimated from the source (an estimate once put a document at 2.5 pages that rendered at eleven). Each file then carries `measurement` with the page count, the page size actually produced, and the whitespace left below the last line of each page; with `budget.maxPages` declared it also carries `fits`. Measuring starts a whole office suite, so it is off by default, and where the deployment has no layout engine it reports `available:false` rather than a guess. " +
         "Output goes to the SEGREGATED previews/ prefix: short-lived, invisible to list_documents and reconcile, and never to be recorded via log_generation. Renders from the DRAFT when one is open and from PUBLISHED otherwise — `renderedFrom` says which, so a sheet is never mistaken for one made from unpublished edits. Curators and approvers only.",

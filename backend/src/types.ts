@@ -83,6 +83,11 @@ export interface StorageAdapter {
   listDocuments(): Promise<StoredObject[]>;
   getObjectMd5(relPath: string): Promise<string | null>;
   downloadDocx(relPath: string): Promise<Buffer>;
+  // Read an arbitrary bucket object's bytes by its documents-relative path, or
+  // null when there is no such object. Resolves a render media `relPath` without
+  // the caller inlining the bytes. Optional like createPreviewUpload, so a stub
+  // backend can omit it; render_document checks for it and refuses clearly.
+  downloadObject?(relPath: string): Promise<Buffer | null>;
   createUploadUrl(relPath: string): Promise<{ url: string; objectKey: string; contentType: string; expiresAt: string }>;
   createDownloadUrl(relPath: string): Promise<{ url: string; objectKey: string; expiresAt: string; exists: boolean }>;
   // Preview output path (Phase 3). Signs a short-lived write+read URL pair for a

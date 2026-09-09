@@ -78,6 +78,13 @@ export function createFirebaseStorage(): StorageAdapter {
       const [buf] = await bucket().file(docKey(relPath)).download();
       return buf;
     },
+    async downloadObject(relPath) {
+      const f = bucket().file(docKey(relPath));
+      const [exists] = await f.exists();
+      if (!exists) return null;
+      const [buf] = await f.download();
+      return buf;
+    },
     async createUploadUrl(relPath) {
       const expiresMs = Date.now() + 15 * 60 * 1000;
       const [url] = await bucket().file(docKey(relPath)).getSignedUrl({ version: "v4", action: "write", expires: expiresMs, contentType: DOCX_MIME });
