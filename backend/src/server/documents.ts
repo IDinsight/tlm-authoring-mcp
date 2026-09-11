@@ -453,6 +453,9 @@ const IMAGE_MIME: Record<string, string> = {
   jpeg: "image/jpeg",
   webp: "image/webp",
   gif: "image/gif",
+  // Vector masters — the pupil book's pictograms and answer marks. Rasterized
+  // to PNG at layout (render/raster.ts), so the file store keeps the original.
+  svg: "image/svg+xml",
 };
 function imageMimeFor(relPath: string): string | null {
   const dot = relPath.lastIndexOf(".");
@@ -487,13 +490,13 @@ export function registerDocumentTools(server: McpServer) {
         return needConfirm ?? asJson({ namespace, ...(await getStorageAdapter().createUploadUrl(a.relPath)) });
       })));
 
-  server.registerTool("create_media_upload_url", { title: "Create image upload URL", description: "Get a short-lived signed URL to upload an IMAGE (png/jpg/jpeg/webp/gif) that a render tree will then embed by relPath. Upload with an HTTP PUT and the returned Content-Type. relPath is documents-relative, like 'media/lecon-22/photo.png' — the SAME keyspace create_upload_url and render_document's media relPath use, so once uploaded you name it in a render `media` entry as {name, relPath} and the server resolves the bytes (no base64 in the call). The file is invisible to list_documents and reconcile, which see only .docx, so an image never looks like a tracked deliverable. A non-image extension is REFUSED — render can only embed raster pictures. REQUIRES CONFIRMATION: without confirm:true you get a needsConfirmation notice; ask the user to approve, then call again. Requires a ROLE in the active workspace: this writes to live storage. " + NAMESPACE_NOTE + " The role is checked against the namespace this call names, so an upload can never be authorized in one workspace and land in another.", inputSchema: { relPath: z.string(), confirm: z.boolean().optional(), ...contextField } },
+  server.registerTool("create_media_upload_url", { title: "Create image upload URL", description: "Get a short-lived signed URL to upload an IMAGE (png/jpg/jpeg/webp/gif, or svg) that a render tree will then embed by relPath. An SVG is rasterized to PNG when the page is laid out, so a vector master prints crisp at any size; one that sets text with a font is refused at render (the server has no fonts) — convert the text to outlines first. Upload with an HTTP PUT and the returned Content-Type. relPath is documents-relative, like 'media/lecon-22/photo.png' — the SAME keyspace create_upload_url and render_document's media relPath use, so once uploaded you name it in a render `media` entry as {name, relPath} and the server resolves the bytes (no base64 in the call). The file is invisible to list_documents and reconcile, which see only .docx, so an image never looks like a tracked deliverable. A non-image extension is REFUSED. REQUIRES CONFIRMATION: without confirm:true you get a needsConfirmation notice; ask the user to approve, then call again. Requires a ROLE in the active workspace: this writes to live storage. " + NAMESPACE_NOTE + " The role is checked against the namespace this call names, so an upload can never be authorized in one workspace and land in another.", inputSchema: { relPath: z.string(), confirm: z.boolean().optional(), ...contextField } },
     guarded(async (a: { relPath: string; confirm?: boolean } & WithContext) =>
       withContextOverrideResult(a.context, async () => {
         const denied = await denyNonMember("writeDocuments"); if (denied) return denied;
         const mime = imageMimeFor(a.relPath);
         if (!mime) {
-          return toolError("VALIDATION_ERROR", `'${a.relPath}' is not a supported image. render_document embeds raster pictures, so this accepts only ${Object.keys(IMAGE_MIME).map((e) => "." + e).join(", ")}.`);
+          return toolError("VALIDATION_ERROR", `'${a.relPath}' is not a supported image. render_document can embed only ${Object.keys(IMAGE_MIME).map((e) => "." + e).join(", ")}.`);
         }
         const storage = getStorageAdapter();
         if (!storage.createMediaUpload) {

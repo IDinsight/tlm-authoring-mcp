@@ -146,3 +146,20 @@ describe("a block tree and a formatter make a .docx", () => {
     expect(doc).toContain('<wp:wrapSquare wrapText="left"/>');
   });
 });
+
+describe("a vector picture's part", () => {
+  it("is stored as .png once rasterized, while the page keeps calling it by its .svg name", () => {
+    const resolved = resolveRenderSpec([DOC_WIDE]);
+    if (!resolved.ok) throw new Error(resolved.errors.join("; "));
+    // What rasterizeSvgMedia hands the writer: the page's name, PNG bytes.
+    const png = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0, 0, 0, 0]);
+    const blocks = documentSchema.parse({ blocks: [
+      { kind: "line", runs: [{ image: { media: "picto.svg", role: "sign", aspectRatio: 1, float: false } }, { text: "Le repère." }] },
+    ] }).blocks;
+    const out = unzip(renderDocx({ blocks, media: [{ name: "picto.svg", data: png }] }, resolved.spec));
+    expect(out.get("word/media/picto.png")).toBeDefined();
+    expect(out.get("word/media/picto.svg")).toBeUndefined();
+    expect(out.get("word/_rels/document.xml.rels")!.toString("utf8")).toContain('Target="media/picto.png"');
+    expect(out.get("word/document.xml")!.toString("utf8")).toContain('name="picto.svg"');
+  });
+});

@@ -27,6 +27,15 @@ So the block tree **carries no geometry**: no colour, no point size, no centimet
 `pageBreak: 'before'`, and the formatter's `pagination.pageBreakCarrier` decides whether that is
 written as a paragraph property or a paragraph of its own.
 
+**Pictures.** A page names its pictures in `media`, inline as base64 or by a bucket `relPath`. Word
+embeds raster pictures only, so a **vector** picture — an SVG; the pupil book's pictograms and answer
+marks are SVG masters — is rasterized to PNG at layout, on the server, at 1024 px on its longer side
+(`render/raster.ts`). Detection is by bytes, not by name, and the `.docx` part is written as `.png`
+while the page keeps calling the picture by the name it gave. An SVG that sets text with a font is
+**refused**, naming the file and the fix: the server has no fonts, and the letters would otherwise
+render as nothing — a page that renders successfully and wrongly. `create_media_upload_url` accepts
+`.svg` for the same reason.
+
 Structure varies per lesson and belongs to the model; geometry is the same for every page a formatter
 governs and belongs to the formatter. **An `if (subject === …)` anywhere in `src/render/` would mean
 the split failed.**
