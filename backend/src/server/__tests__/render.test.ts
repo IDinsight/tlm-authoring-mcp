@@ -861,3 +861,71 @@ describe("resolving a picture from the bucket by relPath", () => {
     expect(out.images).toBe(1);
   });
 });
+
+describe("a vector picture is rasterized at layout, or the render refuses", () => {
+  // The pupil book's pictograms are SVG masters. Word embeds raster only, so
+  // the server converts them once the bytes are in hand — from base64 or from
+  // the bucket alike — and the page keeps naming them by their .svg name.
+  const PICTO_SVG =
+    `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="100" height="100">` +
+    `<rect x="0" y="0" width="100" height="100" rx="18" fill="#F6872C"/></svg>`;
+  const TEXT_SVG =
+    `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">` +
+    `<text x="50" y="52" font-family="Arial" font-size="60">X</text></svg>`;
+  const REL = "assets/picto-je-fais.svg";
+  const treeWith = (media: unknown) => ({
+    blocks: [{ kind: "line", runs: [{ image: { media: "picto.svg", role: "sign", aspectRatio: 1 } }, { text: "Le repère." }] }],
+    media,
+  });
+  const pngSize = (png: Buffer) => ({ width: png.readUInt32BE(16), height: png.readUInt32BE(20) });
+
+  it("converts an SVG given inline to a print-size PNG part, and says it did", async () => {
+    const out = await withCtx(CURATOR, async () => {
+      await stageRenderBag(RENDER_BAG);
+      return renderDocument({ nodeId: sectionId, document: treeWith([{ name: "picto.svg", data: Buffer.from(PICTO_SVG).toString("base64") }]) });
+    });
+    expect(out.error).toBeUndefined();
+    expect(out.images).toBe(1);
+    expect(out.rasterizedSvg).toEqual(["picto.svg"]);
+    const zipped = unzip(uploaded!);
+    expect(zipped.get("word/media/picto.svg")).toBeUndefined();
+    const part = zipped.get("word/media/picto.png");
+    expect(part).not.toBeUndefined();
+    expect(part!.subarray(0, 4)).toEqual(Buffer.from([0x89, 0x50, 0x4e, 0x47]));
+    expect(pngSize(part!)).toEqual({ width: 1024, height: 1024 });
+    expect(zipped.get("word/_rels/document.xml.rels")!.toString("utf8")).toContain('Target="media/picto.png"');
+  });
+
+  it("converts an SVG read from the bucket by relPath the same way", async () => {
+    const out = await withCtx(CURATOR, async () => {
+      await stageRenderBag(RENDER_BAG);
+      __setStorageForTest({ ...storage, downloadObject: async (rp) => (rp === REL ? Buffer.from(PICTO_SVG) : null) });
+      return renderDocument({ nodeId: sectionId, document: treeWith([{ name: "picto.svg", relPath: REL }]) });
+    });
+    expect(out.error).toBeUndefined();
+    expect(out.rasterizedSvg).toEqual(["picto.svg"]);
+    expect(unzip(uploaded!).get("word/media/picto.png")).not.toBeUndefined();
+  });
+
+  it("refuses the whole render, naming the picture, when an SVG sets text the server cannot set", async () => {
+    const out = await withCtx(CURATOR, async () => {
+      await stageRenderBag(RENDER_BAG);
+      return renderDocument({ nodeId: sectionId, document: treeWith([{ name: "picto.svg", data: Buffer.from(TEXT_SVG).toString("base64") }]) });
+    });
+    expect(String(out.error)).toContain("'picto.svg'");
+    expect(String(out.error)).toMatch(/no fonts/);
+    expect(String(out.error)).toMatch(/outlines/);
+    expect(uploaded).toBeNull();   // a refusal, never a page with a blank where the mark should be
+  });
+
+  it("leaves a raster picture exactly as it came", async () => {
+    const png = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 1, 2, 3, 4]);
+    const out = await withCtx(CURATOR, async () => {
+      await stageRenderBag(RENDER_BAG);
+      return renderDocument({ nodeId: sectionId, document: treeWith([{ name: "picto.svg", data: png.toString("base64") }]) });
+    });
+    expect(out.error).toBeUndefined();
+    expect(out.rasterizedSvg).toBeUndefined();
+    expect(Buffer.compare(unzip(uploaded!).get("word/media/picto.png")!, png)).toBe(0);
+  });
+});

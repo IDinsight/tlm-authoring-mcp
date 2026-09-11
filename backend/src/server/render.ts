@@ -33,7 +33,7 @@ import { getKgStore, kgNamespace, toAuditActor, nextAuditSeq } from "../kg-store
 import { currentActor } from "../actor.js";
 import { getStorageAdapter } from "../storage/index.js";
 import { formatterStackFor } from "../curriculum/index.js";
-import { documentSchema, renderDocx, resolveRenderSpec, missingMediaNames, splitByVariant, deriveVariant, hasVariant, measureDocx, readDocx, proposeEdits, editItems, documentText, normalise, type DocumentTree, type TextSlot } from "../render/index.js";
+import { documentSchema, renderDocx, resolveRenderSpec, missingMediaNames, splitByVariant, deriveVariant, hasVariant, measureDocx, readDocx, proposeEdits, editItems, documentText, normalise, rasterizeSvgMedia, type DocumentTree, type TextSlot } from "../render/index.js";
 import { displayName, descriptionBody } from "../utils/index.js";
 import { translate } from "../translation/index.js";
 import { effectiveTerms, filterByText } from "./glossary-read.js";
@@ -227,7 +227,25 @@ export async function renderDocument(a: RenderArgs): Promise<Record<string, unkn
         `A relPath is relative to THIS namespace's documents/ area — check the namespace and the path, or upload the image first (create_upload_url), then render.`,
     };
   }
-  let composed: DocumentTree = { blocks: tree.data.blocks, media };
+  /*
+   * A vector picture becomes a raster one HERE, once its bytes are in hand,
+   * whichever way they came in. Word embeds raster only, and the pupil book's
+   * pictograms are SVG masters; converting at layout lets them live in the
+   * media store as files. One that cannot be converted refuses the render,
+   * named — a blank where an answer mark should be is not a degraded page.
+   */
+  const raster = rasterizeSvgMedia(media);
+  if (raster.refused.length > 0) {
+    return {
+      preview: true,
+      namespace: ns,
+      error:
+        `${raster.refused.length} vector picture(s) could not be rasterized: ` +
+        raster.refused.map((r) => `'${r.name}' ${r.reason}`).join("; ") +
+        ". Nothing was rendered. An SVG is converted to PNG when the page is laid out; fix the file or upload a PNG of it.",
+    };
+  }
+  let composed: DocumentTree = { blocks: tree.data.blocks, media: raster.media };
 
   // Fill in a language the tree does not carry, before splitting — a variant
   // with no lines would otherwise produce an empty file rather than a missing
@@ -329,6 +347,7 @@ export async function renderDocument(a: RenderArgs): Promise<Record<string, unkn
     ...(files.length === 1 ? { downloadUrl: files[0].downloadUrl, objectKey: files[0].objectKey } : {}),
     blocks: tree.data.blocks.length,
     images: media.length,
+    ...(raster.rasterized.length > 0 ? { rasterizedSvg: raster.rasterized } : {}),
     formatters: spec.from,
     translatedInto: a.translateInto ?? null,
     // Which graph this was laid out from, so a sheet is never mistaken for one
@@ -349,7 +368,7 @@ export function registerRenderTools(server: McpServer) {
         "Turn a page YOU composed into a Word file. `nodeId` is the DocumentSection (or TeachingLearningMaterial) being rendered; `document` is the block tree. The server merges that node's formatter stack into one render spec, validates the tree against it, lays out the .docx and returns a short-lived `downloadUrl`. " +
         "YOU decide what is on the page — which banner, in what order, where it turns; the FORMATTER decides what it looks like. So the tree carries NO geometry: no colour, no point size, no centimetre. A block names a `style` and a picture names a `role`, both defined by the formatter; a page break says only `pageBreak:'before'` and the formatter's `pagination.pageBreakCarrier` decides how it is written. The tree shape is in get_capabilities section:'document'; call preview_generation first for the section's curriculum, routine and formatter prose. " +
         "Unknown keys are REFUSED rather than ignored, and nothing is rendered when the tree or the stack is invalid — the response names the path. " +
-        "PICTURES go in the tree's `media`, each as {name, data} with data base64, OR {name, relPath} — a path to an object already in THIS namespace's documents/ area, which the server reads so you need not inline the bytes (an illustrated document is megabytes of base64 the tool call cannot carry). Exactly one of data/relPath per entry; a relPath that resolves to nothing is refused, naming it, not rendered with the wrong image. " +
+        "PICTURES go in the tree's `media`, each as {name, data} with data base64, OR {name, relPath} — a path to an object already in THIS namespace's documents/ area, which the server reads so you need not inline the bytes (an illustrated document is megabytes of base64 the tool call cannot carry). Exactly one of data/relPath per entry; a relPath that resolves to nothing is refused, naming it, not rendered with the wrong image. A VECTOR picture (SVG, by data or relPath) is rasterized to PNG when the page is laid out, so the pictograms' SVG masters can be named directly; an SVG that sets text with a font is refused (the server has no fonts) — convert the text to outlines first. " +
         "ONE SOURCE, ONE FILE PER LANGUAGE. When the formatter's `language.strategy` is 'per-file', each declared variant gets its own document: lines marked `inAllFiles` print in every one, a line tagged with a variant prints only in that variant's file, and `files[]` comes back with one entry each. Pass `translateInto` (a variant id, e.g. 'wo') to have the server DERIVE that language from the one the tree already carries, translating line by line through the subject's MOHEBS glossary so the wording matches materials already in classrooms — a tree that already has those lines is left alone. Translation spends a metered backend, so it needs a ROLE in the workspace. " +
         "Pass `measure:true` to lay each file out and COUNT ITS PAGES — page counts are measured on the render, never estimated from the source (an estimate once put a document at 2.5 pages that rendered at eleven). Each file then carries `measurement` with the page count, the page size actually produced, and the whitespace left below the last line of each page; with `budget.maxPages` declared it also carries `fits`. Measuring starts a whole office suite, so it is off by default, and where the deployment has no layout engine it reports `available:false` rather than a guess. " +
         "Output goes to the SEGREGATED previews/ prefix: short-lived, invisible to list_documents and reconcile, and never to be recorded via log_generation. Renders from the DRAFT when one is open and from PUBLISHED otherwise — `renderedFrom` says which, so a sheet is never mistaken for one made from unpublished edits. Curators and approvers only.",

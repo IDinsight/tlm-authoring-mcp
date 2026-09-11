@@ -24,6 +24,7 @@
  */
 import type { RenderSpec } from "../kg-recipes/index.js";
 import type { Block, Cell, DocumentTree, ImageRun, Run } from "./document.js";
+import { mediaPartName } from "./raster.js";
 import { zip, type ZipEntry } from "./zip.js";
 
 const TWIPS_PER_CM = 566.929;
@@ -366,11 +367,14 @@ export function renderDocx(model: DocumentTree, spec: RenderSpec): Buffer {
     `<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/>`,
   ];
   const relOf = new Map<string, string>();
+  // A picture keeps the NAME the page calls it by; the PART it is stored under
+  // follows its bytes — a rasterized `picto.svg` is a `.png` part, or Word
+  // would read the wrong type off the extension.
   model.media.forEach((m, i) => {
     const id = `rId${i + 2}`;
     relOf.set(m.name, id);
     rels.push(
-      `<Relationship Id="${id}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/image" Target="media/${m.name}"/>`,
+      `<Relationship Id="${id}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/image" Target="media/${mediaPartName(m.name, m.data)}"/>`,
     );
   });
 
@@ -424,7 +428,7 @@ export function renderDocx(model: DocumentTree, spec: RenderSpec): Buffer {
     { name: "word/document.xml", data: Buffer.from(document, "utf8") },
     { name: "word/_rels/document.xml.rels", data: Buffer.from(docRels, "utf8") },
     { name: "word/styles.xml", data: Buffer.from(styles, "utf8") },
-    ...model.media.map((m) => ({ name: `word/media/${m.name}`, data: m.data })),
+    ...model.media.map((m) => ({ name: `word/media/${mediaPartName(m.name, m.data)}`, data: m.data })),
   ];
   return zip(entries);
 }

@@ -8,6 +8,7 @@
 export { documentSchema, blockSchema, validateDocumentTree, missingMediaNames } from "./document.js";
 export type { Block, Cell, Run, ImageRun, DocumentTree } from "./document.js";
 export { renderDocx } from "./docx.js";
+export { rasterizeSvgMedia, rasterizeSvg, isSvg, isPng, mediaPartName, RASTER_LONG_SIDE_PX, type MediaBytes, type RasterRefusal } from "./raster.js";
 export { resolveRenderSpec, type ResolvedSpec, type SpecCarrier } from "./resolve-spec.js";
 export { splitByVariant, deriveVariant, hasVariant, type Variant, type TranslateText } from "./variants.js";
 export { measureDocx, parsePdfInfo, parseBBox, type Measurement, type PageMeasurement } from "./measure.js";
