@@ -6,7 +6,8 @@ argument-hint: [le document à mesurer]
 Measure: $ARGUMENTS
 
 **Read the budget first, then delegate.** The thresholds belong to the document, not to you and not
-to the agent: they live in its formatter. Read them with `walk_document_section` — `render.budget`
+to the agent: they live in its formatter. Read them with `walk_document_section(sectionId,
+include:['formatters'])` — `render.budget`
 (`maxPages`, `reserveBottomCm`, `linesPerPage`, `maxCharsPerLine`, `maxCharsBesideImage`) and
 `render.page` for the expected geometry — and pass them in the call. A curator changes them in the
 formatter without a deploy, and the next measurement has to follow.

@@ -11,14 +11,22 @@ whether it will fit — produce the artifact and measure the artifact.
 ## Get the generation inputs
 
 - **`walk_document_section`** for one slot of a document. This is the unit a sheet is produced from,
-  and it is the one to prefer. It hands you the section, the curriculum it covers, the routine that
-  applies, and every formatter on its path.
+  and it is the one to prefer. It hands you the section's own text, the curriculum it covers, the
+  routine that applies, and every formatter on its path.
+- **Read the shared parts once.** The formatters, the document's assembly guide and the routine are
+  identical for every section of a document, and together they are about fifteen times the section's
+  own text. Read the **first** section of a document in full (follow `nextCursor` until the formatter
+  stack is complete); read **every later** section with `include:[]`, adding `'curriculum'` only when
+  it covers something you have not read yet. A ten-section lesson read the default way is roughly
+  400k tokens of input; read this way it is roughly 40k, with nothing lost — and the formatter rules
+  you read first are still in memory when you compose the tenth section.
 - **`walk_graph`** when what the section covers is a grouping rather than a single lesson: the
   section names the curriculum it covers, not everything underneath it. Read that subtree with ONE
   walk from its id — `session-autorat` carries the depth discipline — never by descending into it
   call by call.
-- **`walk_document`** for a whole document — but a large document will not fit in one response, and
-  it will tell you so and point you back at the per-section read. Believe it; do not retry.
+- **`walk_document`** for a whole document's `sections` spine — but a large document will not fit
+  in one response: it sheds the formatters too, tells you so, and points you back at the per-section
+  read. Believe it; do not retry, and do not count on it for the formatters.
 - **`preview_generation`** when the material should reflect an unpublished draft. Preview the
   **smallest piece you changed** — after editing one section, preview that section, not its document.
 

@@ -100,6 +100,19 @@ function assemblyGuideOf(n: RawNode): string | null {
   return typeof guide === "string" && guide !== "" ? guide : null;
 }
 
+// The owning document's node as a section read carries it: projected, then
+// minus the assembly guide, which rides beside it as its own named field. Sent
+// in both places it was the same 13 KB twice on every ci/maths section read.
+function documentNodeWithoutGuide(tlm: RawNode, project: (n: RawNode) => NodeOut): NodeOut {
+  const out = project(tlm);
+  const metadata = out.properties.metadata;
+  if (metadata === null || typeof metadata !== "object" || Array.isArray(metadata)) return out;
+  const { assemblyGuide: _repeated, ...rest } = metadata as Record<string, unknown>;
+  if (Object.keys(rest).length === 0) delete out.properties.metadata;
+  else out.properties.metadata = rest;
+  return out;
+}
+
 // BFS out from `roots` (inclusive) over the given edge types — the shared
 // containment walk both the document subtree and the curriculum subtree use.
 function descendants(raw: RawGraphSnapshot, roots: string[], edgeTypes: Set<string>): Set<string> {
@@ -798,7 +811,7 @@ export function documentSectionSubgraph(
 
   const document = tlm
     ? wanted.has("document")
-      ? { id: tlm.id, assemblyGuide: assemblyGuideOf(tlm), node: projectContext(tlm) }
+      ? { id: tlm.id, assemblyGuide: assemblyGuideOf(tlm), node: documentNodeWithoutGuide(tlm, projectContext) }
       : { id: tlm.id, assemblyGuideOmitted: true as const }
     : null;
 

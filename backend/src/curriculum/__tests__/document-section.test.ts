@@ -92,6 +92,12 @@ describe("documentSectionSubgraph — a lesson section inheriting the Course rou
     expect(scope.document!.assemblyGuide).toBe("Une leçon par page.");
   });
 
+  it("sends the assembly guide once — as the named field, not again inside the document node", () => {
+    const node = scope.document!.node!;
+    expect(node.id).toBe("tlm");
+    expect(JSON.stringify(node)).not.toContain("Une leçon par page.");
+  });
+
   it("renders the covered lesson's pure containment subtree", () => {
     expect(scope.covers).toEqual(["les-1"]);
     expect(ids(scope.curriculum!.nodes)).toEqual(new Set(["les-1", "act-1"]));
