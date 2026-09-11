@@ -198,10 +198,13 @@ the spine — say the OS is missing, don't invent it.
 
 Produce a document **one slot at a time**, and read that slot with
 **`walk_document_section(sectionId)`** — the per-piece generation entry. A slot is a
-`DocumentSection` under its TLM that `covers` the curriculum it renders: a chapter of the
-Student's Book, a *fiche* of the Teacher's Guide. In a **single read** the reader returns
-everything that piece composes over:
+`DocumentSection` under its TLM that `covers` the curriculum it renders: a *fiche* of the
+Teacher's Guide, a lesson of the Student's Book, or one phase inside either. The read
+returns everything that piece composes over:
 
+- the section's **own text** — its `metadata.assemblyGuide`, the authored script of that
+  slot (what the teacher says and does, line by line); this is the material, not
+  instructions about it;
 - its **curriculum** — the covered subtree (pure `hasPart`/`hasChild`);
 - the **routine** that applies — resolved nearest-wins, document-first: the section's own
   `usesRoutine`, else the owning TLM's, else the covered `Course`'s (this is where a
@@ -209,18 +212,31 @@ everything that piece composes over:
 - the **formatters** — the TLM's doc-wide Formatter/FormatterSpec stack unioned with the
   section's own.
 
-So you no longer assemble the routine and the style by hand — one call hands you all three
-for the exact slot you are generating.
+**Read the shared parts once, not once per section.** The document's assembly guide, its
+formatter stack and the routine are the same for every section of a document, and together
+they are about fifteen times the section's own text (on the Student's Book, ~100 KB of
+shared context around ~6 KB of section text). Re-reading them for each of a lesson's ten
+sections is what fills a session and makes you forget the formatter rules you read first.
+So:
+
+- read the **first** section of a document **in full**, following `nextCursor` until the
+  formatter stack is complete;
+- read **every other** section with **`include:[]`** — you get its text, its `covers` ids
+  and `formatterStackOrder`, and merge the `render` bags you already hold in that order;
+- add `'curriculum'` only when a section covers something you have not read yet (a
+  lesson-level section does; its phase sub-sections usually cover nothing).
+
+Do not rely on `walk_document` for the formatters: on a large document it sheds the TLM
+subtree, formatters included, and points you back to the section read. Use it for the
+`sections` spine — the list of slots in reading order.
 
 **Find (or author) the section first.** List a TLM's slots with
-`walk_document(tlmId).sections`. Neither maths TLM has a spine yet — both still
-resolve by the `covers → Course` fallback (`scope: "course"`) — so today this is
-always the authoring path, not the lookup path. Author the slot as the
-first step of generating that piece: `add_nodes` a `DocumentSection` (give it a
-`position`), then `create_edges` a `hasPart` from the TLM to it and a `covers` from it to
-the chapter/lesson it renders — publish, and `walk_document_section` now drives the piece.
-Authoring the slot spine is part of producing the document, not a prerequisite someone
-else must finish first.
+`walk_document(tlmId).sections`, or `find_node` by the slot's name. If a document has no
+section spine yet, authoring the slots is part of producing it: `add_nodes` a
+`DocumentSection` (give it a `position`), then `create_edges` a `hasPart` from the TLM to
+it and a `covers` from it to the chapter/lesson it renders — publish, and
+`walk_document_section` now drives the piece. A document covering nothing is a valid
+graph write and a broken document — it generates empty and nothing errors.
 
 ### Conventions for both deliverables
 

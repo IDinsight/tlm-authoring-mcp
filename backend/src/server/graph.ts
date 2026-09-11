@@ -298,8 +298,9 @@ export function sectionOversizeRemedy(sectionId: string): string {
   return (
     `Section '${sectionId}' carries more context than the response cap allows even after self-bounding — its own guide, ` +
     `the document, the routine and the covered curriculum. Retry with detail:'skeleton' to trim the covered curriculum and ` +
-    `the owning document's node, or — if you already read the document once with walk_document — include:['formatters'] ` +
-    `(or [] for the section alone) to drop the parts you already hold. The formatter stack itself still pages with cursor.`
+    `the owning document's node, or — if you already read another section of this document in full — include:[] ` +
+    `(add 'curriculum' when this section covers something you have not read yet) to drop the parts you already hold. ` +
+    `The formatter stack itself still pages with cursor.`
   );
 }
 
@@ -567,7 +568,7 @@ export function registerGraphTools(server: McpServer) {
           .array(z.enum(SECTION_PARTS))
           .optional()
           .describe(
-            "Which parts to return. Omit for all of them. The document's assembly guide, its formatter stack and the covered curriculum are the SAME for every section of a document, so producing one section at a time re-receives them per section — read the document once with walk_document, then pass include:['routine'] (or [] for the section alone) for each section. What always comes back: the section's own node, its `covers` ids, and `formatterStackOrder` — the stack's precedence, which you need to merge `render` bags you already hold. `omitted` lists what you left out, so a missing `routine` is never mistaken for a section that has none.",
+            "Which parts to return. Omit for all of them. The document's assembly guide, its formatter stack, the routine and the covered curriculum are the SAME for every section of a document, so producing one section at a time re-receives them per section — on live ci/maths about 100 KB of shared context around 6 KB of section text, ten times per lesson. Read the FIRST section of a document in full (follow nextCursor until the formatter stack is complete), then pass include:[] for every further section, adding 'curriculum' only when that section covers something you have not read yet. walk_document is NOT a substitute for that first read: on a large document it sheds the TLM subtree, formatters included. What always comes back: the section's own node, its `covers` ids, and `formatterStackOrder` — the stack's precedence, which you need to merge `render` bags you already hold. `omitted` lists what you left out, so a missing `routine` is never mistaken for a section that has none.",
           ),
         ...contextField,
       },
