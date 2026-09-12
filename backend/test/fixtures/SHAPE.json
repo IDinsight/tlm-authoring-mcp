@@ -1,6 +1,6 @@
 {
   "note": "The pinned shape of each committed fixture graph. Asserted by src/__tests__/fixture-shape.test.ts so a refresh cannot silently change what the suites stand on. Regenerate with `npm run refresh:fixtures`.",
-  "refreshedAt": "2026-09-12T20:29:15.592Z",
+  "refreshedAt": "2026-09-12T21:03:03.404Z",
   "contexts": {
     "nigeria/primary-1-3/maths": {
       "nodes": 433,
