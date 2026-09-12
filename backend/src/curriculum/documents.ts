@@ -101,21 +101,33 @@ function assemblyGuideOf(n: RawNode): string | null {
   return typeof guide === "string" && guide !== "" ? guide : null;
 }
 
-// The owning document's node as a generation read carries it: projected, then
-// minus the two authored prose sidecars a read never needs on the node itself.
-// The assembly guide rides beside it as its own named field — sent in both
-// places it was the same 13 KB twice on every ci/maths section read. The
-// decision journal (`metadata.journal`, the dated history behind a document's
-// formatter rules) is for a person asking "why is this rule so", never for
-// composing a page, so it stays off every read and is fetched on the node.
-function documentNodeWithoutGuide(tlm: RawNode, project: (n: RawNode) => NodeOut): NodeOut {
-  const out = project(tlm);
+// A node of the document tree as a generation read carries it: projected, then
+// minus the metadata keys named — the authored sidecars a read never needs on
+// the node itself.
+function withoutMetadata(out: NodeOut, keys: string[]): NodeOut {
   const metadata = out.properties.metadata;
   if (metadata === null || typeof metadata !== "object" || Array.isArray(metadata)) return out;
-  const { assemblyGuide: _repeated, journal: _history, ...rest } = metadata as Record<string, unknown>;
+  const rest = Object.fromEntries(Object.entries(metadata as Record<string, unknown>).filter(([key]) => !keys.includes(key)));
   if (Object.keys(rest).length === 0) delete out.properties.metadata;
   else out.properties.metadata = rest;
   return out;
+}
+
+// The decision journal (`metadata.journal`) is the dated history behind a
+// node's rules — who decided what, when, on whose feedback. A document keeps
+// one for its formatter rules; a section keeps one for its own page (where a
+// question came from, what changed after the expert's review). It is for a
+// person asking "why is this so", never for composing a page, so it stays off
+// every generation read and is fetched on the node with walk_graph. Measured
+// on ci/maths before the sections got one, that history was a third of every
+// section's guide.
+const withoutJournal = (out: NodeOut): NodeOut => withoutMetadata(out, ["journal"]);
+
+// The owning document's node: minus its journal, and minus the assembly guide,
+// which rides beside it as its own named field — sent in both places it was
+// the same 13 KB twice on every ci/maths section read.
+function documentNodeWithoutGuide(tlm: RawNode, project: (n: RawNode) => NodeOut): NodeOut {
+  return withoutMetadata(project(tlm), ["assemblyGuide", "journal"]);
 }
 
 // BFS out from `roots` (inclusive) over the given edge types — the shared
@@ -403,9 +415,10 @@ export function documentSubgraph(
     .filter((e) => e.type === DOCUMENT_EDGE && docIds.has(e.start) && docIds.has(e.end))
     .concat(coversEdges);
   // The TLM's guide already rides the response as its top-level `assemblyGuide`,
-  // so the node inside `document` is sent without it (and without its journal).
+  // so the node inside `document` is sent without it; no node of the tree sends
+  // its journal.
   const document = {
-    nodes: raw.nodes.filter((n) => docIds.has(n.id)).map((n) => n.id === tlmId ? documentNodeWithoutGuide(n, nodeOut) : nodeOut(n)),
+    nodes: raw.nodes.filter((n) => docIds.has(n.id)).map((n) => n.id === tlmId ? documentNodeWithoutGuide(n, nodeOut) : withoutJournal(nodeOut(n))),
     edges: documentEdges.map(edgeOut),
   };
 
@@ -907,9 +920,10 @@ export function documentSectionSubgraph(
   // The section node and the stack are never trimmed for the budget, so they are
   // built once and the only thing the budget can move is HOW MANY formatters ride
   // this page. On the first page the section node is full (it carries this slot's
-  // assemblyGuide); on a continuation it is the skeleton (identity to stitch).
+  // assemblyGuide, never its journal); on a continuation it is the skeleton
+  // (identity to stitch).
   const base = {
-    section: isContinuation ? nodeSkeleton(section) : nodeOut(section),
+    section: isContinuation ? nodeSkeleton(section) : withoutJournal(nodeOut(section)),
     document,
     covers,
     ...(curriculum ? { curriculum } : {}),
