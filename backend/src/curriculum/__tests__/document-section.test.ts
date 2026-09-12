@@ -55,7 +55,10 @@ const CURRICULUM_EDGES: E[] = [
 // OWN routine; sec-front covers nothing (front-matter) and hangs a sibling formatter
 // that must NOT leak into other sections' stacks.
 const DOCUMENT: N[] = [
-  node("tlm", ["TeachingLearningMaterial"], { title: "Guide", metadata: { assemblyGuide: "Une leçon par page." } }),
+  node("tlm", ["TeachingLearningMaterial"], {
+    title: "Guide",
+    metadata: { assemblyGuide: "Une leçon par page.", journal: "5 septembre : les marges du modèle remplacent 2,5 cm." },
+  }),
   node("fmt-doc", ["Formatter"], { description: "Style du document" }),
   node("spec-doc", ["FormatterSpec"], { content: "Deux colonnes." }),
   node("sec-1", ["DocumentSection"], { position: 1, description: "Fiche leçon 1" }),
@@ -96,6 +99,10 @@ describe("documentSectionSubgraph — a lesson section inheriting the Course rou
     const node = scope.document!.node!;
     expect(node.id).toBe("tlm");
     expect(JSON.stringify(node)).not.toContain("Une leçon par page.");
+  });
+
+  it("keeps the document's decision journal off the read entirely — it is history for a person, not material for a page", () => {
+    expect(JSON.stringify(scope)).not.toContain("les marges du modèle");
   });
 
   it("renders the covered lesson's pure containment subtree", () => {

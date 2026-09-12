@@ -74,7 +74,7 @@ the lesson — buys three things `walk_lesson` structurally cannot give:
 
 ```
 section        the DocumentSection node (its own position + assemblyGuide, if any)
-document       the owning TLM: id, assemblyGuide, audience/mediumType         (walk up hasPart to the TLM root)
+document       the owning TLM: id, assemblyGuide, audience/mediumType         (walk up hasPart to the TLM root; the guide is sent ONCE, as this named field — the node itself carries neither it nor `metadata.journal`, the document's dated decision history, which no generation read returns)
 covers         the curriculum node(s) this section renders                    (its covers targets; [] ⇒ front-matter)
 curriculum     the covered subtree as raw nodes+edges                         (pure hasPart/hasChild from the covers targets)
 routine        the InstructionalRoutine that applies, nearest-wins:           (see resolution below)
