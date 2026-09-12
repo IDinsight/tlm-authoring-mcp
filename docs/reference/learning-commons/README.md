@@ -145,3 +145,19 @@ Documented so they don't get mistaken for canon:
    edge, all three child edges, and its place in the standards tree canonical at once
    — and removed a phantom empty 23rd week from the teacher's guide. Migration:
    [`backend/scripts/migrate-reading-off-canon-edges.mjs`](../../../backend/scripts/migrate-reading-off-canon-edges.mjs).
+
+
+9. **`content` on `Lesson`, `Activity` and `Assessment`.** LC gives `content` to
+   `Material` only; a `Lesson` has `description`/`name`, an `Activity` has `name`, and
+   neither has a body field. We carry a node's AUTHORED TEXT in `content` on all four
+   content labels — a question's answer, distractors and what it tests on the
+   `Activity`; the bilan questions on the `Assessment`; the règle porteuse, décor,
+   answer key and place in the progression on the `Lesson` — so that one verb
+   (`edit_nodes` → `content`) edits the words wherever they live, and both documents
+   read them from the curriculum node their section `covers` rather than from another
+   document's assembly prose. Decided 2026-09-12 (option 2 of two: the alternative,
+   the body of `description` below the title line, is canonical for a `Lesson` only —
+   an `Activity` has no description at all — and would have put the bodies on every
+   skeleton read). The `Activity`'s directive in `description` predates this (V2
+   rebuild) and is the same kind of deviation. Scripts: `migrate-activity-content.mjs`,
+   `migrate-lesson-content.mjs`.
