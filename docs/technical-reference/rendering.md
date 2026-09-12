@@ -204,6 +204,11 @@ the golden's own distribution exactly is narrower:
 > A paragraph relaxes its leading only when it carries an inline picture **taller than the line box**.
 > A floated picture never qualifies — it has no line to respect.
 
+And relaxing has to be **written into the paragraph** (`w:lineRule="auto"`), not left to the document
+default: the default is the body's exact leading, so a paragraph that says nothing inherits it and the
+picture is cropped to the line — invisibly to a page count. The first sheet rendered with 2 cm
+pictograms clipped every one of them to 14 pt and measured exactly the same as the corrected one.
+
 ## Not done yet
 
 - **The canonical bucket and history.** Output is preview-only. Writing a produced document into
