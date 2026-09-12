@@ -80,15 +80,16 @@ export function editableSection(recipes: ReturnType<typeof recipesSection>) {
     // violate (self-serve-authoring.md, D3). They are not the retired typed adds:
     // those were facades over one addNode call with no invariant of their own.
     documents: {
-      tools: ["create_document", "add_section"],
-      // Both accept a NAME where an id would go, and return candidates on ambiguity.
+      tools: ["create_document", "add_section", "attach_image"],
+      // All accept a NAME where an id would go, and return candidates on ambiguity.
       resolvesNames: true,
       invariants: {
         create_document: "mints the TeachingLearningMaterial AND its `covers` edge together — a TLM without one is a valid write and a broken document that generates empty",
         add_section: "wires BOTH of a section's axes together — `hasPart` from whatever holds the section (the document, or a section of it: sections nest) and `covers` to the curriculum (omit `covers` only for front matter, or for a section that just groups the sections beneath it)",
+        attach_image: "records a picture as a `Material` under the Lesson or Activity it illustrates ONLY when its file is really in the bucket (or the caller says `commissioned:true`, ordering a picture whose file the illustrator will upload to that exact path) — a node pointing at a path that resolves to nothing by accident is a valid write and a picture that never renders; the node is canonical LC — its `identifier` is the file's URI, its `content` what the picture shows, read beside the activity's text",
       },
       note:
-        "create_document / add_section replace the add_nodes + create_edges pair for authoring a document. Use them for anything document-shaped; add_nodes stays the tool for curriculum nodes, where `alignTo` already carries the equivalent invariant atomically.",
+        "create_document / add_section replace the add_nodes + create_edges pair for authoring a document; attach_image replaces add_nodes for a picture. Use them for anything document-shaped; add_nodes stays the tool for curriculum nodes, where `alignTo` already carries the equivalent invariant atomically.",
     },
     // The batched writes and their response/idempotency controls, advertised so
     // callers can feature-detect returnMode + idempotencyKey and look up the

@@ -57,6 +57,22 @@ The tool also keeps documents **consistent** (same characters, same terminology,
 
 - **Preview a draft before publishing.** If you are testing a curriculum change, you can see the document it would produce **without publishing anything** — see [Preview before publishing](courses-lessons.md).
 
+## Pictures
+
+A picture is part of the material the way a text is: it is **attached to the lesson or activity it illustrates**, with one sentence saying **what it shows**. That sentence, read beside the activity's text, is what catches a picture that contradicts its words — two wrong answer keys went to print that way.
+
+> "Attach the picture “band-1” to the activity “Compare the necklaces”: it shows three shell necklaces, Binta's in the middle."
+
+What happens then:
+
+- Claude checks the file was really **uploaded** before attaching it — a picture the graph points at without the file existing would never print.
+- Attaching is a **draft edit**: visible in review, undoable, published with everything else.
+- Every section covering that activity **sees the picture** and can place it on the page.
+- A picture **not drawn yet** is ordered the same way: "Commission the picture “band-2” for the activity …: it will show …". The graph knows it, the illustrator delivers by uploading the file to the announced path, and nothing else changes.
+- The picture is **approved together with the draft** that attaches it, by the approver — like a text. A new version is a new file: attach it in turn and delete the old one ("Delete the picture “band-1”.").
+
+Reviewing a composed page flags a placed picture attached to nothing, and an attached picture the page leaves out.
+
 ## Finding a document you already produced
 
 > "List the documents for this course."

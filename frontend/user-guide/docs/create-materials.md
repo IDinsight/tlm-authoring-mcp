@@ -57,6 +57,22 @@ L'outil veille aussi à ce que les documents restent **cohérents** (mêmes pers
 
 - **Prévisualisez un brouillon avant de publier.** Si vous testez une modification du curriculum, vous pouvez voir le document qui en sortirait **sans rien publier** — voir [Prévisualiser avant de publier](courses-lessons.md).
 
+## Les illustrations
+
+Une image fait partie du matériel au même titre qu'un texte : elle est **rattachée à la leçon ou à l'activité qu'elle illustre**, avec une phrase disant **ce qu'elle montre**. C'est cette phrase, lue à côté du texte de l'activité, qui permet de repérer une image qui contredit ses mots — deux corrigés faux sont partis à l'impression comme ça.
+
+> « Rattache l'image “bande-1” à l'activité “Compare les colliers” : elle montre trois colliers de coquillages, celui de Binta au milieu. »
+
+Ce qui se passe alors :
+
+- Claude vérifie que le fichier a bien été **déposé** avant de le rattacher — une image que le graphe pointe sans qu'elle existe ne s'imprimerait jamais.
+- Le rattachement est une **modification du brouillon** : visible dans la relecture, annulable, publiée avec le reste.
+- Toute section qui couvre cette activité **voit l'image** et peut la placer sur la page.
+- Une image **pas encore dessinée** se commande de la même façon : « Commande l'image “bande-2” pour l'activité … : elle montrera … ». Le graphe la connaît, l'illustrateur la livre en déposant le fichier au chemin annoncé, et rien d'autre ne change.
+- L'image est **approuvée en même temps que le brouillon** qui la rattache, par l'approbateur — comme un texte. Une nouvelle version est un nouveau fichier : on la rattache à son tour et on supprime l'ancienne (« Supprime l'image “bande-1”. »).
+
+La relecture d'une page composée signale une image placée qui n'est rattachée à rien, et une image rattachée que la page n'utilise pas.
+
 ## Retrouver un document déjà produit
 
 > « Liste les documents de ce cours. »

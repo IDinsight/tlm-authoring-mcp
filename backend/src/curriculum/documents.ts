@@ -29,7 +29,8 @@
  */
 import type { CurriculumModel, RawGraphSnapshot } from "../types.js";
 import { nodeOut, edgeOut, nodeSkeleton, type NodeOut, type EdgeOut } from "./read-projection.js";
-import { responseBytes, pageBudgetBytes } from "../utils/index.js";
+import { responseBytes, pageBudgetBytes, imageMimeFor } from "../utils/index.js";
+import { parseDocumentObjectUri } from "../context/index.js";
 
 type RawNode = RawGraphSnapshot["nodes"][number];
 type RawEdge = RawGraphSnapshot["relationships"][number];
@@ -119,6 +120,75 @@ function documentNodeWithoutGuide(tlm: RawNode, project: (n: RawNode) => NodeOut
 
 // BFS out from `roots` (inclusive) over the given edge types — the shared
 // containment walk both the document subtree and the curriculum subtree use.
+/*
+ * A picture attached to the curriculum: a `Material` whose LC `identifier` is
+ * the URI of an image file (kg-recipes/image.ts). What a composer needs to
+ * place it — the name the page uses, what it shows, and where the bytes are —
+ * without digging through the raw node.
+ */
+export type SectionPicture = {
+  id: string;
+  name: string;
+  description: string;      // what the picture shows — the Material's `content`
+  uri: string;              // the file, as the node identifies it
+  relPath: string;          // the same file, documents-relative — what an upload named it
+  contentType: string;
+  illustrates: string;      // the Lesson or Activity it hangs under
+};
+
+function pictureOf(raw: RawGraphSnapshot, node: RawNode): SectionPicture | null {
+  const p = props(node);
+  if (!labelsOf(node).includes("Material") || typeof p.identifier !== "string") return null;
+  const parsed = parseDocumentObjectUri(p.identifier);
+  const contentType = imageMimeFor(p.identifier);
+  if (!parsed || !contentType) return null;
+  const parent = raw.relationships.find((e) => e.type === "hasPart" && e.end === node.id)?.start ?? "";
+  const name = typeof p.name === "string" ? p.name : String(p.description ?? "").split("\n")[0];
+  return {
+    id: node.id,
+    name: name.trim(),
+    description: typeof p.content === "string" ? p.content : "",
+    uri: p.identifier,
+    relPath: parsed.relPath,
+    contentType,
+    illustrates: parent,
+  };
+}
+
+/** The pictures attached anywhere under `ids`, in stored order. */
+function picturesAmong(raw: RawGraphSnapshot, ids: Set<string>): SectionPicture[] {
+  return raw.nodes
+    .filter((n) => ids.has(n.id))
+    .map((n) => pictureOf(raw, n))
+    .filter((picture): picture is SectionPicture => picture !== null);
+}
+
+/*
+ * The pictures a page composed for `nodeId` may place: everything attached to
+ * the curriculum a section covers — or, for a whole document, to what any of
+ * its sections cover. Null when the node is neither. This is what the page lint
+ * compares a composed tree against.
+ */
+export function picturesFor(model: CurriculumModel, nodeId: string): SectionPicture[] | null {
+  const raw = model.rawGraph;
+  if (!raw) return null;
+  const node = raw.nodes.find((n) => n.id === nodeId);
+  if (!node) return null;
+
+  let coveringIds: string[];
+  if (labelsOf(node).includes(SECTION_LABEL)) {
+    coveringIds = [nodeId];
+  } else if (labelsOf(node).includes(TLM_LABEL)) {
+    coveringIds = [nodeId, ...descendants(raw, [nodeId], new Set([DOCUMENT_EDGE]))].filter((id, index, all) => all.indexOf(id) === index);
+  } else {
+    return null;
+  }
+  const covers = raw.relationships
+    .filter((e) => e.type === "covers" && coveringIds.includes(e.start))
+    .map((e) => e.end);
+  return picturesAmong(raw, descendants(raw, covers, CURRICULUM_EDGES));
+}
+
 function descendants(raw: RawGraphSnapshot, roots: string[], edgeTypes: Set<string>): Set<string> {
   const childrenOf = new Map<string, string[]>();
   for (const e of raw.relationships) {
@@ -689,6 +759,10 @@ export type DocumentSectionScope = {
   curriculum?: { nodes: NodeOut[]; edges: EdgeOut[] };  // pure hasPart/hasChild from the covers targets
   routine?: SectionRoutine | null;
   formatters?: { nodes: NodeOut[]; edges: EdgeOut[] };  // the TLM's doc-wide stack ∪ this section's own
+  // The pictures attached to the covered curriculum — what this page may place.
+  // Always on the first page, whatever `include` says: a few small rows, and the
+  // one thing a composer must have to name a picture correctly.
+  pictures?: SectionPicture[];
   /*
    * The parts `include` left out.
    *
@@ -840,6 +914,7 @@ export function documentSectionSubgraph(
     covers,
     ...(curriculum ? { curriculum } : {}),
     ...(routine !== undefined ? { routine } : {}),
+    ...(isContinuation ? {} : { pictures: picturesAmong(raw, curriculumIds) }),
     ...(omitted.length ? { omitted } : {}),
     ...(isContinuation ? { continued: true as const } : {}),
   };

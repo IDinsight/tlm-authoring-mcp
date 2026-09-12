@@ -13,6 +13,14 @@ description: Construire et vérifier le dossier d'illustration d'une leçon — 
    wrong, and every image made from it will be wrong the same way.
 3. **Assembled band** — compose the cells into the band the layout expects.
 4. **Answer marker** — added last, once the band is settled, so a change upstream does not orphan it.
+5. **Attach** — once an image is settled, upload it (`create_media_upload_url`, then the PUT) and
+   record it in the graph with `attach_image`: the lesson or activity it illustrates BY NAME, the
+   name a page will place it by, and a one-sentence description of what it shows. The description is
+   not decoration: it is what a reviewer reads beside the activity's text to catch a picture that
+   contradicts its words. From then on every section covering that content lists the picture under
+   `pictures` in `walk_document_section`, and a page places it as a `media` entry `{name, nodeId}`.
+   A picture that is only briefed, not drawn, is attached with `commissioned:true`; its file is
+   later uploaded to the path the node names, and the graph is not touched on delivery.
 
 Each stage is checked before the next begins. Skipping to a full set and checking at the end means
 discovering a prompt error twenty images later.
@@ -25,6 +33,9 @@ plugin's clothes.
 
 What does not vary, and is procedure rather than subject: **a version increments and nothing is
 overwritten**, so a regenerated image never silently replaces the one an expert already approved.
+A new version is a new file, so it is attached again (a new node, a new name) and the old node is
+retired with `delete_nodes`; approval is what publishing the draft means, as for any text. Both are
+draft edits, audited and undoable.
 
 ## Check the produced image, never the specification
 

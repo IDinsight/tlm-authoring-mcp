@@ -23,7 +23,7 @@ import { activeWorkspace } from "../context/index.js";
 import {
   getKgStore, kgNamespace, lintGraph, toAuditActor, diffGraphs,
   type LintFinding, type MutationGraph, type StoredNode, type StoredEdge, type Slot, nextAuditSeq,} from "../kg-store/index.js";
-import { lintContent, lintableRules, CONTENT_RULES, resolvableIds, ignoredRules, lintPage, PAGE_RULES, formatterStackFor, type PageInput } from "../curriculum/index.js";
+import { lintContent, lintableRules, CONTENT_RULES, resolvableIds, ignoredRules, lintPage, PAGE_RULES, formatterStackFor, picturesFor, type PageInput } from "../curriculum/index.js";
 import { validateDocumentTree, resolveRenderSpec } from "../render/index.js";
 import { readCatalog } from "./catalog.js";
 import { SHARED_CATALOG_NAMESPACE, catalogNamespace } from "../kg-recipes/index.js";
@@ -317,6 +317,9 @@ async function lintComposedPage(
       spec: resolved.spec,
       scopeId: args.nodeId,
       ignore: ignoredRules(scopeNode),
+      // The pictures attached to what this page covers — so the two picture
+      // rules can say whether the page and the graph agree on what it carries.
+      attached: (picturesFor(model, args.nodeId) ?? []).map((picture) => ({ id: picture.id, name: picture.name })),
     }).map((finding) => ({ ...finding, where: namespace })),
     checked: {
       nodeId: args.nodeId,
@@ -342,7 +345,7 @@ export function registerContentLintTools(server: McpServer) {
         "The CONSISTENCY checker — the third beside check_draft (wiring) and review_draft (coverage). It reports statements in the authored data that contradict each other: a routine whose declared duration disagrees with the sum of its steps, a routine that times itself but not its steps, a weighted grid whose sections do not total 100%, an id cited in prose that resolves to nothing, and a formatter whose declared `render` values disagree with its own prose. " +
         "It reads the active subject AND both catalog libraries by default (`scope`: 'subject' | 'catalog' | 'all'), resolving references across both so a cross-library citation is not reported as broken. Narrow with `rules`. " +
         "Each finding carries the rule, the node, what is wrong and what to do — English, like every payload here; relay them in the expert's language. Nothing blocks a publish. A finding that is deliberate is silenced ON THE NODE with metadata.lintIgnore: [\"rule-id\"], which needs no deploy. " +
-        "PASS A COMPOSED PAGE and it checks that too: `document` (the block tree, exactly as render_document takes it) plus `nodeId` (the DocumentSection or TLM it was composed for, which is what resolves the formatter stack it will be laid out with). The page rules ask whether the page contradicts its own geometry — a `style` no formatter defines, a line over the `maxChars` its style declares, more pictures than images.maxPerSection allows, a picture missing from the document's own `media`. Every one of those RENDERS SUCCESSFULLY and wrongly: an undefined style silently becomes body text, and an unresolvable picture silently becomes the document's FIRST picture. Run it before render_document, not after. " +
+        "PASS A COMPOSED PAGE and it checks that too: `document` (the block tree, exactly as render_document takes it) plus `nodeId` (the DocumentSection or TLM it was composed for, which is what resolves the formatter stack it will be laid out with). The page rules ask whether the page contradicts its own geometry — a `style` no formatter defines, a line over the `maxChars` its style declares, more pictures than images.maxPerSection allows, a picture missing from the document's own `media` — and whether it agrees with the graph on its pictures: one placed that is not attached to the covered curriculum (attach_image), one attached that the page leaves out. Every one of those RENDERS SUCCESSFULLY and wrongly: an undefined style silently becomes body text, and an unresolvable picture silently becomes the document's FIRST picture. Run it before render_document, not after. " +
         "The thirty-odd control points a particular fiche is checked against — speech-colour purity, answer labels, no placeholder left in clear — are SUBJECT knowledge and stay in that subject's guide, where a curator changes them without a deploy. A rule here only ever asks a question the DATA answers. " +
         "`rulesPending` lists what did not run and why — the page rules appear there until you send a page, so read it rather than assuming everything was checked. Read-only.",
       inputSchema: {

@@ -1,5 +1,5 @@
 /*
- * Module: server · tool group: document task verbs (create_document, add_section)
+ * Module: server · tool group: document task verbs (create_document, add_section, attach_image)
  *
  * The expert says "I want a revision sheet for chapter 5". Until now the surface
  * answered "add a node, then create an edge" — and when the edge was forgotten
@@ -23,7 +23,10 @@ import { asJson, guarded } from "./shared.js";
 import { getActiveAdapter } from "../adapters/index.js";
 import { activeWorkspace } from "../context/index.js";
 import { kgNamespace, mintNodeId } from "../kg-store/index.js";
-import { createDocument, addSection } from "../kg-recipes/index.js";
+import { createDocument, addSection, attachImage } from "../kg-recipes/index.js";
+import { getStorageAdapter } from "../storage/index.js";
+import { imageMimeFor } from "../utils/index.js";
+import { documentObjectUri } from "../context/index.js";
 import { resolveRef, type FoundNode } from "../curriculum/index.js";
 import { readActiveGraphWithSlot } from "./catalog.js";
 import { runBatchMutation, type ReturnMode } from "./batch.js";
@@ -46,6 +49,11 @@ const THE_PARENT = "the document (or the section) to add this section to";
 // What a new section may hang under — a document, or a section of one (documents
 // nest: a « Partie » holds chapters, each holding its own sheets).
 const SECTION_PARENT_LABELS = ["TeachingLearningMaterial", "DocumentSection"];
+
+// What a picture may illustrate. A section then PLACES it; the picture belongs
+// to the content, so the same vignette can serve the pupil book and the guide.
+const ILLUSTRATABLE_LABELS = ["Lesson", "Activity"];
+const THE_ILLUSTRATED = "the lesson or activity the picture illustrates";
 
 // A "did you mean" answer: no state change, no token, and the candidates the
 // model reads back to the user.
@@ -185,6 +193,96 @@ export async function runAddSection(a: AddSectionToolArgs): Promise<Record<strin
   });
 }
 
+// ── attach_image ─────────────────────────────────────────────────────────────
+
+type AttachImageToolArgs = {
+  to?: string;                            // the Lesson or Activity, by name (or id)
+  name?: string;
+  description?: string;
+  relPath?: string;
+  // A picture ORDERED before it is drawn: the node is created now, pointing at
+  // the path the file will take, and the illustrator's delivery is an upload to
+  // that path — no graph edit. The only thing it waives is the bucket check.
+  commissioned?: boolean;
+  position?: number;
+  returnMode?: ReturnMode;
+  idempotencyKey?: string;
+  confirm?: boolean;
+  confirmationToken?: string;
+  mintedNodeId?: string;
+};
+
+/*
+ * The half of the invariant the recipe cannot check: the file is really in
+ * the bucket. Checked here, before the dry-run, so a mistyped path is refused
+ * with the path named rather than staged as a picture that will never render.
+ * The MD5 read is the storage adapter's existence probe — it costs a HEAD, not
+ * a download.
+ */
+async function refuseUnlessUploaded(relPath: string): Promise<Record<string, unknown> | null> {
+  const md5 = await getStorageAdapter().getObjectMd5(relPath);
+  if (md5 !== null) return null;
+  return {
+    error:
+      `No image at '${relPath}' in this namespace's documents area, so nothing was attached. ` +
+      `Upload it first (create_media_upload_url, then an HTTP PUT to the URL it returns), then attach it — a picture the graph points at must exist, or the page it is placed on renders without it.`,
+  };
+}
+
+export async function runAttachImage(a: AttachImageToolArgs): Promise<Record<string, unknown>> {
+  const namespace = activeNamespace();
+
+  if (a.confirm && !a.name) {
+    return runBatchMutation({
+      namespace, mutation: attachImage,
+      args: { namespace, newNodeId: "", parentId: "", name: "", description: "", uri: "" },
+      confirm: true, token: a.confirmationToken,
+      returnMode: a.returnMode ?? "summary",
+      idempotencyKey: a.idempotencyKey,
+      payloadHash: "", extra: {}, storePayload: true,
+    });
+  }
+
+  if (!a.to) return { error: "`to` is required: the name of the lesson or activity this picture illustrates." };
+  if (!a.name) return { error: "`name` is required: what a page will call this picture when it places it (an image run's `media`)." };
+  if (!a.description) return { error: "`description` is required: what the picture shows, in words. It sits beside the activity's text so a reviewer can check the two agree." };
+  if (!a.relPath) return { error: "`relPath` is required: the documents-relative path the image was uploaded to (create_media_upload_url)." };
+
+  if (!imageMimeFor(a.relPath)) {
+    return { error: `'${a.relPath}' is not an image render_document can embed (png, jpg, jpeg, webp, gif, svg).` };
+  }
+  if (!a.commissioned) {
+    const missing = await refuseUnlessUploaded(a.relPath);
+    if (missing) return missing;
+  }
+
+  const parent = await resolveOne(namespace, a.to, ILLUSTRATABLE_LABELS, THE_ILLUSTRATED);
+  if ("answer" in parent) return parent.answer;
+
+  const newNodeId = a.confirm ? (a.mintedNodeId ?? "") : mintNodeId();
+  // The node's identifier is the file's own URI — formed here, once the file is
+  // known to exist, so the graph never carries a locator to nothing.
+  const args = {
+    namespace, newNodeId, parentId: parent.id,
+    name: a.name, description: a.description, uri: documentObjectUri(a.relPath), position: a.position,
+  };
+
+  return runBatchMutation({
+    namespace, mutation: attachImage, args,
+    confirm: a.confirm, token: a.confirmationToken,
+    returnMode: a.returnMode ?? "summary",
+    idempotencyKey: a.idempotencyKey,
+    payloadHash: idempotencyPayloadHash(args),
+    extra: {
+      mintedNodeIds: [newNodeId],
+      ...(a.commissioned
+        ? { commissioned: true, note: `No file was checked at '${a.relPath}'. The picture is ordered: it renders once a file is uploaded to exactly that path (create_media_upload_url), and until then render_document refuses it by name.` }
+        : {}),
+    },
+    storePayload: true,
+  });
+}
+
 export function registerDocumentAuthoringTools(server: McpServer) {
   server.registerTool(
     "create_document",
@@ -230,5 +328,31 @@ export function registerDocumentAuthoringTools(server: McpServer) {
       },
     },
     guarded(async (a: AddSectionToolArgs) => asJson(await runAddSection(a))),
+  );
+
+  server.registerTool(
+    "attach_image",
+    {
+      title: "Attach a picture to a lesson or activity",
+      description:
+        "Record an uploaded IMAGE as a picture of a lesson or activity, in ONE atomic step: a canonical `Material` node under the content it illustrates — its `identifier` the file's own URI, its `content` what the picture SHOWS in words, its `name` what a page places it by. Use it after create_media_upload_url + the upload; it REFUSES when nothing is at `relPath`, so the graph never points at a picture that will not render — UNLESS `commissioned:true`, which ORDERS a picture not drawn yet: the node is created now with the description as its brief, pointing at the path the file must take, and the illustrator delivers by uploading to exactly that path (no graph edit). A commissioned picture placed on a page makes render_document refuse, by name, until the file is there. " +
+        "`to` is the lesson or activity, BY NAME in the user's words — the server resolves it and returns `needsChoice` + `candidates` when several match (activities are often called « Activité 1 »): ask the user which, quoting each candidate's `path`, then re-call with that candidate's `id`. `name` is what a page places it by (an image run's `media`; unique among the pictures of that lesson or activity). `description` says what the picture shows — it is the Material's `content`, read beside the activity's own text, which is how a picture that contradicts its words gets caught. " +
+        "Once attached, walk_document_section lists it under `pictures` for every section covering that content, render_document's `media` takes {name, nodeId} so the file is resolved from the node, and lint_content's page rules compare what a page places with what is attached. A new version of a picture is a new file, so attach it again and retire the old node (delete_nodes); approval is what publishing the draft means, as for any authored text. " +
+        "REQUIRES CONFIRMATION: the dry-run returns a summary + confirmationToken + the picture's id in `mintedNodeIds`; confirm with the token. DRAFT edit — the file is live in the bucket already, the link to it is published with the draft.",
+      inputSchema: {
+        to: z.string().optional(),
+        name: z.string().optional(),
+        description: z.string().optional(),
+        relPath: z.string().optional(),
+        commissioned: z.boolean().optional(),
+        position: z.number().optional(),
+        returnMode: z.enum(["summary", "full"]).optional(),
+        idempotencyKey: z.string().optional(),
+        confirm: z.boolean().optional(),
+        confirmationToken: z.string().optional(),
+        mintedNodeId: z.string().optional(),
+      },
+    },
+    guarded(async (a: AttachImageToolArgs) => asJson(await runAttachImage(a))),
   );
 }

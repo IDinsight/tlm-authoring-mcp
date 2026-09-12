@@ -149,6 +149,53 @@ describe("a picture the document does not carry", () => {
   });
 });
 
+describe("the page and the graph agree on which pictures it carries", () => {
+  // A page whose media carries pictures by node, by name, or by neither.
+  const withMedia = (blocks: Block[], media: { name: string; nodeId?: string }[], attached?: { id: string; name: string }[]): PageInput => ({
+    tree: { blocks, media },
+    spec: twoStyles,
+    scopeId: "sec-1",
+    ...(attached !== undefined ? { attached } : {}),
+  });
+  const bande = { id: "pic-1", name: "bande-1" };
+
+  it("stays silent when the caller resolved no attached list — silence is not a verdict", () => {
+    const findings = lintPage(withMedia([picture("stray.png")], [{ name: "stray.png" }]));
+    expect(rulesOf(findings)).not.toContain("page-picture-not-attached");
+    expect(rulesOf(findings)).not.toContain("page-picture-unplaced");
+  });
+
+  it("flags a placed picture that is attached to nothing, and names what IS attached", () => {
+    const findings = lintPage(withMedia([picture("stray.png")], [{ name: "stray.png" }], [bande]));
+    expect(rulesOf(findings)).toContain("page-picture-not-attached");
+    const finding = findings.find((f) => f.rule === "page-picture-not-attached")!;
+    expect(finding.message).toContain("'stray.png'");
+    expect(finding.message).toContain("'bande-1'");
+    expect(finding.fix).toMatch(/attach_image/);
+  });
+
+  it("accepts a picture placed by its node id, whatever the page calls it", () => {
+    const findings = lintPage(withMedia([picture("b1.png")], [{ name: "b1.png", nodeId: "pic-1" }], [bande]));
+    expect(rulesOf(findings)).toEqual([]);
+  });
+
+  it("accepts a picture placed by the attached name, for a page that carries the bytes itself", () => {
+    const findings = lintPage(withMedia([picture("bande-1")], [{ name: "bande-1" }], [bande]));
+    expect(rulesOf(findings)).toEqual([]);
+  });
+
+  it("flags an attached picture the page leaves out, as a warning with its name", () => {
+    const findings = lintPage(withMedia([line("Only words.", "bullet")], [], [bande]));
+    expect(rulesOf(findings)).toEqual(["page-picture-unplaced"]);
+    expect(findings[0].severity).toBe("warning");
+    expect(findings[0].message).toContain("'bande-1'");
+  });
+
+  it("is quiet when nothing is attached and nothing is placed", () => {
+    expect(lintPage(withMedia([line("x", "bullet")], [], []))).toEqual([]);
+  });
+});
+
 describe("the per-node escape hatch reaches the page rules too", () => {
   it("silences exactly the named rule and no other", () => {
     const bad = [line("x".repeat(41), "bullet"), picture("missing.png")];
@@ -166,6 +213,7 @@ describe("the rule set", () => {
   it("declares a stable id and a summary for each rule, so rulesPending can list them", () => {
     expect(PAGE_RULES.map((rule) => rule.id)).toEqual([
       "page-unknown-block-style", "page-line-over-max-chars", "page-images-over-cap", "page-missing-media",
+      "page-picture-not-attached", "page-picture-unplaced",
     ]);
     expect(PAGE_RULES.every((rule) => rule.summary.length > 20)).toBe(true);
   });

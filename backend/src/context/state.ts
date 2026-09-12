@@ -78,6 +78,50 @@ export const docsPrefix = () => basePrefix() + scope() + "documents/";
 export const historyKey = () => basePrefix() + scope() + "history.json";
 export const docKey = (relPath: string) => { assertSafeRelPath(relPath); return docsPrefix() + relPath; };
 
+/*
+ * A document object's URI — the canonical locator a picture node keeps in its
+ * LC `identifier` (docs/design-notes/illustrations-as-materials.md). A real
+ * `gs://` URI to the object, so the graph says where the bytes are with no
+ * field of our own; the bucket is in it because that is what makes it a
+ * locator rather than a name. Resolving it back checks the bucket AND the
+ * namespace, so a graph moved to another deployment refuses rather than reads
+ * the wrong object.
+ */
+const OBJECT_URI_SCHEME = "gs://";
+const DOCUMENTS_SEGMENT = "/documents/";
+
+export const documentObjectUri = (relPath: string): string => {
+  if (!CONFIG.firebaseBucket) throw new Error("No FIREBASE_STORAGE_BUCKET is configured, so no object URI can be formed.");
+  return `${OBJECT_URI_SCHEME}${CONFIG.firebaseBucket}/${docKey(relPath)}`;
+};
+
+/** Split an object URI structurally, with no context: null when it is not one. */
+export function parseDocumentObjectUri(uri: string): { bucket: string; objectKey: string; relPath: string } | null {
+  if (typeof uri !== "string" || !uri.startsWith(OBJECT_URI_SCHEME)) return null;
+  const slash = uri.indexOf("/", OBJECT_URI_SCHEME.length);
+  if (slash < 0) return null;
+  const bucket = uri.slice(OBJECT_URI_SCHEME.length, slash);
+  const objectKey = uri.slice(slash + 1);
+  const at = objectKey.indexOf(DOCUMENTS_SEGMENT);
+  if (!bucket || at < 0) return null;
+  const relPath = objectKey.slice(at + DOCUMENTS_SEGMENT.length);
+  return relPath ? { bucket, objectKey, relPath } : null;
+}
+
+/**
+ * The documents-relative path an object URI names IN THIS deployment's bucket
+ * and THIS namespace — or a reason it cannot be read here. Never a path from
+ * another namespace: that is how a picture would be read from the wrong subject.
+ */
+export function relPathOfDocumentObjectUri(uri: string): { relPath: string } | { refused: string } {
+  const parsed = parseDocumentObjectUri(uri);
+  if (!parsed) return { refused: `'${uri}' is not an object URI (gs://<bucket>/<key>)` };
+  if (parsed.bucket !== CONFIG.firebaseBucket) return { refused: `'${uri}' lives in bucket '${parsed.bucket}', not this deployment's` };
+  const prefix = docsPrefix();
+  if (!parsed.objectKey.startsWith(prefix)) return { refused: `'${uri}' is outside this namespace's documents area` };
+  return { relPath: parsed.objectKey.slice(prefix.length) };
+}
+
 // Preview objects live under a SIBLING prefix to documents/ (never inside it),
 // so a preview .docx is observably non-canonical: reconcile/discoverDocuments
 // only scan docsPrefix(), so nothing under previews/ can ever reach the tracked

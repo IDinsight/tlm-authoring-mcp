@@ -65,6 +65,7 @@ Enforced in code — keep these in sync with canon:
 | Parser folds containment + alignment | [`src/curriculum/parse-graph.ts`](../../../backend/src/curriculum/parse-graph.ts) | `hasChild`+`hasPart` are containment; `supports`+`hasEducationalAlignment` are attachment |
 | Explorer categories/colours by LC label | [`src/kg-export/types.ts`](../../../backend/src/kg-export/types.ts) (`LABEL_DEFS`) | one colour per LC label |
 | Non-canonical extras live in a sidecar | `metadata.*` on every node | see below |
+| A picture is a `Material` whose `identifier` is its file's URI | [`src/kg-recipes/image.ts`](../../../backend/src/kg-recipes/image.ts) (`attachImage`, `pictureUriOf`) | `identifier` is "a string or a URI" in canon; `content` = what it shows; under its Lesson/Activity via `hasPart`. No sidecar — [`illustrations-as-materials.md`](../../design-notes/illustrations-as-materials.md) |
 | Document / rendering layer (non-canonical labels + `covers` edge) | [`docs/design-notes/teaching-learning-materials.md`](../../design-notes/teaching-learning-materials.md) | LC defines no document/formatter node — intentional extension (deviation 7) |
 
 **Our `metadata` sidecar is an extension, not canonical LC.** LC defines no

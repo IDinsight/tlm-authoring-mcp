@@ -862,6 +862,75 @@ describe("resolving a picture from the bucket by relPath", () => {
   });
 });
 
+describe("resolving an ATTACHED picture by its node id", () => {
+  // The picture's identifier is a gs:// URI naming the bucket, so one is configured.
+  beforeAll(async () => { (await import("../../config.js")).CONFIG.firebaseBucket = "tlm-test-bucket"; });
+
+  // A picture attached with attach_image: the page names the node, and the
+  // server reads the path off the node's own sidecar — from the same graph the
+  // render resolves from, so a draft-attached picture renders in a draft render.
+  const PICTURE = Buffer.from("\x89PNG-fake-bytes-for-an-attached-band");
+  const REL = "media/semaine-01/bande-1.png";
+  const treeWith = (media: unknown) => ({
+    blocks: [{ kind: "line", runs: [{ image: { media: "bande-1", role: "band", aspectRatio: 6 } }] }],
+    media,
+  });
+
+  // Attach the picture to a lesson the rendered section covers (its week holds
+  // days, which hold lessons), so the section's own read would list it.
+  async function attachBand(): Promise<string> {
+    const { runAttachImage } = await import("../document-authoring.js");
+    const { getActiveAdapter } = await import("../../adapters/index.js");
+    const raw = getActiveAdapter().model().rawGraph!;
+    const lesson = raw.nodes.find((n) => (n.labels ?? []).includes("Lesson"))!;
+    const dry = await runAttachImage({ to: lesson.id, name: "bande-1", description: "Une bande.", relPath: REL });
+    if (!dry.confirmationToken) throw new Error(`attach refused: ${JSON.stringify(dry)}`);
+    const done = await runAttachImage({ to: lesson.id, name: "bande-1", description: "Une bande.", relPath: REL, confirm: true, confirmationToken: dry.confirmationToken as string, mintedNodeId: (dry.mintedNodeIds as string[])[0] });
+    if (!done.ok) throw new Error(`attach confirm failed: ${JSON.stringify(done)}`);
+    return (done.mintedNodeIds as string[])[0];
+  }
+
+  it("reads the path off the node and embeds the file, so the caller copies an id, never a path", async () => {
+    const out = await withCtx(CURATOR, async () => {
+      await stageRenderBag(RENDER_BAG);
+      __setStorageForTest({
+        ...storage,
+        getObjectMd5: async (rp) => (rp === REL ? "md5" : null),
+        downloadObject: async (rp) => (rp === REL ? PICTURE : null),
+      });
+      const pictureId = await attachBand();
+      return renderDocument({ nodeId: sectionId, document: treeWith([{ name: "bande-1", nodeId: pictureId }]) });
+    });
+
+    expect(out.error, JSON.stringify(out)).toBeUndefined();
+    expect(out.images).toBe(1);
+    const embedded = unzip(uploaded!).get("word/media/bande-1");
+    expect(embedded).not.toBeUndefined();
+    expect(Buffer.compare(embedded!, PICTURE)).toBe(0);
+  });
+
+  it("refuses, naming the entry, when the node is not an attached picture", async () => {
+    const out = await withCtx(CURATOR, async () => {
+      await stageRenderBag(RENDER_BAG);
+      __setStorageForTest({ ...storage, downloadObject: async () => PICTURE });
+      // The section itself is a node — and not a picture.
+      return renderDocument({ nodeId: sectionId, document: treeWith([{ name: "bande-1", nodeId: sectionId }]) });
+    });
+    expect(String(out.error)).toContain("'bande-1'");
+    expect(String(out.error)).toMatch(/not a Material/);
+    expect(uploaded).toBeNull();
+  });
+
+  it("refuses an entry that gives both a node and a path — the tree must say which", async () => {
+    const out = await withCtx(CURATOR, async () => {
+      await stageRenderBag(RENDER_BAG);
+      return renderDocument({ nodeId: sectionId, document: treeWith([{ name: "bande-1", nodeId: "x", relPath: REL }]) });
+    });
+    expect(String(out.error)).toMatch(/not valid/);
+    expect(JSON.stringify(out.problems)).toMatch(/exactly one of `data`.*`relPath`.*`nodeId`/);
+  });
+});
+
 describe("a vector picture is rasterized at layout, or the render refuses", () => {
   // The pupil book's pictograms are SVG masters. Word embeds raster only, so
   // the server converts them once the bytes are in hand — from base64 or from

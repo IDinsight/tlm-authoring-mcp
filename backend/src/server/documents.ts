@@ -18,7 +18,7 @@ import { getStorageAdapter, extractDocxText, listEntries, recordContent, reconci
 import { readDocx, sourcesFrom, staleness, type DocumentSource } from "../render/index.js";
 import type { HistoryEntry } from "../types.js";
 import { WORKSPACE_ROLE_NOTE } from "./tool-notes.js";
-import { DETAIL_LEVELS, DEFAULT_DETAIL, takeWithinBudget, trimmedBySizeHint, pageBudgetBytes, toolError, type DetailLevel } from "../utils/index.js";
+import { DETAIL_LEVELS, DEFAULT_DETAIL, takeWithinBudget, trimmedBySizeHint, pageBudgetBytes, toolError, type DetailLevel, imageMimeFor, IMAGE_EXTENSIONS } from "../utils/index.js";
 
 // A file is identified by its path, and a node holds as many as it needs. Both
 // write tools say so, because the mental model they replaced was the opposite.
@@ -443,25 +443,6 @@ export async function checkStale(filter?: { nodeId?: string }): Promise<Record<s
   };
 }
 
-// The image types a render tree can embed, keyed by file extension. Rendering
-// only understands raster pictures, so this is the whole allowlist — anything
-// else is refused rather than signed for, keeping the bucket free of files
-// render_document cannot use.
-const IMAGE_MIME: Record<string, string> = {
-  png: "image/png",
-  jpg: "image/jpeg",
-  jpeg: "image/jpeg",
-  webp: "image/webp",
-  gif: "image/gif",
-  // Vector masters — the pupil book's pictograms and answer marks. Rasterized
-  // to PNG at layout (render/raster.ts), so the file store keeps the original.
-  svg: "image/svg+xml",
-};
-function imageMimeFor(relPath: string): string | null {
-  const dot = relPath.lastIndexOf(".");
-  const ext = dot < 0 ? "" : relPath.slice(dot + 1).toLowerCase();
-  return IMAGE_MIME[ext] ?? null;
-}
 
 export function registerDocumentTools(server: McpServer) {
   server.registerTool("reconcile", { title: "Reconcile bucket with history", description: "List the .docx documents in Firebase Storage and diff against history BY relPath: tracked docs (present + unchanged), UNTRACKED docs needing a link ('new' = no history entry, 'changed' = bytes differ from the recorded entry), and entries dropped because their object is gone. It no longer classifies filenames — link each untracked doc to the node it covers with record_document_content(nodeId, relPath, content). Link each untracked doc to the node it covers with record_document_content — several files may cover the same node, so the whole list can be walked. `dropped` lists the relPath of each entry whose object is gone. " + WORKSPACE_ROLE_NOTE + "", inputSchema: { ...contextField } },
@@ -496,7 +477,7 @@ export function registerDocumentTools(server: McpServer) {
         const denied = await denyNonMember("writeDocuments"); if (denied) return denied;
         const mime = imageMimeFor(a.relPath);
         if (!mime) {
-          return toolError("VALIDATION_ERROR", `'${a.relPath}' is not a supported image. render_document can embed only ${Object.keys(IMAGE_MIME).map((e) => "." + e).join(", ")}.`);
+          return toolError("VALIDATION_ERROR", `'${a.relPath}' is not a supported image. render_document can embed only ${IMAGE_EXTENSIONS.map((e) => "." + e).join(", ")}.`);
         }
         const storage = getStorageAdapter();
         if (!storage.createMediaUpload) {
