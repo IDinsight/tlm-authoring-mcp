@@ -27,7 +27,8 @@
  * mechanical pass over many nodes; leave it off when each edit is its own
  * decision and you want each recorded separately.
  *
- * edits.json: [{ "id": "<nodeId>", "field": "content"|"summary"|"title"|"title_en"|"assemblyGuide", "value": "<text>" }, …]
+ * edits.json: [{ "id": "<nodeId>", "field": "content"|"summary"|"title"|"title_en"|"assemblyGuide"|"journal", "value": "<text>" }, …]
+ * (`journal` is a document's dated decision history, metadata.journal — kept off every generation read.)
  *
  * Env (same as import-kg): SERVICE_ACCOUNT_KEY_PATH (or _JSON), FIREBASE_STORAGE_BUCKET,
  * TLM_BUCKET_PREFIX. Actor: set TLM_ACTOR_EMAIL for the audit trail (else a script actor).
@@ -76,7 +77,7 @@ if (__setKgStoreForTest) __setKgStoreForTest(store);
 // Read the current value of a field on a node in the draft-else-published slot, to
 // skip edits already applied. content → raw.content; summary → raw.metadata.summary;
 // title → raw.description; title_en → raw.metadata.en.description;
-// assemblyGuide → raw.metadata.assemblyGuide.
+// assemblyGuide → raw.metadata.assemblyGuide; journal → raw.metadata.journal.
 function currentValue(node, field) {
   const raw = node?.properties?.raw ?? {};
   if (field === "content") return raw.content;
@@ -84,6 +85,7 @@ function currentValue(node, field) {
   if (field === "title") return raw.description;
   if (field === "title_en") return ((raw.metadata ?? {}).en ?? {}).description;
   if (field === "assemblyGuide") return (raw.metadata ?? {}).assemblyGuide;
+  if (field === "journal") return (raw.metadata ?? {}).journal;
   return undefined;
 }
 
@@ -96,8 +98,8 @@ function currentValue(node, field) {
  * argument would be silently ignored.
  */
 function argsFor(namespace, id, field, value) {
-  if (field === "assemblyGuide") {
-    return { namespace, nodeId: id, properties: { "metadata.assemblyGuide": value } };
+  if (field === "assemblyGuide" || field === "journal") {
+    return { namespace, nodeId: id, properties: { [`metadata.${field}`]: value } };
   }
   return { namespace, nodeId: id, [field]: value };
 }

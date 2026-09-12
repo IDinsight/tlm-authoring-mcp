@@ -100,14 +100,18 @@ function assemblyGuideOf(n: RawNode): string | null {
   return typeof guide === "string" && guide !== "" ? guide : null;
 }
 
-// The owning document's node as a section read carries it: projected, then
-// minus the assembly guide, which rides beside it as its own named field. Sent
-// in both places it was the same 13 KB twice on every ci/maths section read.
+// The owning document's node as a generation read carries it: projected, then
+// minus the two authored prose sidecars a read never needs on the node itself.
+// The assembly guide rides beside it as its own named field — sent in both
+// places it was the same 13 KB twice on every ci/maths section read. The
+// decision journal (`metadata.journal`, the dated history behind a document's
+// formatter rules) is for a person asking "why is this rule so", never for
+// composing a page, so it stays off every read and is fetched on the node.
 function documentNodeWithoutGuide(tlm: RawNode, project: (n: RawNode) => NodeOut): NodeOut {
   const out = project(tlm);
   const metadata = out.properties.metadata;
   if (metadata === null || typeof metadata !== "object" || Array.isArray(metadata)) return out;
-  const { assemblyGuide: _repeated, ...rest } = metadata as Record<string, unknown>;
+  const { assemblyGuide: _repeated, journal: _history, ...rest } = metadata as Record<string, unknown>;
   if (Object.keys(rest).length === 0) delete out.properties.metadata;
   else out.properties.metadata = rest;
   return out;
@@ -328,8 +332,10 @@ export function documentSubgraph(
   const documentEdges = raw.relationships
     .filter((e) => e.type === DOCUMENT_EDGE && docIds.has(e.start) && docIds.has(e.end))
     .concat(coversEdges);
+  // The TLM's guide already rides the response as its top-level `assemblyGuide`,
+  // so the node inside `document` is sent without it (and without its journal).
   const document = {
-    nodes: raw.nodes.filter((n) => docIds.has(n.id)).map(nodeOut),
+    nodes: raw.nodes.filter((n) => docIds.has(n.id)).map((n) => n.id === tlmId ? documentNodeWithoutGuide(n, nodeOut) : nodeOut(n)),
     edges: documentEdges.map(edgeOut),
   };
 
