@@ -180,14 +180,34 @@ describe("attach_image — where a picture may hang", () => {
 });
 
 describe("the read side — a section covering the lesson lists its pictures", () => {
-  it("walk_document_section returns the picture with the id a render media entry needs", async () => {
+  // The fixture is a snapshot of live, which has carried its pictures since the
+  // 2026-09-12 migration — so the read is asserted RELATIVE to what is already
+  // there, never against an empty list.
+  const picturesOf = async (options: Record<string, unknown> = {}) => {
+    const scope = await withActiveContext(CURATOR, () => walkDocumentSection({ sectionId, ...options }));
+    return scope.pictures as Array<Record<string, unknown>>;
+  };
+
+  it("lists the pictures the graph already carries, each with what a composer needs", async () => {
+    const pictures = await picturesOf();
+    expect(pictures.length).toBeGreaterThan(0);
+    for (const picture of pictures) {
+      expect(String(picture.name)).toMatch(/^L\d\d-/);
+      expect(String(picture.uri)).toMatch(/^gs:\/\/.*\/documents\/media\//);
+      expect(String(picture.relPath)).toMatch(/^media\//);
+      expect(typeof picture.description).toBe("string");
+      expect(typeof picture.illustrates).toBe("string");
+    }
+  });
+
+  it("walk_document_section returns a newly attached picture with the id a render media entry needs", async () => {
+    const before = (await picturesOf()).length;
     const done = await withActiveContext(CURATOR, () =>
       confirmed({ to: lessonId, name: "bande-1", description: "Trois colliers.", relPath: UPLOADED }));
     const pictureId = (done.mintedNodeIds as string[])[0];
 
-    const scope = await withActiveContext(CURATOR, () => walkDocumentSection({ sectionId, slot: "draft" }));
-    const pictures = scope.pictures as Array<Record<string, unknown>>;
-    expect(pictures.map((p) => p.id)).toContain(pictureId);
+    const pictures = await picturesOf({ slot: "draft" });
+    expect(pictures.length).toBe(before + 1);
     const picture = pictures.find((p) => p.id === pictureId)!;
     expect(picture).toMatchObject({ name: "bande-1", description: "Trois colliers.", relPath: UPLOADED, contentType: "image/png", illustrates: lessonId });
     expect(String(picture.uri)).toMatch(/^gs:\/\//);
@@ -196,24 +216,19 @@ describe("the read side — a section covering the lesson lists its pictures", (
   it("does not mistake a plain Material for a picture — its identifier is no file", async () => {
     // A routine step or a spec is a Material too; only an image URI makes a picture.
     const { runAddNodes } = await import("../authoring.js");
+    const before = (await picturesOf()).length;
     await withActiveContext(CURATOR, async () => {
       const items = [{ kind: "Material", parentId: lessonId, description: "Consigne", properties: { content: "Lis l'énoncé." } }];
       const dry = await runAddNodes({ items });
       await runAddNodes({ items, confirm: true, confirmationToken: dry.confirmationToken as string, mintedNodeIds: dry.mintedNodeIds as string[] });
     });
-    const scope = await withActiveContext(CURATOR, () => walkDocumentSection({ sectionId, slot: "draft" }));
-    expect(scope.pictures).toEqual([]);
-  });
-
-  it("lists nothing when nothing is attached — an empty list, not an absent field", async () => {
-    const scope = await withActiveContext(CURATOR, () => walkDocumentSection({ sectionId }));
-    expect(scope.pictures).toEqual([]);
+    expect((await picturesOf({ slot: "draft" })).length).toBe(before);
   });
 
   it("keeps the list even when the caller asks for the section alone", async () => {
-    await withActiveContext(CURATOR, () =>
-      confirmed({ to: lessonId, name: "bande-1", description: "x", relPath: UPLOADED }));
-    const scope = await withActiveContext(CURATOR, () => walkDocumentSection({ sectionId, slot: "draft", include: [] }));
-    expect((scope.pictures as unknown[]).length).toBe(1);
+    const full = await picturesOf();
+    const alone = await picturesOf({ include: [] });
+    expect(alone.length).toBe(full.length);
+    expect(alone.length).toBeGreaterThan(0);
   });
 });

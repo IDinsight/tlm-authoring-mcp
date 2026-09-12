@@ -23,7 +23,11 @@ import { __setKgStoreForTest, getKgStore, kgNamespace, edgeId as makeEdgeId } fr
 const CANONICAL_LABEL_ORDER = [
   "StandardsFramework", "StandardsFrameworkItem", "Course", "LessonGrouping", "Lesson",
   "Assessment", "Activity", "Material", "LearningComponent",
-  "TeachingLearningMaterial", "DocumentSection", "Formatter", "FormatterSpec", "InstructionalRoutine",
+  "TeachingLearningMaterial", "DocumentSection", "Formatter", "FormatterSpec",
+  "Rubric", "RubricSection", "RubricCriterion",
+  // No legend entry of its own: the explorer appends an unrecognised label after
+  // the known ones, so it comes last.
+  "InstructionalRoutine",
 ];
 import { exportNamespace, exportCatalog, exportCatalogEntry, exportTerminology, listExportNamespaces } from "../kg-export/index.js";
 import { SHARED_CATALOG_NAMESPACE, catalogNamespace } from "../kg-recipes/index.js";

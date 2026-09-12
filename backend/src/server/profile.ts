@@ -179,9 +179,20 @@ function computeStructuralFacts(nodes: FactNode[], edges: FactEdge[]) {
     (kidsOf.get(e.from) ?? kidsOf.set(e.from, []).get(e.from)!).push({ id: e.to, edge: e.type });
   }
   const containers: Array<Record<string, unknown>> = [];
+  // Holders of leaf content only — an Activity with its pictures, a routine
+  // step with its text — are not what a coverage review reads: "does each
+  // chapter have its bilan" is about the containers above them. Listing them
+  // put 522 activities into this snapshot the day pictures became Material
+  // nodes (+80 KB, past the response cap), so they are counted, not listed.
+  const materialHoldersByType: Record<string, number> = {};
   for (const [pid, kids] of kidsOf) {
     const p = byId.get(pid);
     if (!p) continue;
+    const onlyMaterials = kids.every((k) => byId.get(k.id)?.type === "Material");
+    if (onlyMaterials && p.type !== "Material") {
+      materialHoldersByType[p.type] = (materialHoldersByType[p.type] ?? 0) + 1;
+      continue;
+    }
     const hasPartChildrenByType: Record<string, number> = {};
     const hasChildChildrenByType: Record<string, number> = {};
     let assessmentChildren = 0;
@@ -219,7 +230,10 @@ function computeStructuralFacts(nodes: FactNode[], edges: FactEdge[]) {
     contentMultiParent.push({ id: cid, type: c.type, title: labelOf(c), hasPartParentCount: count });
   }
 
-  return { nodesByType, edgesByType, containers, contentMultiParent };
+  return {
+    nodesByType, edgesByType, containers, contentMultiParent,
+    ...(Object.keys(materialHoldersByType).length > 0 ? { materialHoldersByType } : {}),
+  };
 }
 
 export async function reviewDraft(includeGuide = true): Promise<Record<string, unknown>> {
@@ -258,7 +272,7 @@ export async function reviewDraft(includeGuide = true): Promise<Record<string, u
     structuralFacts,
     instruction:
       `Review this ${reviewing} graph against the guide's coverage expectations (${includeGuide ? "in `guide`" : "the guide you already read"}). ` +
-      "Use `structuralFacts` (a subject-agnostic snapshot: node/edge counts; each container's child-type histogram per containment axis + its assessment-child count; and nodes with more than one content parent) to check the guide's prose expectations (e.g. 'each chapter has exactly one bilan', 'every teaching lesson is aligned', 'chapters are contiguous'). " +
+      "Use `structuralFacts` (a subject-agnostic snapshot: node/edge counts; each container's child-type histogram per containment axis + its assessment-child count — a node holding only Material leaves, such as an activity with its pictures, is counted in `materialHoldersByType` rather than listed; and nodes with more than one content parent) to check the guide's prose expectations (e.g. 'each chapter has exactly one bilan', 'every teaching lesson is aligned', 'chapters are contiguous'). " +
       "Report each expectation the graph violates, citing node ids; if all hold, say so plainly. This is a review, not an edit — it changes nothing.",
   };
 }
