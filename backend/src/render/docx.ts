@@ -77,7 +77,13 @@ function usableWidthCm(spec: RenderSpec): number {
  * was applied without the ceiling.
  */
 function imageSizeCm(img: ImageRun, spec: RenderSpec): { w: number; h: number } {
-  const h = spec.images?.maxHeightCm?.[img.role] ?? 2;
+  // A picture set in the run of text — a pictogram, an answer marker — is
+  // line-sized, from its own table; a floated one keeps the per-role ceiling.
+  // The bag carried `inlineHeightCm` from the day the geometry was extracted
+  // and nothing read it: an inline pictogram fell through to the 2 cm default
+  // and grew its line fivefold, nine lines on the first sheet rendered.
+  const inlineHeight = img.float ? undefined : spec.images?.inlineHeightCm?.[img.role];
+  const h = inlineHeight ?? spec.images?.maxHeightCm?.[img.role] ?? 2;
   let w = h * img.aspectRatio;
   const maxWidth = spec.images?.maxWidthCm;
   const goesFullWidth =
