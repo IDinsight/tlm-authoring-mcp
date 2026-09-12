@@ -109,8 +109,20 @@ const styleOf = (ctx: Context, name?: string): Style => (name && ctx.spec.blocks
 const hex = (value: string | undefined, fallback?: string) =>
   (value ?? fallback)?.replace("#", "");
 
+/*
+ * "Single" line spacing in Word's units: 240 twentieths of a point, and under
+ * the automatic rule the line grows with whatever it holds.
+ */
+const SINGLE_AUTOMATIC_SPACING = `<w:spacing w:line="240" w:lineRule="auto"/>`;
+
 function spacingXml(leadingPt: number | undefined, rule: string | undefined): string {
-  if (leadingPt === undefined) return "";
+  // No height with the automatic rule is a paragraph asked to RELAX — grow
+  // around a tall inline picture. That has to be written out: the document
+  // default is the body's exact leading, so a paragraph that says nothing
+  // inherits it and the picture is cropped to the line instead. Silently, and
+  // invisibly to a page count — the first sheet rendered with 2 cm pictograms
+  // clipped every one of them to 14 pt and measured exactly the same.
+  if (leadingPt === undefined) return rule === "auto" ? SINGLE_AUTOMATIC_SPACING : "";
   return `<w:spacing w:line="${ptToTwentieths(leadingPt)}" w:lineRule="${rule ?? "auto"}"/>`;
 }
 

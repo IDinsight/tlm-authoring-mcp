@@ -102,6 +102,8 @@ describe("a block tree and a formatter make a .docx", () => {
       .map((m) => m[0]).filter((p) => p.includes("<wp:"));
     expect(withBand).toHaveLength(1);
     expect(withBand[0]).not.toContain('w:lineRule="exact"');
+    // Relaxing is WRITTEN, not left to the document default — which is exact.
+    expect(withBand[0]).toContain('<w:spacing w:line="240" w:lineRule="auto"/>');
   });
 
   it("colours a line by the variant the formatter declares", () => {
@@ -205,6 +207,14 @@ describe("a picture set in the run of text", () => {
       { text: "La scène." },
     ]);
     expect(doc).toContain(`<wp:extent cx="${cm(2.2)}" cy="${cm(2.2)}"/>`);
+  });
+
+  it("relaxes the paragraph around a tall inline picture with an explicit automatic spacing", () => {
+    // 2 cm is taller than the 14 pt line box, and the formatter says "auto":
+    // the paragraph must SAY so, or it inherits the exact default and crops.
+    const doc = renderLine([{ image: { media: "band.png", role: "band", aspectRatio: 3, float: false } }]);
+    expect(doc).toContain('<w:spacing w:line="240" w:lineRule="auto"/>');
+    expect(doc).not.toContain('<w:spacing w:line="280" w:lineRule="exact"/>');
   });
 
   it("falls back to the per-role ceiling for an inline picture with no inline height", () => {
