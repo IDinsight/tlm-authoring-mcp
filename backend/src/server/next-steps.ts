@@ -48,6 +48,13 @@ const AFTER_APPLY: Record<string, string[]> = {
     "See what this one section would produce: preview_generation on the section's id.",
     "Check the wiring: check_draft, then publish: publish_draft.",
   ],
+  attachImage: [
+    "Every section covering that lesson or activity now lists the picture under `pictures` (walk_document_section); a page places it with a `media` entry {name, nodeId}.",
+    "A new version of the picture is a new file: attach it again under a new name, and retire the old node with delete_nodes.",
+    "If it was commissioned (no file yet): the illustrator uploads the file to the path the node names (create_media_upload_url with that exact relPath); nothing in the graph changes on delivery.",
+    "Check a composed page against what is attached: lint_content with `document` + `nodeId`.",
+    "Publish once it is right: publish_draft (the file is live already; the link to it goes live with the draft).",
+  ],
   // An undo is itself a draft edit, so the shared loop would tell the curator to
   // undo their undo. What follows one is the ordinary editing loop instead.
   undoLast: [

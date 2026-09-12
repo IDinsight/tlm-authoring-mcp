@@ -154,12 +154,16 @@ export const documentSchema = z.object({
       name: z.string().min(1),
       data: z.string().optional(),
       relPath: z.string().min(1).optional(),
+      // A picture ATTACHED to the curriculum (attach_image): the server reads
+      // the file off the node's own identifier (its URI), so a composer copies
+      // an id from walk_document_section's `pictures` and never a path.
+      nodeId: z.string().min(1).optional(),
     }).strict().superRefine((entry, ctx) => {
-      const given = (entry.data !== undefined ? 1 : 0) + (entry.relPath !== undefined ? 1 : 0);
+      const given = [entry.data, entry.relPath, entry.nodeId].filter((value) => value !== undefined).length;
       if (given !== 1) {
         ctx.addIssue({
           code: z.ZodIssueCode.custom,
-          message: "give exactly one of `data` (base64) or `relPath` (a bucket path the server resolves)",
+          message: "give exactly one of `data` (base64), `relPath` (a bucket path the server resolves) or `nodeId` (an attached picture, resolved from its node)",
         });
       }
     }),

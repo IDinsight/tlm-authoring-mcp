@@ -18,6 +18,7 @@ export { setContent, type SetContentArgs } from "./set-content.js";
 export { editNode, type EditNodeArgs } from "./edit-node.js";
 export { editNodes, type EditNodesArgs, type EditNodesItem } from "./edit-nodes.js";
 export { createDocument, addSection, type CreateDocumentArgs, type AddSectionArgs } from "./document.js";
+export { attachImage, pictureUriOf, pictureNameOf, type AttachImageArgs } from "./image.js";
 export { RECIPES, type RecipeDescriptor, type RecipeParam } from "./registry.js";
 export {
   catalogNamespace, SHARED_CATALOG_NAMESPACE, SHARED_CATALOG_WORKSPACE, CATALOG_ROOT_ID,

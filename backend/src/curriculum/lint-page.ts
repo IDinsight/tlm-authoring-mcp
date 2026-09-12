@@ -34,13 +34,20 @@ import type { RenderSpec } from "../kg-recipes/index.js";
 /** A composed page, and the geometry it will be laid out with. */
 export type PageInput = {
   /** The block tree, as `render_document` would receive it. */
-  tree: Pick<DocumentTree, "blocks"> & { media?: { name: string }[] };
+  tree: Pick<DocumentTree, "blocks"> & { media?: { name: string; nodeId?: string }[] };
   /** The formatter stack's merged `render` bag. */
   spec: RenderSpec;
   /** The node this page was composed for — every finding is reported against it. */
   scopeId: string;
   /** Rules to skip here, from the scope node's `metadata.lintIgnore`. */
   ignore?: Set<string>;
+  /**
+   * The pictures ATTACHED to the curriculum this page covers (attach_image),
+   * by id and by the name a page places them with. Undefined means the caller
+   * did not resolve them, and the two picture rules then stay silent rather
+   * than report every picture as unattached.
+   */
+  attached?: { id: string; name: string }[];
 };
 
 // ── Walking the tree ─────────────────────────────────────────────────────────
@@ -232,7 +239,74 @@ const missingMedia: PageRule = {
   },
 };
 
-export const PAGE_RULES: PageRule[] = [unknownBlockStyle, lineOverMaxChars, imagesOverCap, missingMedia];
+/*
+ * A placed picture that no attached one accounts for.
+ *
+ * The graph can only vouch for a picture it knows: an attached one carries, in
+ * words, what it shows, beside the activity's text — which is how a picture that
+ * contradicts its words gets caught. A picture the page carries by path or as
+ * base64 bypasses that entirely, and this says so. It is a warning, not a
+ * refusal: a page may legitimately carry a one-off picture, and the fix is to
+ * attach it, not to drop it.
+ *
+ * Matched two ways, because a composer may do either: the media entry names the
+ * node (`nodeId`), or the page uses the attached picture's own name.
+ */
+const pictureNotAttached: PageRule = {
+  id: "page-picture-not-attached",
+  summary: "Every picture the page places should be one attached to the covered curriculum (attach_image), so the graph knows what it shows.",
+  check: (input) => {
+    if (input.attached === undefined) return [];
+    const byId = new Set(input.attached.map((picture) => picture.id));
+    const byName = new Set(input.attached.map((picture) => picture.name));
+    const entries = input.tree.media ?? [];
+
+    const stray = imagesUsed(input.tree)
+      .map((image) => image.media)
+      .filter((name, index, all) => all.indexOf(name) === index)
+      .filter((name) => {
+        const entry = entries.find((candidate) => candidate.name === name);
+        const attachedByNode = entry?.nodeId !== undefined && byId.has(entry.nodeId);
+        return !attachedByNode && !byName.has(name);
+      });
+    if (stray.length === 0) return [];
+
+    return [finding(
+      input, "page-picture-not-attached",
+      `The page places ${stray.length} picture(s) not attached to the curriculum it covers: ${stray.map((name) => `'${name}'`).join(", ")}. ${input.attached.length === 0 ? "Nothing is attached here yet." : `Attached: ${input.attached.map((picture) => `'${picture.name}'`).join(", ")}.`}`,
+      "Attach the picture to the lesson or activity it illustrates (attach_image, with a description of what it shows), then reference it by nodeId in `media`. Until then the graph cannot say what this picture means, so nothing can check it against the words beside it — which is how two wrong answer keys reached print.",
+    )];
+  },
+};
+
+/*
+ * An attached picture the page leaves out.
+ *
+ * The twin of check_draft's unused-routine finding: something was authored for
+ * this content and the page does not use it. Often deliberate — a section may
+ * cover an activity whose picture belongs on another page — so a warning, with
+ * the names, and the composer decides.
+ */
+const pictureUnplaced: PageRule = {
+  id: "page-picture-unplaced",
+  summary: "A picture attached to the covered curriculum is expected to appear on a page covering it.",
+  check: (input) => {
+    if (input.attached === undefined || input.attached.length === 0) return [];
+    const placedNames = new Set(imagesUsed(input.tree).map((image) => image.media));
+    const placedIds = new Set((input.tree.media ?? []).filter((entry) => placedNames.has(entry.name)).map((entry) => entry.nodeId));
+
+    const left = input.attached.filter((picture) => !placedIds.has(picture.id) && !placedNames.has(picture.name));
+    if (left.length === 0) return [];
+
+    return [finding(
+      input, "page-picture-unplaced",
+      `${left.length} attached picture(s) do not appear on this page: ${left.map((picture) => `'${picture.name}'`).join(", ")}.`,
+      "Place it (an image run naming it, plus a `media` entry with its nodeId), or leave it out on purpose — a picture attached to an activity this section shares with another page may belong there instead. If it should never print, retire the node (delete_nodes) rather than leave it attached.",
+    )];
+  },
+};
+
+export const PAGE_RULES: PageRule[] = [unknownBlockStyle, lineOverMaxChars, imagesOverCap, missingMedia, pictureNotAttached, pictureUnplaced];
 
 /** Run every page rule (minus those the scope node silences). */
 export function lintPage(input: PageInput): LintFinding[] {

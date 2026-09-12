@@ -28,13 +28,13 @@ import { z } from "zod";
 import { randomUUID } from "node:crypto";
 import { asJson, guarded } from "./shared.js";
 import { getActiveAdapter } from "../adapters/index.js";
-import { activeWorkspace } from "../context/index.js";
+import { activeWorkspace, relPathOfDocumentObjectUri } from "../context/index.js";
 import { getKgStore, kgNamespace, toAuditActor, nextAuditSeq } from "../kg-store/index.js";
 import { currentActor } from "../actor.js";
 import { getStorageAdapter } from "../storage/index.js";
 import { formatterStackFor } from "../curriculum/index.js";
 import { documentSchema, renderDocx, resolveRenderSpec, missingMediaNames, splitByVariant, deriveVariant, hasVariant, measureDocx, readDocx, proposeEdits, editItems, documentText, normalise, rasterizeSvgMedia, type DocumentTree, type TextSlot } from "../render/index.js";
-import { displayName, descriptionBody } from "../utils/index.js";
+import { displayName, descriptionBody, imageMimeFor } from "../utils/index.js";
 import { translate } from "../translation/index.js";
 import { effectiveTerms, filterByText } from "./glossary-read.js";
 import { denyUnlessMember } from "./membership.js";
@@ -55,6 +55,21 @@ type RenderArgs = {
 const defaultRelPath = (nodeId: string) => `previews/render-${nodeId}.docx`;
 
 /** Insert a variant's suffix before the extension: "…/x.docx" -> "…/x-WO.docx". */
+/*
+ * The bucket path an attached picture's node points at, or why it cannot be
+ * read here. The node's `identifier` is the file's URI; resolving it checks the
+ * bucket and the namespace, so a graph moved to another deployment — or a
+ * picture from another subject — refuses rather than reads the wrong object.
+ */
+function attachedPicturePath(nodes: Array<{ id: string; labels?: string[]; properties?: Record<string, unknown> }>, nodeId: string): { relPath: string } | { refused: string } {
+  const node = nodes.find((n) => n.id === nodeId);
+  if (!node) return { refused: `no node '${nodeId}' in this graph` };
+  if (!(node.labels ?? []).includes("Material")) return { refused: `'${nodeId}' is not a Material` };
+  const identifier = (node.properties ?? {}).identifier;
+  if (typeof identifier !== "string" || !imageMimeFor(identifier)) return { refused: `'${nodeId}' is a Material but not a picture (its identifier names no image file)` };
+  return relPathOfDocumentObjectUri(identifier);
+}
+
 function suffixed(relPath: string, suffix: string): string {
   if (!suffix) return relPath;
   const dot = relPath.lastIndexOf(".");
@@ -203,20 +218,46 @@ export async function renderDocument(a: RenderArgs): Promise<Record<string, unkn
   const storage = getStorageAdapter();
   const media: { name: string; data: Buffer }[] = [];
   const unresolved: string[] = [];
+  const unattached: string[] = [];
   for (const m of tree.data.media ?? []) {
-    if (m.relPath !== undefined) {
-      if (!storage.downloadObject) {
-        return { preview: true, error: "This storage backend cannot resolve a media `relPath`. Inline the image as base64 `data` instead." };
-      }
-      const bytes = await storage.downloadObject(m.relPath);
-      if (!bytes) {
-        unresolved.push(`'${m.name}' (${m.relPath})`);
+    if (m.data !== undefined) {
+      media.push({ name: m.name, data: Buffer.from(m.data, "base64") });
+      continue;
+    }
+    /*
+     * A `nodeId` is an ATTACHED picture (attach_image): the path comes off the
+     * node's own identifier, read from the same graph this render resolves from,
+     * so a composer copies an id from `pictures` and never transcribes a path.
+     * A node that is not a picture is refused by name — silently reading some
+     * other node's bytes is exactly the wrong-image-in-the-slot failure below.
+     */
+    let relPath: string | undefined = m.relPath;
+    if (m.nodeId !== undefined) {
+      const attached = attachedPicturePath(model.rawGraph?.nodes ?? [], m.nodeId);
+      if ("refused" in attached) {
+        unattached.push(`'${m.name}': ${attached.refused}`);
         continue;
       }
-      media.push({ name: m.name, data: bytes });
-    } else {
-      media.push({ name: m.name, data: Buffer.from(m.data as string, "base64") });
+      relPath = attached.relPath;
     }
+    if (!storage.downloadObject) {
+      return { preview: true, error: "This storage backend cannot resolve a media `relPath`. Inline the image as base64 `data` instead." };
+    }
+    const bytes = await storage.downloadObject(relPath as string);
+    if (!bytes) {
+      unresolved.push(`'${m.name}' (${relPath})`);
+      continue;
+    }
+    media.push({ name: m.name, data: bytes });
+  }
+  if (unattached.length > 0) {
+    return {
+      preview: true,
+      namespace: ns,
+      error:
+        `${unattached.length} media entr${unattached.length === 1 ? "y names a node" : "ies name nodes"} that cannot be read as an attached picture from the ${renderedFrom} graph: ${unattached.join("; ")}. Nothing was rendered. ` +
+        `A media \`nodeId\` must be a picture attached with attach_image — walk_document_section lists them under \`pictures\`, with the id to use.`,
+    };
   }
   if (unresolved.length > 0) {
     return {
@@ -224,7 +265,7 @@ export async function renderDocument(a: RenderArgs): Promise<Record<string, unkn
       namespace: ns,
       error:
         `${unresolved.length} media entr${unresolved.length === 1 ? "y names a bucket path" : "ies name bucket paths"} with no object there: ${unresolved.join(", ")}. Nothing was rendered. ` +
-        `A relPath is relative to THIS namespace's documents/ area — check the namespace and the path, or upload the image first (create_upload_url), then render.`,
+        `A relPath is relative to THIS namespace's documents/ area — check the namespace and the path, or upload the image first (create_media_upload_url), then render.`,
     };
   }
   /*
@@ -368,7 +409,7 @@ export function registerRenderTools(server: McpServer) {
         "Turn a page YOU composed into a Word file. `nodeId` is the DocumentSection (or TeachingLearningMaterial) being rendered; `document` is the block tree. The server merges that node's formatter stack into one render spec, validates the tree against it, lays out the .docx and returns a short-lived `downloadUrl`. " +
         "YOU decide what is on the page — which banner, in what order, where it turns; the FORMATTER decides what it looks like. So the tree carries NO geometry: no colour, no point size, no centimetre. A block names a `style` and a picture names a `role`, both defined by the formatter; a page break says only `pageBreak:'before'` and the formatter's `pagination.pageBreakCarrier` decides how it is written. The tree shape is in get_capabilities section:'document'; call preview_generation first for the section's curriculum, routine and formatter prose. " +
         "Unknown keys are REFUSED rather than ignored, and nothing is rendered when the tree or the stack is invalid — the response names the path. " +
-        "PICTURES go in the tree's `media`, each as {name, data} with data base64, OR {name, relPath} — a path to an object already in THIS namespace's documents/ area, which the server reads so you need not inline the bytes (an illustrated document is megabytes of base64 the tool call cannot carry). Exactly one of data/relPath per entry; a relPath that resolves to nothing is refused, naming it, not rendered with the wrong image. A VECTOR picture (SVG, by data or relPath) is rasterized to PNG when the page is laid out, so the pictograms' SVG masters can be named directly; an SVG that sets text with a font is refused (the server has no fonts) — convert the text to outlines first. " +
+        "PICTURES go in the tree's `media`, each as {name, nodeId} — a picture ATTACHED to the covered curriculum (attach_image; walk_document_section lists them under `pictures` with the id), which the server resolves to its file — OR {name, relPath}, a path to an object already in THIS namespace's documents/ area, OR {name, data} with data base64 (an illustrated document is megabytes the tool call cannot carry, so prefer the first two). Prefer nodeId: the graph then knows which picture the page carries, and lint_content can check the page against what is attached. Exactly one of nodeId/relPath/data per entry; an entry that resolves to nothing is refused, naming it, not rendered with the wrong image. A VECTOR picture (SVG, by any of the three) is rasterized to PNG when the page is laid out, so the pictograms' SVG masters can be named directly; an SVG that sets text with a font is refused (the server has no fonts) — convert the text to outlines first. " +
         "ONE SOURCE, ONE FILE PER LANGUAGE. When the formatter's `language.strategy` is 'per-file', each declared variant gets its own document: lines marked `inAllFiles` print in every one, a line tagged with a variant prints only in that variant's file, and `files[]` comes back with one entry each. Pass `translateInto` (a variant id, e.g. 'wo') to have the server DERIVE that language from the one the tree already carries, translating line by line through the subject's MOHEBS glossary so the wording matches materials already in classrooms — a tree that already has those lines is left alone. Translation spends a metered backend, so it needs a ROLE in the workspace. " +
         "Pass `measure:true` to lay each file out and COUNT ITS PAGES — page counts are measured on the render, never estimated from the source (an estimate once put a document at 2.5 pages that rendered at eleven). Each file then carries `measurement` with the page count, the page size actually produced, and the whitespace left below the last line of each page; with `budget.maxPages` declared it also carries `fits`. Measuring starts a whole office suite, so it is off by default, and where the deployment has no layout engine it reports `available:false` rather than a guess. " +
         "Output goes to the SEGREGATED previews/ prefix: short-lived, invisible to list_documents and reconcile, and never to be recorded via log_generation. Renders from the DRAFT when one is open and from PUBLISHED otherwise — `renderedFrom` says which, so a sheet is never mistaken for one made from unpublished edits. Curators and approvers only.",

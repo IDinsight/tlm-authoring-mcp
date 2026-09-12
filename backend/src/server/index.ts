@@ -54,7 +54,7 @@ export function buildServer(): McpServer {
   registerStructuralTools(server);   // create_edges, delete_edges, delete_nodes (edge + deletion verbs)
   registerRecipeTools(server);       // edit_nodes (content / position / title edits on one node or many — replaced edit_node), move_node (re-parent along one containment axis)
   registerAuthoringTools(server);    // add_nodes (the single node-creation tool — one or many; replaced the per-label typed adds)
-  registerDocumentAuthoringTools(server); // create_document, add_section (task verbs that enforce a multi-element invariant a primitive can silently violate)
+  registerDocumentAuthoringTools(server); // create_document, add_section, attach_image (task verbs that enforce a multi-element invariant a primitive can silently violate)
   registerProfileTools(server);      // get_profile, edit_profile (subject profile as authored config — phase 2b)
   registerCatalogTools(server);      // list_catalog, get_catalog_entry, use_routine, use_formatter, use_rubric (catalog — browse + copy a routine onto a Lesson / a formatter or evaluation rubric under a document TLM)
   registerEvaluationTools(server);   // evaluate_document (score a generated document against the rubrics attached to it — the document-side review_draft)
