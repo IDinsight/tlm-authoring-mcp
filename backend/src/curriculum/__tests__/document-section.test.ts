@@ -61,7 +61,11 @@ const DOCUMENT: N[] = [
   }),
   node("fmt-doc", ["Formatter"], { description: "Style du document" }),
   node("spec-doc", ["FormatterSpec"], { content: "Deux colonnes." }),
-  node("sec-1", ["DocumentSection"], { position: 1, description: "Fiche leçon 1" }),
+  node("sec-1", ["DocumentSection"], {
+    position: 1,
+    description: "Fiche leçon 1",
+    metadata: { assemblyGuide: "Trois questions.", journal: "ORIGINE : question 2 de l'expert, reprise mot pour mot." },
+  }),
   node("fmt-sec", ["Formatter"], { description: "Encart propre à la section 1" }),
   node("sec-2", ["DocumentSection"], { position: 2, description: "Fiche leçon 2" }),
   node("sec-routine", ["InstructionalRoutine"], { description: "Routine propre à la section 2" }),
@@ -103,6 +107,11 @@ describe("documentSectionSubgraph — a lesson section inheriting the Course rou
 
   it("keeps the document's decision journal off the read entirely — it is history for a person, not material for a page", () => {
     expect(JSON.stringify(scope)).not.toContain("les marges du modèle");
+  });
+
+  it("keeps the section's own journal off the read as well, with its assembly guide still on its node", () => {
+    expect(JSON.stringify(scope.section)).toContain("Trois questions.");
+    expect(JSON.stringify(scope)).not.toContain("reprise mot pour mot");
   });
 
   it("renders the covered lesson's pure containment subtree", () => {

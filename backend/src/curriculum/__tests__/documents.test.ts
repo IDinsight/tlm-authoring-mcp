@@ -36,7 +36,11 @@ const NODES: N[] = [
     metadata: { assemblyGuide: "Une page par leçon.", journal: "5 septembre : les marges du modèle remplacent 2,5 cm." },
   }),
   node("sec-cover", ["DocumentSection"], { position: 0, description: "Couverture" }),   // front-matter, no covers
-  node("sec-1", ["DocumentSection"], { position: 1, description: "Section leçon 1" }),
+  node("sec-1", ["DocumentSection"], {
+    position: 1,
+    description: "Section leçon 1",
+    metadata: { assemblyGuide: "Trois questions.", journal: "ORIGINE : question 2 de l'expert, reprise mot pour mot." },
+  }),
   node("sec-2", ["DocumentSection"], { position: 2, description: "Section leçon 2" }),
   node("fmt-art", ["Formatter"], { description: "Style illustration" }),               // doc-wide formatter
   node("spec-art", ["FormatterSpec"], { content: "Aquarelle." }),
@@ -111,6 +115,14 @@ describe("documentSubgraph — the section-spine document", () => {
     const tlmNode = document.nodes.find((n) => n.id === "tlm-manual")!;
     expect(JSON.stringify(tlmNode)).not.toContain("Une page par leçon.");
     expect(JSON.stringify(doc)).not.toContain("les marges du modèle");
+  });
+
+  it("keeps a section's own journal off the read too, while its assembly guide still rides its node", () => {
+    const document = doc.document;
+    if ("tooLarge" in document) throw new Error("the fixture document is small enough to be returned whole");
+    const sectionNode = document.nodes.find((n) => n.id === "sec-1")!;
+    expect(JSON.stringify(sectionNode)).toContain("Trois questions.");
+    expect(JSON.stringify(doc)).not.toContain("reprise mot pour mot");
   });
 
   it("returns the sections ordered by position, front-matter carrying no covers target", () => {
