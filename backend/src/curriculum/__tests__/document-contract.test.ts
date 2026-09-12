@@ -207,9 +207,11 @@ describe("over both committed subjects", () => {
         // Whatever the settings resolve to, it is answered — merged or refused,
         // never silently empty.
         expect(typeof contract.render.ok).toBe("boolean");
-        // The refusals are unconditional: they do not depend on the subject.
-        expect(contract.unavailable.map((part) => part.part).sort())
-          .toEqual(["controlPoints", "quotations"]);
+        // Control points are never in the data, so that refusal is unconditional.
+        // Quotations are refused exactly when no formatter on the stack marks
+        // them (`render.overflow.neverShorten`) — ci/maths declares them now.
+        const unavailable = contract.unavailable.map((part) => part.part).sort();
+        expect(unavailable).toEqual(contract.quotations === null ? ["controlPoints", "quotations"] : ["controlPoints"]);
       }
     });
   }
