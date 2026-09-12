@@ -163,3 +163,52 @@ describe("a vector picture's part", () => {
     expect(out.get("word/document.xml")!.toString("utf8")).toContain('name="picto.svg"');
   });
 });
+
+describe("a picture set in the run of text", () => {
+  // Two height tables: `maxHeightCm` is the per-role ceiling for pictures that
+  // take space on the page, `inlineHeightCm` the line-height of the pictograms
+  // and markers that sit inside a sentence. Same role name in both, so the
+  // picture's placement, not its role, decides which table applies.
+  const withInline = formatter("doc", {
+    type: { family: "Andika", sizePt: 12, leadingPt: 14, leadingRule: "exact" },
+    blocks: { bullet: { marker: "•" } },
+    images: {
+      maxHeightCm: { band: 2, "picto-section": 2.2 },
+      inlineHeightCm: { "picto-section": 0.42, marqueur: 0.42 },
+      placement: "float-right",
+      paragraphLeadingRule: "auto",
+    },
+  });
+  const cm = (n: number) => Math.round(n * 360000);
+  const renderLine = (runs: unknown[]) => {
+    const resolved = resolveRenderSpec([withInline]);
+    if (!resolved.ok) throw new Error(resolved.errors.join("; "));
+    const blocks = documentSchema.parse({ blocks: [{ kind: "line", style: "bullet", runs }] }).blocks;
+    const media = [{ name: "picto.png", data: Buffer.from("png") }, { name: "band.png", data: Buffer.from("png") }];
+    return unzip(renderDocx({ blocks, media }, resolved.spec)).get("word/document.xml")!.toString("utf8");
+  };
+
+  it("takes its height from inlineHeightCm, so a pictogram stays the size of a line", () => {
+    const doc = renderLine([
+      { text: "E. dit de mettre le doigt sur le dessin " },
+      { image: { media: "picto.png", role: "picto-section", aspectRatio: 1, float: false } },
+    ]);
+    expect(doc).toContain(`<wp:extent cx="${cm(0.42)}" cy="${cm(0.42)}"/>`);
+    // Shorter than the 14 pt line box, so the line keeps its exact leading
+    // instead of relaxing to fit the picture.
+    expect(doc).not.toContain('w:lineRule="auto"');
+  });
+
+  it("keeps the per-role ceiling for a FLOATING picture, even when its role is in the inline table", () => {
+    const doc = renderLine([
+      { image: { media: "picto.png", role: "picto-section", aspectRatio: 1, float: true } },
+      { text: "La scène." },
+    ]);
+    expect(doc).toContain(`<wp:extent cx="${cm(2.2)}" cy="${cm(2.2)}"/>`);
+  });
+
+  it("falls back to the per-role ceiling for an inline picture with no inline height", () => {
+    const doc = renderLine([{ image: { media: "band.png", role: "band", aspectRatio: 3, float: false } }]);
+    expect(doc).toContain(`<wp:extent cx="${cm(6)}" cy="${cm(2)}"/>`);
+  });
+});
