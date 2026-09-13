@@ -25,7 +25,10 @@ built from the first pages only is worse than no proposal.
 
 ## What to return
 
-JSON, and nothing else:
+JSON, and nothing else. The caller says which of three shapes it needs; the rules below the
+examples apply to all three.
+
+**Corrections** — an expert edited a produced document and the caller will apply the edits:
 
 ```json
 {
@@ -43,6 +46,45 @@ JSON, and nothing else:
   ],
   "questions": ["anything you could not resolve, phrased for a person to answer"],
   "notFound": ["anything the caller asked about that is not in this source"]
+}
+```
+
+**A curriculum** — the caller is building standards, components, a course or lessons from this
+source (`construire-le-programme`). Same envelope, `proposals` replaced by `elements`:
+
+```json
+{
+  "elements": [
+    {
+      "kind": "the sort of element, in the caller's words — objective, component, lesson, grouping",
+      "name": "its title, verbatim from the source",
+      "parent": "the NAME of the element it sits under, or null for a root",
+      "alignsTo": "the NAME of the objective a lesson teaches, when the source says so",
+      "text": "its body, verbatim, when the source gives one",
+      "evidence": "page or location",
+      "confidence": "high | low"
+    }
+  ]
+}
+```
+
+Order the elements parents first: the caller writes one level at a time.
+
+**A document** — the caller is composing a book or a guide from this model
+(`composer-un-document`). `proposals` replaced by `parts`:
+
+```json
+{
+  "parts": [
+    {
+      "name": "the part or section's title, verbatim",
+      "parent": "the NAME of the part it sits in, or null at the top",
+      "covers": ["the NAMES of the lessons or objectives this page is about, empty for front matter"],
+      "pageGuidance": "what the source says about how this page is put together, verbatim and short",
+      "evidence": "page or location",
+      "confidence": "high | low"
+    }
+  ]
 }
 ```
 

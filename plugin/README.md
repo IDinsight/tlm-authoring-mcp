@@ -79,14 +79,24 @@ a defect. See `CONTRIBUTING.md` for the grep that catches it.
 
 ## Skills
 
-| skill | when it applies |
-|---|---|
-| `session-autorat` | always — session discipline, two-phase writes, never asking for an id |
-| `reprendre-corrections` | an expert hands back a corrected `.docx` |
-| `produire-et-mesurer` | produce a sheet and check it fits |
-| `illustrations` | build and verify a lesson's illustration dossier |
-| `relire-et-publier` | review a draft and hand it to an approver |
-| `nouveau-cours` | build a course from nothing |
+Three capabilities, and the skills that serve each. The source of a proposal — the expert's words,
+a search of the graph, a file — changes only its first step; the write procedure after it is one,
+in `session-autorat` (« Proposer, puis écrire »).
+
+| capability | skill | when it applies |
+|---|---|---|
+| always | `session-autorat` | session discipline, the shared write procedure, two-phase writes, never asking for an id |
+| build the curriculum | `construire-le-programme` | standards, components, the course, lessons, groupings — from scratch or evolving |
+| create documents | `composer-un-document` | a book or a guide: what it covers, its formatter, its grids, its sections, its journal |
+| create documents | `produire-et-mesurer` | produce the file and check it fits |
+| create documents | `illustrations` | build and verify a lesson's illustration dossier |
+| create documents | `reprendre-corrections` | an expert hands back a corrected `.docx` |
+| evaluate | `evaluer` | one review of a document or draft: wiring, coverage, contradictions, grids, render |
+| evaluate | `publier` | hand the draft over, on explicit consent |
+
+Not covered yet, by decision: evaluating a curriculum against a grid (a grid attaches to a document
+only). Two seams the skills mark rather than hide: adding to a journal is read-then-rewrite of the
+whole field, and importing a whole foreign curriculum is a server-side script, not a tool.
 
 ## Subagents
 
@@ -96,8 +106,11 @@ inside a subagent and returned about 2,000 to the main thread. Route every bulk 
 
 ## Commands
 
-`/ou-en-suis-je` · `/reprendre-corrections` · `/produire` · `/mesurer` · `/relire` · `/publier` ·
-`/nouveau-cours` · `/decisions`
+`/ou-en-suis-je` · `/construire` · `/composer` · `/evaluer` · `/reprendre-corrections` ·
+`/produire` · `/mesurer` · `/relire` · `/publier` · `/nouveau-cours` · `/decisions`
+
+`/nouveau-cours` and `/relire` are kept for habit; they point at `construire-le-programme` +
+`composer-un-document` and at `evaluer`.
 
 ## Relationship to the server's own prompts
 
@@ -133,10 +146,8 @@ Against an older server those arguments are ignored or rejected, and `list_catal
 whole library — about 63,000 characters, which will overflow the response. If that happens, the
 server predates the projection: read single entries with `get_catalog_entry` instead.
 
-## Two things this plugin cannot do yet
+## What the server covers now
 
-- **Rendering.** The server has no `generate_document`; producing a `.docx` still happens outside
-  it. `produire-et-mesurer` and `illustrations` describe the loop and mark the seam — they cannot
-  close it. That is WP4.
-- **Content linting.** `relire-et-publier` calls `check_draft` (wiring) and `review_draft`
-  (coverage). `lint_content` does not exist yet. That is WP5.
+The two seams this section once listed are closed: `render_document` lays out a block tree and
+counts its pages (`measure:true`), and `lint_content` checks both the graph's statements and a
+composed page against it. The seams that remain are the two named under *Skills* above.
