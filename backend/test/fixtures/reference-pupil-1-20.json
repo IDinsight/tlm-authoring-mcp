@@ -1,0 +1,128 @@
+{
+  "corpus": "Outil de l’élève, leçons 1–20, fichiers FR et WO livrés (Outputs/Lessons)",
+  "measuredOn": "2026-09-13",
+  "lessons": 20,
+  "files": 40,
+  "pages": {
+    "FR:1": 2,
+    "FR:2": 2,
+    "FR:3": 2,
+    "FR:4": 2,
+    "FR:5": 1,
+    "FR:6": 2,
+    "FR:7": 2,
+    "FR:8": 2,
+    "FR:9": 2,
+    "FR:10": 2,
+    "FR:11": 2,
+    "FR:12": 2,
+    "FR:13": 2,
+    "FR:14": 2,
+    "FR:15": 2,
+    "FR:16": 2,
+    "FR:17": 2,
+    "FR:18": 2,
+    "FR:19": 2,
+    "FR:20": 2,
+    "WO:1": 2,
+    "WO:2": 2,
+    "WO:3": 2,
+    "WO:4": 2,
+    "WO:5": 1,
+    "WO:6": 2,
+    "WO:7": 2,
+    "WO:8": 2,
+    "WO:9": 2,
+    "WO:10": 2,
+    "WO:11": 2,
+    "WO:12": 2,
+    "WO:13": 2,
+    "WO:14": 2,
+    "WO:15": 2,
+    "WO:16": 2,
+    "WO:17": 2,
+    "WO:18": 2,
+    "WO:19": 2,
+    "WO:20": 2
+  },
+  "pagesNote": "rendu PDF par LibreOffice ; la Leçon 5 n’a qu’une séance et une page",
+  "pageSize": {
+    "w": 21,
+    "h": 29.7
+  },
+  "margins": {
+    "top": 1.5,
+    "right": 1.7,
+    "bottom": 1.2,
+    "left": 1.7
+  },
+  "family": "Andika",
+  "sizePt": 11.5,
+  "runSizesPt": {
+    "12.5": 5,
+    "10.5": 69,
+    "11.5": 197,
+    "9.5": 2
+  },
+  "headerLinePt": 10.5,
+  "oralQuestionPt": 10.5,
+  "directivePt": 11.5,
+  "labelPt": 10.5,
+  "explicitPageBreakFiles": 19,
+  "tablesPerFile": [
+    2,
+    0
+  ],
+  "pictures": {
+    "repere": {
+      "count": 71,
+      "heightMedian": 0.95,
+      "heightMax": 1,
+      "widthMedian": 0.95,
+      "widthMax": 1,
+      "ratioMedian": 1,
+      "ratioMax": 1,
+      "floated": 0
+    },
+    "scene": {
+      "count": 28,
+      "heightMedian": 4.2,
+      "heightMax": 4.6,
+      "widthMedian": 7.6,
+      "widthMax": 8.86,
+      "ratioMedian": 1.79,
+      "ratioMax": 2.01,
+      "floated": 0
+    },
+    "picto": {
+      "count": 131,
+      "heightMedian": 0.42,
+      "heightMax": 0.42,
+      "widthMedian": 0.42,
+      "widthMax": 0.42,
+      "ratioMedian": 1,
+      "ratioMax": 1,
+      "floated": 0
+    },
+    "bande": {
+      "count": 128,
+      "heightMedian": 3.61,
+      "heightMax": 6,
+      "widthMedian": 16,
+      "widthMax": 16,
+      "ratioMedian": 4.43,
+      "ratioMax": 6.67,
+      "floated": 0
+    },
+    "notion": {
+      "count": 15,
+      "heightMedian": 3.3,
+      "heightMax": 3.84,
+      "widthMedian": 8.92,
+      "widthMax": 9,
+      "ratioMedian": 2.45,
+      "ratioMax": 3.17,
+      "floated": 0
+    }
+  }
+}
