@@ -23,7 +23,8 @@ import { asJson, guarded } from "./shared.js";
 import { getActiveAdapter } from "../adapters/index.js";
 import { activeWorkspace } from "../context/index.js";
 import { kgNamespace, mintNodeId } from "../kg-store/index.js";
-import { createDocument, addSection, attachImage } from "../kg-recipes/index.js";
+import { createDocument, addSection, attachImage, appendJournal, journalHeading, JOURNALED_LABELS } from "../kg-recipes/index.js";
+import { currentActor } from "../actor.js";
 import { getStorageAdapter } from "../storage/index.js";
 import { imageMimeFor } from "../utils/index.js";
 import { documentObjectUri } from "../context/index.js";
@@ -283,7 +284,82 @@ export async function runAttachImage(a: AttachImageToolArgs): Promise<Record<str
   });
 }
 
+// ── append_journal ───────────────────────────────────────────────────────────
+
+type AppendJournalToolArgs = {
+  on?: string;                            // the document or section, by name (or id)
+  entry?: string;
+  title?: string;
+  returnMode?: ReturnMode;
+  idempotencyKey?: string;
+  confirm?: boolean;
+  confirmationToken?: string;
+};
+
+const THE_JOURNALED = "the document or section whose journal takes the entry";
+
+// Today's date as the journal writes it. One unambiguous form, because the
+// journals migrated in September carry three French date styles already.
+const todayIso = (): string => new Date().toISOString().slice(0, 10);
+
+export async function runAppendJournal(a: AppendJournalToolArgs): Promise<Record<string, unknown>> {
+  const namespace = activeNamespace();
+
+  if (a.confirm && !a.entry) {
+    return runBatchMutation({
+      namespace, mutation: appendJournal,
+      args: { namespace, nodeId: "", entry: "", date: "" },
+      confirm: true, token: a.confirmationToken,
+      returnMode: a.returnMode ?? "summary",
+      idempotencyKey: a.idempotencyKey,
+      payloadHash: "", extra: {}, storePayload: true,
+    });
+  }
+
+  if (!a.on) return { error: "`on` is required: the name of the document or section whose journal takes the entry." };
+  if (!a.entry || a.entry.trim() === "") return { error: "`entry` is required: the decision, in words — what was decided, on what basis, what stays open." };
+
+  const target = await resolveOne(namespace, a.on, JOURNALED_LABELS, THE_JOURNALED);
+  if ("answer" in target) return target.answer;
+
+  // The stamp is the server's, not the caller's: the date and the signed-in
+  // author, so a journal reads on its own without the audit beside it.
+  const args = { namespace, nodeId: target.id, entry: a.entry, title: a.title, date: todayIso(), author: currentActor().email };
+  const heading = journalHeading(args);
+
+  return runBatchMutation({
+    namespace, mutation: appendJournal, args,
+    confirm: a.confirm, token: a.confirmationToken,
+    returnMode: a.returnMode ?? "summary",
+    idempotencyKey: a.idempotencyKey,
+    payloadHash: idempotencyPayloadHash(args),
+    extra: { heading },
+    storePayload: true,
+  });
+}
+
 export function registerDocumentAuthoringTools(server: McpServer) {
+  server.registerTool(
+    "append_journal",
+    {
+      title: "Add a dated entry to a document's or a section's decision journal",
+      description:
+        "Add ONE entry to the decision journal of a document or of a section (`metadata.journal` — the dated history behind its rules: what was decided, on whose feedback, what stays open). Use this instead of edit_nodes on the journal field: an edit rewrites the whole field from the caller's copy, so two sessions on the same document silently overwrite each other. This verb reads the journal as it stands in the draft at the moment of writing and appends after it, and a confirm whose base moved since the dry-run is refused. " +
+        "`on` is the document or section BY NAME (the server resolves it; on several matches it returns `needsChoice` + `candidates` with their `path` — ask, then re-call with that candidate's `id`). `entry` is the text; `title` an optional short heading. The server stamps the heading line with today's date and the signed-in author, and opens the journal with its header line when the node had none — the response echoes the `heading` written. Journals live on documents and sections only; a lesson is refused. A journal is read on the node with walk_graph (no generation read returns it). " +
+        "REQUIRES CONFIRMATION: the dry-run returns a summary + confirmationToken; confirm with the token alone when `payloadStored:true`. DRAFT edit — publish_draft to make it live.",
+      inputSchema: {
+        on: z.string().optional(),
+        entry: z.string().optional(),
+        title: z.string().optional(),
+        returnMode: z.enum(["summary", "full"]).optional(),
+        idempotencyKey: z.string().optional(),
+        confirm: z.boolean().optional(),
+        confirmationToken: z.string().optional(),
+      },
+    },
+    guarded(async (args) => asJson(await runAppendJournal(args as AppendJournalToolArgs))),
+  );
+
   server.registerTool(
     "create_document",
     {
