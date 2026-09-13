@@ -1,0 +1,2214 @@
+{
+  "corpus": "fiches 21–30",
+  "measuredOn": "2026-09-13",
+  "fiches": 10,
+  "pages": [
+    2,
+    2,
+    2,
+    2,
+    2,
+    2,
+    2,
+    2,
+    2,
+    2
+  ],
+  "margins": {
+    "top": 1.22,
+    "right": 1.27,
+    "bottom": 1.07,
+    "left": 1.27
+  },
+  "sizePt": 12,
+  "pictures": {
+    "picto": {
+      "count": 184,
+      "heightMedian": 0.42,
+      "heightMax": 0.5,
+      "widthMedian": 0.42,
+      "widthMax": 0.5,
+      "ratioMedian": 1,
+      "ratioMax": 1,
+      "floated": 0
+    },
+    "scene": {
+      "count": 28,
+      "heightMedian": 2.2,
+      "heightMax": 2.6,
+      "widthMedian": 4.24,
+      "widthMax": 5.17,
+      "ratioMedian": 1.8,
+      "ratioMax": 2.38,
+      "floated": 28
+    },
+    "bande": {
+      "count": 76,
+      "heightMedian": 1.63,
+      "heightMax": 2.33,
+      "widthMedian": 7.5,
+      "widthMax": 7.5,
+      "ratioMedian": 4.6,
+      "ratioMax": 6.15,
+      "floated": 76
+    }
+  },
+  "perFiche": [
+    {
+      "lesson": 21,
+      "pages": 2,
+      "pagesFrom": "pdf",
+      "margins": {
+        "top": 1.22,
+        "right": 1.27,
+        "bottom": 1.07,
+        "left": 1.27
+      },
+      "sizePt": 12,
+      "pictures": [
+        {
+          "role": "picto",
+          "w": 0.5,
+          "h": 0.5,
+          "ratio": 1,
+          "float": false
+        },
+        {
+          "role": "picto",
+          "w": 0.42,
+          "h": 0.42,
+          "ratio": 1,
+          "float": false
+        },
+        {
+          "role": "scene",
+          "w": 3.94,
+          "h": 2.2,
+          "ratio": 1.79,
+          "float": true
+        },
+        {
+          "role": "picto",
+          "w": 0.42,
+          "h": 0.42,
+          "ratio": 1,
+          "float": false
+        },
+        {
+          "role": "bande",
+          "w": 5.5,
+          "h": 1.43,
+          "ratio": 3.85,
+          "float": true
+        },
+        {
+          "role": "picto",
+          "w": 0.42,
+          "h": 0.42,
+          "ratio": 1,
+          "float": false
+        },
+        {
+          "role": "picto",
+          "w": 0.42,
+          "h": 0.42,
+          "ratio": 1,
+          "float": false
+        },
+        {
+          "role": "picto",
+          "w": 0.42,
+          "h": 0.42,
+          "ratio": 1,
+          "float": false
+        },
+        {
+          "role": "bande",
+          "w": 7.5,
+          "h": 1.63,
+          "ratio": 4.6,
+          "float": true
+        },
+        {
+          "role": "picto",
+          "w": 0.42,
+          "h": 0.42,
+          "ratio": 1,
+          "float": false
+        },
+        {
+          "role": "bande",
+          "w": 7.5,
+          "h": 1.22,
+          "ratio": 6.15,
+          "float": true
+        },
+        {
+          "role": "picto",
+          "w": 0.42,
+          "h": 0.42,
+          "ratio": 1,
+          "float": false
+        },
+        {
+          "role": "bande",
+          "w": 7.5,
+          "h": 1.22,
+          "ratio": 6.15,
+          "float": true
+        },
+        {
+          "role": "picto",
+          "w": 0.42,
+          "h": 0.42,
+          "ratio": 1,
+          "float": false
+        },
+        {
+          "role": "scene",
+          "w": 4.29,
+          "h": 1.8,
+          "ratio": 2.38,
+          "float": true
+        },
+        {
+          "role": "picto",
+          "w": 0.42,
+          "h": 0.42,
+          "ratio": 1,
+          "float": false
+        },
+        {
+          "role": "picto",
+          "w": 0.42,
+          "h": 0.42,
+          "ratio": 1,
+          "float": false
+        },
+        {
+          "role": "picto",
+          "w": 0.42,
+          "h": 0.42,
+          "ratio": 1,
+          "float": false
+        },
+        {
+          "role": "picto",
+          "w": 0.42,
+          "h": 0.42,
+          "ratio": 1,
+          "float": false
+        },
+        {
+          "role": "picto",
+          "w": 0.42,
+          "h": 0.42,
+          "ratio": 1,
+          "float": false
+        },
+        {
+          "role": "picto",
+          "w": 0.42,
+          "h": 0.42,
+          "ratio": 1,
+          "float": false
+        },
+        {
+          "role": "bande",
+          "w": 7.5,
+          "h": 1.63,
+          "ratio": 4.6,
+          "float": true
+        },
+        {
+          "role": "picto",
+          "w": 0.42,
+          "h": 0.42,
+          "ratio": 1,
+          "float": false
+        },
+        {
+          "role": "bande",
+          "w": 7.5,
+          "h": 2.33,
+          "ratio": 3.21,
+          "float": true
+        },
+        {
+          "role": "picto",
+          "w": 0.42,
+          "h": 0.42,
+          "ratio": 1,
+          "float": false
+        },
+        {
+          "role": "bande",
+          "w": 7.5,
+          "h": 1.22,
+          "ratio": 6.15,
+          "float": true
+        },
+        {
+          "role": "picto",
+          "w": 0.42,
+          "h": 0.42,
+          "ratio": 1,
+          "float": false
+        },
+        {
+          "role": "bande",
+          "w": 7.5,
+          "h": 1.41,
+          "ratio": 5.33,
+          "float": true
+        },
+        {
+          "role": "picto",
+          "w": 0.42,
+          "h": 0.42,
+          "ratio": 1,
+          "float": false
+        },
+        {
+          "role": "bande",
+          "w": 7.5,
+          "h": 2.33,
+          "ratio": 3.22,
+          "float": true
+        },
+        {
+          "role": "picto",
+          "w": 0.42,
+          "h": 0.42,
+          "ratio": 1,
+          "float": false
+        }
+      ]
+    },
+    {
+      "lesson": 22,
+      "pages": 2,
+      "pagesFrom": "pdf",
+      "margins": {
+        "top": 1.22,
+        "right": 1.27,
+        "bottom": 1.07,
+        "left": 1.27
+      },
+      "sizePt": 12,
+      "pictures": [
+        {
+          "role": "picto",
+          "w": 0.5,
+          "h": 0.5,
+          "ratio": 1,
+          "float": false
+        },
+        {
+          "role": "bande",
+          "w": 5.5,
+          "h": 1.67,
+          "ratio": 3.29,
+          "float": true
+        },
+        {
+          "role": "picto",
+          "w": 0.42,
+          "h": 0.42,
+          "ratio": 1,
+          "float": false
+        },
+        {
+          "role": "scene",
+          "w": 3.94,
+          "h": 2.2,
+          "ratio": 1.79,
+          "float": true
+        },
+        {
+          "role": "picto",
+          "w": 0.42,
+          "h": 0.42,
+          "ratio": 1,
+          "float": false
+        },
+        {
+          "role": "scene",
+          "w": 4.24,
+          "h": 2.2,
+          "ratio": 1.93,
+          "float": true
+        },
+        {
+          "role": "picto",
+          "w": 0.42,
+          "h": 0.42,
+          "ratio": 1,
+          "float": false
+        },
+        {
+          "role": "picto",
+          "w": 0.42,
+          "h": 0.42,
+          "ratio": 1,
+          "float": false
+        },
+        {
+          "role": "picto",
+          "w": 0.42,
+          "h": 0.42,
+          "ratio": 1,
+          "float": false
+        },
+        {
+          "role": "bande",
+          "w": 7.5,
+          "h": 1.63,
+          "ratio": 4.6,
+          "float": true
+        },
+        {
+          "role": "picto",
+          "w": 0.42,
+          "h": 0.42,
+          "ratio": 1,
+          "float": false
+        },
+        {
+          "role": "bande",
+          "w": 7.5,
+          "h": 1.22,
+          "ratio": 6.15,
+          "float": true
+        },
+        {
+          "role": "picto",
+          "w": 0.42,
+          "h": 0.42,
+          "ratio": 1,
+          "float": false
+        },
+        {
+          "role": "bande",
+          "w": 7.5,
+          "h": 1.22,
+          "ratio": 6.15,
+          "float": true
+        },
+        {
+          "role": "picto",
+          "w": 0.42,
+          "h": 0.42,
+          "ratio": 1,
+          "float": false
+        },
+        {
+          "role": "picto",
+          "w": 0.42,
+          "h": 0.42,
+          "ratio": 1,
+          "float": false
+        },
+        {
+          "role": "scene",
+          "w": 4.24,
+          "h": 1.8,
+          "ratio": 2.36,
+          "float": true
+        },
+        {
+          "role": "picto",
+          "w": 0.42,
+          "h": 0.42,
+          "ratio": 1,
+          "float": false
+        },
+        {
+          "role": "picto",
+          "w": 0.42,
+          "h": 0.42,
+          "ratio": 1,
+          "float": false
+        },
+        {
+          "role": "picto",
+          "w": 0.42,
+          "h": 0.42,
+          "ratio": 1,
+          "float": false
+        },
+        {
+          "role": "picto",
+          "w": 0.42,
+          "h": 0.42,
+          "ratio": 1,
+          "float": false
+        },
+        {
+          "role": "picto",
+          "w": 0.42,
+          "h": 0.42,
+          "ratio": 1,
+          "float": false
+        },
+        {
+          "role": "bande",
+          "w": 7.5,
+          "h": 1.63,
+          "ratio": 4.6,
+          "float": true
+        },
+        {
+          "role": "picto",
+          "w": 0.42,
+          "h": 0.42,
+          "ratio": 1,
+          "float": false
+        },
+        {
+          "role": "bande",
+          "w": 7.5,
+          "h": 1.22,
+          "ratio": 6.15,
+          "float": true
+        },
+        {
+          "role": "picto",
+          "w": 0.42,
+          "h": 0.42,
+          "ratio": 1,
+          "float": false
+        },
+        {
+          "role": "bande",
+          "w": 7.5,
+          "h": 1.22,
+          "ratio": 6.15,
+          "float": true
+        },
+        {
+          "role": "picto",
+          "w": 0.42,
+          "h": 0.42,
+          "ratio": 1,
+          "float": false
+        },
+        {
+          "role": "picto",
+          "w": 0.42,
+          "h": 0.42,
+          "ratio": 1,
+          "float": false
+        },
+        {
+          "role": "bande",
+          "w": 7.5,
+          "h": 2.33,
+          "ratio": 3.21,
+          "float": true
+        }
+      ]
+    },
+    {
+      "lesson": 23,
+      "pages": 2,
+      "pagesFrom": "pdf",
+      "margins": {
+        "top": 1.22,
+        "right": 1.27,
+        "bottom": 1.07,
+        "left": 1.27
+      },
+      "sizePt": 12,
+      "pictures": [
+        {
+          "role": "picto",
+          "w": 0.5,
+          "h": 0.5,
+          "ratio": 1,
+          "float": false
+        },
+        {
+          "role": "picto",
+          "w": 0.42,
+          "h": 0.42,
+          "ratio": 1,
+          "float": false
+        },
+        {
+          "role": "scene",
+          "w": 3.94,
+          "h": 2.2,
+          "ratio": 1.79,
+          "float": true
+        },
+        {
+          "role": "picto",
+          "w": 0.42,
+          "h": 0.42,
+          "ratio": 1,
+          "float": false
+        },
+        {
+          "role": "bande",
+          "w": 5.5,
+          "h": 1.49,
+          "ratio": 3.7,
+          "float": true
+        },
+        {
+          "role": "picto",
+          "w": 0.42,
+          "h": 0.42,
+          "ratio": 1,
+          "float": false
+        },
+        {
+          "role": "picto",
+          "w": 0.42,
+          "h": 0.42,
+          "ratio": 1,
+          "float": false
+        },
+        {
+          "role": "picto",
+          "w": 0.42,
+          "h": 0.42,
+          "ratio": 1,
+          "float": false
+        },
+        {
+          "role": "bande",
+          "w": 7.5,
+          "h": 1.63,
+          "ratio": 4.6,
+          "float": true
+        },
+        {
+          "role": "picto",
+          "w": 0.42,
+          "h": 0.42,
+          "ratio": 1,
+          "float": false
+        },
+        {
+          "role": "bande",
+          "w": 7.5,
+          "h": 1.63,
+          "ratio": 4.6,
+          "float": true
+        },
+        {
+          "role": "picto",
+          "w": 0.42,
+          "h": 0.42,
+          "ratio": 1,
+          "float": false
+        },
+        {
+          "role": "bande",
+          "w": 7.5,
+          "h": 1.63,
+          "ratio": 4.6,
+          "float": true
+        },
+        {
+          "role": "picto",
+          "w": 0.42,
+          "h": 0.42,
+          "ratio": 1,
+          "float": false
+        },
+        {
+          "role": "scene",
+          "w": 4.24,
+          "h": 1.8,
+          "ratio": 2.36,
+          "float": true
+        },
+        {
+          "role": "picto",
+          "w": 0.42,
+          "h": 0.42,
+          "ratio": 1,
+          "float": false
+        },
+        {
+          "role": "picto",
+          "w": 0.42,
+          "h": 0.42,
+          "ratio": 1,
+          "float": false
+        },
+        {
+          "role": "picto",
+          "w": 0.42,
+          "h": 0.42,
+          "ratio": 1,
+          "float": false
+        },
+        {
+          "role": "picto",
+          "w": 0.42,
+          "h": 0.42,
+          "ratio": 1,
+          "float": false
+        },
+        {
+          "role": "picto",
+          "w": 0.42,
+          "h": 0.42,
+          "ratio": 1,
+          "float": false
+        },
+        {
+          "role": "picto",
+          "w": 0.42,
+          "h": 0.42,
+          "ratio": 1,
+          "float": false
+        },
+        {
+          "role": "bande",
+          "w": 7.5,
+          "h": 1.63,
+          "ratio": 4.6,
+          "float": true
+        },
+        {
+          "role": "picto",
+          "w": 0.42,
+          "h": 0.42,
+          "ratio": 1,
+          "float": false
+        },
+        {
+          "role": "bande",
+          "w": 7.5,
+          "h": 1.63,
+          "ratio": 4.6,
+          "float": true
+        },
+        {
+          "role": "picto",
+          "w": 0.42,
+          "h": 0.42,
+          "ratio": 1,
+          "float": false
+        },
+        {
+          "role": "bande",
+          "w": 7.5,
+          "h": 1.63,
+          "ratio": 4.6,
+          "float": true
+        },
+        {
+          "role": "picto",
+          "w": 0.42,
+          "h": 0.42,
+          "ratio": 1,
+          "float": false
+        },
+        {
+          "role": "picto",
+          "w": 0.42,
+          "h": 0.42,
+          "ratio": 1,
+          "float": false
+        },
+        {
+          "role": "bande",
+          "w": 7.5,
+          "h": 2.33,
+          "ratio": 3.21,
+          "float": true
+        }
+      ]
+    },
+    {
+      "lesson": 24,
+      "pages": 2,
+      "pagesFrom": "pdf",
+      "margins": {
+        "top": 1.22,
+        "right": 1.27,
+        "bottom": 1.07,
+        "left": 1.27
+      },
+      "sizePt": 12,
+      "pictures": [
+        {
+          "role": "picto",
+          "w": 0.5,
+          "h": 0.5,
+          "ratio": 1,
+          "float": false
+        },
+        {
+          "role": "picto",
+          "w": 0.42,
+          "h": 0.42,
+          "ratio": 1,
+          "float": false
+        },
+        {
+          "role": "scene",
+          "w": 3.94,
+          "h": 2.2,
+          "ratio": 1.79,
+          "float": true
+        },
+        {
+          "role": "picto",
+          "w": 0.42,
+          "h": 0.42,
+          "ratio": 1,
+          "float": false
+        },
+        {
+          "role": "bande",
+          "w": 5.5,
+          "h": 2.15,
+          "ratio": 2.56,
+          "float": true
+        },
+        {
+          "role": "picto",
+          "w": 0.42,
+          "h": 0.42,
+          "ratio": 1,
+          "float": false
+        },
+        {
+          "role": "picto",
+          "w": 0.42,
+          "h": 0.42,
+          "ratio": 1,
+          "float": false
+        },
+        {
+          "role": "picto",
+          "w": 0.42,
+          "h": 0.42,
+          "ratio": 1,
+          "float": false
+        },
+        {
+          "role": "bande",
+          "w": 7.5,
+          "h": 1.63,
+          "ratio": 4.6,
+          "float": true
+        },
+        {
+          "role": "picto",
+          "w": 0.42,
+          "h": 0.42,
+          "ratio": 1,
+          "float": false
+        },
+        {
+          "role": "bande",
+          "w": 7.5,
+          "h": 1.63,
+          "ratio": 4.6,
+          "float": true
+        },
+        {
+          "role": "picto",
+          "w": 0.42,
+          "h": 0.42,
+          "ratio": 1,
+          "float": false
+        },
+        {
+          "role": "bande",
+          "w": 7.5,
+          "h": 1.63,
+          "ratio": 4.6,
+          "float": true
+        },
+        {
+          "role": "picto",
+          "w": 0.42,
+          "h": 0.42,
+          "ratio": 1,
+          "float": false
+        },
+        {
+          "role": "picto",
+          "w": 0.42,
+          "h": 0.42,
+          "ratio": 1,
+          "float": false
+        },
+        {
+          "role": "scene",
+          "w": 4.24,
+          "h": 1.8,
+          "ratio": 2.36,
+          "float": true
+        },
+        {
+          "role": "picto",
+          "w": 0.42,
+          "h": 0.42,
+          "ratio": 1,
+          "float": false
+        },
+        {
+          "role": "picto",
+          "w": 0.42,
+          "h": 0.42,
+          "ratio": 1,
+          "float": false
+        },
+        {
+          "role": "picto",
+          "w": 0.42,
+          "h": 0.42,
+          "ratio": 1,
+          "float": false
+        },
+        {
+          "role": "picto",
+          "w": 0.42,
+          "h": 0.42,
+          "ratio": 1,
+          "float": false
+        },
+        {
+          "role": "picto",
+          "w": 0.42,
+          "h": 0.42,
+          "ratio": 1,
+          "float": false
+        },
+        {
+          "role": "bande",
+          "w": 7.5,
+          "h": 1.63,
+          "ratio": 4.6,
+          "float": true
+        },
+        {
+          "role": "picto",
+          "w": 0.42,
+          "h": 0.42,
+          "ratio": 1,
+          "float": false
+        },
+        {
+          "role": "bande",
+          "w": 7.5,
+          "h": 1.63,
+          "ratio": 4.6,
+          "float": true
+        },
+        {
+          "role": "picto",
+          "w": 0.42,
+          "h": 0.42,
+          "ratio": 1,
+          "float": false
+        },
+        {
+          "role": "bande",
+          "w": 7.5,
+          "h": 1.63,
+          "ratio": 4.6,
+          "float": true
+        },
+        {
+          "role": "picto",
+          "w": 0.42,
+          "h": 0.42,
+          "ratio": 1,
+          "float": false
+        },
+        {
+          "role": "bande",
+          "w": 7.5,
+          "h": 1.63,
+          "ratio": 4.6,
+          "float": true
+        },
+        {
+          "role": "picto",
+          "w": 0.42,
+          "h": 0.42,
+          "ratio": 1,
+          "float": false
+        }
+      ]
+    },
+    {
+      "lesson": 25,
+      "pages": 2,
+      "pagesFrom": "pdf",
+      "margins": {
+        "top": 1.22,
+        "right": 1.27,
+        "bottom": 1.07,
+        "left": 1.27
+      },
+      "sizePt": 12,
+      "pictures": [
+        {
+          "role": "picto",
+          "w": 0.5,
+          "h": 0.5,
+          "ratio": 1,
+          "float": false
+        },
+        {
+          "role": "picto",
+          "w": 0.42,
+          "h": 0.42,
+          "ratio": 1,
+          "float": false
+        },
+        {
+          "role": "scene",
+          "w": 3.94,
+          "h": 2.2,
+          "ratio": 1.79,
+          "float": true
+        },
+        {
+          "role": "picto",
+          "w": 0.42,
+          "h": 0.42,
+          "ratio": 1,
+          "float": false
+        },
+        {
+          "role": "scene",
+          "w": 3.97,
+          "h": 2.2,
+          "ratio": 1.8,
+          "float": true
+        },
+        {
+          "role": "picto",
+          "w": 0.42,
+          "h": 0.42,
+          "ratio": 1,
+          "float": false
+        },
+        {
+          "role": "picto",
+          "w": 0.42,
+          "h": 0.42,
+          "ratio": 1,
+          "float": false
+        },
+        {
+          "role": "picto",
+          "w": 0.42,
+          "h": 0.42,
+          "ratio": 1,
+          "float": false
+        },
+        {
+          "role": "bande",
+          "w": 7.5,
+          "h": 1.63,
+          "ratio": 4.6,
+          "float": true
+        },
+        {
+          "role": "picto",
+          "w": 0.42,
+          "h": 0.42,
+          "ratio": 1,
+          "float": false
+        },
+        {
+          "role": "bande",
+          "w": 7.5,
+          "h": 1.63,
+          "ratio": 4.6,
+          "float": true
+        },
+        {
+          "role": "picto",
+          "w": 0.42,
+          "h": 0.42,
+          "ratio": 1,
+          "float": false
+        },
+        {
+          "role": "bande",
+          "w": 7.5,
+          "h": 1.22,
+          "ratio": 6.15,
+          "float": true
+        },
+        {
+          "role": "picto",
+          "w": 0.42,
+          "h": 0.42,
+          "ratio": 1,
+          "float": false
+        },
+        {
+          "role": "scene",
+          "w": 4.24,
+          "h": 1.8,
+          "ratio": 2.36,
+          "float": true
+        },
+        {
+          "role": "picto",
+          "w": 0.42,
+          "h": 0.42,
+          "ratio": 1,
+          "float": false
+        },
+        {
+          "role": "picto",
+          "w": 0.42,
+          "h": 0.42,
+          "ratio": 1,
+          "float": false
+        },
+        {
+          "role": "picto",
+          "w": 0.42,
+          "h": 0.42,
+          "ratio": 1,
+          "float": false
+        },
+        {
+          "role": "picto",
+          "w": 0.42,
+          "h": 0.42,
+          "ratio": 1,
+          "float": false
+        },
+        {
+          "role": "picto",
+          "w": 0.42,
+          "h": 0.42,
+          "ratio": 1,
+          "float": false
+        },
+        {
+          "role": "picto",
+          "w": 0.42,
+          "h": 0.42,
+          "ratio": 1,
+          "float": false
+        },
+        {
+          "role": "bande",
+          "w": 7.5,
+          "h": 1.63,
+          "ratio": 4.6,
+          "float": true
+        },
+        {
+          "role": "picto",
+          "w": 0.42,
+          "h": 0.42,
+          "ratio": 1,
+          "float": false
+        },
+        {
+          "role": "bande",
+          "w": 7.5,
+          "h": 1.63,
+          "ratio": 4.6,
+          "float": true
+        },
+        {
+          "role": "picto",
+          "w": 0.42,
+          "h": 0.42,
+          "ratio": 1,
+          "float": false
+        },
+        {
+          "role": "bande",
+          "w": 7.5,
+          "h": 1.22,
+          "ratio": 6.15,
+          "float": true
+        },
+        {
+          "role": "picto",
+          "w": 0.42,
+          "h": 0.42,
+          "ratio": 1,
+          "float": false
+        },
+        {
+          "role": "picto",
+          "w": 0.42,
+          "h": 0.42,
+          "ratio": 1,
+          "float": false
+        },
+        {
+          "role": "bande",
+          "w": 7.5,
+          "h": 1.22,
+          "ratio": 6.15,
+          "float": true
+        }
+      ]
+    },
+    {
+      "lesson": 26,
+      "pages": 2,
+      "pagesFrom": "pdf",
+      "margins": {
+        "top": 1.22,
+        "right": 1.27,
+        "bottom": 1.07,
+        "left": 1.27
+      },
+      "sizePt": 12,
+      "pictures": [
+        {
+          "role": "picto",
+          "w": 0.5,
+          "h": 0.5,
+          "ratio": 1,
+          "float": false
+        },
+        {
+          "role": "picto",
+          "w": 0.42,
+          "h": 0.42,
+          "ratio": 1,
+          "float": false
+        },
+        {
+          "role": "scene",
+          "w": 3.94,
+          "h": 2.2,
+          "ratio": 1.79,
+          "float": true
+        },
+        {
+          "role": "picto",
+          "w": 0.42,
+          "h": 0.42,
+          "ratio": 1,
+          "float": false
+        },
+        {
+          "role": "scene",
+          "w": 3.47,
+          "h": 2.2,
+          "ratio": 1.58,
+          "float": true
+        },
+        {
+          "role": "picto",
+          "w": 0.42,
+          "h": 0.42,
+          "ratio": 1,
+          "float": false
+        },
+        {
+          "role": "picto",
+          "w": 0.42,
+          "h": 0.42,
+          "ratio": 1,
+          "float": false
+        },
+        {
+          "role": "picto",
+          "w": 0.42,
+          "h": 0.42,
+          "ratio": 1,
+          "float": false
+        },
+        {
+          "role": "bande",
+          "w": 7.5,
+          "h": 1.22,
+          "ratio": 6.15,
+          "float": true
+        },
+        {
+          "role": "picto",
+          "w": 0.42,
+          "h": 0.42,
+          "ratio": 1,
+          "float": false
+        },
+        {
+          "role": "bande",
+          "w": 7.5,
+          "h": 1.22,
+          "ratio": 6.15,
+          "float": true
+        },
+        {
+          "role": "picto",
+          "w": 0.42,
+          "h": 0.42,
+          "ratio": 1,
+          "float": false
+        },
+        {
+          "role": "bande",
+          "w": 7.5,
+          "h": 1.63,
+          "ratio": 4.6,
+          "float": true
+        },
+        {
+          "role": "picto",
+          "w": 0.42,
+          "h": 0.42,
+          "ratio": 1,
+          "float": false
+        },
+        {
+          "role": "scene",
+          "w": 4.08,
+          "h": 1.8,
+          "ratio": 2.27,
+          "float": true
+        },
+        {
+          "role": "picto",
+          "w": 0.42,
+          "h": 0.42,
+          "ratio": 1,
+          "float": false
+        },
+        {
+          "role": "picto",
+          "w": 0.42,
+          "h": 0.42,
+          "ratio": 1,
+          "float": false
+        },
+        {
+          "role": "picto",
+          "w": 0.42,
+          "h": 0.42,
+          "ratio": 1,
+          "float": false
+        },
+        {
+          "role": "bande",
+          "w": 5.5,
+          "h": 1.49,
+          "ratio": 3.69,
+          "float": true
+        },
+        {
+          "role": "picto",
+          "w": 0.42,
+          "h": 0.42,
+          "ratio": 1,
+          "float": false
+        },
+        {
+          "role": "picto",
+          "w": 0.42,
+          "h": 0.42,
+          "ratio": 1,
+          "float": false
+        },
+        {
+          "role": "picto",
+          "w": 0.42,
+          "h": 0.42,
+          "ratio": 1,
+          "float": false
+        },
+        {
+          "role": "bande",
+          "w": 7.5,
+          "h": 1.63,
+          "ratio": 4.6,
+          "float": true
+        },
+        {
+          "role": "picto",
+          "w": 0.42,
+          "h": 0.42,
+          "ratio": 1,
+          "float": false
+        },
+        {
+          "role": "scene",
+          "w": 4.67,
+          "h": 2.5,
+          "ratio": 1.87,
+          "float": true
+        },
+        {
+          "role": "picto",
+          "w": 0.42,
+          "h": 0.42,
+          "ratio": 1,
+          "float": false
+        },
+        {
+          "role": "bande",
+          "w": 7.5,
+          "h": 1.22,
+          "ratio": 6.15,
+          "float": true
+        },
+        {
+          "role": "picto",
+          "w": 0.42,
+          "h": 0.42,
+          "ratio": 1,
+          "float": false
+        },
+        {
+          "role": "scene",
+          "w": 4.39,
+          "h": 2.5,
+          "ratio": 1.76,
+          "float": true
+        },
+        {
+          "role": "picto",
+          "w": 0.42,
+          "h": 0.42,
+          "ratio": 1,
+          "float": false
+        },
+        {
+          "role": "picto",
+          "w": 0.42,
+          "h": 0.42,
+          "ratio": 1,
+          "float": false
+        },
+        {
+          "role": "bande",
+          "w": 7.5,
+          "h": 2.33,
+          "ratio": 3.22,
+          "float": true
+        }
+      ]
+    },
+    {
+      "lesson": 27,
+      "pages": 2,
+      "pagesFrom": "pdf",
+      "margins": {
+        "top": 1.22,
+        "right": 1.27,
+        "bottom": 1.07,
+        "left": 1.27
+      },
+      "sizePt": 12,
+      "pictures": [
+        {
+          "role": "picto",
+          "w": 0.5,
+          "h": 0.5,
+          "ratio": 1,
+          "float": false
+        },
+        {
+          "role": "scene",
+          "w": 3.94,
+          "h": 2.2,
+          "ratio": 1.79,
+          "float": true
+        },
+        {
+          "role": "picto",
+          "w": 0.42,
+          "h": 0.42,
+          "ratio": 1,
+          "float": false
+        },
+        {
+          "role": "picto",
+          "w": 0.42,
+          "h": 0.42,
+          "ratio": 1,
+          "float": false
+        },
+        {
+          "role": "scene",
+          "w": 4.2,
+          "h": 2.2,
+          "ratio": 1.91,
+          "float": true
+        },
+        {
+          "role": "picto",
+          "w": 0.42,
+          "h": 0.42,
+          "ratio": 1,
+          "float": false
+        },
+        {
+          "role": "picto",
+          "w": 0.42,
+          "h": 0.42,
+          "ratio": 1,
+          "float": false
+        },
+        {
+          "role": "picto",
+          "w": 0.42,
+          "h": 0.42,
+          "ratio": 1,
+          "float": false
+        },
+        {
+          "role": "bande",
+          "w": 7.5,
+          "h": 1.22,
+          "ratio": 6.15,
+          "float": true
+        },
+        {
+          "role": "picto",
+          "w": 0.42,
+          "h": 0.42,
+          "ratio": 1,
+          "float": false
+        },
+        {
+          "role": "bande",
+          "w": 7.5,
+          "h": 1.22,
+          "ratio": 6.15,
+          "float": true
+        },
+        {
+          "role": "picto",
+          "w": 0.42,
+          "h": 0.42,
+          "ratio": 1,
+          "float": false
+        },
+        {
+          "role": "bande",
+          "w": 7.5,
+          "h": 1.63,
+          "ratio": 4.6,
+          "float": true
+        },
+        {
+          "role": "picto",
+          "w": 0.42,
+          "h": 0.42,
+          "ratio": 1,
+          "float": false
+        },
+        {
+          "role": "scene",
+          "w": 4.24,
+          "h": 1.8,
+          "ratio": 2.36,
+          "float": true
+        },
+        {
+          "role": "picto",
+          "w": 0.42,
+          "h": 0.42,
+          "ratio": 1,
+          "float": false
+        },
+        {
+          "role": "picto",
+          "w": 0.42,
+          "h": 0.42,
+          "ratio": 1,
+          "float": false
+        },
+        {
+          "role": "picto",
+          "w": 0.42,
+          "h": 0.42,
+          "ratio": 1,
+          "float": false
+        },
+        {
+          "role": "picto",
+          "w": 0.42,
+          "h": 0.42,
+          "ratio": 1,
+          "float": false
+        },
+        {
+          "role": "picto",
+          "w": 0.42,
+          "h": 0.42,
+          "ratio": 1,
+          "float": false
+        },
+        {
+          "role": "picto",
+          "w": 0.42,
+          "h": 0.42,
+          "ratio": 1,
+          "float": false
+        },
+        {
+          "role": "bande",
+          "w": 7.5,
+          "h": 1.22,
+          "ratio": 6.15,
+          "float": true
+        },
+        {
+          "role": "picto",
+          "w": 0.42,
+          "h": 0.42,
+          "ratio": 1,
+          "float": false
+        },
+        {
+          "role": "bande",
+          "w": 7.5,
+          "h": 1.22,
+          "ratio": 6.15,
+          "float": true
+        },
+        {
+          "role": "picto",
+          "w": 0.42,
+          "h": 0.42,
+          "ratio": 1,
+          "float": false
+        },
+        {
+          "role": "bande",
+          "w": 7.5,
+          "h": 1.63,
+          "ratio": 4.6,
+          "float": true
+        },
+        {
+          "role": "picto",
+          "w": 0.42,
+          "h": 0.42,
+          "ratio": 1,
+          "float": false
+        },
+        {
+          "role": "picto",
+          "w": 0.42,
+          "h": 0.42,
+          "ratio": 1,
+          "float": false
+        },
+        {
+          "role": "bande",
+          "w": 7.5,
+          "h": 1.22,
+          "ratio": 6.15,
+          "float": true
+        }
+      ]
+    },
+    {
+      "lesson": 28,
+      "pages": 2,
+      "pagesFrom": "pdf",
+      "margins": {
+        "top": 1.22,
+        "right": 1.27,
+        "bottom": 1.07,
+        "left": 1.27
+      },
+      "sizePt": 12,
+      "pictures": [
+        {
+          "role": "picto",
+          "w": 0.5,
+          "h": 0.5,
+          "ratio": 1,
+          "float": false
+        },
+        {
+          "role": "scene",
+          "w": 4.66,
+          "h": 2.6,
+          "ratio": 1.79,
+          "float": true
+        },
+        {
+          "role": "picto",
+          "w": 0.42,
+          "h": 0.42,
+          "ratio": 1,
+          "float": false
+        },
+        {
+          "role": "bande",
+          "w": 7.5,
+          "h": 1.62,
+          "ratio": 4.63,
+          "float": true
+        },
+        {
+          "role": "picto",
+          "w": 0.42,
+          "h": 0.42,
+          "ratio": 1,
+          "float": false
+        },
+        {
+          "role": "bande",
+          "w": 7.5,
+          "h": 1.64,
+          "ratio": 4.58,
+          "float": true
+        },
+        {
+          "role": "picto",
+          "w": 0.42,
+          "h": 0.42,
+          "ratio": 1,
+          "float": false
+        },
+        {
+          "role": "bande",
+          "w": 7.5,
+          "h": 1.62,
+          "ratio": 4.63,
+          "float": true
+        },
+        {
+          "role": "picto",
+          "w": 0.42,
+          "h": 0.42,
+          "ratio": 1,
+          "float": false
+        },
+        {
+          "role": "bande",
+          "w": 7.5,
+          "h": 1.62,
+          "ratio": 4.63,
+          "float": true
+        },
+        {
+          "role": "scene",
+          "w": 4.66,
+          "h": 2.6,
+          "ratio": 1.79,
+          "float": true
+        },
+        {
+          "role": "bande",
+          "w": 7.5,
+          "h": 1.62,
+          "ratio": 4.63,
+          "float": true
+        },
+        {
+          "role": "picto",
+          "w": 0.42,
+          "h": 0.42,
+          "ratio": 1,
+          "float": false
+        },
+        {
+          "role": "picto",
+          "w": 0.42,
+          "h": 0.42,
+          "ratio": 1,
+          "float": false
+        },
+        {
+          "role": "bande",
+          "w": 7.5,
+          "h": 1.73,
+          "ratio": 4.33,
+          "float": true
+        },
+        {
+          "role": "picto",
+          "w": 0.42,
+          "h": 0.42,
+          "ratio": 1,
+          "float": false
+        },
+        {
+          "role": "picto",
+          "w": 0.42,
+          "h": 0.42,
+          "ratio": 1,
+          "float": false
+        },
+        {
+          "role": "picto",
+          "w": 0.42,
+          "h": 0.42,
+          "ratio": 1,
+          "float": false
+        },
+        {
+          "role": "picto",
+          "w": 0.42,
+          "h": 0.42,
+          "ratio": 1,
+          "float": false
+        }
+      ]
+    },
+    {
+      "lesson": 29,
+      "pages": 2,
+      "pagesFrom": "pdf",
+      "margins": {
+        "top": 1.22,
+        "right": 1.27,
+        "bottom": 1.07,
+        "left": 1.27
+      },
+      "sizePt": 12,
+      "pictures": [
+        {
+          "role": "picto",
+          "w": 0.5,
+          "h": 0.5,
+          "ratio": 1,
+          "float": false
+        },
+        {
+          "role": "scene",
+          "w": 5.17,
+          "h": 2.2,
+          "ratio": 2.35,
+          "float": true
+        },
+        {
+          "role": "picto",
+          "w": 0.42,
+          "h": 0.42,
+          "ratio": 1,
+          "float": false
+        },
+        {
+          "role": "scene",
+          "w": 3.94,
+          "h": 2.2,
+          "ratio": 1.79,
+          "float": true
+        },
+        {
+          "role": "picto",
+          "w": 0.42,
+          "h": 0.42,
+          "ratio": 1,
+          "float": false
+        },
+        {
+          "role": "bande",
+          "w": 5.5,
+          "h": 2.08,
+          "ratio": 2.64,
+          "float": true
+        },
+        {
+          "role": "picto",
+          "w": 0.42,
+          "h": 0.42,
+          "ratio": 1,
+          "float": false
+        },
+        {
+          "role": "picto",
+          "w": 0.42,
+          "h": 0.42,
+          "ratio": 1,
+          "float": false
+        },
+        {
+          "role": "picto",
+          "w": 0.42,
+          "h": 0.42,
+          "ratio": 1,
+          "float": false
+        },
+        {
+          "role": "bande",
+          "w": 7.5,
+          "h": 1.22,
+          "ratio": 6.15,
+          "float": true
+        },
+        {
+          "role": "picto",
+          "w": 0.42,
+          "h": 0.42,
+          "ratio": 1,
+          "float": false
+        },
+        {
+          "role": "bande",
+          "w": 7.5,
+          "h": 1.22,
+          "ratio": 6.15,
+          "float": true
+        },
+        {
+          "role": "picto",
+          "w": 0.42,
+          "h": 0.42,
+          "ratio": 1,
+          "float": false
+        },
+        {
+          "role": "bande",
+          "w": 7.5,
+          "h": 1.22,
+          "ratio": 6.15,
+          "float": true
+        },
+        {
+          "role": "picto",
+          "w": 0.42,
+          "h": 0.42,
+          "ratio": 1,
+          "float": false
+        },
+        {
+          "role": "picto",
+          "w": 0.42,
+          "h": 0.42,
+          "ratio": 1,
+          "float": false
+        },
+        {
+          "role": "scene",
+          "w": 4.24,
+          "h": 1.8,
+          "ratio": 2.36,
+          "float": true
+        },
+        {
+          "role": "picto",
+          "w": 0.42,
+          "h": 0.42,
+          "ratio": 1,
+          "float": false
+        },
+        {
+          "role": "picto",
+          "w": 0.42,
+          "h": 0.42,
+          "ratio": 1,
+          "float": false
+        },
+        {
+          "role": "picto",
+          "w": 0.42,
+          "h": 0.42,
+          "ratio": 1,
+          "float": false
+        },
+        {
+          "role": "picto",
+          "w": 0.42,
+          "h": 0.42,
+          "ratio": 1,
+          "float": false
+        },
+        {
+          "role": "picto",
+          "w": 0.42,
+          "h": 0.42,
+          "ratio": 1,
+          "float": false
+        },
+        {
+          "role": "bande",
+          "w": 7.5,
+          "h": 1.22,
+          "ratio": 6.15,
+          "float": true
+        },
+        {
+          "role": "picto",
+          "w": 0.42,
+          "h": 0.42,
+          "ratio": 1,
+          "float": false
+        },
+        {
+          "role": "bande",
+          "w": 7.5,
+          "h": 1.22,
+          "ratio": 6.15,
+          "float": true
+        },
+        {
+          "role": "picto",
+          "w": 0.42,
+          "h": 0.42,
+          "ratio": 1,
+          "float": false
+        },
+        {
+          "role": "bande",
+          "w": 7.5,
+          "h": 1.63,
+          "ratio": 4.6,
+          "float": true
+        },
+        {
+          "role": "picto",
+          "w": 0.42,
+          "h": 0.42,
+          "ratio": 1,
+          "float": false
+        },
+        {
+          "role": "picto",
+          "w": 0.42,
+          "h": 0.42,
+          "ratio": 1,
+          "float": false
+        },
+        {
+          "role": "bande",
+          "w": 7.5,
+          "h": 1.63,
+          "ratio": 4.6,
+          "float": true
+        }
+      ]
+    },
+    {
+      "lesson": 30,
+      "pages": 2,
+      "pagesFrom": "pdf",
+      "margins": {
+        "top": 1.22,
+        "right": 1.27,
+        "bottom": 1.07,
+        "left": 1.27
+      },
+      "sizePt": 12,
+      "pictures": [
+        {
+          "role": "picto",
+          "w": 0.5,
+          "h": 0.5,
+          "ratio": 1,
+          "float": false
+        },
+        {
+          "role": "bande",
+          "w": 5.5,
+          "h": 1.19,
+          "ratio": 4.61,
+          "float": true
+        },
+        {
+          "role": "picto",
+          "w": 0.42,
+          "h": 0.42,
+          "ratio": 1,
+          "float": false
+        },
+        {
+          "role": "scene",
+          "w": 3.94,
+          "h": 2.2,
+          "ratio": 1.79,
+          "float": true
+        },
+        {
+          "role": "picto",
+          "w": 0.42,
+          "h": 0.42,
+          "ratio": 1,
+          "float": false
+        },
+        {
+          "role": "scene",
+          "w": 3.33,
+          "h": 2.2,
+          "ratio": 1.51,
+          "float": true
+        },
+        {
+          "role": "picto",
+          "w": 0.42,
+          "h": 0.42,
+          "ratio": 1,
+          "float": false
+        },
+        {
+          "role": "picto",
+          "w": 0.42,
+          "h": 0.42,
+          "ratio": 1,
+          "float": false
+        },
+        {
+          "role": "picto",
+          "w": 0.42,
+          "h": 0.42,
+          "ratio": 1,
+          "float": false
+        },
+        {
+          "role": "bande",
+          "w": 7.5,
+          "h": 1.22,
+          "ratio": 6.15,
+          "float": true
+        },
+        {
+          "role": "picto",
+          "w": 0.42,
+          "h": 0.42,
+          "ratio": 1,
+          "float": false
+        },
+        {
+          "role": "bande",
+          "w": 7.5,
+          "h": 1.22,
+          "ratio": 6.15,
+          "float": true
+        },
+        {
+          "role": "picto",
+          "w": 0.42,
+          "h": 0.42,
+          "ratio": 1,
+          "float": false
+        },
+        {
+          "role": "bande",
+          "w": 7.5,
+          "h": 1.22,
+          "ratio": 6.15,
+          "float": true
+        },
+        {
+          "role": "picto",
+          "w": 0.42,
+          "h": 0.42,
+          "ratio": 1,
+          "float": false
+        },
+        {
+          "role": "scene",
+          "w": 4.24,
+          "h": 1.8,
+          "ratio": 2.36,
+          "float": true
+        },
+        {
+          "role": "picto",
+          "w": 0.42,
+          "h": 0.42,
+          "ratio": 1,
+          "float": false
+        },
+        {
+          "role": "picto",
+          "w": 0.42,
+          "h": 0.42,
+          "ratio": 1,
+          "float": false
+        },
+        {
+          "role": "picto",
+          "w": 0.42,
+          "h": 0.42,
+          "ratio": 1,
+          "float": false
+        },
+        {
+          "role": "picto",
+          "w": 0.42,
+          "h": 0.42,
+          "ratio": 1,
+          "float": false
+        },
+        {
+          "role": "picto",
+          "w": 0.42,
+          "h": 0.42,
+          "ratio": 1,
+          "float": false
+        },
+        {
+          "role": "picto",
+          "w": 0.42,
+          "h": 0.42,
+          "ratio": 1,
+          "float": false
+        },
+        {
+          "role": "bande",
+          "w": 7.5,
+          "h": 1.22,
+          "ratio": 6.15,
+          "float": true
+        },
+        {
+          "role": "picto",
+          "w": 0.42,
+          "h": 0.42,
+          "ratio": 1,
+          "float": false
+        },
+        {
+          "role": "bande",
+          "w": 7.5,
+          "h": 2.33,
+          "ratio": 3.21,
+          "float": true
+        },
+        {
+          "role": "picto",
+          "w": 0.42,
+          "h": 0.42,
+          "ratio": 1,
+          "float": false
+        },
+        {
+          "role": "bande",
+          "w": 7.5,
+          "h": 1.22,
+          "ratio": 6.15,
+          "float": true
+        },
+        {
+          "role": "picto",
+          "w": 0.42,
+          "h": 0.42,
+          "ratio": 1,
+          "float": false
+        },
+        {
+          "role": "picto",
+          "w": 0.42,
+          "h": 0.42,
+          "ratio": 1,
+          "float": false
+        },
+        {
+          "role": "bande",
+          "w": 7.5,
+          "h": 2.33,
+          "ratio": 3.21,
+          "float": true
+        }
+      ]
+    }
+  ]
+}
