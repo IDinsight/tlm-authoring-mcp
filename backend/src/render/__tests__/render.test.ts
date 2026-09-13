@@ -217,6 +217,24 @@ describe("a picture set in the run of text", () => {
     expect(doc).not.toContain('<w:spacing w:line="280" w:lineRule="exact"/>');
   });
 
+  it("keeps a picture's shape when the page caps its width — the height follows the width down", () => {
+    // A 5:1 band at its 2 cm ceiling wants 10 cm; the page allows 8. Capping
+    // the width alone drew it 8 × 2, a 4:1 shape — squashed, and taller than
+    // its role. Now it is 8 × 1.6, the band's own shape.
+    const capped = formatter("doc", {
+      type: { family: "Andika", sizePt: 12, leadingPt: 14, leadingRule: "exact" },
+      blocks: { bullet: { marker: "•" } },
+      images: { maxHeightCm: { band: 2 }, maxWidthCm: 8, placement: "float-right", paragraphLeadingRule: "auto" },
+    });
+    const resolved = resolveRenderSpec([capped]);
+    if (!resolved.ok) throw new Error(resolved.errors.join("; "));
+    const blocks = documentSchema.parse({ blocks: [{ kind: "line", style: "bullet", runs: [
+      { image: { media: "band.png", role: "band", aspectRatio: 5, float: true } },
+    ] }] }).blocks;
+    const doc = unzip(renderDocx({ blocks, media: [{ name: "band.png", data: Buffer.from("png") }] }, resolved.spec)).get("word/document.xml")!.toString("utf8");
+    expect(doc).toContain(`<wp:extent cx="${cm(8)}" cy="${cm(1.6)}"/>`);
+  });
+
   it("falls back to the per-role ceiling for an inline picture with no inline height", () => {
     const doc = renderLine([{ image: { media: "band.png", role: "band", aspectRatio: 3, float: false } }]);
     expect(doc).toContain(`<wp:extent cx="${cm(6)}" cy="${cm(2)}"/>`);

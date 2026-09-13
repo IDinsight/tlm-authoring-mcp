@@ -47,7 +47,15 @@ export type PageInput = {
    * did not resolve them, and the two picture rules then stay silent rather
    * than report every picture as unattached.
    */
-  attached?: { id: string; name: string }[];
+  attached?: { id: string; name: string; illustrates?: string }[];
+  /**
+   * The ACTIVITIES the covered curriculum holds — each with the directive the
+   * page must print (its title) and the answer sign(s) its content states.
+   * Undefined means the caller did not resolve them, and the two comparison
+   * rules then stay silent. This is what the 12 September migrations made
+   * possible: before them the answer was a paragraph of prose, not a field.
+   */
+  covered?: { id: string; title: string; answer?: string[] }[];
 };
 
 // ── Walking the tree ─────────────────────────────────────────────────────────
@@ -106,6 +114,22 @@ function imagesUsed(tree: PageInput["tree"]): { media: string; role: string }[] 
   }
   return out;
 }
+
+/**
+ * The answer sign(s) a line states — « RÉPONSE : le signe X. », « RÉPONSES : X
+ * ET –. », « RÉPONSE : X, les deux mangues. » all say X (and –). Only the three
+ * signs count, standing alone, in the first sentence; a numeric or a prose
+ * answer yields nothing, and the comparison then has nothing to say.
+ */
+export function answerSignsOf(text: string): string[] {
+  const match = text.match(/^\s*RÉPONSES?\s*:\s*([^.\n]*)/u);
+  if (!match) return [];
+  const signs = [...match[1].matchAll(/(?<![\p{L}\d])([XO–-])(?![\p{L}\d])/gu)].map((m) => (m[1] === "-" ? "–" : m[1]));
+  return [...new Set(signs)];
+}
+
+/** Whitespace collapsed, trailing full stop dropped — how two directives are compared. */
+const normalized = (text: string) => text.replace(/\s+/g, " ").trim().replace(/\.$/, "");
 
 // ── The rules ────────────────────────────────────────────────────────────────
 
@@ -306,7 +330,112 @@ const pictureUnplaced: PageRule = {
   },
 };
 
-export const PAGE_RULES: PageRule[] = [unknownBlockStyle, lineOverMaxChars, imagesOverCap, missingMedia, pictureNotAttached, pictureUnplaced];
+/*
+ * A printed answer that differs from the answer on the activity it belongs to.
+ *
+ * The page says « RÉPONSE : le signe O » under a band; the activity that band
+ * illustrates says X. Both render, both read well, and only a person who checks
+ * the band against the key notices — which is how two wrong keys reached print.
+ * The band is what ties the line to its activity: every picture the page places
+ * is attached to the activity it illustrates, so the nearest picture above an
+ * answer line names the activity to compare with.
+ */
+const answerDiffers: PageRule = {
+  id: "page-answer-differs",
+  summary: "A printed « RÉPONSE : le signe … » line must agree with the answer stated on the activity the picture above it illustrates.",
+  check: (input) => {
+    if (input.attached === undefined || input.covered === undefined) return [];
+    const entries = input.tree.media ?? [];
+    const pictureOf = (media: string) => {
+      const entry = entries.find((candidate) => candidate.name === media);
+      return input.attached!.find((picture) => picture.id === entry?.nodeId) ?? input.attached!.find((picture) => picture.name === media);
+    };
+    const differing: string[] = [];
+    let current: PageInput["covered"] extends (infer T)[] | undefined ? T | undefined : never;
+    for (const block of everyBlock(input.tree.blocks)) {
+      if (block.kind !== "line") continue;
+      for (const run of block.runs) {
+        if ("image" in run) current = input.covered.find((activity) => activity.id === pictureOf(run.image.media)?.illustrates);
+      }
+      const printed = answerSignsOf(lineText(block));
+      if (printed.length === 0 || !current?.answer?.length) continue;
+      const same = printed.length === current.answer.length && printed.every((sign) => current!.answer!.includes(sign));
+      if (!same) differing.push(`the page prints ${printed.join(" et ")} under « ${current.title.slice(0, 70)} », whose activity states ${current.answer.join(" et ")}`);
+    }
+    if (differing.length === 0) return [];
+    return [finding(
+      input, "page-answer-differs",
+      `${differing.length} printed answer(s) differ from the activity they belong to: ${differing.join("; ")}.`,
+      "Re-read the band, then correct whichever is wrong — the activity's `content` (edit_nodes) or the page. Do not ship past this one: a key that disagrees with its question is exactly what a teacher cannot catch in class.",
+    )];
+  },
+};
+
+/*
+ * A covered activity whose directive the page does not print as it is.
+ *
+ * The formatter says a directive is « reprise mot pour mot de la page ». The
+ * directive IS the activity's title, so the check is a search for that title
+ * among the page's lines. A rewording — « Écoute les trois histoires. Écris… »
+ * for « Écris le signe de l'histoire où l'on retire. » — is reported with the
+ * nearest line, so the author sees the two side by side and decides.
+ */
+const directiveMissing: PageRule = {
+  id: "page-directive-missing",
+  summary: "Every covered activity's directive (its title) should appear on the page word for word.",
+  check: (input) => {
+    if (input.covered === undefined || input.covered.length === 0) return [];
+    const lines = [...everyBlock(input.tree.blocks)].filter((block) => block.kind === "line").map((block) => normalized(lineText(block))).filter(Boolean);
+    const missing: string[] = [];
+    for (const activity of input.covered) {
+      const directive = normalized(activity.title);
+      if (directive.length < 8 || lines.some((text) => text.includes(directive))) continue;
+      const head = directive.split(" ").slice(0, 3).join(" ");
+      const nearest = lines.find((text) => text.includes(head));
+      missing.push(`« ${directive.slice(0, 80)} »${nearest ? ` — nearest line: « ${nearest.slice(0, 80)} »` : ""}`);
+    }
+    if (missing.length === 0) return [];
+    return [finding(
+      input, "page-directive-missing",
+      `${missing.length} covered activit${missing.length === 1 ? "y's directive is" : "ies' directives are"} not on the page word for word: ${missing.join("; ")}.`,
+      "Print the directive as the activity states it, or — if the rewording is the intended one — correct the activity's title (edit_nodes) so both documents say the same thing. A directive that differs between the pupil's page and the teacher's sheet is read aloud one way and seen another.",
+    )];
+  },
+};
+
+/*
+ * A band placed floating when its shape says full width.
+ *
+ * The geometry's `images.fullWidthAboveAspectRatio` is the threshold the renderer
+ * itself applies; a page that floats a wider band gets it squeezed beside the
+ * text and, three bands later, stacked and cropped at the right margin. Silent
+ * while the formatter declares no threshold — then there is no rule to break.
+ */
+const bandFloatsAboveThreshold: PageRule = {
+  id: "page-band-floats-above-threshold",
+  summary: "A picture wider than `render.images.fullWidthAboveAspectRatio` must not be placed floating.",
+  check: (input) => {
+    const threshold = input.spec.images?.fullWidthAboveAspectRatio;
+    if (typeof threshold !== "number") return [];
+    const floated: string[] = [];
+    for (const block of everyBlock(input.tree.blocks)) {
+      if (block.kind !== "line") continue;
+      for (const run of block.runs) {
+        if ("image" in run && run.image.float === true && run.image.aspectRatio > threshold) {
+          floated.push(`'${run.image.media}' (${run.image.aspectRatio.toFixed(1)}:1)`);
+        }
+      }
+    }
+    if (floated.length === 0) return [];
+    return [finding(
+      input, "page-band-floats-above-threshold",
+      `${floated.length} picture(s) float although wider than the formatter's ${threshold}:1 threshold: ${floated.join(", ")}.`,
+      "Set `float: false` on those image runs so they take the full width under their directive. The renderer already lays a wider band full width when sizing it; floating it as well squeezes it beside the text and stacks it on the next one.",
+    )];
+  },
+};
+
+export const PAGE_RULES: PageRule[] = [unknownBlockStyle, lineOverMaxChars, imagesOverCap, missingMedia, pictureNotAttached, pictureUnplaced, answerDiffers, directiveMissing, bandFloatsAboveThreshold];
 
 /** Run every page rule (minus those the scope node silences). */
 export function lintPage(input: PageInput): LintFinding[] {

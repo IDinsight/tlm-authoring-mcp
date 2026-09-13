@@ -214,6 +214,7 @@ describe("the rule set", () => {
     expect(PAGE_RULES.map((rule) => rule.id)).toEqual([
       "page-unknown-block-style", "page-line-over-max-chars", "page-images-over-cap", "page-missing-media",
       "page-picture-not-attached", "page-picture-unplaced",
+      "page-answer-differs", "page-directive-missing", "page-band-floats-above-threshold",
     ]);
     expect(PAGE_RULES.every((rule) => rule.summary.length > 20)).toBe(true);
   });
@@ -221,5 +222,81 @@ describe("the rule set", () => {
   it("reports every finding against the node the page was composed for", () => {
     const findings = lintPage(page([line("x", "ghost"), picture("gone.png")], twoStyles, []));
     expect(findings.every((finding) => finding.nodeId === "sec-1")).toBe(true);
+  });
+});
+
+// ── The comparison rules: the page against the curriculum it covers ──────────
+// Made possible by the 12 September migrations: an activity's answer is a field
+// on the node, and every placed picture is attached to the activity it
+// illustrates — so a printed answer has something to be compared with.
+
+const band = (media: string, aspectRatio: number, float: boolean): Block => ({ kind: "line", runs: [{ image: { media, role: "bande", aspectRatio, float } }] });
+
+describe("a printed answer that differs from the activity's", () => {
+  const attached = [{ id: "pic-1", name: "L20-nf-2", illustrates: "act-1" }];
+  const covered = [{ id: "act-1", title: "Écris le signe du fanion qui manque au milieu de la guirlande.", answer: ["O"] }];
+  const tree = (printed: string): Block[] => [
+    band("L20-nf-2", 3, true),
+    line("Écris le signe du fanion qui manque au milieu de la guirlande."),
+    line(printed),
+  ];
+
+  it("flags the page's sign against the activity's, naming both", () => {
+    const findings = lintPage({ ...page(tree("RÉPONSE : le signe X."), twoStyles, ["L20-nf-2"]), attached, covered });
+    expect(rulesOf(findings)).toEqual(["page-answer-differs"]);
+    expect(findings[0].message).toContain("prints X");
+    expect(findings[0].message).toContain("states O");
+  });
+
+  it("is silent when they agree, and when the page says the same signs in another order", () => {
+    expect(lintPage({ ...page(tree("RÉPONSE : le signe O."), twoStyles, ["L20-nf-2"]), attached, covered })).toEqual([]);
+    const two = [{ id: "act-1", title: "Écris les signes des images qui disent vrai.", answer: ["X", "–"] }];
+    const blocks = [band("L20-nf-2", 3, true), line("Écris les signes des images qui disent vrai."), line("RÉPONSE : le signe – et le signe X.")];
+    expect(lintPage({ ...page(blocks, twoStyles, ["L20-nf-2"]), attached, covered: two })).toEqual([]);
+  });
+
+  it("stays silent with no picture above the line, and when the caller resolved nothing", () => {
+    const noPicture = [line("Écris le signe du fanion qui manque au milieu de la guirlande."), line("RÉPONSE : le signe X.")];
+    // (the attached-but-unplaced picture rule fires here, rightly — only the answer rule must not)
+    expect(rulesOf(lintPage({ ...page(noPicture, twoStyles), attached, covered }))).not.toContain("page-answer-differs");
+    expect(lintPage(page(tree("RÉPONSE : le signe X."), twoStyles, ["L20-nf-2"]))).toEqual([]);
+  });
+
+  it("ties the line to its activity through the media entry's nodeId when the names differ", () => {
+    const input: PageInput = {
+      tree: { blocks: tree("RÉPONSE : le signe X."), media: [{ name: "bande-2.png", nodeId: "pic-1" }] },
+      spec: twoStyles, scopeId: "sec-1", attached, covered,
+    };
+    input.tree.blocks[0] = band("bande-2.png", 3, true);
+    expect(rulesOf(lintPage(input))).toEqual(["page-answer-differs"]);
+  });
+});
+
+describe("a covered activity's directive missing from the page", () => {
+  const covered = [{ id: "act-1", title: "Écris le signe de l'histoire où l'on retire." }];
+
+  it("flags a rewording, showing the nearest line", () => {
+    const findings = lintPage({ ...page([line("Écoute les trois histoires. Écris le signe de celle où l'on retire.")], twoStyles), covered });
+    expect(rulesOf(findings)).toEqual(["page-directive-missing"]);
+    expect(findings[0].message).toContain("nearest line");
+  });
+
+  it("accepts the directive word for word, inside a longer line, and ignores spacing and the final stop", () => {
+    expect(lintPage({ ...page([line("[FR!]  Écris le signe de l'histoire où l'on retire")], twoStyles), covered })).toEqual([]);
+  });
+});
+
+describe("a band floating above the full-width threshold", () => {
+  const spec = { ...twoStyles, images: { fullWidthAboveAspectRatio: 4 } } as RenderSpec;
+
+  it("flags a floated picture wider than the threshold, and not one placed full width", () => {
+    const findings = lintPage(page([band("wide.png", 4.5, true), band("also-wide.png", 4.5, false), band("narrow.png", 3, true)], spec, ["wide.png", "also-wide.png", "narrow.png"]));
+    expect(rulesOf(findings)).toEqual(["page-band-floats-above-threshold"]);
+    expect(findings[0].message).toContain("'wide.png' (4.5:1)");
+    expect(findings[0].message).not.toContain("also-wide");
+  });
+
+  it("is silent when the formatter declares no threshold", () => {
+    expect(lintPage(page([band("wide.png", 4.5, true)], twoStyles, ["wide.png"]))).toEqual([]);
   });
 });

@@ -23,7 +23,7 @@ import { activeWorkspace } from "../context/index.js";
 import {
   getKgStore, kgNamespace, lintGraph, toAuditActor, diffGraphs,
   type LintFinding, type MutationGraph, type StoredNode, type StoredEdge, type Slot, nextAuditSeq,} from "../kg-store/index.js";
-import { lintContent, lintableRules, CONTENT_RULES, resolvableIds, ignoredRules, lintPage, PAGE_RULES, formatterStackFor, picturesFor, type PageInput } from "../curriculum/index.js";
+import { lintContent, lintableRules, CONTENT_RULES, resolvableIds, ignoredRules, lintPage, PAGE_RULES, formatterStackFor, picturesFor, coveredActivitiesFor, type PageInput } from "../curriculum/index.js";
 import { validateDocumentTree, resolveRenderSpec } from "../render/index.js";
 import { readCatalog } from "./catalog.js";
 import { SHARED_CATALOG_NAMESPACE, catalogNamespace } from "../kg-recipes/index.js";
@@ -319,7 +319,10 @@ async function lintComposedPage(
       ignore: ignoredRules(scopeNode),
       // The pictures attached to what this page covers — so the two picture
       // rules can say whether the page and the graph agree on what it carries.
-      attached: (picturesFor(model, args.nodeId) ?? []).map((picture) => ({ id: picture.id, name: picture.name })),
+      attached: (picturesFor(model, args.nodeId) ?? []).map((picture) => ({ id: picture.id, name: picture.name, illustrates: picture.illustrates })),
+      // The activities under what it covers — their directive and their answer —
+      // so a printed answer or directive can be compared with the curriculum.
+      covered: coveredActivitiesFor(model, args.nodeId) ?? undefined,
     }).map((finding) => ({ ...finding, where: namespace })),
     checked: {
       nodeId: args.nodeId,
