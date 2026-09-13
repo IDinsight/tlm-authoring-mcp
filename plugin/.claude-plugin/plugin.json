@@ -1,6 +1,8 @@
 {
   "name": "tlm-autorat",
-  "version": "0.1.0",
-  "description": "Procédures d'autorat de matériels pédagogiques avec le serveur MCP TLM : discipline de session, reprise des corrections d'un expert dans le graphe, production et mesure des fiches, illustrations, relecture et publication.",
-  "author": { "name": "IDinsight" }
+  "version": "0.2.0",
+  "description": "Procédures d'autorat de matériels pédagogiques avec le serveur MCP TLM, en trois capacités : construire le programme (standards, composantes, cours, leçons), composer et produire des documents (couverture, mise en forme, grilles, sections, journal, rendu, illustrations, reprise des corrections), évaluer et transmettre — avec une seule procédure d'écriture partagée.",
+  "author": {
+    "name": "IDinsight"
+  }
 }

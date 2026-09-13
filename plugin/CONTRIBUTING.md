@@ -21,6 +21,12 @@ that it is neither, because neither belongs in a procedure file.
 
 Run it before opening a PR. It is fast and it has no dependencies.
 
+## The version
+
+**Every PR that changes anything under `plugin/` bumps `version` in `.claude-plugin/plugin.json`** —
+patch for a wording change, minor for a skill, command or agent added, removed or reorganised.
+An installed plugin updates by version: a merge without a bump reaches nobody, silently.
+
 ## Writing a skill
 
 - **Name the tool and the order.** That is what a procedure is.

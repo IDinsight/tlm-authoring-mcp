@@ -8,9 +8,15 @@
     {
       "name": "tlm-autorat",
       "source": "./plugin",
-      "description": "Procédures d'autorat de matériels pédagogiques avec le serveur MCP TLM : discipline de session, reprise des corrections d'un expert dans le graphe, production et mesure des fiches, illustrations, relecture et publication.",
+      "description": "Procédures d'autorat de matériels pédagogiques avec le serveur MCP TLM, en trois capacités : construire le programme (standards, composantes, cours, leçons), composer et produire des documents (couverture, mise en forme, grilles, sections, journal, rendu, illustrations, reprise des corrections), évaluer et transmettre — avec une seule procédure d'écriture partagée.",
       "category": "authoring",
-      "keywords": ["curriculum", "docx", "senegal", "mohebs", "teaching-materials"]
+      "keywords": [
+        "curriculum",
+        "docx",
+        "senegal",
+        "mohebs",
+        "teaching-materials"
+      ]
     }
   ]
 }
