@@ -52,10 +52,11 @@ quelqu'un demande **pourquoi**.
 Toute écriture qui touche un document ou une section pour une raison qui n'est pas évidente en
 laisse une entrée : la date, la décision, qui l'a prise, ce qui reste ouvert.
 
-**Le point de couture.** Le journal est un champ texte, `metadata.journal`, et le serveur n'a pas
-d'outil pour y **ajouter** une entrée : on lit le champ entier, on ajoute l'entrée à la fin, on le
-réécrit entier par `edit_nodes`. Faites-le d'un seul mouvement, juste après la lecture, et jamais à
-deux sessions en même temps sur le même élément — la seconde écrase la première sans erreur.
+On l'écrit avec **`append_journal`** : le document ou la section par son nom, le texte, un titre
+court. Le serveur date et signe l'entrée, l'ajoute après ce que le journal contient **à l'instant
+de l'écriture**, et refuse une confirmation dont la base a bougé. Jamais par `edit_nodes` sur le
+champ : cela réécrit le journal entier depuis votre copie, et deux sessions sur le même document
+s'écrasent l'une l'autre sans erreur.
 
 ## Trois façons d'obtenir la proposition
 

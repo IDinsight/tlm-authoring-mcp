@@ -95,8 +95,8 @@ in `session-autorat` (« Proposer, puis écrire »).
 | evaluate | `publier` | hand the draft over, on explicit consent |
 
 Not covered yet, by decision: evaluating a curriculum against a grid (a grid attaches to a document
-only). Two seams the skills mark rather than hide: adding to a journal is read-then-rewrite of the
-whole field, and importing a whole foreign curriculum is a server-side script, not a tool.
+only). One seam the skills mark rather than hide: importing a whole foreign curriculum is a server-side
+script, not a tool.
 
 ## Subagents
 

@@ -23,7 +23,9 @@ export type ReturnMode = "summary" | "full";
 
 // The add_nodes minted-id fields, threaded onto every shaped result (preview +
 // apply) so the caller can wire cross-references. Empty for create_edges.
-export type BatchExtra = { mintedNodeIds?: string[]; mintedNodeIdMap?: Record<string, string> };
+// `heading`: what append_journal wrote as the entry's first line — echoed so
+// the caller can quote the stamp without re-reading the node.
+export type BatchExtra = { mintedNodeIds?: string[]; mintedNodeIdMap?: Record<string, string>; heading?: string };
 
 type MutationResult = GraphPreviewResult | GraphBlockedResult | GraphApplyResult | GraphUnauthorizedResult;
 

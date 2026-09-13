@@ -109,7 +109,7 @@ proposition. Les autres compétences renvoient ici au lieu de le répéter.
 4. **Montrer, puis obtenir un oui** — le dry-run, en français, dans le vocabulaire de l'expert,
    groupé comme il le reconnaît (par leçon, par document). Puis seulement le confirm, ci-dessous.
 5. **Noter la décision** — si l'écriture touche un document ou une de ses sections pour une raison
-   qui n'est pas évidente, une entrée datée dans son journal (`composer-un-document`).
+   qui n'est pas évidente, une entrée dans son journal par `append_journal` (`composer-un-document`).
 
 La forme de chaque élément vient de `get_capabilities section:'editable'` et les conventions de la
 matière de `get_graph_guide` ; rien de cela n'est écrit dans une compétence.
