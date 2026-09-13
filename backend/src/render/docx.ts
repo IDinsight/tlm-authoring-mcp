@@ -90,7 +90,12 @@ function imageSizeCm(img: ImageRun, spec: RenderSpec): { w: number; h: number } 
     spec.images?.fullWidthAboveAspectRatio !== undefined &&
     img.aspectRatio > spec.images.fullWidthAboveAspectRatio;
   if (!goesFullWidth && maxWidth !== undefined && w > maxWidth) w = maxWidth;
-  return { w: Math.min(w, usableWidthCm(spec)), h };
+  w = Math.min(w, usableWidthCm(spec));
+  // A capped width keeps the picture's own shape: the height follows it down.
+  // Capping the width alone drew every band wider than the ceiling squashed —
+  // a 4.5:1 band came out at 4.2:1, taller than its role allows, and no
+  // warning said so (the 12 September fiche of Leçon 23).
+  return { w, h: w / img.aspectRatio };
 }
 
 // ── Rendering ───────────────────────────────────────────────────────────────

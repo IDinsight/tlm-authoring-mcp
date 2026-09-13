@@ -29,6 +29,7 @@
  */
 import type { CurriculumModel, RawGraphSnapshot } from "../types.js";
 import { nodeOut, edgeOut, nodeSkeleton, type NodeOut, type EdgeOut } from "./read-projection.js";
+import { answerSignsOf } from "./lint-page.js";
 import { responseBytes, pageBudgetBytes, imageMimeFor } from "../utils/index.js";
 import { parseDocumentObjectUri } from "../context/index.js";
 
@@ -199,6 +200,34 @@ export function picturesFor(model: CurriculumModel, nodeId: string): SectionPict
     .filter((e) => e.type === "covers" && coveringIds.includes(e.start))
     .map((e) => e.end);
   return picturesAmong(raw, descendants(raw, covers, CURRICULUM_EDGES));
+}
+
+/*
+ * The activities under what `nodeId` covers, each with what a composed page must
+ * agree with: the directive (its title — the first line of `description`) and the
+ * answer its `content` states, as sign(s). What the page lint's two comparison
+ * rules read. Null when the node is neither a section nor a document.
+ */
+export function coveredActivitiesFor(model: CurriculumModel, nodeId: string): { id: string; title: string; answer?: string[] }[] | null {
+  const raw = model.rawGraph;
+  if (!raw) return null;
+  const node = raw.nodes.find((n) => n.id === nodeId);
+  if (!node) return null;
+  let coveringIds: string[];
+  if (labelsOf(node).includes(SECTION_LABEL)) coveringIds = [nodeId];
+  else if (labelsOf(node).includes(TLM_LABEL)) coveringIds = [nodeId, ...descendants(raw, [nodeId], new Set([DOCUMENT_EDGE]))];
+  else return null;
+  const covers = raw.relationships.filter((e) => e.type === "covers" && coveringIds.includes(e.start)).map((e) => e.end);
+  const ids = descendants(raw, covers, CURRICULUM_EDGES);
+  return raw.nodes
+    .filter((n) => ids.has(n.id) && labelsOf(n).includes("Activity"))
+    .map((n) => {
+      const p = props(n);
+      const content = typeof p.content === "string" ? p.content : "";
+      const answerLine = content.split("\n").find((l) => /^\s*RÉPONSES?\s*:/u.test(l));
+      const answer = answerLine ? answerSignsOf(answerLine) : [];
+      return { id: n.id, title: String(p.description ?? "").split("\n")[0].trim(), ...(answer.length ? { answer } : {}) };
+    });
 }
 
 function descendants(raw: RawGraphSnapshot, roots: string[], edgeTypes: Set<string>): Set<string> {
