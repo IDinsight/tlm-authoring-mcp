@@ -8,6 +8,34 @@ description: Produire un document et vérifier qu'il tient — rendre, compter l
 The rule this whole skill exists to enforce: **render it and count.** Not estimate, not reason about
 whether it will fit — produce the artifact and measure the artifact.
 
+## La séquence, dans cet ordre
+
+Elle est écrite ici pour n'être **reprise, jamais réinventée**. Une session qui la redéduit de la
+prose choisit à chaque fois autrement où alléger la page — avant le premier rendu ou après — et le
+nombre de tentatives change avec elle. Chaque étape nomme l'outil et **d'où vient sa règle** ; aucune
+règle n'est recopiée ici, parce qu'une copie vieillit sans que rien ne le signale.
+
+1. **Lire les entrées** — `walk_document_section`, la première section d'un document en entier,
+   chaque suivante avec `include:[]`. Les règles sont la pile de mises en forme que la lecture
+   renvoie, et rien d'autre. Notez au passage les valeurs du `render` que la mesure demandera.
+2. **Composer l'arbre de blocs** — dans la forme que `get_capabilities section:'document'` décrit.
+3. **Vérifier la page contre le graphe, AVANT tout rendu** — `lint_content` avec `document` et
+   `nodeId` (voir « Vérifier la page avant de rendre »). C'est le seul allègement légitime avant le
+   premier rendu : ce que la vérification signale, pas ce que vous estimez. Un refus de vérifier est
+   un arrêt, pas un feu vert.
+4. **Rendre et compter** — `render_document` puis `mesureur`, contre le budget lu dans le `render`
+   de la mise en forme et passé dans l'appel.
+5. **Si ça déborde** — rendre une fois sans aucune image et compter ; puis resserrer dans l'ordre
+   fixe de « When a sheet overflows », et **après chaque changement, refaire les étapes 3 et 4**.
+   Un resserrage peut casser ce que la vérification garantissait.
+6. **Un regard, une fois** — `relecteur` sur le rendu final, contre la grille que
+   `evaluate_document` remonte pour ce document ; `terminologue` si le document est traduit.
+7. **Déposer** — `create_upload_url` puis `log_generation` pour un livrable, `create_preview_upload_url`
+   seul pour un aperçu. Les deux voies ne se mélangent jamais.
+
+Ce qui varie d'une matière à l'autre — la mise en forme, la grille, la routine — est lu aux étapes
+1, 3 et 6. La séquence, elle, ne varie pas.
+
 ## Get the generation inputs
 
 - **`walk_document_section`** for one slot of a document. This is the unit a sheet is produced from,
@@ -64,6 +92,22 @@ mégaoctets — ne passe donc pas par là : il est composé par le producteur lo
 **`create_upload_url`**. `render_document` sert les pages dont les images sont légères ou absentes.
 Dans les deux cas, le compte de pages se mesure sur le RENDU, jamais sur une lecture du guide.
 
+## Vérifier la page avant de rendre
+
+`lint_content` prend l'arbre de blocs (`document`) et le nœud qu'il couvre (`nodeId`), et applique
+les règles de page sur la géométrie que le serveur résout lui-même pour ce nœud. Elles attrapent
+ce qui **se rend sans erreur et faux** : une page comparée au texte du graphe qu'elle couvre, une
+image comparée à ce qui est attaché, un bloc comparé aux plafonds de la mise en forme. Une seconde,
+déterministe, et une seule fois par changement — là où un rendu coûte un aller-retour.
+
+- Lisez `rulesPending` : c'est la liste des règles qui n'ont PAS tourné. Tant qu'elle n'est pas
+  vide, la page n'est pas vérifiée, quoi que dise le reste.
+- Un REFUS (pas de géométrie sur la pile, un arbre invalide, un nœud inconnu) est un arrêt. Sans
+  limites à lire, chaque règle rend un résultat vide, identique octet pour octet à une page propre —
+  c'est pourquoi le serveur refuse plutôt que de se taire. Ne contournez pas un refus en rendant.
+- Ce qu'une règle nomme se corrige dans l'arbre, ou dans le graphe si c'est le graphe qui a tort ;
+  une alerte délibérée se tait sur le nœud avec `metadata.lintIgnore` — jamais en retirant l'appel.
+
 ## Mesurer, c'est déléguer
 
 **MESURER, C'EST APPELER `mesureur`.** Le fil principal ne rend pas un PDF lui-même et ne
@@ -111,6 +155,9 @@ Then tighten in this order — smallest change that could work, remeasured each 
 3. images,
 4. content — and only with the expert's agreement, because dropping content is a pedagogical
    decision and not yours.
+
+After **every** change, run `lint_content` on the new tree and measure again — steps 3 and 4 of the
+sequence. Tightening a line can drop the words a page rule requires word for word.
 
 **Never arbitrate on an estimate.** If you cannot measure it, say that you cannot measure it and ask
 for the render, rather than reporting a judgement as a result.

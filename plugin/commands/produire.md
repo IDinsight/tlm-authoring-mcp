@@ -12,7 +12,9 @@ first section of a document in full, every further one with `include:[]`), and `
 if this should reflect unpublished draft work. Read the formatters and the section's own text before
 laying anything out; do not work from memory.
 
-Once it is produced, **measure it** and tell me the page count. If it overflows, render it again
-with no images and measure that too before proposing anything.
+Follow the skill's sequence in its order: compose, **check the page against the graph with
+`lint_content` before any render**, then render and **measure it** and tell me the page count. If it
+overflows, render it again with no images and measure that too before proposing anything, and after
+every tightening check and measure again.
 
 If this is a preview, its output goes through `create_preview_upload_url` only.
