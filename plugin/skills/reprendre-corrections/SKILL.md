@@ -56,21 +56,13 @@ This is the single largest token saving available: a bulk read that costs ~184,0
 subagent returns ~2,000 to the main thread. Read the source yourself only when the proposal points
 at something you must verify with your own eyes.
 
-## Resolve targets by name, in one call
+## Then write it the shared way
 
-The proposal names lessons and sections the way the expert does. Turn the whole list into ids with
-**one** `find_node` call passing `queries`. Anything in its `unresolved` list needs the expert's
-answer — ask, quoting each candidate's path. Do not guess a target.
-
-## Emit ONE batched edit
-
-All of it goes in a single `edit_nodes` call with an `items` array — one item per node, each
-carrying only the fields that change. One batch is one diff, one token, one audit record, and it
-either lands whole or not at all.
-
-Do not loop one edit per correction. Do not delete and re-add a node to "replace" it: that cascades
-its subtree, drops every edge pointing at it, and mints a new id, so every reference to it breaks
-silently.
+From here on it is the procedure in `session-autorat`, « Proposer, puis écrire » : resolve every
+target name in **one** `find_node` call, one `edit_nodes` batch with an item per node carrying only
+the fields that change, shown in French and grouped by lesson before the confirm. Two reminders
+that cost a day each when forgotten: never loop one edit per correction, and never delete and
+re-add a node to "replace" it — that mints a new id and breaks every reference to it silently.
 
 ## Never raise an objection you have not seen
 
@@ -86,5 +78,5 @@ If the proposal and the document disagree, the document wins and the proposal is
 ## Then present it
 
 Show the batch as the expert would recognise it — grouped by lesson, in their vocabulary, in French.
-Get an explicit yes, then confirm. The `session-autorat` skill carries the rest of the write
-discipline.
+Get an explicit yes, then confirm. A correction that reverses an earlier decision gets a dated line
+in the section's journal saying so (`composer-un-document`).

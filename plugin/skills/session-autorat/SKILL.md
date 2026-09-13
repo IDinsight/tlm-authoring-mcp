@@ -84,6 +84,36 @@ Speak the expert's words throughout — document, section, chapter, objective, l
 SFI, `hasPart`, node, label, or an id. Everything the server hands you is English; relay it in the
 language the subject's guide is written in.
 
+## Proposer, puis écrire — la procédure partagée
+
+Toute écriture dans le graphe suit le même chemin, quelle que soit la capacité — construire le
+programme, composer un document, reprendre des corrections — et quelle que soit la source de la
+proposition. Les autres compétences renvoient ici au lieu de le répéter.
+
+1. **Obtenir une proposition structurée** — une liste d'éléments nommés, jamais un récit. Trois
+   sources, une seule forme de sortie :
+   - **à la main** : l'expert dicte ; reformulez en liste et montrez-la avant d'aller plus loin ;
+   - **depuis une recherche dans le graphe** : `find_node` sur les noms, `walk_graph` depuis l'id
+     trouvé en `detail:'skeleton'` — ce qui existe borne ce qui reste à créer. Une recherche hors
+     du graphe, quand le client en dispose, donne une proposition comme une autre, avec sa source ;
+   - **depuis un document** (PDF, .docx, notes) : le sous-agent `lecteur`, qui renvoie la structure
+     et jamais le contenu — son contrat dit la forme selon ce qu'on construit. Un .docx produit
+     par le serveur porte ses ancres : `propose_from_document` d'abord, c'est exact.
+2. **Résoudre les noms en un appel** — `find_node` avec `queries`. `unresolved` et `ambiguous`
+   sont des questions à poser en citant le chemin de chaque candidat, jamais des choix à faire.
+3. **Une écriture groupée** — `add_nodes`, `create_edges` ou `edit_nodes` avec leur tableau
+   d'items, un niveau à la fois : un élément créé dans un lot ne peut pas être parent dans le même
+   lot. Une modification est un `edit_nodes`, jamais une suppression suivie d'une recréation — cela
+   change l'identifiant et casse en silence tout ce qui y renvoyait. Répéter une écriture par
+   élément est le défaut que le lot évite.
+4. **Montrer, puis obtenir un oui** — le dry-run, en français, dans le vocabulaire de l'expert,
+   groupé comme il le reconnaît (par leçon, par document). Puis seulement le confirm, ci-dessous.
+5. **Noter la décision** — si l'écriture touche un document ou une de ses sections pour une raison
+   qui n'est pas évidente, une entrée datée dans son journal (`composer-un-document`).
+
+La forme de chaque élément vient de `get_capabilities section:'editable'` et les conventions de la
+matière de `get_graph_guide` ; rien de cela n'est écrit dans une compétence.
+
 ## Every write is two-phase, and the second phase is yours to earn
 
 A dry-run returns a diff and a `confirmationToken` and changes nothing. The confirm applies it.

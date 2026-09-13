@@ -4,8 +4,9 @@ description: Relire le brouillon en cours avant de l'envoyer à un approbateur
 
 Review the current draft.
 
-Follow the `relire-et-publier` skill: `check_draft` for wiring, `review_draft` for coverage against
-the subject guide, and `evaluate_document` for the grids attached to any document I have touched.
+Follow the `evaluer` skill: `check_draft` for wiring, `review_draft` for coverage against the
+subject guide, `lint_content` for contradictions, and `evaluate_document` for the grids attached to
+any document I have touched.
 
 Merge everything into **one** review, in French, in my vocabulary — not one section per tool. Give
 me the shape of it first (how many findings, how serious), then the detail, each with what to do

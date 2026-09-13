@@ -4,8 +4,9 @@ description: Publier le brouillon en cours, avec les vérifications d'abord
 
 I want to publish the current draft.
 
-Before anything: run the review (`check_draft`, `review_draft`) and read me any findings and
-warnings. Then run `publish_draft` as a dry-run and show me what it would make live.
+Follow the `publier` skill. Before anything: run the `evaluer` sequence (`check_draft`,
+`review_draft`, `lint_content`) and read me any findings and warnings. Then run `publish_draft` as
+a dry-run and show me what it would make live.
 
 Tell me plainly that publishing is not reversible, and wait for me to say yes to **this** publish
 before you confirm.
