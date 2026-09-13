@@ -10,10 +10,15 @@ In **Claude Code** (including the Code tab of the Claude desktop app), two comma
 
 ```
 /plugin marketplace add IDinsight/tlm-authoring-mcp
-/plugin install tlm-autorat@idinsight-tlm
+/plugin install tlm-autorat@tlm-authoring-mcp
 ```
 
 Then `/mcp` once, to sign in.
+
+The marketplace is named after the repository, `tlm-authoring-mcp`, on purpose: the desktop app
+refreshes a marketplace by its repository name, and a manifest name that differed (`idinsight-tlm`,
+until 2026-09-13) made every "check for updates" fail with NOT_REGISTERED. An install made under the
+old name must be removed and added again once.
 
 **The plugin brings its own servers.** `.mcp.json` declares the two this procedure assumes, so an
 author configures nothing by hand:
