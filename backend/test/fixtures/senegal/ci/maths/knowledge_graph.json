@@ -991,12 +991,12 @@
         "license": "https://creativecommons.org/licenses/by/4.0/",
         "provider": "Learning Commons ontology (generated)",
         "attributionStatement": "Node/edge types follow the Learning Commons ontology (CC BY-4.0).",
-        "identifier": "e076db85-17ca-48cc-a74a-125316662bde",
-        "description": "Ni nom propre ni comparaison",
-        "position": 3,
+        "identifier": "042357a7-7733-4a6c-b5ff-ee78530f7974",
+        "description": "16. Ni nom propre ni comparaison",
+        "content": "Point 16 de « Le contrôle de la fiche » : AUCUN NOM DE PERSONNE hors les personnages de la leçon, AUCUNE COMPARAISON avec une rédaction antérieure. Un guide dit ce qu'il faut faire et ce qu'il faut dire ; il ne raconte pas l'histoire du matériel.\n\nComment on répond — À l'œil, sur le PDF, sur les deux fiches.",
+        "position": 7,
         "normalizedType": "Material",
-        "materialType": "Reference",
-        "content": "Le guide est-il exempt de tout nom de personne hors les personnages de la leçon, et de toute comparaison avec une rédaction antérieure ? Un guide dit ce qu'il faut faire et ce qu'il faut dire ; il ne raconte pas l'histoire du matériel."
+        "materialType": "Reference"
       }
     },
     {
@@ -1479,20 +1479,6 @@
         "metadata": {
           "assemblyGuide": "[N] {pt:PT-19}\n[N] {pt:PT-13}\nRegarde de nouveau la situation d'amorce, puis réponds.\n[N] LES ÉLÈVES RÉPONDENT ORALEMENT : rien ne s'écrit.\n[FR!] Combien de formes de figures a-t-on ? 2 · 4 · 3\n[N] RÉPONSE : 4.\nQuelles sont les formes que tu reconnais ? carré · rond · cube\nRÉPONSES : carré ET rond, l'un et l'autre. À VALIDER : cette question de bilan admet DEUX bonnes réponses et mêle une figure plane à un solide ; posée à l'oral elle est bonne — l'enfant nomme tout ce qu'il reconnaît — mais elle ne pourrait pas être posée à l'écrit, où une question porte un seul signe.\nComment peux-tu les classer ? en fonction de leur forme · en fonction de leurs couleurs · en fonction des deux\nRÉPONSE : en fonction de leur forme.\n[FR] {pt:PT-14}\n[N] Réponse attendue : à classer des figures planes selon leur forme — carré, rectangle, triangle, rond — et à reconnaître la même forme quelle que soit sa taille et sa position.\n\nLA LIGNE DÉCLASSÉE ne se perd pas : « Regarde de nouveau la situation d'amorce, puis réponds » redit ce que PT-19 fait déjà faire, et elle est donc déclassée ici plutôt que dite deux fois. Elle se réactive en remettant le préfixe si l'appel disparaît.\n\nCE SONT DES QUESTIONS DE VOCABULAIRE ET DE LECTURE, qui se répondraient en lisant trois lignes : LE MAÎTRE LES LIT À VOIX HAUTE, ce qui les rend posables à des enfants qui ne lisent pas. LES TROIS CHOIX SE LISENT SÉPARÉS PAR « · », SANS AUCUNE LETTRE : rien de A / B / C ne s'imprime ni ne s'écrit — ni au tableau, ni sur l'ardoise — et la réponse se donne en toutes lettres. Le chapeau de la source dit « Écris seulement la lettre de la bonne réponse » : cette phrase ne se prononce pas, puisque rien ne s'écrit ici.\n\nCE QUE L'IMAGE DOIT PORTER pour que les trois questions tiennent : EXACTEMENT QUATRE FORMES, toutes entièrement visibles et séparées, les deux exemplaires d'une même forme posés côte à côte en paire ; UN CARRÉ ET UN ROND bien lisibles ; AUCUN SOLIDE, pour que l'option « cube » se refuse en regardant ; TOUS LES CARTONS DE LA MÊME COULEUR, de tailles et d'orientations variées, pour que la troisième question ait une seule réponse défendable."
         }
-      }
-    },
-    {
-      "id": "06a67767-dfc6-4d44-96e7-e734bd3bd768",
-      "labels": [
-        "RubricSection"
-      ],
-      "properties": {
-        "license": "https://creativecommons.org/licenses/by/4.0/",
-        "provider": "Learning Commons ontology (generated)",
-        "attributionStatement": "Node/edge types follow the Learning Commons ontology (CC BY-4.0).",
-        "identifier": "93b26ca9-b689-4251-aa6c-bc9d686c273d",
-        "description": "D. Pagination et rendu",
-        "position": 4
       }
     },
     {
@@ -2570,6 +2556,22 @@
         "position": 5,
         "normalizedType": "Activity",
         "audience": "Élèves CI"
+      }
+    },
+    {
+      "id": "0d91993f-d811-4655-bf99-8cd32bcb8cdc",
+      "labels": [
+        "RubricSection"
+      ],
+      "properties": {
+        "license": "https://creativecommons.org/licenses/by/4.0/",
+        "provider": "Learning Commons ontology (generated)",
+        "attributionStatement": "Node/edge types follow the Learning Commons ontology (CC BY-4.0).",
+        "identifier": "0d91993f-d811-4655-bf99-8cd32bcb8cdc",
+        "description": "A. La page",
+        "position": 1,
+        "normalizedType": "Material",
+        "materialType": "Reference"
       }
     },
     {
@@ -6554,12 +6556,12 @@
         "license": "https://creativecommons.org/licenses/by/4.0/",
         "provider": "Learning Commons ontology (generated)",
         "attributionStatement": "Node/edge types follow the Learning Commons ontology (CC BY-4.0).",
-        "identifier": "53d193cd-0d1c-4de3-9d76-3420572835f4",
-        "description": "Aucune lettre de choix",
-        "position": 2,
+        "identifier": "21c43255-22f1-4994-a697-7091ace671e4",
+        "description": "22. Aucune lettre A / B / C",
+        "content": "Point 22 de « Le contrôle de la fiche » : AUCUNE LETTRE A / B / C NE FIGURE NULLE PART, PAS MÊME À L'OBJECTIVATION : l'élève répond par LE SIGNE, et à l'objectivation à l'oral — les trois choix s'impriment en trois puces, sans lettre.\n\nComment on répond — À l'œil, sur le PDF, sur les deux fiches.",
+        "position": 3,
         "normalizedType": "Material",
-        "materialType": "Reference",
-        "content": "Le document est-il exempt de lettres A / B / C ? L'élève répond par LE SIGNE, et à l'objectivation il répond à l'oral : les trois choix s'impriment en trois puces, sans lettre, et le maître les lit à voix haute."
+        "materialType": "Reference"
       }
     },
     {
@@ -6847,6 +6849,23 @@
           "assemblyGuide": "SECTION NOUS FAISONS — première activité guidée. Séance 1, page 1.\n\nPRÉSENTATION : pictogramme NOUS FAISONS en marge, UNE SEULE FOIS, à cette activité, dans la même cellule que la forme et au-dessus d'elle. Aucune consigne générale d'ouverture, aucun titre d'activité. Deux éléments seulement : la directive, puis la bande d'images.\n\nLA NUMÉROTATION PAR FORMES REPART À 1 DANS CHAQUE SECTION — NOUS FAISONS ★ puis ▲. C'est la règle V2, et elle prime sur les formes imprimées dans le fichier de Stéphane, qui sautent des rangs à la suite de ses coupes.\n\nDISPOSITION : bande d'activité ~3:1, sur toute la largeur utile. La directive à gauche (≈ deux cinquièmes de la bande), les trois panneaux à droite, côte à côte dans une même cellule. Comparaison autonome — pas de référence séparée.\n\n[IMAGE : L02-nf-1]\n\nPOINT RELEVÉ SUR SON FICHIER, NON CORRIGÉ : les panneaux X et – portent HUIT fruits, le panneau O en porte SEPT (une mangue de moins). On reproduit ses dessins tels quels et on lui pose la question.",
           "journal": "# Journal — NOUS FAISONS — activité ★ (le grand ensemble et ses sous-ensembles)\n\nORIGINE : la consigne et le dessin viennent de la VERSION FINALE de la Leçon 2 de Stéphane Cyr, repris MOT POUR MOT. Ses choix A/B/C sont composés en signes X / O / – DANS l'image, jamais écrits en texte."
         }
+      }
+    },
+    {
+      "id": "22d6ab97-d3ff-48e0-9002-e36b0d285fa0",
+      "labels": [
+        "RubricCriterion"
+      ],
+      "properties": {
+        "license": "https://creativecommons.org/licenses/by/4.0/",
+        "provider": "Learning Commons ontology (generated)",
+        "attributionStatement": "Node/edge types follow the Learning Commons ontology (CC BY-4.0).",
+        "identifier": "22d6ab97-d3ff-48e0-9002-e36b0d285fa0",
+        "description": "10. Aucune couleur, aucun code, aucun intertitre imprimé",
+        "content": "Point 10 de « Le contrôle de la fiche » : Aucune mention de couleur, aucun code hexadécimal, aucun intertitre de spécification n'apparaît dans le document ; aucune description d'image sous une vignette.\n\nComment on répond — À l'œil, sur le PDF, sur les deux fiches.",
+        "position": 1,
+        "normalizedType": "Material",
+        "materialType": "Reference"
       }
     },
     {
@@ -7949,12 +7968,12 @@
         "license": "https://creativecommons.org/licenses/by/4.0/",
         "provider": "Learning Commons ontology (generated)",
         "attributionStatement": "Node/edge types follow the Learning Commons ontology (CC BY-4.0).",
-        "identifier": "3dd3bb16-9715-4fa6-b5e0-1288900c2f46",
-        "description": "Pagination et typographie, mesurées sur le rendu",
+        "identifier": "27f32727-f8a8-469b-9e71-82645a62288f",
+        "description": "1. Deux pages, une par séance",
+        "content": "Point 1 de « Le contrôle de la fiche » : La fiche fait DEUX PAGES, une par séance — une seule pour une leçon à séance unique. LA SÉANCE 2 COMMENCE EN HAUT D'UNE PAGE NEUVE, sous son bandeau, sans page blanche avant elle, et aucune ligne de la séance 1 ne figure sur cette page. AUCUNE SÉANCE NE DÉBORDE : une fiche de trois pages ne se livre pas.\n\nComment on répond — Mesuré sur le rendu (mesureur : pages, début de la séance 2). Le seuil `render.budget.maxPages` est la référence.",
         "position": 1,
         "normalizedType": "Material",
-        "materialType": "Reference",
-        "content": "La séance 1 tient-elle en page 1, et la séance 2 commence-t-elle EN HAUT de la page 2, dans chacune des deux langues ? Le corps est-il à 12 points partout et l'interligne à 14 points exacts ? LE NOMBRE DE PAGES SE COMPTE SUR LE RENDU, EN PDF — jamais sur une estimation."
+        "materialType": "Reference"
       }
     },
     {
@@ -8407,6 +8426,23 @@
           "assemblyGuide": "DISPOSITION : bande ~3:1, pleine largeur, SOUS la directive. Comparaison autonome.\n\n[IMAGE : L04-nf-3]\n\nPOURQUOI CETTE ACTIVITÉ EST LE CŒUR DE LA LEÇON : « long » et « court » ne veulent rien dire d'un objet seul — ils disent un rapport entre deux objets. ★ et ▲ font estimer ; ■ fait comparer, et montre du même coup la règle : on part du même bord, on regarde où ça s'arrête.\n\n•• CONTRAINTE D'ÉCHELLE •• Les trois cellules à la même échelle ; le bâton EXACTEMENT de la même longueur dans les trois, sans quoi la comparaison porte sur le mauvais objet.",
           "journal": "# Journal — NOUS FAISONS — activité ■ (comparer deux objets alignés)\n\nORIGINE : reprise telle quelle de la version finale de Stéphane Cyr — Leçon 4, page 1, troisième activité guidée, consigne « Quel dessin montre la corde plus longue que le bâton ? Écris le signe. » mot pour mot, et son dessin (corde et bâton alignés sur le même bord gauche, trois cellules). Cette activité avait été retirée du brouillon ; sa version finale la porte, elle est donc rétablie."
         }
+      }
+    },
+    {
+      "id": "29bd03f0-b41f-4cb5-a6d1-77474d51d5fd",
+      "labels": [
+        "RubricCriterion"
+      ],
+      "properties": {
+        "license": "https://creativecommons.org/licenses/by/4.0/",
+        "provider": "Learning Commons ontology (generated)",
+        "attributionStatement": "Node/edge types follow the Learning Commons ontology (CC BY-4.0).",
+        "identifier": "29bd03f0-b41f-4cb5-a6d1-77474d51d5fd",
+        "description": "2. Blanc réservé au bas de page",
+        "content": "Point 2 de « Le contrôle de la fiche » : IL RESTE AU MOINS `render.budget.reserveBottomCm` DE BLANC au bas de chaque page de la fiche française.\n\nComment on répond — Mesuré sur le rendu (mesureur : blanc résiduel contre `render.budget.reserveBottomCm`).",
+        "position": 2,
+        "normalizedType": "Material",
+        "materialType": "Reference"
       }
     },
     {
@@ -13669,6 +13705,23 @@
       }
     },
     {
+      "id": "4416a023-f9e2-4ffe-a63b-dcb39da80f39",
+      "labels": [
+        "RubricCriterion"
+      ],
+      "properties": {
+        "license": "https://creativecommons.org/licenses/by/4.0/",
+        "provider": "Learning Commons ontology (generated)",
+        "attributionStatement": "Node/edge types follow the Learning Commons ontology (CC BY-4.0).",
+        "identifier": "4416a023-f9e2-4ffe-a63b-dcb39da80f39",
+        "description": "17. Images de l'Outil de l'élève, à jour, dans leur sens",
+        "content": "Point 17 de « Le contrôle de la fiche » : Les images encastrées sont celles de l'Outil de l'élève, à jour de la dernière correction de la leçon, DANS LEUR SENS ET AVEC LEURS CACHES — aucune image retournée, aucun trou disparu — sauf les images de tableau, qui sont propres au Guide.\n\nComment on répond — Vérifié en partie par lint_content (page-picture-not-attached : les images sont celles attachées au curriculum) et par `sourceFreshness` sur la lecture ; le sens et les caches à l'œil.",
+        "position": 1,
+        "normalizedType": "Material",
+        "materialType": "Reference"
+      }
+    },
+    {
       "id": "444a94fa-042f-4da2-9bbc-80006a27dead",
       "labels": [
         "DocumentSection"
@@ -15904,6 +15957,23 @@
       }
     },
     {
+      "id": "4e873627-8703-4422-b50c-5c4f9c42e733",
+      "labels": [
+        "RubricCriterion"
+      ],
+      "properties": {
+        "license": "https://creativecommons.org/licenses/by/4.0/",
+        "provider": "Learning Commons ontology (generated)",
+        "attributionStatement": "Node/edge types follow the Learning Commons ontology (CC BY-4.0).",
+        "identifier": "4e873627-8703-4422-b50c-5c4f9c42e733",
+        "description": "24. Chaque notion modelée par un geste",
+        "content": "Point 24 de « Le contrôle de la fiche » : CHAQUE NOTION DE L'OBJECTIF EST MODELÉE PAR UN GESTE en phase 3, et la parole y suit un geste terminé par « E. dit : ».\n\nComment on répond — À l'œil, sur le PDF, sur les deux fiches.",
+        "position": 5,
+        "normalizedType": "Material",
+        "materialType": "Reference"
+      }
+    },
+    {
       "id": "4e933556-a9ef-47cb-898f-006de92969c0",
       "labels": [
         "DocumentSection"
@@ -17168,6 +17238,23 @@
         "metadata": {
           "assemblyGuide": "[N] {pt:PT-03}\n\n★ [IMAGE : L27-nf-1]\n[N] {pt:PT-04 ★}\n[N] E. fait poser le doigt sur les deux cageots à gauche de la bande.\n[FR] Écris le nombre qui dit combien il y a de mangues en tout.\n[N] RÉPONSE : le nombre 5 (l'étiquette marquée O).\n[N] E. fait compter à voix haute en montrant du doigt, cageot par cageot, puis fait recompter le tout d'un seul trait.\nRÉGLÉ — LE FICHIER DES EXPERTS EST FINAL (confirmé par Karimou le 10 septembre 2026) : la directive est la leur ; l'élève écrit le nombre, et la bande garde X, O et –.\n\n▲ [IMAGE : L27-nf-2]\n[FR] Écris le signe de l'étiquette qui dit combien il y a de cauris en tout.\n[N] RÉPONSE : le signe –.\n[N] CE QUI CHANGE ICI, et il faut le dire aux élèves qui vont vite : les deux parts sont proches — quatre et trois. On ne peut plus voir le petit tas d'un coup d'œil et continuer à compter ; il faut compter les deux plateaux. C'est aussi la seule question de la leçon où le tout monte à 7, le plus grand nombre connu.\n\n■ [IMAGE : L27-nf-3]\n[FR] Écris le signe de l'image où on réunit les mangues ensemble.\n[N] RÉPONSE : le signe X.\n[N] E. fait remarquer que LES QUANTITÉS SONT LES MÊMES DANS LES TROIS CELLULES.\n[N] E. reprend la convention au tableau : deux flèches qui convergent, on met ensemble ; une flèche qui sort, on retire ; aucune flèche, on regarde.\n\nPROGRESSION : trouver le tout sur un petit total (★), trouver le tout jusqu'à 7 avec deux parts proches (▲), puis le geste que l'objectif nomme — reconnaître la situation d'addition (■). LA TROISIÈME ACTIVITÉ EST LA PLUS IMPORTANTE DES TROIS et elle vient en dernier : elle demande le plus de temps de discussion, et treize minutes se répartissent 4 / 4 / 5.\n\nLES TROIS DIRECTIVES sont celles de la version finale des experts (10 septembre 2026), mot pour mot : ce sont les titres des activités de l'Outil de l'élève.\n\nLE POINT À NE PAS RATER : à l'étoile l'élève écrit LE NOMBRE ; au triangle et au carré il écrit LE SIGNE — X, O ou –. Jamais une lettre, jamais le signe +. E. le redit à chaque changement de question : les étiquettes du triangle portent elles aussi des nombres."
         }
+      }
+    },
+    {
+      "id": "547edd38-10a9-4f90-b217-29ba419a0286",
+      "labels": [
+        "RubricCriterion"
+      ],
+      "properties": {
+        "license": "https://creativecommons.org/licenses/by/4.0/",
+        "provider": "Learning Commons ontology (generated)",
+        "attributionStatement": "Node/edge types follow the Learning Commons ontology (CC BY-4.0).",
+        "identifier": "547edd38-10a9-4f90-b217-29ba419a0286",
+        "description": "19. Aucune légende, aucun cadre, aucun blanc autour d'une image",
+        "content": "Point 19 de « Le contrôle de la fiche » : Aucune légende sous une image, aucun cadre, aucun blanc au-dessus ni en dessous.\n\nComment on répond — À l'œil, sur le PDF, sur les deux fiches.",
+        "position": 3,
+        "normalizedType": "Material",
+        "materialType": "Reference"
       }
     },
     {
@@ -19419,6 +19506,23 @@
         "metadata": {
           "assemblyGuide": "TOUTE CETTE PAGE EST D'ESTIMATION PURE : un seul objet par cellule, aucune comparaison de deux objets. C'est ce que l'objectif demande — dire d'un objet qu'il est long ou qu'il est court — et c'est ce qui distingue cette page de l'activité guidée ■ de la page 1. Comparer deux objets alignés est l'objectif de la Leçon 14.\nET DANS CHAQUE BANDE, LES TROIS OBJETS SONT DE LA MÊME SORTE : ce qui change d'une cellule à l'autre est la longueur, et rien d'autre.\n\n[N] {pt:PT-08}\n[N] Les élèves n'écrivent pas dans le manuel : ils écrivent LE SIGNE sur leur ardoise.\n\n★ [IMAGE : L04-tf-1]\n[N] {pt:PT-04 ★}\n[FR] Quelle bande est longue ? Écris le signe.\n[N] RÉPONSE : le signe –.\nE. montre du doigt les deux traits pointillés avant de laisser répondre : on part du même trait, on regarde où la bande s'arrête.\n\n▲ [IMAGE : L04-tf-2]\n[N] {pt:PT-09 ▲}\n[FR] Quel objet est court ? Écris le signe.\n[N] RÉPONSE : le signe X.\n\n■ [IMAGE : L04-tf-3]\n[N] {pt:PT-09 ■}\n[FR] Quel crayon est court ? Écris le signe.\n[N] RÉPONSE : le signe O.\nE. montre du doigt les deux traits pointillés avant de laisser répondre : on part du même trait, on regarde où le crayon s'arrête. Ce sont eux qui rendent la réponse décidable en REGARDANT, sans un mot d'explication.\nLe crayon revient de l'activité ★ guidée de la page 1, où il était un distracteur ; il est ici le sujet. L'élève ne peut pas répondre de mémoire.\n\nÀ L'ORAL, quand les ardoises sont levées et avant de corriger :\n[FR] Comment fais-tu pour savoir qu'un objet est long ?\nRÉPONSE ATTENDUE : on regarde d'où il part et où il s'arrête, et on le pose contre le même bord que les autres.\nCETTE QUESTION EST ORALE, ET SA PLACE EST ICI : écrite sur la page, elle ajouterait une seconde tâche à la consigne. C'est un exemple typique de ce que le Guide porte et que la page ne porte pas.\n\nLE POINT À NE PAS RATER : les trois directives tiennent chacune sur une ligne, en deux phrases — la question, puis « Écris le signe. » L'élève répond par LE SIGNE, jamais par une lettre ni par un mot. Et E. nomme les repères comme l'élève les voit — l'étoile, le triangle, le carré."
         }
+      }
+    },
+    {
+      "id": "5eb53a32-a478-421a-b5b3-5ddfdcaa70ee",
+      "labels": [
+        "RubricCriterion"
+      ],
+      "properties": {
+        "license": "https://creativecommons.org/licenses/by/4.0/",
+        "provider": "Learning Commons ontology (generated)",
+        "attributionStatement": "Node/edge types follow the Learning Commons ontology (CC BY-4.0).",
+        "identifier": "5eb53a32-a478-421a-b5b3-5ddfdcaa70ee",
+        "description": "7. Mêmes puces et mêmes images dans les deux fiches",
+        "content": "Point 7 de « Le contrôle de la fiche » : LES DEUX FICHES PORTENT LE MÊME NOMBRE DE PUCES, dans le même ordre, et LES MÊMES IMAGES aux mêmes places et aux mêmes tailles, crochets compris.\n\nComment on répond — À l'œil, sur le PDF, sur les deux fiches. Les deux fiches se lisent côte à côte.",
+        "position": 2,
+        "normalizedType": "Material",
+        "materialType": "Reference"
       }
     },
     {
@@ -21735,12 +21839,12 @@
         "license": "https://creativecommons.org/licenses/by/4.0/",
         "provider": "Learning Commons ontology (generated)",
         "attributionStatement": "Node/edge types follow the Learning Commons ontology (CC BY-4.0).",
-        "identifier": "4ec23b2c-36cb-4503-8251-07867edbd19c",
-        "description": "Rien d'utile laissé en spécification",
-        "position": 4,
+        "identifier": "69692e69-8e73-4ec9-b7ed-e943d4d1d65e",
+        "description": "11. Rien d'utile laissé sans marqueur",
+        "content": "Point 11 de « Le contrôle de la fiche » : Aucune consigne ni aucune réponse ne manque à la fiche par un préfixe perdu ; TOUTE CONSIGNE ET TOUT CRITÈRE dont le maître a besoin en classe porte un marqueur [N] ou [FR].\n\nComment on répond — À l'œil, le guide de chaque section à côté de la fiche rendue.",
+        "position": 2,
         "normalizedType": "Material",
-        "materialType": "Reference",
-        "content": "Toute consigne et tout critère dont le maître a besoin en classe portent-ils un marqueur imprimé ? Une ligne déclassée reste dans le guide comme spécification et ne s'imprime pas : rien d'utile en classe ne doit s'y trouver. ET, DEPUIS LE 10 SEPTEMBRE 2026, le guide est-il exempt — préfixées ou non — de toute raison de distracteur, réserve d'image, ligne « EST JUSTE / L'ERREUR / CRITÈRE », insistance, ligne « SUPPORT : », consigne de contournement et renvoi de remédiation ? Ces lignes se suppriment ; elles ne se déclassent pas."
+        "materialType": "Reference"
       }
     },
     {
@@ -23175,12 +23279,12 @@
         "license": "https://creativecommons.org/licenses/by/4.0/",
         "provider": "Learning Commons ontology (generated)",
         "attributionStatement": "Node/edge types follow the Learning Commons ontology (CC BY-4.0).",
-        "identifier": "3a93d10d-7ec6-499b-a307-97325cc61f97",
-        "description": "Phrases-types appelées et résolues",
-        "position": 1,
+        "identifier": "725bc021-8ef2-4d23-86e5-e65e301a201a",
+        "description": "12. Phrases-types appelées et résolues",
+        "content": "Point 12 de « Le contrôle de la fiche » : AUCUN APPEL `{pt:…}` N'EST RESTÉ EN CLAIR DANS LA FICHE, et TOUTE RÉFÉRENCE {pt:…} SE RÉSOUT — une phrase-type appelée mais absente ferait disparaître une consigne sans que rien ne le signale. AUCUNE LIGNE D'UN GUIDE NE RÉPÈTE MOT POUR MOT UNE PHRASE-TYPE : si elle le fait, elle aurait dû l'appeler.\n\nComment on répond — À l'œil : chaque `{pt:…}` de la fiche rendue est devenu sa phrase, et aucune ligne du guide ne recopie une phrase du répertoire.",
+        "position": 3,
         "normalizedType": "Material",
-        "materialType": "Reference",
-        "content": "Aucune ligne ne répète-t-elle mot pour mot une phrase-type du répertoire au lieu de l'appeler ? Et toute référence appelée se résout-elle ? Une phrase-type appelée mais absente ferait disparaître une consigne sans que rien ne le signale."
+        "materialType": "Reference"
       }
     },
     {
@@ -23429,12 +23533,12 @@
         "license": "https://creativecommons.org/licenses/by/4.0/",
         "provider": "Learning Commons ontology (generated)",
         "attributionStatement": "Node/edge types follow the Learning Commons ontology (CC BY-4.0).",
-        "identifier": "b6556745-bc0d-4417-916b-997135d9f06f",
-        "description": "Nombre d'activités",
-        "position": 3,
+        "identifier": "7369958f-eab1-4405-b817-0fb187a89955",
+        "description": "21. Le nombre d'activités suit la leçon, la dernière question à l'évaluation",
+        "content": "Point 21 de « Le contrôle de la fiche » : LE NOMBRE D'ACTIVITÉS SUIT LA LEÇON : la fiche couvre exactement ce que la page de l'élève porte ; une phase qui n'a que deux activités n'a pas un trou. LA DERNIÈRE QUESTION DE CONSOLIDATION EST À L'ÉVALUATION et non dans le TU FAIS, quel que soit le nombre de questions.\n\nComment on répond — Le nombre d'activités est vérifié par lint_content (page-directive-missing : chaque activité couverte a sa consigne sur la page) ; la place de la dernière question à l'œil.",
+        "position": 2,
         "normalizedType": "Material",
-        "materialType": "Reference",
-        "content": "La fiche couvre-t-elle exactement ce que la page de l'élève porte ? Le nombre d'activités SUIT la leçon : une phase qui n'en a que deux n'a pas un trou, et il ne s'en invente pas une troisième pour remplir."
+        "materialType": "Reference"
       }
     },
     {
@@ -26516,12 +26620,12 @@
         "license": "https://creativecommons.org/licenses/by/4.0/",
         "provider": "Learning Commons ontology (generated)",
         "attributionStatement": "Node/edge types follow the Learning Commons ontology (CC BY-4.0).",
-        "identifier": "e1e67287-bc34-4d3e-ae7f-d5370a923815",
-        "description": "Somme des durées",
+        "identifier": "82500b1b-4118-4669-afed-c554c1755b95",
+        "description": "20. Somme des durées",
+        "content": "Point 20 de « Le contrôle de la fiche » : DURÉES : 4+3+7+13+3 = 30 pour la séance 1 ; 5+15+3+7 = 30 pour la séance 2 — pour une leçon d'intégration, 4+3+12+11 = 30 et 15+15 = 30.\n\nComment on répond — Vérifié par lint_content sur la routine (total déclaré contre la somme des étapes) ; à l'œil sur la fiche.",
         "position": 1,
         "normalizedType": "Material",
-        "materialType": "Reference",
-        "content": "Les durées des phases totalisent-elles 30 minutes par séance ? Séance 1 : 4+3+7+13+3. Séance 2 : 5+15+3+7. Une leçon à séance unique ne compte que la première."
+        "materialType": "Reference"
       }
     },
     {
@@ -27514,6 +27618,23 @@
           "assemblyGuide": "Leçon 31 de l'Outil de l'élève (Planification V2) — deux pages par version linguistique, domaine Activité numérique. Contenu adapté de la Leçon 31 de Stéphane Cyr au format V2 à quatre sections. La rupture de page tombe après JE RETIENS. Fichiers à livrer, trois pour cette leçon : V2-Lecon-31-nombres-8-9-FR.docx, -WO.docx et -PROMPTS.docx.\n\nEN-TÊTE (page 1), sur une seule ligne : Unité 7 · Leçon 31 · DÉCOUVRIR LES NOMBRES 8 ET 9. Le titre reprend le texte de l'objectif mot pour mot.\n\nLA SCÈNE EST ENTIÈREMENT DICTÉE PAR SON BILAN, et c'est une chance : rien n'y est inventé. Ses cinq questions de bilan fixent, ensemble, le PREMIER CADRE DE DIX À 6 JETONS (5 en haut, 1 en bas), le DEUXIÈME À 9 (5 en haut, 4 en bas), et AWA LEVANT 5 DOIGTS. Sa question 2 (« combien faut-il ajouter aux jetons du premier cadre pour avoir 8 ? », réponse 2) donne 6 ; sa question 4 (« le deuxième cadre, c'est 5 et combien ? », réponse 4) et sa question 3 (« combien en tout ? », réponse 9) donnent le second ; sa question 1 donne les doigts d'Awa. Les trois se recoupent sans contradiction.\n\nRETOUR AU MARCHÉ DE COUMBA. Sa première phrase est « Retour au marché » : c'est l'étal des Leçons 11, 12 et 16, et le décor n'est pas à changer (décision du 29 août 2026 — la répétition d'une scène n'est plus un motif de substitution). Ce qui est neuf, ce sont LES CADRES DE DIX, qui entrent ici dans la vie du marché : Coumba s'en sert pour compter ses fruits.",
           "journal": "# Journal — V2 — Leçon 31 — Découvrir les nombres 8 et 9\n\n•• SOURCE RELUE •• Le PDF de l'expert a été relu mot à mot. Tout ce qui suit est vérifié sur sa leçon.\n\nCE QUI A CHANGÉ PAR RAPPORT À LA LEÇON DE L'EXPERT :\n• SES TROIS QUESTIONS ORALES SONT CONSERVÉES, dans son ordre et dans ses mots. La deuxième, « Si on ajoute 2 autres jetons au premier cadre, on obtient combien ? », porte une coquille dans le document reçu (« on obtiens combine ») : elle est corrigée sans autre changement.\n• SON « JE RETIENS » EST DE LA PROSE — « Je compte les objets un par un : 1, 2, 3, 4, 5, 6, 7, 8, 9. » Sous V2 la section ne porte qu'une image : il devient la bande numérique 0→9, avec sous 8 et sous 9 le cadre de dix correspondant. Son texte revient à la fiche du maître.\n• SON ACTIVITÉ 1 (« Reproduis les ensembles et complète ») EST UN EXERCICE DE TRAÇAGE : elle descend en tâche de production ▲ de TU FAIS, où sont toutes les tâches du manuel.\n• SON ACTIVITÉ 2 (« Compte les ballons ») devient l'activité ★ guidée, telle quelle.\n• SON « Pars de 4 et avance de 2 pas » devient l'activité ■ guidée, SES TROIS OPTIONS CONSERVÉES (5, 6, 7).\n• SA QUESTION 2 DE BILAN devient la question ■ de TU FAIS, ses trois quantités conservées (5, 2, 6).\n• La CONSIGNE GÉNÉRALE est supprimée : le pictogramme de section la remplace. Les choix A/B/C deviennent les signes X / O / –.\n\n•• SA CONSOLIDATION a) EST ÉCARTÉE, ET IL FAUT LE DIRE ••\nELLE DIT : « Recopie et compare les nombres en remplaçant les points (...) par le signe < ou >. »\nOR KARIMOU A TRANCHÉ QUE LES SIGNES <, > ET = NE SONT ENSEIGNÉS QU'À LA LEÇON 37. La raison de fond tient toujours : < et > encodent la réponse dans leur ORIENTATION, et la latéralité s'installe seulement cette année-là (Leçons 3 et 23). Les employer ici, six leçons trop tôt, demanderait à l'élève de lire un sens avant de savoir lire un sens.\nLA COMPARAISON ELLE-MÊME N'EST PAS PERDUE : elle est l'objet de la Leçon 37, qui la traite EN MOTS (« plus grand que », « plus petit que ») — et c'est ainsi que Stéphane lui-même la traite dans sa Leçon 37. La consolidation a) est reversée au Guide de l'enseignant. À lui signaler.\n\n•• CE QUI RESTE À FAIRE CONFIRMER PAR STÉPHANE ••\n1. L'écart de sa consolidation a) (les signes < et >), reportée à la Leçon 37.\n2. LA FIGURE DE SON ACTIVITÉ 1 N'EST PAS REPRODUITE dans le document reçu : les deux ensembles à reproduire sont écrits ici.\n3. La reprise de son « Pars de 4 et avance de 2 pas », qu'il pose À L'IDENTIQUE dans sa Leçon 36. Il n'apparaît ici qu'une fois, en activité guidée ; la Leçon 36 emploie à sa place sa question 4 de bilan."
         }
+      }
+    },
+    {
+      "id": "87ab4ae7-cdb0-4d80-aa6d-0a0c545319c6",
+      "labels": [
+        "RubricCriterion"
+      ],
+      "properties": {
+        "license": "https://creativecommons.org/licenses/by/4.0/",
+        "provider": "Learning Commons ontology (generated)",
+        "attributionStatement": "Node/edge types follow the Learning Commons ontology (CC BY-4.0).",
+        "identifier": "87ab4ae7-cdb0-4d80-aa6d-0a0c545319c6",
+        "description": "13. Pictogrammes de la mise en forme, une pastille par activité",
+        "content": "Point 13 de « Le contrôle de la fiche » : Les pictogrammes en ligne sont ceux de la mise en forme des pictogrammes et symboles, et une activité ne porte qu'UNE pastille ; aucun repère n'est seul sur sa ligne.\n\nComment on répond — Vérifié en partie par lint_content (page-missing-media, page-picture-not-attached) ; la pastille unique à l'œil.",
+        "position": 4,
+        "normalizedType": "Material",
+        "materialType": "Reference"
       }
     },
     {
@@ -29224,6 +29345,23 @@
       }
     },
     {
+      "id": "900d5017-cd1c-4d40-9b77-fd64a46cae10",
+      "labels": [
+        "RubricCriterion"
+      ],
+      "properties": {
+        "license": "https://creativecommons.org/licenses/by/4.0/",
+        "provider": "Learning Commons ontology (generated)",
+        "attributionStatement": "Node/edge types follow the Learning Commons ontology (CC BY-4.0).",
+        "identifier": "900d5017-cd1c-4d40-9b77-fd64a46cae10",
+        "description": "25. Case MATÉRIEL et gestes concordent",
+        "content": "Point 25 de « Le contrôle de la fiche » : LA CASE MATÉRIEL ET LES GESTES CONCORDENT : chaque objet de la case sert à un geste, chaque objet d'un geste est dans la case.\n\nComment on répond — À l'œil, sur le PDF, sur les deux fiches.",
+        "position": 6,
+        "normalizedType": "Material",
+        "materialType": "Reference"
+      }
+    },
+    {
       "id": "90227e31-65da-4fdc-a4c0-bb2e3fa10323",
       "labels": [
         "Activity"
@@ -30806,6 +30944,23 @@
       }
     },
     {
+      "id": "97047519-40af-463a-94de-f7144b88265a",
+      "labels": [
+        "RubricCriterion"
+      ],
+      "properties": {
+        "license": "https://creativecommons.org/licenses/by/4.0/",
+        "provider": "Learning Commons ontology (generated)",
+        "attributionStatement": "Node/edge types follow the Learning Commons ontology (CC BY-4.0).",
+        "identifier": "97047519-40af-463a-94de-f7144b88265a",
+        "description": "26. PT-07 avec son exemple, PT-17 avec son image",
+        "content": "Point 26 de « Le contrôle de la fiche » : PT-07 SE REND AVEC SON EXEMPLE : jamais « avec des objets de la classe » sans objets nommés. PT-17 ne s'appelle en phase 6 qu'avec l'image `tableau-rappel`.\n\nComment on répond — À l'œil, sur le PDF, sur les deux fiches.",
+        "position": 7,
+        "normalizedType": "Material",
+        "materialType": "Reference"
+      }
+    },
+    {
       "id": "970dc3ea-c4e9-42de-b382-4657c208e6e5",
       "labels": [
         "DocumentSection"
@@ -31276,23 +31431,6 @@
         "audience": "Élèves CI",
         "studentGroupingType": "Groupe classe",
         "content": "DIRECTIVE : « Regarde les deux tas de piments. Écris le signe de l'étiquette qui montre combien il y en a en tout. »\n\nCE QUI EST TESTÉ : COMPOSER VINGT — le second verbe de l'objectif. La question précédente lisait vingt déjà formé ; celle-ci le fait former.\n\nRÉPONSE : –.\nLA COMPOSITION EST 16 + 4, LA SIENNE, prise dans son « Je retiens ». Elle est la meilleure des compositions de vingt à poser en premier : la première part porte déjà une dizaine, la seconde complète la seconde dizaine à vue.\nLE POINT À NE PAS RATER : les six unités du premier tas et les quatre du second doivent être dessinées À LA MÊME TAILLE ET SUR LA MÊME LIGNE, de sorte que l'œil voie qu'ensemble elles font dix, comme la botte. C'est ce qui rend « deux dizaines » visible sans un mot.\nLES DEUX DISTRACTEURS SONT LES DEUX NOMBRES QUI PRÉCÈDENT."
-      }
-    },
-    {
-      "id": "99e5f135-9202-499d-a256-96861ac30ffd",
-      "labels": [
-        "RubricCriterion"
-      ],
-      "properties": {
-        "license": "https://creativecommons.org/licenses/by/4.0/",
-        "provider": "Learning Commons ontology (generated)",
-        "attributionStatement": "Node/edge types follow the Learning Commons ontology (CC BY-4.0).",
-        "identifier": "d5f101d8-129a-42e6-b19f-7b3f20164142",
-        "description": "Place de la dernière question de consolidation",
-        "position": 2,
-        "normalizedType": "Material",
-        "materialType": "Reference",
-        "content": "La dernière question de consolidation est-elle à l'ÉVALUATION et non dans le TU FAIS, quel que soit le nombre de questions de la leçon ?"
       }
     },
     {
@@ -31861,20 +31999,6 @@
         "domaineCi": "Résolution de problème",
         "reference": "V2 — Leçon 20, activités 1, 2, 3, 6",
         "sourceKey": "Planification V2"
-      }
-    },
-    {
-      "id": "9ce673f7-3204-425b-8a27-99ec1ee2a6fd",
-      "labels": [
-        "RubricSection"
-      ],
-      "properties": {
-        "license": "https://creativecommons.org/licenses/by/4.0/",
-        "provider": "Learning Commons ontology (generated)",
-        "attributionStatement": "Node/edge types follow the Learning Commons ontology (CC BY-4.0).",
-        "identifier": "ee076198-87ab-4b70-a614-667b0a3c94e7",
-        "description": "C. Références et renvois",
-        "position": 3
       }
     },
     {
@@ -33092,6 +33216,23 @@
       }
     },
     {
+      "id": "a33cd29d-fb53-4374-9c64-2854c9c8eda0",
+      "labels": [
+        "RubricCriterion"
+      ],
+      "properties": {
+        "license": "https://creativecommons.org/licenses/by/4.0/",
+        "provider": "Learning Commons ontology (generated)",
+        "attributionStatement": "Node/edge types follow the Learning Commons ontology (CC BY-4.0).",
+        "identifier": "a33cd29d-fb53-4374-9c64-2854c9c8eda0",
+        "description": "15. Le guide ne commente pas le matériel",
+        "content": "Point 15 de « Le contrôle de la fiche » : LE GUIDE NE COMMENTE PAS LE MATÉRIEL : aucune raison de distracteur, aucune réserve d'image, aucun « EST JUSTE » / « L'ERREUR » / « CRITÈRE », aucun « E. insiste » / « E. appuie sur », aucune ligne « SUPPORT : », aucune consigne de contournement ni renvoi de remédiation — NI PRÉFIXÉS, NI SANS PRÉFIXE.\n\nComment on répond — À l'œil, sur le PDF, sur les deux fiches.",
+        "position": 6,
+        "normalizedType": "Material",
+        "materialType": "Reference"
+      }
+    },
+    {
       "id": "a33f55e7-fe3c-4e21-8be6-95cd730bad5a",
       "labels": [
         "LearningComponent"
@@ -34139,6 +34280,23 @@
           "assemblyGuide": "[IMAGE : L56-amorce]",
           "journal": "# Journal — JE FAIS — situation d'amorce\n\nORIGINE : amorce de Stéphane Cyr, SCÈNE, GESTE, DEUX VOLETS ET QUATRE QUESTIONS ORALES CONSERVÉS MOT POUR MOT, SA LIGNE « Faisons de même pour les nombres 16 – 18 – 19 » COMPRISE. SES HARICOTS ET SA CALEBASSE SONT LES SIENS, et son amorce reprend délibérément le geste de sa Leçon 51 : c'est un choix d'auteur, et c'est le bon. Rien n'a été retiré ni resserré de sa scène.\nCE QUI CHANGE : ses haricots sont dessinés en vrac ; ils sont ici RANGÉS en rangées de cinq et en dizaine-et-unités. À SIGNALER.\nRÉSERVE À LEVER AVEC LUI : L'IMAGE DE SON AMORCE N'EST PAS LISIBLE DANS LE TEXTE EXTRAIT DE SON FICHIER — seules ses questions orales le sont. La scène décrite ici est donc reconstruite À PARTIR DE SES QUESTIONS, qui portent toutes sur 17 ; si son dessin d'origine porte un autre nombre au volet de droite, c'est SON dessin qui fait foi et la description est à corriger. À LUI DEMANDER."
         }
+      }
+    },
+    {
+      "id": "a7047ece-7c2b-4a85-a1c1-75f170da147a",
+      "labels": [
+        "RubricCriterion"
+      ],
+      "properties": {
+        "license": "https://creativecommons.org/licenses/by/4.0/",
+        "provider": "Learning Commons ontology (generated)",
+        "attributionStatement": "Node/edge types follow the Learning Commons ontology (CC BY-4.0).",
+        "identifier": "a7047ece-7c2b-4a85-a1c1-75f170da147a",
+        "description": "5. Bandeaux entiers, aucun cadre vide",
+        "content": "Point 5 de « Le contrôle de la fiche » : AUCUN BANDEAU N'EST ROGNÉ PAR UNE IMAGE — chacun fait la pleine largeur —, aucun bandeau n'est seul en bas de page, aucun cadre d'image n'est vide.\n\nComment on répond — Vérifié en partie par lint_content (page-band-floats-above-threshold) ; le reste à l'œil sur le PDF.",
+        "position": 5,
+        "normalizedType": "Material",
+        "materialType": "Reference"
       }
     },
     {
@@ -36107,6 +36265,23 @@
       }
     },
     {
+      "id": "b0446bc4-c299-402f-a680-ed9092363f32",
+      "labels": [
+        "RubricCriterion"
+      ],
+      "properties": {
+        "license": "https://creativecommons.org/licenses/by/4.0/",
+        "provider": "Learning Commons ontology (generated)",
+        "attributionStatement": "Node/edge types follow the Learning Commons ontology (CC BY-4.0).",
+        "identifier": "b0446bc4-c299-402f-a680-ed9092363f32",
+        "description": "18. Clé relue, un crochet par bande",
+        "content": "Point 18 de « Le contrôle de la fiche » : LA CLÉ DES RÉPONSES A ÉTÉ RELUE SUR LES BANDES FINALES, agrandies, et CHAQUE BANDE PORTE UN CROCHET, ET UN SEUL — deux quand la ligne RÉPONSE en donne deux — sur la vignette que dit la ligne RÉPONSE ; une tâche de production et une référence n'en portent pas.\n\nComment on répond — La réponse imprimée est vérifiée par lint_content (page-answer-differs, contre l'activité couverte) ; le crochet, sa place et son unicité à l'œil sur la bande agrandie.",
+        "position": 2,
+        "normalizedType": "Material",
+        "materialType": "Reference"
+      }
+    },
+    {
       "id": "b04e6292-f5fd-4b30-b858-47eccbdc8f44",
       "labels": [
         "DocumentSection"
@@ -37670,7 +37845,8 @@
               "keepWithNext": true
             },
             "puce": {
-              "marker": "•"
+              "marker": "•",
+              "maxChars": 88
             }
           },
           "images": {
@@ -39646,20 +39822,6 @@
       }
     },
     {
-      "id": "c1500efb-93e0-4748-9835-e274b25e7c00",
-      "labels": [
-        "RubricSection"
-      ],
-      "properties": {
-        "license": "https://creativecommons.org/licenses/by/4.0/",
-        "provider": "Learning Commons ontology (generated)",
-        "attributionStatement": "Node/edge types follow the Learning Commons ontology (CC BY-4.0).",
-        "identifier": "a3c8fe33-dfb8-4434-8c85-ccdb487ed89b",
-        "description": "B. Conventions d'écriture",
-        "position": 2
-      }
-    },
-    {
       "id": "c15133d1-37f4-42b7-b2f5-1ab94d266e20",
       "labels": [
         "DocumentSection"
@@ -39711,6 +39873,23 @@
         "position": 5,
         "normalizedType": "Activity",
         "audience": "Élèves CI"
+      }
+    },
+    {
+      "id": "c178b537-f428-411f-be79-0533dfde7435",
+      "labels": [
+        "RubricCriterion"
+      ],
+      "properties": {
+        "license": "https://creativecommons.org/licenses/by/4.0/",
+        "provider": "Learning Commons ontology (generated)",
+        "attributionStatement": "Node/edge types follow the Learning Commons ontology (CC BY-4.0).",
+        "identifier": "c178b537-f428-411f-be79-0533dfde7435",
+        "description": "9. Parenthèse finale noire et non traduite",
+        "content": "Point 9 de « Le contrôle de la fiche » : LA PARENTHÈSE FINALE D'UNE LIGNE [FR] EST NOIRE, NON GRASSE ET NON TRADUITE, dans les deux fiches.\n\nComment on répond — À l'œil, sur le PDF, sur les deux fiches.",
+        "position": 4,
+        "normalizedType": "Material",
+        "materialType": "Reference"
       }
     },
     {
@@ -41801,6 +41980,23 @@
         "domaineCi": "Arithmétique",
         "reference": "V2 — Leçon 37 (dérivé des Leçons 12, 21 et 22)",
         "sourceKey": "Planification V2"
+      }
+    },
+    {
+      "id": "cd1acfdc-a277-4efa-83a5-9a75582463d1",
+      "labels": [
+        "RubricCriterion"
+      ],
+      "properties": {
+        "license": "https://creativecommons.org/licenses/by/4.0/",
+        "provider": "Learning Commons ontology (generated)",
+        "attributionStatement": "Node/edge types follow the Learning Commons ontology (CC BY-4.0).",
+        "identifier": "cd1acfdc-a277-4efa-83a5-9a75582463d1",
+        "description": "3. Corps, interligne et marges de la mise en forme",
+        "content": "Point 3 de « Le contrôle de la fiche » : LE CORPS, L'INTERLIGNE ET LES MARGES SONT CEUX DE LA MISE EN FORME (`render.type`, `render.page`), partout ; ils ne se réécrivent nulle part en prose.\n\nComment on répond — Garanti par le serveur : le rendu applique `render.type` et `render.page` ; reste à vérifier qu'aucune prose ne les réécrit.",
+        "position": 3,
+        "normalizedType": "Material",
+        "materialType": "Reference"
       }
     },
     {
@@ -44498,6 +44694,23 @@
       }
     },
     {
+      "id": "d95bc1f1-d62b-48ff-9d12-ba22b59f1672",
+      "labels": [
+        "RubricCriterion"
+      ],
+      "properties": {
+        "license": "https://creativecommons.org/licenses/by/4.0/",
+        "provider": "Learning Commons ontology (generated)",
+        "attributionStatement": "Node/edge types follow the Learning Commons ontology (CC BY-4.0).",
+        "identifier": "d95bc1f1-d62b-48ff-9d12-ba22b59f1672",
+        "description": "4. Aucune puce sur deux lignes",
+        "content": "Point 4 de « Le contrôle de la fiche » : AUCUNE PUCE NE PREND DEUX LIGNES, sauf une consigne citée mot pour mot et les phrases-types PT-01, PT-03, PT-08 et PT-27.\n\nComment on répond — Vérifié avant le rendu par lint_content (page-line-over-max-chars, style « puce » à 88 caractères) ; les exceptions nommées se confirment à l'œil.",
+        "position": 4,
+        "normalizedType": "Material",
+        "materialType": "Reference"
+      }
+    },
+    {
       "id": "d96043d8-16c6-4a61-a8f9-d8f9f821a913",
       "labels": [
         "DocumentSection"
@@ -45056,6 +45269,23 @@
       }
     },
     {
+      "id": "dc36cfbd-67b4-4e82-bcb1-12ae41abf4f2",
+      "labels": [
+        "RubricCriterion"
+      ],
+      "properties": {
+        "license": "https://creativecommons.org/licenses/by/4.0/",
+        "provider": "Learning Commons ontology (generated)",
+        "attributionStatement": "Node/edge types follow the Learning Commons ontology (CC BY-4.0).",
+        "identifier": "dc36cfbd-67b4-4e82-bcb1-12ae41abf4f2",
+        "description": "6. Une seule couleur de parole par fiche",
+        "content": "Point 6 de « Le contrôle de la fiche » : CHAQUE FICHE NE PORTE QU'UNE SEULE COULEUR DE PAROLE : la fiche FR n'a pas une ligne bleue, la fiche WO pas une ligne rouge. Le contrôle se fait sur le fichier, en comptant les occurrences des deux variantes `FR` et `WO` de `render.language`.\n\nComment on répond — Sur le fichier : compter les variantes `FR` et `WO` de `render.language` dans chaque fiche.",
+        "position": 1,
+        "normalizedType": "Material",
+        "materialType": "Reference"
+      }
+    },
+    {
       "id": "dc441e5b-4f28-4a62-af0c-2be65fb9c1cc",
       "labels": [
         "DocumentSection"
@@ -45477,7 +45707,7 @@
         "position": 1,
         "metadata": {
           "scale": "oui-non",
-          "summary": "Grille de CONTRÔLE, non de notation : chaque point se répond par Oui ou Non. Tout « Non » est bloquant et se signale avec l'endroit exact du manquement.\n\nCes points valent pour les 60 leçons et ne se recopient plus dans les guides ; une fiche n'y ajoute que les contrôles PROPRES à sa leçon (la règle qu'elle s'est donnée, ses écarts à valider).\n\nPlusieurs points ne se tranchent QUE SUR LE RENDU, en PDF, et sur les DEUX fiches — la française et la wolof, qui partagent la pagination. Une estimation ne répond à aucun d'eux."
+          "summary": "Grille de CONTRÔLE — les 27 points de « Le contrôle de la fiche », un par question, mot pour mot ; chaque question dit comment on y répond (par l'outil, par la mesure, ou à l'œil), non de notation : chaque point se répond par Oui ou Non. Tout « Non » est bloquant et se signale avec l'endroit exact du manquement.\n\nCes points valent pour les 60 leçons et ne se recopient plus dans les guides ; une fiche n'y ajoute que les contrôles PROPRES à sa leçon (la règle qu'elle s'est donnée, ses écarts à valider).\n\nPlusieurs points ne se tranchent QUE SUR LE RENDU, en PDF, et sur les DEUX fiches — la française et la wolof, qui partagent la pagination. Une estimation ne répond à aucun d'eux."
         }
       }
     },
@@ -46098,20 +46328,6 @@
           "assemblyGuide": "Leçon 42 de l'Outil de l'élève (Planification V2) — deux pages par version linguistique, domaine Arithmétique. Contenu adapté de la Leçon 42 de Stéphane Cyr (« Le sens de la soustraction ») au format V2 à quatre sections. La rupture de page tombe après JE RETIENS. Fichiers à livrer, trois pour cette leçon : V2-Lecon-42-soustraction-FR.docx (français, 2 pages), V2-Lecon-42-soustraction-WO.docx (wolof, 2 pages, mêmes images) et V2-Lecon-42-soustraction-PROMPTS.docx (dossier d'illustration, sans images).\n\nEN-TÊTE (page 1), sur une seule ligne : Unité 9 · Leçon 42 · DÉCOUVRIR LE SENS DE LA SOUSTRACTION. Le titre reprend le texte de l'objectif mot pour mot.\n\n•• LE POINT À RÉGLER AVANT COMPOSITION — LE SIGNE DE RÉPONSE « – » ET LE SIGNE MOINS ••\nC'EST LA SEULE LEÇON DU MANUEL OÙ LES SIGNES DE RÉPONSE DE V2 RENCONTRENT LE CONTENU : le troisième signe de réponse est « – », et « – » est aussi le signe de la soustraction que la leçon enseigne. La règle tenue ici, et à tenir dans toute leçon d'arithmétique ultérieure : AUCUNE QUESTION DE CETTE LEÇON N'OFFRE DES SIGNES D'OPÉRATION COMME OPTIONS. Les options sont des images de situations, des collections ou des nombres ; le signe « – » n'apparaît que dans JE RETIENS, où il est la notion, et dans la tâche ▲, où l'élève l'écrit lui-même sur son ardoise — jamais comme option à côté d'un signe de réponse. Le point est à signaler à Stéphane, parce qu'il condamne la forme de ses deux activités et de sa question de bilan n°3 pour une raison qui ne tient pas à lui.\n\nLE SCHÉMA DE JE RETIENS : deux bandeaux, un par sens enseigné.\n(a) LE RESTE — les huit cahiers de Sidi, deux barrés d'un trait, et sous eux l'écriture 8 – 2 = 6. C'est SON dessin, repris sans changement.\n(b) LE MANQUE — le cadre de dix de la Leçon 41 avec 6 jetons posés et 4 cases vides marquées d'un point d'interrogation, et sous lui 10 – 6 = 4.\nLe signe – est écrit en grand dans les deux bandeaux : c'est ici qu'il s'apprend. Aucun signe de réponse n'apparaît dans le schéma.",
           "journal": "# Journal — V2 — Leçon 42 — Découvrir le sens de la soustraction\n\n•• SOURCE RELUE •• Le PDF de l'expert a été recoupé mot à mot.\n\nCE QUI A CHANGÉ PAR RAPPORT À LA LEÇON DE L'EXPERT :\n• SES DEUX ACTIVITÉS DEMANDENT LA MÊME CHOSE, ET SOUS UNE FORME QUE V2 NE PEUT PAS PRENDRE : « Écris et entoure l'opération qui convient dans ton cahier — Addition / Soustraction ». Trois obstacles, chacun suffisant. ENTOURER suppose un manuel consommable, et le manuel ne l'est pas. DEUX OPTIONS laissent une chance sur deux de tomber juste sans rien savoir, là où V2 en demande trois. Et surtout, LES DEUX OPTIONS SONT DES MOTS ÉCRITS — « Addition », « Soustraction » — que l'élève de CI ne lit pas : c'est une question de vocabulaire, et la réponse se devine au mot le plus long. LE CONTENU DES DEUX EST INTÉGRALEMENT GARDÉ : son Activité 1 (Moussa, 6 oranges, il en mange 2) devient la question ▲ de NOUS FAISONS, posée sur le NOMBRE QUI RESTE ; son Activité 2 (Abdou, 6 billes, combien lui manque-t-il pour en avoir 10) devient la question ■, posée sur le NOMBRE QUI MANQUE. Ce sont ses situations, ses nombres, ses personnages.\n• SA CONSOLIDATION EST CONSERVÉE ET CHANGE DE SUPPORT. Il écrit trois énoncés a), b), c) et demande « écris la lettre qui correspond à l'énoncé qui fait appel à une soustraction ». Les énoncés sont du texte, que l'élève ne lit pas, et les lettres sont réservées sous V2 aux signes de réponse. LES TROIS ÉNONCÉS DEVIENNENT TROIS SCÈNES DESSINÉES que l'enseignant lit à voix haute — procédé qui est le sien, puisqu'il l'emploie lui-même aux Leçons 45 et 50 (« l'enseignant·e lit chaque scène »). Ses trois situations sont gardées telles quelles : Awa achète 2 mangues de plus, Awa en mange 3, Abdou lui en donne 3.\n• SON AMORCE EST CONSERVÉE, SCÈNE, PERSONNAGES ET QUESTIONS ORALES. Ses quatre questions orales sont posées mot pour mot, la quatrième (« Quelle opération poses-tu ? ») au retour sur l'amorce, après JE RETIENS, puisqu'elle demande le nom de l'opération. SON CINQUIÈME ITEM, « Écris l'opération sur ton ardoise », N'EST PAS UNE QUESTION ORALE MAIS UNE TÂCHE ÉCRITE : il devient la TÂCHE DE PRODUCTION ▲ de TU FAIS, où il est fait et corrigé. C'EST LE SEUL EXERCICE DE TRAÇAGE DE SA LEÇON, ET C'EST LA SEULE TÂCHE DE PRODUCTION DE LA LEÇON.\n• UNE QUESTION EST AJOUTÉE EN TÊTE (★ de NOUS FAISONS) : reconnaître, parmi trois images, celle où l'on RETIRE. Chez lui, la première question demande déjà de NOMMER l'opération ; rien ne fait d'abord reconnaître le geste. C'est le premier pas de la leçon et il manquait.\n• LE BILAN est supprimé de l'outil de l'élève — une leçon V2 n'en comporte pas —, MAIS SES QUATRE QUESTIONS SONT RECOPIÉES MOT POUR MOT DANS LE GUIDE DE LA SOUS-SECTION JE FAIS, avec ce que l'image d'amorce doit montrer pour que chacune reste répondable : elles vivront dans les fiches de leçon. Ses questions 1, 2 et 4 sont par ailleurs reposées EN IMAGE à la question ■ de TU FAIS, qui remontre le panier de Mère Nafi imprimé à la page 2. Sa question 3 (« quelle opération pose-t-on ? A. Addition (+) B. Soustraction (–) ») est à deux options et offre les signes d'opération en réponse — voir le point sur le signe « – » ci-dessus — : elle reste à l'oral, dans la fiche du maître. À SIGNALER DANS SON FICHIER SOURCE : l'option C de sa question 4 est incomplète, « mangues » sans son nombre.\n• Le « Je retiens » perd sa prose : sous V2 la section ne porte qu'une image. Sa phrase revient à la fiche du maître, dans le Guide de l'enseignant, qui reste à recréer. SON DESSIN EST GARDÉ TEL QUEL. Sa première case en revanche — Sidi, ses 8 cahiers, et « entoure l'opération qui convient : Addition / Soustraction » avec « Soustraction » entouré en rouge — EST UN EXERCICE, pas une notion : elle sort du schéma.\n• Les choix deviennent les signes X / O / –, composés sur l'image et jamais écrits en texte.\n• La CONSIGNE GÉNÉRALE est supprimée : le pictogramme de section la remplace.\n\n•• REPRISE APRÈS LE RETOUR DE STÉPHANE (29 août 2026) ••\nSA LEÇON 42 CONTIENT UN SEUL EXERCICE DE TRAÇAGE, « Écris l'opération sur ton ardoise ». La leçon garde donc UNE tâche de production, la sienne, et une seule.\n— POSITION ▲ DE TU FAIS, GARDÉE ET VÉRIFIÉE : « Regarde l'image. Écris l'opération sur ton ardoise. » Sa forme a été recoupée avec celle de l'expert — une figure imprimée sur la page, un geste d'écriture court, aucun personnage ni décor à redessiner — et elle est conforme. Le guide de la sous-section le dit désormais explicitement.\n— POSITION ● DE TU FAIS, REFAITE : « Il y a 8 bonbons. On en retire 3. Dessine sur ton ardoise les bonbons qui restent » devient « Il y a 8 bonbons. On en retire 3. Écris le signe du groupe de bonbons qui restent. » (X = 3 bonbons, O = 8 bonbons, – = 5 bonbons ; réponse –). Dessiner une collection est le geste que Stéphane refuse ; le sens testé, le reste, est conservé entier, et l'image de référence ne change pas.\nLA LIGNE « ALTERNANCE DE TU FAIS » A ÉTÉ SUPPRIMÉE : la règle n'existe plus. LA RÈGLE « au moins une tâche de production par leçon, deux de préférence » EST RETIRÉE ÉGALEMENT.\nL'AMORCE A RETROUVÉ DEUX CHOSES. SES NOMBRES : 9 mangues, 3 retirées, 6 qui restent, au lieu des 8, 3 et 5 que nous avions posés ; ce sont les nombres de ses options de bilan, et c'est la seule lecture où ses quatre questions ont toutes une réponse. SA QUATRIÈME QUESTION ORALE, « Quelle opération poses-tu ? », qui avait été retirée et qui est reposée au retour sur l'amorce. Le guide de la sous-section JE FAIS reçoit en outre un bloc neuf, •• QUESTIONS DU BILAN — À GARDER RÉPONDABLES DEVANT CETTE IMAGE ••, qui recopie ses quatre questions de bilan avec leurs options et dit, pour chacune, ce que l'image doit montrer.\nUN POINT RESTE OUVERT ET N'A PAS ÉTÉ TRANCHÉ : l'option C de sa question de bilan n°4 a perdu son nombre dans le fichier source (« C. mangues »). La valeur 6 est retenue parce qu'elle est la seule qui rende son bilan cohérent, mais elle est à confirmer avec lui ; les quantités de l'amorce et de la question ■ en dépendent."
         }
-      }
-    },
-    {
-      "id": "e14a3cd5-5cab-4004-a037-989fedd476f4",
-      "labels": [
-        "RubricSection"
-      ],
-      "properties": {
-        "license": "https://creativecommons.org/licenses/by/4.0/",
-        "provider": "Learning Commons ontology (generated)",
-        "attributionStatement": "Node/edge types follow the Learning Commons ontology (CC BY-4.0).",
-        "identifier": "2677d50c-349f-488e-9e1f-b8fbc4d52b22",
-        "description": "A. Structure et durées",
-        "position": 1
       }
     },
     {
@@ -47008,12 +47224,12 @@
         "license": "https://creativecommons.org/licenses/by/4.0/",
         "provider": "Learning Commons ontology (generated)",
         "attributionStatement": "Node/edge types follow the Learning Commons ontology (CC BY-4.0).",
-        "identifier": "4a6a959a-add3-46c2-8a38-64c1b90cd134",
-        "description": "Aucun renvoi resté au placeholder",
-        "position": 2,
+        "identifier": "e57974ff-bcd5-4872-9d38-f991eb7a9a50",
+        "description": "14. Aucun renvoi resté au placeholder",
+        "content": "Point 14 de « Le contrôle de la fiche » : AUCUN RENVOI DE PAGE N'EST RESTÉ AU PLACEHOLDER : ni « p. ● », ni « à la page X ».\n\nComment on répond — À l'œil : chercher « p. ● » et « à la page » dans la fiche rendue.",
+        "position": 5,
         "normalizedType": "Material",
-        "materialType": "Reference",
-        "content": "Aucun renvoi de page n'est-il resté à son marqueur d'attente — ni « p. ● », ni « à la page X » ? Tant que la pagination de l'outil de l'élève n'est pas établie, le renvoi ne s'imprime pas du tout : c'est son ABSENCE qui est correcte, pas un marqueur laissé en clair."
+        "materialType": "Reference"
       }
     },
     {
@@ -47593,6 +47809,39 @@
       }
     },
     {
+      "id": "e85d9841-3756-4829-b14f-30efde8287b0",
+      "labels": [
+        "RubricSection"
+      ],
+      "properties": {
+        "license": "https://creativecommons.org/licenses/by/4.0/",
+        "provider": "Learning Commons ontology (generated)",
+        "attributionStatement": "Node/edge types follow the Learning Commons ontology (CC BY-4.0).",
+        "identifier": "e85d9841-3756-4829-b14f-30efde8287b0",
+        "description": "E. La leçon",
+        "position": 5,
+        "normalizedType": "Material",
+        "materialType": "Reference"
+      }
+    },
+    {
+      "id": "e85f4f11-00c3-415c-9fa5-ac4f976db0ee",
+      "labels": [
+        "RubricCriterion"
+      ],
+      "properties": {
+        "license": "https://creativecommons.org/licenses/by/4.0/",
+        "provider": "Learning Commons ontology (generated)",
+        "attributionStatement": "Node/edge types follow the Learning Commons ontology (CC BY-4.0).",
+        "identifier": "e85f4f11-00c3-415c-9fa5-ac4f976db0ee",
+        "description": "27. Objectivation et évaluation au format",
+        "content": "Point 27 de « Le contrôle de la fiche » : L'OBJECTIVATION PORTE UNE SEULE QUESTION, sa RÉPONSE, PT-14 et la « Réponse attendue » ; l'ÉVALUATION porte la consigne, sa RÉPONSE et PT-16, et PT-15 n'y est pas appelée.\n\nComment on répond — À l'œil, sur le PDF, sur les deux fiches.",
+        "position": 8,
+        "normalizedType": "Material",
+        "materialType": "Reference"
+      }
+    },
+    {
       "id": "e86200f5-03dd-465d-8383-70123d7efef8",
       "labels": [
         "DocumentSection"
@@ -48054,6 +48303,22 @@
         "audience": "Élèves CI",
         "studentGroupingType": "Groupe classe",
         "content": "CE QUE L'ACTIVITÉ FAIT TRAVAILLER : lire une quantité SUR LE CADRE DE DIX, le support le plus contraint des trois. Elle vient en premier parce que le cadre range les objets pour l'élève : les cases sont alignées, l'écart est fixe, il n'y a rien à organiser avant de compter.\n\nRÉPONSE : O.\nDistracteurs, tous deux des erreurs réelles : X = un de moins, l'erreur de l'élève qui s'arrête trop tôt ; – = la rangée pleine, que l'élève choisit quand il répond « beaucoup » plutôt qu'un nombre. Le second est le plus instructif : il oblige à compter au lieu d'estimer.\nLES TROIS CADRES SONT DE MÊME TAILLE ET LES ORANGES DE MÊME DIAMÈTRE : rien ne doit distinguer les cellules que le nombre d'oranges."
+      }
+    },
+    {
+      "id": "eb068aae-6794-49a8-9b5d-72b21e9cf475",
+      "labels": [
+        "RubricSection"
+      ],
+      "properties": {
+        "license": "https://creativecommons.org/licenses/by/4.0/",
+        "provider": "Learning Commons ontology (generated)",
+        "attributionStatement": "Node/edge types follow the Learning Commons ontology (CC BY-4.0).",
+        "identifier": "eb068aae-6794-49a8-9b5d-72b21e9cf475",
+        "description": "B. Les deux langues",
+        "position": 2,
+        "normalizedType": "Material",
+        "materialType": "Reference"
       }
     },
     {
@@ -49812,6 +50077,22 @@
       }
     },
     {
+      "id": "f3963354-10be-4be5-b2c9-9cf3f0fd10a8",
+      "labels": [
+        "RubricSection"
+      ],
+      "properties": {
+        "license": "https://creativecommons.org/licenses/by/4.0/",
+        "provider": "Learning Commons ontology (generated)",
+        "attributionStatement": "Node/edge types follow the Learning Commons ontology (CC BY-4.0).",
+        "identifier": "f3963354-10be-4be5-b2c9-9cf3f0fd10a8",
+        "description": "D. Les images",
+        "position": 4,
+        "normalizedType": "Material",
+        "materialType": "Reference"
+      }
+    },
+    {
       "id": "f3c8d950-c283-4261-aeea-fdb41add7b0c",
       "labels": [
         "LearningComponent"
@@ -50275,12 +50556,12 @@
         "license": "https://creativecommons.org/licenses/by/4.0/",
         "provider": "Learning Commons ontology (generated)",
         "attributionStatement": "Node/edge types follow the Learning Commons ontology (CC BY-4.0).",
-        "identifier": "4a4ac046-dc70-4d3e-a883-54046e942090",
-        "description": "Absence de ligne wolof dans le guide",
-        "position": 1,
+        "identifier": "f61253b4-91e3-44dd-83b3-ca2c2f3b2bbe",
+        "description": "8. Aucune ligne [WO] dans les guides",
+        "content": "Point 8 de « Le contrôle de la fiche » : LA LIGNE [WO] NE FIGURE PAS DANS LES GUIDES : le rendu wolof se pose à la traduction, ligne à ligne, et le français en reste la source. Chaque [FR] a sa [WO], aucune ligne bleue n'est vide.\n\nComment on répond — À l'œil, sur les guides des sections (walk_document_section), pas sur le PDF.",
+        "position": 3,
         "normalizedType": "Material",
-        "materialType": "Reference",
-        "content": "Le guide est-il exempt de toute ligne [WO] ? Le rendu wolof se pose à la traduction du document, ligne à ligne ; le français en reste la source."
+        "materialType": "Reference"
       }
     },
     {
@@ -50649,6 +50930,22 @@
           "assemblyGuide": "[IMAGE : L59-amorce]",
           "journal": "# Journal — JE FAIS — situation d'amorce\n\nORIGINE : amorce de Stéphane Cyr, SES DEUX VOLETS, SES QUATRE SCÈNES, SON PROCÉDÉ DE LA FLÈCHE AU SOL ET SES DEUX QUESTIONS ORALES CONSERVÉS MOT POUR MOT.\nDEUX RETRAITS, ET DEUX SEULEMENT — TOUS DEUX PORTENT SUR DU TEXTE DESSINÉ, AUCUN NE TOUCHE À LA SCÈNE. Ce sont des CONTRAINTES DE FOND, gardées après le retour de Stéphane parce que sans elles ses propres questions ne se posent plus :\n(1) SES BULLES « lent » ET « rapide » SONT SUPPRIMÉES. Elles écrivent la réponse à sa propre question orale n°2 et à ses questions de bilan n°3 et n°4 au-dessus des dessins qu'elles interrogent : avec elles, il n'y a plus rien à chercher. Et elles demandent de LIRE, ce que l'élève de CI ne fait pas. La flèche au sol et l'écartement des positions disent la même chose en dessin, ce qui est son idée à lui.\n(2) SES TITRES « Journée de classe » ET « Puiser de l'eau », COMPOSÉS DANS L'IMAGE, SONT SUPPRIMÉS : ce sont des mots à lire dans un dessin. Le maître nomme les scènes à voix haute.\nRIEN D'AUTRE N'EST RETIRÉ NI RESSERRÉ.\nERREUR MATÉRIELLE : sa question orale n°2 écrit « le déplacement du bébé aui rampe » — « aui » pour « qui »."
         }
+      }
+    },
+    {
+      "id": "f81f1ace-232c-4d45-99a2-a4a902a38211",
+      "labels": [
+        "RubricSection"
+      ],
+      "properties": {
+        "license": "https://creativecommons.org/licenses/by/4.0/",
+        "provider": "Learning Commons ontology (generated)",
+        "attributionStatement": "Node/edge types follow the Learning Commons ontology (CC BY-4.0).",
+        "identifier": "f81f1ace-232c-4d45-99a2-a4a902a38211",
+        "description": "C. Ce qui s'imprime",
+        "position": 3,
+        "normalizedType": "Material",
+        "materialType": "Reference"
       }
     },
     {
@@ -51123,6 +51420,23 @@
           "assemblyGuide": "DISPOSITION : bande ~3:1, pleine largeur, SOUS la directive. SANS CADRE DE RÉFÉRENCE — la référence est l'image de la situation, en haut de la même page, où les deux colonnes sont dessinées.\n\n[IMAGE : L49-s1-4]",
           "journal": "# Journal — SITUATION N° 1 — question ● (le groupe qui a le plus d'élèves)\n\nORIGINE : sous-question d) de sa Situation n° 1 — « Réponds à la question. Écris Vrai (V) ou Faux (F) : “Il y a plus de garçons que de filles.” »\n•• SON VRAI / FAUX EST CONVERTI, ET IL FAUT LE DIRE •• V2 n'admet pas une question à deux issues : une pièce lancée y répond juste une fois sur deux. La question devient « quel groupe a le plus d'élèves ? », sous la forme à trois issues de la Leçon 12, et SON AFFIRMATION EST CONSERVÉE — comme distracteur X. Elle reste FAUSSE dans la scène, comme chez lui : il y a trois filles et deux garçons. Rien de sa question n'est perdu ; son énoncé mot pour mot est reversé au Guide de l'enseignant, où il fait une bonne question orale de reprise devant la même image."
         }
+      }
+    },
+    {
+      "id": "fa00f352-06c9-4d73-b848-96e60873b208",
+      "labels": [
+        "RubricCriterion"
+      ],
+      "properties": {
+        "license": "https://creativecommons.org/licenses/by/4.0/",
+        "provider": "Learning Commons ontology (generated)",
+        "attributionStatement": "Node/edge types follow the Learning Commons ontology (CC BY-4.0).",
+        "identifier": "fa00f352-06c9-4d73-b848-96e60873b208",
+        "description": "23. La révision s'ouvre par un geste",
+        "content": "Point 23 de « Le contrôle de la fiche » : LA RÉVISION S'OUVRE PAR UN GESTE : sa première ligne imprimée est une ligne [N] qui nomme ce que le maître montre, trace ou dispose. AUCUNE QUESTION DE DÉNOMBREMENT n'est posée avant la leçon qui installe le comptage.\n\nComment on répond — À l'œil, sur le PDF, sur les deux fiches.",
+        "position": 4,
+        "normalizedType": "Material",
+        "materialType": "Reference"
       }
     },
     {
@@ -64302,15 +64616,6 @@
       }
     },
     {
-      "id": "hasPart:06a67767-dfc6-4d44-96e7-e734bd3bd768->27f32727-f8a8-469b-9e71-82645a62288f",
-      "type": "hasPart",
-      "start": "06a67767-dfc6-4d44-96e7-e734bd3bd768",
-      "end": "27f32727-f8a8-469b-9e71-82645a62288f",
-      "properties": {
-        "orderInParent": 1
-      }
-    },
-    {
       "id": "hasPart:08984d40-5d8d-4111-b1ce-58360bde9cab->85bef9af-39b6-4fad-a520-de70b672f7ac",
       "type": "hasPart",
       "start": "08984d40-5d8d-4111-b1ce-58360bde9cab",
@@ -72123,24 +72428,6 @@
       }
     },
     {
-      "id": "hasPart:9ce673f7-3204-425b-8a27-99ec1ee2a6fd->725bc021-8ef2-4d23-86e5-e65e301a201a",
-      "type": "hasPart",
-      "start": "9ce673f7-3204-425b-8a27-99ec1ee2a6fd",
-      "end": "725bc021-8ef2-4d23-86e5-e65e301a201a",
-      "properties": {
-        "orderInParent": 1
-      }
-    },
-    {
-      "id": "hasPart:9ce673f7-3204-425b-8a27-99ec1ee2a6fd->e57974ff-bcd5-4872-9d38-f991eb7a9a50",
-      "type": "hasPart",
-      "start": "9ce673f7-3204-425b-8a27-99ec1ee2a6fd",
-      "end": "e57974ff-bcd5-4872-9d38-f991eb7a9a50",
-      "properties": {
-        "orderInParent": 2
-      }
-    },
-    {
       "id": "hasPart:9d3e1256-4410-4dd3-bc94-31d119e760ca->022c0640-1cc7-492f-9c34-49bdf43b44e0",
       "type": "hasPart",
       "start": "9d3e1256-4410-4dd3-bc94-31d119e760ca",
@@ -74706,42 +74993,6 @@
       }
     },
     {
-      "id": "hasPart:c1500efb-93e0-4748-9835-e274b25e7c00->042357a7-7733-4a6c-b5ff-ee78530f7974",
-      "type": "hasPart",
-      "start": "c1500efb-93e0-4748-9835-e274b25e7c00",
-      "end": "042357a7-7733-4a6c-b5ff-ee78530f7974",
-      "properties": {
-        "orderInParent": 3
-      }
-    },
-    {
-      "id": "hasPart:c1500efb-93e0-4748-9835-e274b25e7c00->21c43255-22f1-4994-a697-7091ace671e4",
-      "type": "hasPart",
-      "start": "c1500efb-93e0-4748-9835-e274b25e7c00",
-      "end": "21c43255-22f1-4994-a697-7091ace671e4",
-      "properties": {
-        "orderInParent": 2
-      }
-    },
-    {
-      "id": "hasPart:c1500efb-93e0-4748-9835-e274b25e7c00->69692e69-8e73-4ec9-b7ed-e943d4d1d65e",
-      "type": "hasPart",
-      "start": "c1500efb-93e0-4748-9835-e274b25e7c00",
-      "end": "69692e69-8e73-4ec9-b7ed-e943d4d1d65e",
-      "properties": {
-        "orderInParent": 4
-      }
-    },
-    {
-      "id": "hasPart:c1500efb-93e0-4748-9835-e274b25e7c00->f61253b4-91e3-44dd-83b3-ca2c2f3b2bbe",
-      "type": "hasPart",
-      "start": "c1500efb-93e0-4748-9835-e274b25e7c00",
-      "end": "f61253b4-91e3-44dd-83b3-ca2c2f3b2bbe",
-      "properties": {
-        "orderInParent": 1
-      }
-    },
-    {
       "id": "hasPart:c1fde908-f920-4441-a1f1-0e942cd9c22a->45c90213-e06a-48e2-a0d5-c3519af026fb",
       "type": "hasPart",
       "start": "c1fde908-f920-4441-a1f1-0e942cd9c22a",
@@ -76983,42 +77234,6 @@
       }
     },
     {
-      "id": "hasPart:ddedfb1c-0f81-4fe6-ac78-fca6cb520aaf->06a67767-dfc6-4d44-96e7-e734bd3bd768",
-      "type": "hasPart",
-      "start": "ddedfb1c-0f81-4fe6-ac78-fca6cb520aaf",
-      "end": "06a67767-dfc6-4d44-96e7-e734bd3bd768",
-      "properties": {
-        "orderInParent": 4
-      }
-    },
-    {
-      "id": "hasPart:ddedfb1c-0f81-4fe6-ac78-fca6cb520aaf->9ce673f7-3204-425b-8a27-99ec1ee2a6fd",
-      "type": "hasPart",
-      "start": "ddedfb1c-0f81-4fe6-ac78-fca6cb520aaf",
-      "end": "9ce673f7-3204-425b-8a27-99ec1ee2a6fd",
-      "properties": {
-        "orderInParent": 3
-      }
-    },
-    {
-      "id": "hasPart:ddedfb1c-0f81-4fe6-ac78-fca6cb520aaf->c1500efb-93e0-4748-9835-e274b25e7c00",
-      "type": "hasPart",
-      "start": "ddedfb1c-0f81-4fe6-ac78-fca6cb520aaf",
-      "end": "c1500efb-93e0-4748-9835-e274b25e7c00",
-      "properties": {
-        "orderInParent": 2
-      }
-    },
-    {
-      "id": "hasPart:ddedfb1c-0f81-4fe6-ac78-fca6cb520aaf->e14a3cd5-5cab-4004-a037-989fedd476f4",
-      "type": "hasPart",
-      "start": "ddedfb1c-0f81-4fe6-ac78-fca6cb520aaf",
-      "end": "e14a3cd5-5cab-4004-a037-989fedd476f4",
-      "properties": {
-        "orderInParent": 1
-      }
-    },
-    {
       "id": "hasPart:de988228-a0cf-4831-9438-cab3b871dfd1->064f66da-ec5c-4b68-8296-3197c3b2bef0",
       "type": "hasPart",
       "start": "de988228-a0cf-4831-9438-cab3b871dfd1",
@@ -77385,33 +77600,6 @@
       "end": "fffa4648-2901-421c-a1fe-86c8f55ac6aa",
       "properties": {
         "orderInParent": 1
-      }
-    },
-    {
-      "id": "hasPart:e14a3cd5-5cab-4004-a037-989fedd476f4->7369958f-eab1-4405-b817-0fb187a89955",
-      "type": "hasPart",
-      "start": "e14a3cd5-5cab-4004-a037-989fedd476f4",
-      "end": "7369958f-eab1-4405-b817-0fb187a89955",
-      "properties": {
-        "orderInParent": 3
-      }
-    },
-    {
-      "id": "hasPart:e14a3cd5-5cab-4004-a037-989fedd476f4->82500b1b-4118-4669-afed-c554c1755b95",
-      "type": "hasPart",
-      "start": "e14a3cd5-5cab-4004-a037-989fedd476f4",
-      "end": "82500b1b-4118-4669-afed-c554c1755b95",
-      "properties": {
-        "orderInParent": 1
-      }
-    },
-    {
-      "id": "hasPart:e14a3cd5-5cab-4004-a037-989fedd476f4->99e5f135-9202-499d-a256-96861ac30ffd",
-      "type": "hasPart",
-      "start": "e14a3cd5-5cab-4004-a037-989fedd476f4",
-      "end": "99e5f135-9202-499d-a256-96861ac30ffd",
-      "properties": {
-        "orderInParent": 2
       }
     },
     {
@@ -85446,6 +85634,294 @@
       "start": "e43a6a10-768b-4402-befc-72ce1ce374d5",
       "end": "63206cce-1481-4967-9228-8f146ad78f1c",
       "properties": {}
+    },
+    {
+      "id": "hasPart:ddedfb1c-0f81-4fe6-ac78-fca6cb520aaf->0d91993f-d811-4655-bf99-8cd32bcb8cdc",
+      "type": "hasPart",
+      "start": "ddedfb1c-0f81-4fe6-ac78-fca6cb520aaf",
+      "end": "0d91993f-d811-4655-bf99-8cd32bcb8cdc",
+      "properties": {
+        "orderInParent": 1
+      }
+    },
+    {
+      "id": "hasPart:0d91993f-d811-4655-bf99-8cd32bcb8cdc->27f32727-f8a8-469b-9e71-82645a62288f",
+      "type": "hasPart",
+      "start": "0d91993f-d811-4655-bf99-8cd32bcb8cdc",
+      "end": "27f32727-f8a8-469b-9e71-82645a62288f",
+      "properties": {
+        "orderInParent": 1
+      }
+    },
+    {
+      "id": "hasPart:0d91993f-d811-4655-bf99-8cd32bcb8cdc->29bd03f0-b41f-4cb5-a6d1-77474d51d5fd",
+      "type": "hasPart",
+      "start": "0d91993f-d811-4655-bf99-8cd32bcb8cdc",
+      "end": "29bd03f0-b41f-4cb5-a6d1-77474d51d5fd",
+      "properties": {
+        "orderInParent": 2
+      }
+    },
+    {
+      "id": "hasPart:0d91993f-d811-4655-bf99-8cd32bcb8cdc->cd1acfdc-a277-4efa-83a5-9a75582463d1",
+      "type": "hasPart",
+      "start": "0d91993f-d811-4655-bf99-8cd32bcb8cdc",
+      "end": "cd1acfdc-a277-4efa-83a5-9a75582463d1",
+      "properties": {
+        "orderInParent": 3
+      }
+    },
+    {
+      "id": "hasPart:0d91993f-d811-4655-bf99-8cd32bcb8cdc->d95bc1f1-d62b-48ff-9d12-ba22b59f1672",
+      "type": "hasPart",
+      "start": "0d91993f-d811-4655-bf99-8cd32bcb8cdc",
+      "end": "d95bc1f1-d62b-48ff-9d12-ba22b59f1672",
+      "properties": {
+        "orderInParent": 4
+      }
+    },
+    {
+      "id": "hasPart:0d91993f-d811-4655-bf99-8cd32bcb8cdc->a7047ece-7c2b-4a85-a1c1-75f170da147a",
+      "type": "hasPart",
+      "start": "0d91993f-d811-4655-bf99-8cd32bcb8cdc",
+      "end": "a7047ece-7c2b-4a85-a1c1-75f170da147a",
+      "properties": {
+        "orderInParent": 5
+      }
+    },
+    {
+      "id": "hasPart:ddedfb1c-0f81-4fe6-ac78-fca6cb520aaf->eb068aae-6794-49a8-9b5d-72b21e9cf475",
+      "type": "hasPart",
+      "start": "ddedfb1c-0f81-4fe6-ac78-fca6cb520aaf",
+      "end": "eb068aae-6794-49a8-9b5d-72b21e9cf475",
+      "properties": {
+        "orderInParent": 2
+      }
+    },
+    {
+      "id": "hasPart:eb068aae-6794-49a8-9b5d-72b21e9cf475->dc36cfbd-67b4-4e82-bcb1-12ae41abf4f2",
+      "type": "hasPart",
+      "start": "eb068aae-6794-49a8-9b5d-72b21e9cf475",
+      "end": "dc36cfbd-67b4-4e82-bcb1-12ae41abf4f2",
+      "properties": {
+        "orderInParent": 1
+      }
+    },
+    {
+      "id": "hasPart:eb068aae-6794-49a8-9b5d-72b21e9cf475->5eb53a32-a478-421a-b5b3-5ddfdcaa70ee",
+      "type": "hasPart",
+      "start": "eb068aae-6794-49a8-9b5d-72b21e9cf475",
+      "end": "5eb53a32-a478-421a-b5b3-5ddfdcaa70ee",
+      "properties": {
+        "orderInParent": 2
+      }
+    },
+    {
+      "id": "hasPart:eb068aae-6794-49a8-9b5d-72b21e9cf475->f61253b4-91e3-44dd-83b3-ca2c2f3b2bbe",
+      "type": "hasPart",
+      "start": "eb068aae-6794-49a8-9b5d-72b21e9cf475",
+      "end": "f61253b4-91e3-44dd-83b3-ca2c2f3b2bbe",
+      "properties": {
+        "orderInParent": 3
+      }
+    },
+    {
+      "id": "hasPart:eb068aae-6794-49a8-9b5d-72b21e9cf475->c178b537-f428-411f-be79-0533dfde7435",
+      "type": "hasPart",
+      "start": "eb068aae-6794-49a8-9b5d-72b21e9cf475",
+      "end": "c178b537-f428-411f-be79-0533dfde7435",
+      "properties": {
+        "orderInParent": 4
+      }
+    },
+    {
+      "id": "hasPart:ddedfb1c-0f81-4fe6-ac78-fca6cb520aaf->f81f1ace-232c-4d45-99a2-a4a902a38211",
+      "type": "hasPart",
+      "start": "ddedfb1c-0f81-4fe6-ac78-fca6cb520aaf",
+      "end": "f81f1ace-232c-4d45-99a2-a4a902a38211",
+      "properties": {
+        "orderInParent": 3
+      }
+    },
+    {
+      "id": "hasPart:f81f1ace-232c-4d45-99a2-a4a902a38211->22d6ab97-d3ff-48e0-9002-e36b0d285fa0",
+      "type": "hasPart",
+      "start": "f81f1ace-232c-4d45-99a2-a4a902a38211",
+      "end": "22d6ab97-d3ff-48e0-9002-e36b0d285fa0",
+      "properties": {
+        "orderInParent": 1
+      }
+    },
+    {
+      "id": "hasPart:f81f1ace-232c-4d45-99a2-a4a902a38211->69692e69-8e73-4ec9-b7ed-e943d4d1d65e",
+      "type": "hasPart",
+      "start": "f81f1ace-232c-4d45-99a2-a4a902a38211",
+      "end": "69692e69-8e73-4ec9-b7ed-e943d4d1d65e",
+      "properties": {
+        "orderInParent": 2
+      }
+    },
+    {
+      "id": "hasPart:f81f1ace-232c-4d45-99a2-a4a902a38211->725bc021-8ef2-4d23-86e5-e65e301a201a",
+      "type": "hasPart",
+      "start": "f81f1ace-232c-4d45-99a2-a4a902a38211",
+      "end": "725bc021-8ef2-4d23-86e5-e65e301a201a",
+      "properties": {
+        "orderInParent": 3
+      }
+    },
+    {
+      "id": "hasPart:f81f1ace-232c-4d45-99a2-a4a902a38211->87ab4ae7-cdb0-4d80-aa6d-0a0c545319c6",
+      "type": "hasPart",
+      "start": "f81f1ace-232c-4d45-99a2-a4a902a38211",
+      "end": "87ab4ae7-cdb0-4d80-aa6d-0a0c545319c6",
+      "properties": {
+        "orderInParent": 4
+      }
+    },
+    {
+      "id": "hasPart:f81f1ace-232c-4d45-99a2-a4a902a38211->e57974ff-bcd5-4872-9d38-f991eb7a9a50",
+      "type": "hasPart",
+      "start": "f81f1ace-232c-4d45-99a2-a4a902a38211",
+      "end": "e57974ff-bcd5-4872-9d38-f991eb7a9a50",
+      "properties": {
+        "orderInParent": 5
+      }
+    },
+    {
+      "id": "hasPart:f81f1ace-232c-4d45-99a2-a4a902a38211->a33cd29d-fb53-4374-9c64-2854c9c8eda0",
+      "type": "hasPart",
+      "start": "f81f1ace-232c-4d45-99a2-a4a902a38211",
+      "end": "a33cd29d-fb53-4374-9c64-2854c9c8eda0",
+      "properties": {
+        "orderInParent": 6
+      }
+    },
+    {
+      "id": "hasPart:f81f1ace-232c-4d45-99a2-a4a902a38211->042357a7-7733-4a6c-b5ff-ee78530f7974",
+      "type": "hasPart",
+      "start": "f81f1ace-232c-4d45-99a2-a4a902a38211",
+      "end": "042357a7-7733-4a6c-b5ff-ee78530f7974",
+      "properties": {
+        "orderInParent": 7
+      }
+    },
+    {
+      "id": "hasPart:ddedfb1c-0f81-4fe6-ac78-fca6cb520aaf->f3963354-10be-4be5-b2c9-9cf3f0fd10a8",
+      "type": "hasPart",
+      "start": "ddedfb1c-0f81-4fe6-ac78-fca6cb520aaf",
+      "end": "f3963354-10be-4be5-b2c9-9cf3f0fd10a8",
+      "properties": {
+        "orderInParent": 4
+      }
+    },
+    {
+      "id": "hasPart:f3963354-10be-4be5-b2c9-9cf3f0fd10a8->4416a023-f9e2-4ffe-a63b-dcb39da80f39",
+      "type": "hasPart",
+      "start": "f3963354-10be-4be5-b2c9-9cf3f0fd10a8",
+      "end": "4416a023-f9e2-4ffe-a63b-dcb39da80f39",
+      "properties": {
+        "orderInParent": 1
+      }
+    },
+    {
+      "id": "hasPart:f3963354-10be-4be5-b2c9-9cf3f0fd10a8->b0446bc4-c299-402f-a680-ed9092363f32",
+      "type": "hasPart",
+      "start": "f3963354-10be-4be5-b2c9-9cf3f0fd10a8",
+      "end": "b0446bc4-c299-402f-a680-ed9092363f32",
+      "properties": {
+        "orderInParent": 2
+      }
+    },
+    {
+      "id": "hasPart:f3963354-10be-4be5-b2c9-9cf3f0fd10a8->547edd38-10a9-4f90-b217-29ba419a0286",
+      "type": "hasPart",
+      "start": "f3963354-10be-4be5-b2c9-9cf3f0fd10a8",
+      "end": "547edd38-10a9-4f90-b217-29ba419a0286",
+      "properties": {
+        "orderInParent": 3
+      }
+    },
+    {
+      "id": "hasPart:ddedfb1c-0f81-4fe6-ac78-fca6cb520aaf->e85d9841-3756-4829-b14f-30efde8287b0",
+      "type": "hasPart",
+      "start": "ddedfb1c-0f81-4fe6-ac78-fca6cb520aaf",
+      "end": "e85d9841-3756-4829-b14f-30efde8287b0",
+      "properties": {
+        "orderInParent": 5
+      }
+    },
+    {
+      "id": "hasPart:e85d9841-3756-4829-b14f-30efde8287b0->82500b1b-4118-4669-afed-c554c1755b95",
+      "type": "hasPart",
+      "start": "e85d9841-3756-4829-b14f-30efde8287b0",
+      "end": "82500b1b-4118-4669-afed-c554c1755b95",
+      "properties": {
+        "orderInParent": 1
+      }
+    },
+    {
+      "id": "hasPart:e85d9841-3756-4829-b14f-30efde8287b0->7369958f-eab1-4405-b817-0fb187a89955",
+      "type": "hasPart",
+      "start": "e85d9841-3756-4829-b14f-30efde8287b0",
+      "end": "7369958f-eab1-4405-b817-0fb187a89955",
+      "properties": {
+        "orderInParent": 2
+      }
+    },
+    {
+      "id": "hasPart:e85d9841-3756-4829-b14f-30efde8287b0->21c43255-22f1-4994-a697-7091ace671e4",
+      "type": "hasPart",
+      "start": "e85d9841-3756-4829-b14f-30efde8287b0",
+      "end": "21c43255-22f1-4994-a697-7091ace671e4",
+      "properties": {
+        "orderInParent": 3
+      }
+    },
+    {
+      "id": "hasPart:e85d9841-3756-4829-b14f-30efde8287b0->fa00f352-06c9-4d73-b848-96e60873b208",
+      "type": "hasPart",
+      "start": "e85d9841-3756-4829-b14f-30efde8287b0",
+      "end": "fa00f352-06c9-4d73-b848-96e60873b208",
+      "properties": {
+        "orderInParent": 4
+      }
+    },
+    {
+      "id": "hasPart:e85d9841-3756-4829-b14f-30efde8287b0->4e873627-8703-4422-b50c-5c4f9c42e733",
+      "type": "hasPart",
+      "start": "e85d9841-3756-4829-b14f-30efde8287b0",
+      "end": "4e873627-8703-4422-b50c-5c4f9c42e733",
+      "properties": {
+        "orderInParent": 5
+      }
+    },
+    {
+      "id": "hasPart:e85d9841-3756-4829-b14f-30efde8287b0->900d5017-cd1c-4d40-9b77-fd64a46cae10",
+      "type": "hasPart",
+      "start": "e85d9841-3756-4829-b14f-30efde8287b0",
+      "end": "900d5017-cd1c-4d40-9b77-fd64a46cae10",
+      "properties": {
+        "orderInParent": 6
+      }
+    },
+    {
+      "id": "hasPart:e85d9841-3756-4829-b14f-30efde8287b0->97047519-40af-463a-94de-f7144b88265a",
+      "type": "hasPart",
+      "start": "e85d9841-3756-4829-b14f-30efde8287b0",
+      "end": "97047519-40af-463a-94de-f7144b88265a",
+      "properties": {
+        "orderInParent": 7
+      }
+    },
+    {
+      "id": "hasPart:e85d9841-3756-4829-b14f-30efde8287b0->e85f4f11-00c3-415c-9fa5-ac4f976db0ee",
+      "type": "hasPart",
+      "start": "e85d9841-3756-4829-b14f-30efde8287b0",
+      "end": "e85f4f11-00c3-415c-9fa5-ac4f976db0ee",
+      "properties": {
+        "orderInParent": 8
+      }
     }
   ]
 }
