@@ -114,7 +114,7 @@ explorer's display schema:
 |---|---|---|---|
 | `label` | derived from `kind` | `dom` | domaine node's name, **propagated** to its content-axis descendants server-side |
 | `kind` | store `type` (`domaine`/`chapter`/`week`/`lesson`/`standard`/`component`/`task`) | `pal` | `raw.palier` / `raw.metadata.palier` (weeks) |
-| `code` | `properties.code` (`raw.statementCode`) | `ord` | `properties.order` / `raw.metadata.order` (domaine: canonical index) |
+| `code` | `properties.code` (`raw.statementCode`) | `ord` | `properties.order` / `raw.position` / `raw.metadata.order` (the sibling sort key; content nodes carry `position`) |
 | `desc`/`desc_en` | `properties.text`/`title` · `raw.description`/`raw.osTexte` · `_en` from `raw.metadata.en.*` | `os`/`os_en` | `raw.osTexte` / `raw.metadata.en.os_texte` |
 | `st`/`st_en` | `raw.statementType` (category) / `raw.metadata.en.statement_type` | `src`/`ref`/`statut` | `raw.source`/`reference`/`statut` |
 | `nt` | `raw.normalizedType` / `raw.normalizedStatementType` / `raw.contentType` | `srcKey` | `raw.sourceKey` |

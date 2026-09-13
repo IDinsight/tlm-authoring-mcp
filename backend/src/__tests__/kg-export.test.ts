@@ -79,6 +79,9 @@ async function seedDocumentLayer(store: KgNodeStore, namespace: string): Promise
     node("les", "Lesson", { description: "Leçon 1", position: 1 }),
     node("tlm", "TeachingLearningMaterial", { description: "Manuel de l'élève", metadata: { assemblyGuide: "one page per lesson" } }),
     node("sec", "DocumentSection", { description: "Page 1", position: 1 }),
+    // Sorts BEFORE "sec" by id, AFTER it by position — the case that showed a
+    // document's pages in UUID order when the export ignored `position`.
+    node("a-sec", "DocumentSection", { description: "Page 2", position: 2 }),
     node("fmt", "Formatter", { description: "Style" }),
     node("spec", "FormatterSpec", { description: "Palette", content: "warm palette", position: 1 }),
     node("rub", "Rubric", { description: "Grille d'approbation", metadata: { scale: "oui-non" } }),
@@ -89,6 +92,7 @@ async function seedDocumentLayer(store: KgNodeStore, namespace: string): Promise
     link("hasPart", "course", "les"),
     link("covers", "tlm", "course"),
     link("hasPart", "tlm", "sec"), link("covers", "sec", "les"),
+    link("hasPart", "tlm", "a-sec"),
     link("hasPart", "tlm", "fmt"), link("hasPart", "fmt", "spec"),
     link("hasPart", "tlm", "rub"), link("hasPart", "rub", "rsec"), link("hasPart", "rsec", "crit"),
   ];
@@ -412,6 +416,24 @@ describe("kg-export — document / rendering layer", () => {
     ]);
   });
 
+  it("carries a content node's `position` as its ordinal so pages sort by page, not by id", async () => {
+    const graph = (await exportNamespace(docNs))!;
+    const ordOf = (id: string) => graph.nodes.find((n) => n.id === id)!.ord;
+    // Content nodes have no normalized `order`; the canonical `position` must stand in.
+    expect(ordOf("sec")).toBe(1);
+    expect(ordOf("a-sec")).toBe(2);
+    expect(ordOf("crit")).toBe(1);
+    // A node with no ordinal anywhere stays null rather than becoming 0.
+    expect(ordOf("tlm")).toBeNull();
+    // The tree sorts siblings by ordinal first — so Page 1 precedes Page 2 even
+    // though "a-sec" < "sec" as a string.
+    const pages = childrenOf(graph, "tlm")
+      .filter((n) => n.label === "DocumentSection")
+      .sort((x, y) => (x.ord ?? 0) - (y.ord ?? 0) || x.id.localeCompare(y.id))
+      .map((n) => n.id);
+    expect(pages).toEqual(["sec", "a-sec"]);
+  });
+
   it("nests an attached rubric under the TLM — grid, sections and criteria", async () => {
     const graph = (await exportNamespace(docNs))!;
     const view = graph.meta.viewConfig.views.find((v) => v.id === "documents") as any;
@@ -454,7 +476,7 @@ describe("kg-export — document / rendering layer", () => {
     }
     const roots = graph.nodes.filter((n) => inc.has(n.label) && !hasIncParent.has(n.id)).map((n) => n.id);
     expect(roots).toEqual(["tlm"]);
-    expect((childrenOf.get("tlm") ?? []).sort()).toEqual(["fmt", "rub", "sec"]);
+    expect((childrenOf.get("tlm") ?? []).sort()).toEqual(["a-sec", "fmt", "rub", "sec"]);
     expect(childrenOf.get("fmt")).toEqual(["spec"]);
 
     // The covers alignment tail grafts each covered curriculum node as a leaf.
