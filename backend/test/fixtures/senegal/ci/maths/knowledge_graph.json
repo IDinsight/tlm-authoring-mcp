@@ -37688,7 +37688,8 @@
               "picto-materiel": 0.5
             },
             "paragraphLeadingRule": "auto",
-            "caption": false
+            "caption": false,
+            "fullWidthAboveAspectRatio": 4
           },
           "pagination": {
             "oneSectionPerPage": true,
