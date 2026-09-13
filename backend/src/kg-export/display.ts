@@ -47,6 +47,22 @@ const str = (v: unknown): string => (v == null ? "" : String(v));
 const arr = (v: unknown): string[] => (Array.isArray(v) ? v.map(String) : []);
 const numOrStr = (v: unknown): number | string => (typeof v === "number" ? v : v == null ? "" : String(v));
 
+// The ordinal the explorer sorts siblings by. Spine nodes carry it normalized
+// (`properties.order`); content nodes carry the canonical LC `position` (a
+// DocumentSection's page number, an Activity's rank in its lesson); the pre-V2
+// maths graph kept it in `metadata.order`. Reading only the first two left every
+// section with a null ordinal, so a document's pages listed in UUID order.
+function ordinalOf(
+  p: Record<string, unknown>,
+  raw: Record<string, unknown>,
+  metadata: Record<string, unknown>,
+): number | null {
+  for (const candidate of [p.order, raw.position, metadata.order]) {
+    if (typeof candidate === "number") return candidate;
+  }
+  return null;
+}
+
 export function toDisplayNode(n: StoredNode): DisplayNode {
   const p = n.properties ?? {};
   const raw = (p.raw as Record<string, unknown>) ?? {};
@@ -60,7 +76,7 @@ export function toDisplayNode(n: StoredNode): DisplayNode {
     kind: label,   // LC-only: the explorer keys on the label, not the subject kind
     cat: label,
     code: str(p.code ?? r("statementCode") ?? r("identifier")),
-    ord: typeof p.order === "number" ? (p.order as number) : (typeof m.order === "number" ? (m.order as number) : null),
+    ord: ordinalOf(p, raw, m),
     // The node LABEL, so line 1 only — a routine's full text still reaches the
     // detail panel through the raw property bag below.
     desc: displayName(str(p.text ?? p.title ?? r("description") ?? r("osTexte"))),

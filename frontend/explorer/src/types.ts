@@ -11,7 +11,7 @@ export type DisplayNode = {
   kind: string; // = label (the explorer speaks LC labels only)
   cat: string; // = label (legend category → drives colour/legend/stats)
   code: string; // identifier / statement_code
-  ord: number | null; // metadata.order (stable sort within a parent)
+  ord: number | null; // order / position / metadata.order (stable sort within a parent)
   desc: string;
   desc_en: string; // display text (bilingual)
   nt: string; // LC sub-type hint
