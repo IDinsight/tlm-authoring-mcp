@@ -118,6 +118,22 @@ export type Overlap =
   | { kind: "image-over-image"; images: [number, number]; overlapCm: number }
   | { kind: "image-over-text"; image: number; words: number; text: string; overlapCm: number };
 
+/*
+ * White between two consecutive lines of text that nothing explains — no
+ * picture beside it, no page turn. The cost of a `clear` block that nothing
+ * needed: it ends a wrap that had already ended, and leaves a body line of
+ * white where the page had none to give. Seven defensive clears turned a
+ * two-page fiche into three, and two render cycles went to finding out which
+ * four were for nothing; this says so on the first measurement.
+ */
+export type Gap = {
+  /** Below the line the gap follows, from the top of the page. */
+  afterCm: number;
+  heightCm: number;
+  /** What the gap holds, in body lines, at the page's own line pitch. */
+  lines: number;
+};
+
 /** What one page turned out to be, once laid out. */
 export type PageMeasurement = {
   page: number;
@@ -146,6 +162,8 @@ export type PageMeasurement = {
   images: PageImage[];
   /** Marks that share ink. Empty is the answer wanted; it is only trustworthy with `images` filled. */
   overlaps: Overlap[];
+  /** White between lines that no picture explains — a `clear` nothing needed, usually. Trustworthy only with `images` filled. */
+  gaps: Gap[];
 };
 
 export type Measurement =
@@ -260,6 +278,55 @@ function overlapsOn(words: Word[], images: Box[]): Overlap[] {
   return found;
 }
 
+/*
+ * The lines of a page: words grouped by their top edge, in reading order. A
+ * word box is a glyph box, so a line's words share a top to within a point.
+ */
+function linesOf(words: Word[]): Box[] {
+  const sorted = [...words].sort((a, b) => a.top - b.top);
+  const lines: Box[] = [];
+  for (const word of sorted) {
+    const line = lines[lines.length - 1];
+    if (line && Math.abs(word.top - line.top) < 1.5) {
+      line.left = Math.min(line.left, word.left); line.right = Math.max(line.right, word.right);
+      line.bottom = Math.max(line.bottom, word.bottom);
+    } else {
+      lines.push({ ...word });
+    }
+  }
+  return lines;
+}
+
+/** The most common distance between consecutive line tops — the page's own pitch, read off the page. */
+function linePitchOf(lines: Box[]): number | null {
+  const steps = lines.slice(1).map((line, i) => Math.round((line.top - lines[i].top) * 2) / 2).filter((d) => d > 2);
+  if (steps.length === 0) return null;
+  const counts = new Map<number, number>();
+  for (const step of steps) counts.set(step, (counts.get(step) ?? 0) + 1);
+  return [...counts.entries()].sort((a, b) => b[1] - a[1] || a[0] - b[0])[0][0];
+}
+
+/*
+ * Gaps: a step between consecutive lines of more than one and a half pitches,
+ * with no picture spanning it. A picture beside a short block makes the next
+ * line start below the picture — that white is the picture's, not a gap.
+ */
+function gapsOn(words: Word[], images: Box[]): Gap[] {
+  const lines = linesOf(words);
+  const pitch = linePitchOf(lines);
+  if (!pitch) return [];
+  const found: Gap[] = [];
+  for (let i = 1; i < lines.length; i++) {
+    const step = lines[i].top - lines[i - 1].top;
+    if (step <= pitch * 1.5) continue;
+    const from = lines[i - 1].bottom, to = lines[i].top;
+    const explained = images.some((image) => image.bottom > from + OVERLAP_TOLERANCE_PT && image.top < to - OVERLAP_TOLERANCE_PT);
+    if (explained) continue;
+    found.push({ afterCm: round(ptToCm(from)), heightCm: round(ptToCm(to - from)), lines: Math.round(((step - pitch) / pitch) * 10) / 10 });
+  }
+  return found;
+}
+
 /**
  * One measurement per page, from where the words and the pictures landed.
  *
@@ -289,6 +356,7 @@ export function measurePages(wordPages: Word[][], imagePages: Box[][], heightPt:
         widthCm: round(ptToCm(i.right - i.left)), heightCm: round(ptToCm(i.bottom - i.top)),
       })),
       overlaps: overlapsOn(words, images),
+      gaps: gapsOn(words, images),
     };
   });
 }

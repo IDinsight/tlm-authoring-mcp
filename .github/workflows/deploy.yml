@@ -44,7 +44,15 @@ jobs:
           project_id: senegal-ci-maths
           region: europe-west1
           source: backend
+          # Two CPUs and a gigabyte: page counts are MEASURED by laying the file
+          # out in LibreOffice inside the request, and on the default one CPU
+          # and 512 MB that took ~2 min a file — over the client's 3-minute
+          # limit for a two-language render (Leçon 25, 2026-09-14). The startup
+          # boost covers the profile warm-up the server does at boot.
           flags: >-
             --service-account=tlm-server@senegal-ci-maths.iam.gserviceaccount.com
             --max-instances=1
+            --cpu=2
+            --memory=1Gi
+            --cpu-boost
             --allow-unauthenticated
