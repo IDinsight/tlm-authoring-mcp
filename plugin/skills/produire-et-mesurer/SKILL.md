@@ -144,6 +144,10 @@ déterministe, et une seule fois par changement — là où un rendu coûte un a
   c'est pourquoi le serveur refuse plutôt que de se taire. Ne contournez pas un refus en rendant.
 - Ce qu'une règle nomme se corrige dans l'arbre, ou dans le graphe si c'est le graphe qui a tort ;
   une alerte délibérée se tait sur le nœud avec `metadata.lintIgnore` — jamais en retirant l'appel.
+- Les constats `declared:<id>` viennent des règles que la mise en forme du document déclare
+  elle-même (`properties.lintRules` sur le formatter — PT-07 sans exemple, une ligne [FR] qui ne
+  s'imprime pas, une RÉPONSE qui déborde…). Un défaut de guide qui revient d'une fiche à l'autre
+  est une règle à ajouter là, par `edit_nodes`, pas une décision à reprendre à la main.
 
 ## Mesurer, c'est lire la mesure du serveur
 

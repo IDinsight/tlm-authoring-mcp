@@ -24,7 +24,7 @@ import { activeWorkspace } from "../context/index.js";
 import {
   getKgStore, kgNamespace, lintGraph, toAuditActor, diffGraphs,
   type LintFinding, type MutationGraph, type StoredNode, type StoredEdge, type Slot, nextAuditSeq,} from "../kg-store/index.js";
-import { lintContent, lintableRules, CONTENT_RULES, resolvableIds, ignoredRules, lintPage, PAGE_RULES, formatterStackFor, picturesFor, coveredActivitiesFor, type PageInput } from "../curriculum/index.js";
+import { lintContent, lintableRules, CONTENT_RULES, resolvableIds, ignoredRules, lintPage, PAGE_RULES, formatterStackFor, picturesFor, coveredActivitiesFor, lintDeclared, declaredPageRules, lintDeclaredPage, type PageInput } from "../curriculum/index.js";
 import { validateDocumentTree, resolveRenderSpec } from "../render/index.js";
 import { readCatalog } from "./catalog.js";
 import { SHARED_CATALOG_NAMESPACE, catalogNamespace } from "../kg-recipes/index.js";
@@ -221,13 +221,24 @@ export async function runLintContent(args: LintContentArgs = {}): Promise<Record
   const graphFindings = checked.flatMap(({ where, graph }) =>
     lintContent({ graph, knownIds }, { rules: args.rules }).map((finding) => ({ ...finding, where })));
 
+  // The rules the subject's own formatters declare (properties.lintRules):
+  // subject knowledge as data, run by the same lint. Subject only — a catalog
+  // formatter governs no document until it is applied.
+  const declared = (scope === "subject" || scope === "all")
+    ? lintDeclared(subject)
+    : { findings: [], rulesRun: [] };
+  const wantedRules = args.rules?.length ? new Set(args.rules) : null;
+  const declaredFindings = declared.findings
+    .filter((finding) => !wantedRules || wantedRules.has(finding.rule) || wantedRules.has(finding.rule.replace(/^declared:/, "")))
+    .map((finding) => ({ ...finding, where: namespace }));
+
   // The page half, only when a caller sent a page. It reports its own problems
   // separately from a refusal to check: "I found nothing" and "I could not look"
   // are different answers and a composer must not read one as the other.
   const page = args.document !== undefined || args.treeRef !== undefined
     ? await lintComposedPage(args, subject, namespace)
     : null;
-  const findings = [...graphFindings, ...(page && "findings" in page ? page.findings : [])];
+  const findings = [...graphFindings, ...declaredFindings, ...(page && "findings" in page ? page.findings : [])];
 
   const ranPageRules = Boolean(page && "findings" in page);
   return {
@@ -236,7 +247,9 @@ export async function runLintContent(args: LintContentArgs = {}): Promise<Record
     checked: checked.map(({ where, graph }) => ({ where, nodes: graph.nodes.length })),
     rulesRun: [
       ...lintableRules().map((rule) => rule.id),
+      ...declared.rulesRun,
       ...(ranPageRules ? PAGE_RULES.map((rule) => rule.id) : []),
+      ...(page && "declaredRulesRun" in page ? (page as { declaredRulesRun: string[] }).declaredRulesRun : []),
     ],
     ...(page && "error" in page ? { page } : {}),
     ...(ranPageRules ? { page: (page as { checked: unknown }).checked } : {}),
@@ -277,7 +290,7 @@ export async function runLintContent(args: LintContentArgs = {}): Promise<Record
  */
 async function lintComposedPage(
   args: LintContentArgs, subject: MutationGraph, namespace: string,
-): Promise<{ findings: LintFinding[]; checked: Record<string, unknown> } | { error: string }> {
+): Promise<{ findings: LintFinding[]; checked: Record<string, unknown>; declaredRulesRun: string[] } | { error: string }> {
   if (!args.nodeId) {
     return { error: "Checking a `document` needs `nodeId` too — the node it was composed for. That is what resolves the formatter stack the page is judged against; without it there is no geometry to check." };
   }
@@ -319,12 +332,17 @@ async function lintComposedPage(
   // would be a clean bill on geometry the render is not going to use — so the
   // caller is told, rather than left to assume the two agree.
   const draftOpen = Boolean((await getKgStore().readPointer(namespace))?.draftSlot);
+  // The page rules the stack's formatters declare as data, beside the coded ones.
+  const pageRules = declaredPageRules(stack);
+  const declaredPageFindings = lintDeclaredPage(pageRules, (tree as PageInput["tree"]).blocks, { id: args.nodeId, title: "composed page", ignore: ignoredRules(scopeNode) })
+    .map((finding) => ({ ...finding, where: namespace }));
   // The tree this checked, kept for the render that follows. A ref used as it
   // stands is echoed; a tree sent inline or patched is parked afresh.
   const unchangedRef = input.from === "treeRef" && !(args.patch && args.patch.length > 0) ? args.treeRef : undefined;
   const parked = unchangedRef ? { treeRef: unchangedRef } : await parkTree(namespace, tree);
   return {
-    findings: lintPage({
+    declaredRulesRun: pageRules.map((rule) => `declared:${rule.id}`),
+    findings: [...declaredPageFindings, ...lintPage({
       tree: tree as PageInput["tree"],
       spec: resolved.spec,
       scopeId: args.nodeId,
@@ -335,7 +353,7 @@ async function lintComposedPage(
       // The activities under what it covers — their directive and their answer —
       // so a printed answer or directive can be compared with the curriculum.
       covered: coveredActivitiesFor(model, args.nodeId) ?? undefined,
-    }).map((finding) => ({ ...finding, where: namespace })),
+    }).map((finding) => ({ ...finding, where: namespace }))],
     checked: {
       nodeId: args.nodeId,
       geometryFrom: resolved.from,
@@ -362,7 +380,7 @@ export function registerContentLintTools(server: McpServer) {
         "It reads the active subject AND both catalog libraries by default (`scope`: 'subject' | 'catalog' | 'all'), resolving references across both so a cross-library citation is not reported as broken. Narrow with `rules`. " +
         "Each finding carries the rule, the node, what is wrong and what to do — English, like every payload here; relay them in the expert's language. Nothing blocks a publish. A finding that is deliberate is silenced ON THE NODE with metadata.lintIgnore: [\"rule-id\"], which needs no deploy. " +
         "PASS A COMPOSED PAGE and it checks that too: `document` (the block tree, exactly as render_document takes it) plus `nodeId` (the DocumentSection or TLM it was composed for, which is what resolves the formatter stack it will be laid out with). The page rules ask whether the page contradicts its own geometry — a `style` no formatter defines, a line over the `maxChars` its style declares, more pictures than images.maxPerSection allows, a picture missing from the document's own `media` — and whether it agrees with the graph on its pictures: one placed that is not attached to the covered curriculum (attach_image), one attached that the page leaves out. Every one of those RENDERS SUCCESSFULLY and wrongly: an undefined style silently becomes body text, and an unresolvable picture silently becomes the document's FIRST picture. Run it before render_document, not after. " +
-        "The thirty-odd control points a particular fiche is checked against — speech-colour purity, answer labels, no placeholder left in clear — are SUBJECT knowledge and stay in that subject's guide, where a curator changes them without a deploy. A rule here only ever asks a question the DATA answers. " +
+        "The thirty-odd control points a particular fiche is checked against — speech-colour purity, answer labels, no placeholder left in clear — are SUBJECT knowledge and stay in that subject's guide, where a curator changes them without a deploy. A rule here only ever asks a question the DATA answers. THE SUBJECT CAN DECLARE ITS OWN LINE RULES AS DATA: a formatter's `properties.lintRules` is a list of {id, where:'guide'|'content'|'page', match, require?, forbid?, maxChars?, unless?, sections?, message, fix?} — a line matching `match` must also match `require`, must not match `forbid`, must not exceed `maxChars`; `unless` exempts lines, `sections` limits guide/content rules to sections whose title matches. A guide rule reads the assembly guides of the document the formatter is attached to and every section under it, a content rule the curriculum those sections cover, a page rule the composed page checked against that stack. Findings come back as `declared:<id>`, silenced on a node with metadata.lintIgnore like any rule; validated at edit_nodes/add_nodes time. This is how « PT-07 called without its example » or « a [FR] line that never prints » becomes a check without a deploy. " +
         "`rulesPending` lists what did not run and why — the page rules appear there until you send a page, so read it rather than assuming everything was checked. Read-only.",
       inputSchema: {
         scope: z.enum(["subject", "catalog", "all"]).optional(),
