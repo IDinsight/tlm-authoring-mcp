@@ -88,14 +88,36 @@ Deux options qui comptent :
 - **`measure:true`** — il met la page en page et **compte les pages**. Le compte se fait sur le
   RENDU, jamais sur la lecture du guide : une estimation a déjà donné 2,5 pages pour un document
   qui en faisait onze. Là où le déploiement n'a pas de moteur de mise en page, il répond
-  `available:false` — il ne devine pas.
+  `available:false` — il ne devine pas. La mesure situe aussi les **images** : `freeBelowCm` est le
+  blanc sous la dernière marque de la page, image ou mot ; `reserveKept` dit si la réserve de pied
+  (`budget.reserveBottomCm`) tient sur la dernière page ; et `overlaps` nomme une bande dessinée
+  sur la bande précédente, ou sur des mots — le défaut qu'un compte de pages ne montre jamais.
+  Un fichier avec un `overlaps` non vide n'est pas fini, quel que soit son compte de pages.
 
-**Ce que cette route ne peut pas faire.** `render_document` veut chaque image **en clair dans
-l'appel**, encodée en base64 ; une référence à un fichier déjà déposé est REFUSÉE
-(« document.media.0: Unrecognized key(s) »). Un document qui porte de vraies illustrations — quelques
-mégaoctets — ne passe donc pas par là : il est composé par le producteur local, puis déposé avec
-**`create_upload_url`**. `render_document` sert les pages dont les images sont légères ou absentes.
-Dans les deux cas, le compte de pages se mesure sur le RENDU, jamais sur une lecture du guide.
+**Les images se nomment, elles ne se recopient pas.** Une entrée `media` est `{name, nodeId}` (une
+image attachée au programme — `walk_document_section` les liste sous `pictures`), ou
+`{name, relPath}` (un fichier déjà déposé dans le seau), ou `{name, data}` en base64 pour une image
+légère. Préférez `nodeId` : le graphe sait alors quelle image la page porte, et `lint_content` la
+compare à ce qui est attaché.
+
+## Composer par le calcul, pas par le rendu
+
+**Avant de composer, lisez `page_geometry`** sur la section (ou le document) : la page et sa boîte
+utile, le pas de ligne et le nombre de lignes par page, les styles de bloc et leur budget de
+caractères, les plafonds d'image, et — pour les images que vous annoncez placer
+(`pictures: [{role, aspectRatio, float}]`) — la taille imprimée de chacune, la largeur qui reste
+pour le texte à côté d'une image flottante, et **`linesBeside`** : le nombre de lignes de corps
+qu'elle occupe en hauteur. Ce sont les mêmes nombres que le rendu utilise, calculés par la même
+fonction ; ils ne peuvent pas contredire le fichier. Le premier rendu est alors un calcul, pas un
+essai — là où trois rendus mesurés par fiche étaient la norme.
+
+**Une bande flottante ancrée à un bloc plus court qu'elle** laisse la bande suivante s'ancrer à
+côté et se dessiner par-dessus. Deux remèdes, au choix : faire courir le bloc d'ancrage sur au moins
+`linesBeside` lignes, ou placer un bloc **`{kind:"clear"}`** après lui — la fin de l'habillage :
+ce qui suit part sous l'image flottante la plus basse, quelle que soit sa hauteur. Le `clear` ne
+prend aucun nombre ; n'essayez pas de le remplacer par un `spacer` tâtonné.
+
+L'arbre complet à copier est `example` dans `get_capabilities section:'document'`.
 
 ## Vérifier la page avant de rendre
 
@@ -152,6 +174,9 @@ la bonne police n'est pas un résultat.
 
 **Render it again with no images at all, and count.** The cause is usually text, and stripping the
 images tells you that in one measurement instead of an afternoon of guesses.
+
+Read the file's `overlaps` first: a band over the band before it is fixed with a `clear`, not by
+tightening anything.
 
 Then tighten in this order — smallest change that could work, remeasured each time:
 

@@ -7,12 +7,12 @@
  */
 export { documentSchema, blockSchema, validateDocumentTree, missingMediaNames } from "./document.js";
 export type { Block, Cell, Run, ImageRun, DocumentTree } from "./document.js";
-export { renderDocx } from "./docx.js";
+export { renderDocx, usableWidthCm, imageSizeCm, floatGutterCm, PAGE_CM } from "./docx.js";
 export { rasterizeSvgMedia, rasterizeSvg, isSvg, isPng, mediaPartName, RASTER_LONG_SIDE_PX, type MediaBytes, type RasterRefusal } from "./raster.js";
 export { imageSize, imageAspectRatio, type ImageSize } from "./image-size.js";
 export { resolveRenderSpec, type ResolvedSpec, type SpecCarrier } from "./resolve-spec.js";
-export { splitByVariant, deriveVariant, hasVariant, type Variant, type TranslateText } from "./variants.js";
-export { measureDocx, parsePdfInfo, parseBBox, type Measurement, type PageMeasurement } from "./measure.js";
+export { splitByVariant, deriveVariant, hasVariant, type Variant, type TranslateLines } from "./variants.js";
+export { measureDocx, parsePdfInfo, parseBBox, parseWords, parseImages, measurePages, type Measurement, type PageMeasurement, type PageImage, type Overlap } from "./measure.js";
 export { readDocx, type ReadDocument, type ReadBlock } from "./read-docx.js";
 export { readGeometry, type ExtractedGeometry, type UnnamedFill, type UnnamedHeight } from "./read-geometry.js";
 export { proposeEdits, editItems, documentText, normalise, type Proposal, type TextSlot } from "./propose.js";

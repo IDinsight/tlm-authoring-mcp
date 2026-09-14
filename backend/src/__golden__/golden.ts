@@ -249,7 +249,7 @@ export function readGolden(bytes: Buffer, maps: GoldenMaps): DocumentTree {
       if (!block) continue;
       // A spacer cannot start a page, so the break waits for the next real
       // block rather than being dropped on furniture.
-      if (breakPending && block.kind !== "spacer") {
+      if (breakPending && block.kind !== "spacer" && block.kind !== "clear") {
         block.pageBreak = "before";
         breakPending = false;
       }

@@ -187,20 +187,49 @@ export function previewSection(actions: Actions, draftExists: boolean) {
  * what is ON it. Keys come off the schema that enforces them, never a list
  * kept by hand here.
  */
+/*
+ * A page a caller can copy: a title, a banner (a one-cell table), a bulleted
+ * directive with a floated band and its printed answer, the clear that ends the
+ * band's wrap, a spoken line in each language, and a second banner that starts
+ * a page. Kept small enough to read and complete enough to render.
+ */
+const EXAMPLE_TREE = {
+  blocks: [
+    { kind: "line", style: "title", runs: [{ text: "Leçon 25 — Le signe qui manque" }] },
+    { kind: "table", rows: [[{ style: "phaseBanner", blocks: [{ kind: "line", runs: [{ text: "Phase 1 · Amorce · 5 min" }] }] }]] },
+    { kind: "line", style: "bullet", anchor: "<activity node id>", runs: [
+      { image: { media: "bande-1.png", role: "band", aspectRatio: 4.6, float: true } },
+      { text: "Quel signe manque ? RÉPONSE : le signe +" },
+    ] },
+    { kind: "clear" },
+    { kind: "line", style: "speech", variant: "fr", runs: [{ text: "Regardez bien la bande." }] },
+    { kind: "line", style: "speech", variant: "wo", runs: [{ text: "Xoolleen bu baax bànd bi." }] },
+    { kind: "spacer", sizePt: 1, leadingPt: 2 },
+    { kind: "table", pageBreak: "before", rows: [[{ style: "phaseBanner", blocks: [{ kind: "line", runs: [{ text: "Phase 2 · Découverte · 10 min" }] }] }]] },
+  ],
+  media: [{ name: "bande-1.png", nodeId: "<attached picture node id>" }],
+};
+
 export function documentSection(actions: Actions) {
   return {
     available: actions.canPreview,
-    tools: ["check_document", "compose_section", "render_document", "propose_from_document", "check_stale"],
+    tools: ["check_document", "compose_section", "page_geometry", "render_document", "propose_from_document", "check_stale"],
     keys: DOCUMENT_TREE_KEYS,
-    blockKinds: ["table", "line", "spacer"],
+    blockKinds: ["table", "line", "spacer", "clear"],
     validatedAt: "render",
     strict: true,
+    // A tree to copy from. Discovered by refusal until now: that the
+    // discriminator is `kind`, that a picture floats with `float: true` and
+    // not `float: "right"` (WHERE it floats is the formatter's), that an
+    // inline picture eats a whole line.
+    example: EXAMPLE_TREE,
     note:
-      "The block tree is what YOU compose and render_document lays out. `blocks` is an ordered list of: `table` ({rows: Cell[][]}, where a Cell is {blocks, style?, span?} — cells hold BLOCKS, so a banner and a grid of pictures are the same construct and tables nest), `line` ({runs, variant?, style?}, where a run is {text, style?} or {image: {media, role, aspectRatio, float?}}), and `spacer` ({sizePt, leadingPt}). Optional `media` carries each picture as {name, data} (data base64) OR {name, relPath} (a bucket path in this namespace's documents/ area the server resolves) — exactly one per entry, so an illustrated document need not inline megabytes of base64 into the call. " +
+      "The block tree is what YOU compose and render_document lays out. `blocks` is an ordered list of: `table` ({rows: Cell[][]}, where a Cell is {blocks, style?, span?} — cells hold BLOCKS, so a banner and a grid of pictures are the same construct and tables nest), `line` ({runs, variant?, style?}, where a run is {text, style?} or {image: {media, role, aspectRatio, float?}}), `spacer` ({sizePt, leadingPt}), and `clear` ({} — the end of a wrap: what follows starts below the lowest floated picture; put one after the block a floated band anchors to when that block is shorter than the band, or the next band draws over it). `example` is a complete tree to copy from. Optional `media` carries each picture as {name, data} (data base64) OR {name, relPath} (a bucket path in this namespace's documents/ area the server resolves) — exactly one per entry, so an illustrated document need not inline megabytes of base64 into the call. " +
       "IT CARRIES NO GEOMETRY — no colour, no point size, no centimetre. A block names a `style` and a picture names a `role`, both defined by the formatter's `render`; a page break says only `pageBreak:'before'` and `pagination.pageBreakCarrier` decides whether that is written as a paragraph property or a paragraph of its own. That split is the point: structure varies per lesson and is yours, geometry is the formatter's and is the same for every page it governs. " +
       "UNKNOWN KEYS ARE REFUSED and nothing renders when the tree is invalid; the response names the path. Output is a preview: segregated prefix, short-lived URL, never list_documents or log_generation. " +
       "ONE FILE PER LANGUAGE when the formatter's `language.strategy` is 'per-file' — tag a line with a `variant` and it prints only in that variant's file, leave it untagged (or mark the variant `inAllFiles`) and it prints in every one. `translateInto` derives a language the tree does not carry, grounded in the subject glossary. " +
-      "`measure:true` lays each file out and COUNTS ITS PAGES — measured on the render, never estimated from the source; with `budget.maxPages` declared each file also reports `fits`. It needs a layout engine in the deployment and reports `available:false` where there is none, rather than guessing. " +
+      "`measure:true` lays each file out and COUNTS ITS PAGES — measured on the render, never estimated from the source; with `budget.maxPages` declared each file also reports `fits`. It needs a layout engine in the deployment and reports `available:false` where there is none, rather than guessing. The measurement locates the pictures too, so `freeBelowCm` is the white below the last MARK (picture or word), `reserveKept` checks `budget.reserveBottomCm` on the last page, and `overlaps` names a band drawn over the band before it or over words. " +
+      "COMPOSE BY ARITHMETIC, NOT BY RENDERING: page_geometry reports the fixed numbers first — line pitch, lines per page, each picture's printed size, the width left beside a floated one, and `linesBeside` (how many body lines a floated picture stands beside, which is how long its anchor block must run before the next float, or where a `clear` goes). Then render once with measure:true. " +
       "THE LOOP CLOSES BOTH WAYS: a block may carry `anchor`, the graph node it came from, which the renderer writes into the file as a Word content control — invisible on the page, preserved when a person edits around it. `propose_from_document` reads a corrected .docx back and returns proposed edits, plus `editItems` in the shape edit_nodes takes. It PROPOSES and never writes; a vanished line is reported rather than deleted (a deliberate cut and an editing slip look identical in a Word file), and new text with no anchor is reported without a parent rather than filed by position. " +
       "AND IT SAYS WHEN A DOCUMENT HAS GONE OUT OF DATE: each produced file records the nodes it drew from and their wording at the time (read out of its own anchors, not declared), so `check_stale` reports per document — editing one lesson flags the files covering that lesson and nothing else. A file that records no sources is UNKNOWN, never current.",
   };

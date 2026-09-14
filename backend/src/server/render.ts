@@ -33,9 +33,9 @@ import { getKgStore, kgNamespace, toAuditActor, nextAuditSeq } from "../kg-store
 import { currentActor } from "../actor.js";
 import { getStorageAdapter } from "../storage/index.js";
 import { formatterStackFor } from "../curriculum/index.js";
-import { documentSchema, renderDocx, resolveRenderSpec, missingMediaNames, splitByVariant, deriveVariant, hasVariant, measureDocx, readDocx, proposeEdits, editItems, documentText, normalise, rasterizeSvgMedia, type DocumentTree, type TextSlot } from "../render/index.js";
+import { documentSchema, renderDocx, resolveRenderSpec, missingMediaNames, splitByVariant, deriveVariant, hasVariant, measureDocx, readDocx, proposeEdits, editItems, documentText, normalise, rasterizeSvgMedia, usableWidthCm, imageSizeCm, floatGutterCm, PAGE_CM, type DocumentTree, type TextSlot, type TranslateLines } from "../render/index.js";
 import { displayName, descriptionBody, imageMimeFor } from "../utils/index.js";
-import { translate } from "../translation/index.js";
+import { translateBatch } from "../translation/index.js";
 import { effectiveTerms, filterByText } from "./glossary-read.js";
 import { denyUnlessMember } from "./membership.js";
 import { CONFIG } from "../config.js";
@@ -83,23 +83,43 @@ function suffixed(relPath: string, suffix: string): string {
  * and hands those to Gemini as a term bank — the same grounding the `translate`
  * tool uses. Without it a page would drift from the wording of every material
  * already in classrooms, one line at a time.
+ *
+ * The lines go through `translateBatch`, the same path the `translate` tool
+ * takes: several in flight at once, each with its own term bank, order kept by
+ * index. One line failing does not lose the others' work, but it does refuse
+ * the render — a Wolof file with a French line left in it reads as finished.
  */
-function glossaryTranslator(terms: Awaited<ReturnType<typeof effectiveTerms>>) {
-  return async (text: string, from: string, to: string): Promise<string> => {
+function glossaryTranslator(terms: Awaited<ReturnType<typeof effectiveTerms>>): TranslateLines {
+  return async (texts: string[], from: string, to: string): Promise<string[]> => {
     const direction = from === "fr" && to === "wo" ? "fr>wo" : from === "wo" && to === "fr" ? "wo>fr" : "auto";
-    const glossary = filterByText(terms, text, 40).map((e) => ({ francais: e.francais, wolof: e.wolof }));
-    const result = await translate({ text, direction, glossary });
-    return result.translation;
+    const glossaryFor = (text: string) => filterByText(terms, text, 40).map((e) => ({ francais: e.francais, wolof: e.wolof }));
+    const items = await translateBatch({ texts, direction, glossaryFor });
+    const failed = items.filter((item) => !item.ok);
+    if (failed.length > 0) {
+      const named = failed.slice(0, 3).map((item) => `« ${item.text} »`).join(", ");
+      throw new Error(`${failed.length} of ${texts.length} line(s) could not be translated (${named}${failed.length > 3 ? ", …" : ""})`);
+    }
+    return items.map((item) => (item.ok ? item.translation : ""));
   };
 }
 
-export async function renderDocument(a: RenderArgs): Promise<Record<string, unknown>> {
-  const adapter = getActiveAdapter();
-  const ns = kgNamespace(activeWorkspace(), adapter.grade, adapter.subject);
 
-  const denied = await denyIfNotDraftReader(ns);
-  if (denied) return denied;
+/*
+ * The formatter stack a node renders with, merged — shared by render_document
+ * and page_geometry so the numbers the second reports are the numbers the first
+ * lays out with. A copy would be the one that drifts.
+ */
+type ResolvedGeometry =
+  | {
+      ok: true;
+      draft: Awaited<ReturnType<typeof resolveDraftModel>>;
+      model: ReturnType<ReturnType<typeof getActiveAdapter>["model"]>;
+      renderedFrom: "draft" | "published";
+      spec: Extract<ReturnType<typeof resolveRenderSpec>, { ok: true }>;
+    }
+  | { ok: false; refusal: Record<string, unknown> };
 
+async function resolveGeometryFor(nodeId: string): Promise<ResolvedGeometry> {
   /*
    * Draft when there is one, published otherwise.
    *
@@ -113,18 +133,18 @@ export async function renderDocument(a: RenderArgs): Promise<Record<string, unkn
    * Found by calling it against the live server. Every test missed it because
    * every test stages a draft first.
    */
-  const draft = await resolveDraftModel(ns);
+  const draft = await resolveDraftModel(kgNamespace(activeWorkspace(), getActiveAdapter().grade, getActiveAdapter().subject));
   const model = draft?.model ?? getActiveAdapter().model();
   const renderedFrom = draft ? "draft" : "published";
 
-  const stack = formatterStackFor(model, a.nodeId);
+  const stack = formatterStackFor(model, nodeId);
   if (!stack) {
-    return {
+    return { ok: false, refusal: {
       preview: true,
       error:
-        `'${a.nodeId}' is neither a DocumentSection nor a TeachingLearningMaterial in the ${renderedFrom} graph, so it has no formatter stack to render with. ` +
+        `'${nodeId}' is neither a DocumentSection nor a TeachingLearningMaterial in the ${renderedFrom} graph, so it has no formatter stack to render with. ` +
         `Use find_node to turn a name into an id, or walk_document for a document's section ids.`,
-    };
+    } };
   }
 
   // The formatters merge before the tree is even looked at: a stack that cannot
@@ -132,12 +152,12 @@ export async function renderDocument(a: RenderArgs): Promise<Record<string, unkn
   // ids beats a page that comes out wrong for reasons nobody can trace.
   const spec = resolveRenderSpec(stack);
   if (!spec.ok) {
-    return {
+    return { ok: false, refusal: {
       preview: true,
       error: "The formatter stack for this node does not resolve to a valid render spec.",
       formatters: spec.from,
       problems: spec.errors,
-    };
+    } };
   }
 
   /*
@@ -157,15 +177,141 @@ export async function renderDocument(a: RenderArgs): Promise<Record<string, unkn
    */
   if (spec.from.length === 0) {
     const applicable = stack.map((node) => node.id);
-    return {
+    return { ok: false, refusal: {
       preview: true,
       error: applicable.length === 0
-        ? `No formatter applies to '${a.nodeId}' in the ${renderedFrom} graph, so there is no geometry to lay a page out with. Attach one with use_formatter.`
-        : `${applicable.length} formatter(s) apply to '${a.nodeId}', but NONE declares a \`render\` bag, so there is no geometry to lay a page out with — every page size, style and margin would be undefined. This is a gap in the formatters, not in your tree: their prose is authored but their \`render\` geometry is not. Add it with edit_nodes (properties.render) on the formatter(s) below, or render outside the server.`,
+        ? `No formatter applies to '${nodeId}' in the ${renderedFrom} graph, so there is no geometry to lay a page out with. Attach one with use_formatter.`
+        : `${applicable.length} formatter(s) apply to '${nodeId}', but NONE declares a \`render\` bag, so there is no geometry to lay a page out with — every page size, style and margin would be undefined. This is a gap in the formatters, not in your tree: their prose is authored but their \`render\` geometry is not. Add it with edit_nodes (properties.render) on the formatter(s) below, or render outside the server.`,
       formatters: applicable,
       geometryFrom: spec.from,
-    };
+    } };
   }
+
+  return { ok: true, draft, model, renderedFrom, spec };
+}
+
+// ── page_geometry ────────────────────────────────────────────────────────────
+
+type GeometryArgs = {
+  nodeId: string;
+  /** Pictures the caller means to place, to have them sized before any render. */
+  pictures?: { role: string; aspectRatio: number; float?: boolean }[];
+};
+
+const round2 = (n: number) => Math.round(n * 100) / 100;
+
+/*
+ * The fixed numbers of a page, before anything is rendered.
+ *
+ * Every one of them is deterministic — the line pitch, the width left beside
+ * a floated band, how tall a 4.6:1 band stands — and every one was being found
+ * by rendering, reading the measurement, and rendering again: three measured
+ * renders a sheet, two and a half minutes each. This reads the same merged
+ * geometry the renderer lays out with and does the arithmetic once, so the
+ * first render is a calculation rather than a guess.
+ *
+ * It sizes pictures with `imageSizeCm`, the renderer's own function, on
+ * purpose: a second copy of the sizing rule would be the one that drifts.
+ */
+export async function pageGeometry(a: GeometryArgs): Promise<Record<string, unknown>> {
+  const adapter = getActiveAdapter();
+  const ns = kgNamespace(activeWorkspace(), adapter.grade, adapter.subject);
+  const denied = await denyIfNotDraftReader(ns);
+  if (denied) return denied;
+
+  const resolved = await resolveGeometryFor(a.nodeId);
+  if (!resolved.ok) return resolved.refusal;
+  const { spec, renderedFrom, draft } = resolved;
+  const render = spec.spec;
+
+  const page = PAGE_CM[render.page?.size ?? "A4"] ?? PAGE_CM.A4;
+  const landscape = render.page?.orientation === "landscape";
+  const widthCm = landscape ? page.h : page.w;
+  const heightCm = landscape ? page.w : page.h;
+  const margins = render.page?.marginsCm ?? {};
+  const usableWidth = usableWidthCm(render);
+  const usableHeight = heightCm - (margins.top ?? 0) - (margins.bottom ?? 0);
+
+  // A line's pitch is known only under an exact leading; "atLeast" and "auto"
+  // grow with their content, and a number here would be the estimate this
+  // project has been burnt by.
+  const leadingPt = render.type?.leadingPt;
+  const exact = render.type?.leadingRule === "exact" && leadingPt !== undefined;
+  const linePitchCm = exact ? round2(leadingPt / (72 / 2.54)) : null;
+  const linesPerPage = linePitchCm ? Math.floor(usableHeight / linePitchCm) : null;
+
+  const gutter = floatGutterCm(render);
+  const pictures = (a.pictures ?? []).map((picture) => {
+    const { w, h } = imageSizeCm({ media: "", role: picture.role, aspectRatio: picture.aspectRatio, float: picture.float }, render);
+    const fullWidth = render.images?.fullWidthAboveAspectRatio !== undefined && picture.aspectRatio > render.images.fullWidthAboveAspectRatio;
+    const floats = Boolean(picture.float) && !fullWidth;
+    return {
+      role: picture.role,
+      aspectRatio: picture.aspectRatio,
+      float: Boolean(picture.float),
+      widthCm: round2(w),
+      heightCm: round2(h),
+      ...(fullWidth ? { fullWidth: true, note: "wider than images.fullWidthAboveAspectRatio: laid out full width, it does not float" } : {}),
+      ...(floats ? {
+        wrapWidthCm: round2(usableWidth - w - gutter),
+        // How many body lines the picture stands beside: the block it anchors
+        // to must run at least this long, or the next float draws over it —
+        // or a `clear` block ends the wrap.
+        ...(linePitchCm ? { linesBeside: Math.ceil(h / linePitchCm) } : {}),
+      } : {}),
+    };
+  });
+
+  return {
+    nodeId: a.nodeId,
+    resolvedFrom: renderedFrom,
+    draftVersion: draft?.draftVersion ?? null,
+    formatters: spec.from,
+    page: {
+      size: render.page?.size ?? "A4",
+      orientation: landscape ? "landscape" : "portrait",
+      widthCm, heightCm,
+      marginsCm: margins,
+      usableWidthCm: round2(usableWidth),
+      usableHeightCm: round2(usableHeight),
+    },
+    type: {
+      ...(render.type ?? {}),
+      linePitchCm,
+      linesPerPage,
+      ...(exact ? {} : { note: "line pitch is only fixed under an exact leading rule; under atLeast/auto a line grows with its content" }),
+    },
+    budget: render.budget ?? {},
+    // The block styles as the formatter declares them: which names exist, and
+    // each one's line budget. What the tree may say `style:` on.
+    styles: render.blocks ?? {},
+    images: {
+      placement: render.images?.placement ?? "float-right",
+      gutterCm: gutter,
+      maxWidthCm: render.images?.maxWidthCm ?? null,
+      fullWidthAboveAspectRatio: render.images?.fullWidthAboveAspectRatio ?? null,
+      maxPerSection: render.images?.maxPerSection ?? null,
+      maxHeightCm: render.images?.maxHeightCm ?? {},
+      inlineHeightCm: render.images?.inlineHeightCm ?? {},
+    },
+    pictures,
+    language: render.language ?? null,
+    pagination: render.pagination ?? null,
+    howToUse:
+      "Every number here is what render_document lays out with. Compose against them: a floated picture's `linesBeside` is how many body lines its anchor block must run before the next float, or put a {kind:'clear'} block after the block that carries it. Then render ONCE with measure:true and read `overlaps` and `reserveKept` on each file.",
+  };
+}
+
+export async function renderDocument(a: RenderArgs): Promise<Record<string, unknown>> {
+  const adapter = getActiveAdapter();
+  const ns = kgNamespace(activeWorkspace(), adapter.grade, adapter.subject);
+
+  const denied = await denyIfNotDraftReader(ns);
+  if (denied) return denied;
+
+  const resolved = await resolveGeometryFor(a.nodeId);
+  if (!resolved.ok) return resolved.refusal;
+  const { draft, model, renderedFrom, spec } = resolved;
 
   const tree = documentSchema.safeParse(a.document);
   if (!tree.success) {
@@ -312,10 +458,16 @@ export async function renderDocument(a: RenderArgs): Promise<Record<string, unkn
     if (!CONFIG.gemini.apiKey) {
       return { preview: true, error: "Translation is unavailable: the server has no GEMINI_API_KEY configured." };
     }
-    composed = await deriveVariant(
-      composed, source.id, target.id, source.lang, target.lang,
-      glossaryTranslator(await effectiveTerms()),
-    );
+    try {
+      composed = await deriveVariant(
+        composed, source.id, target.id, source.lang, target.lang,
+        glossaryTranslator(await effectiveTerms()),
+      );
+    } catch (error) {
+      // A page with one untranslated line reads as finished, so nothing is
+      // rendered; the caller retries, or carries that line in the tree.
+      return { preview: true, error: `Deriving '${a.translateInto}' failed: ${(error as Error).message}. Nothing was rendered.` };
+    }
   }
 
   if (!storage.createPreviewUpload) {
@@ -344,6 +496,17 @@ export async function renderDocument(a: RenderArgs): Promise<Record<string, unkn
     const fits = measurement?.available && maxPages !== undefined
       ? measurement.pages <= maxPages
       : null;
+    // The reserve is checked against the last MARK on the last page, picture
+    // included — a check made on the last word passed on the server and
+    // failed in print, by half a centimetre of band.
+    const reserve = spec.spec.budget?.reserveBottomCm;
+    const lastPage = measurement?.available ? measurement.perPage.at(-1) : undefined;
+    const reserveKept = reserve !== undefined && lastPage?.freeBelowCm != null
+      ? lastPage.freeBelowCm >= reserve
+      : null;
+    const overlaps = measurement?.available
+      ? measurement.perPage.flatMap((page) => page.overlaps.map((overlap) => ({ page: page.page, ...overlap })))
+      : [];
     const signed = await storage.createPreviewUpload(suffixed(relPath, variant.fileSuffix));
     // The server holds the bytes, so it does its own PUT rather than handing
     // the caller a URL — there is nothing left for the caller to upload.
@@ -364,6 +527,10 @@ export async function renderDocument(a: RenderArgs): Promise<Record<string, unkn
       bytes: bytes.length,
       ...(measurement ? { measurement } : {}),
       ...(fits === null ? {} : { fits, maxPages }),
+      ...(reserveKept === null ? {} : { reserveKept, reserveBottomCm: reserve, lastPageFreeBelowCm: lastPage?.freeBelowCm }),
+      // Lifted out of the per-page detail: a file with marks over marks is not
+      // finished, whatever its page count says.
+      ...(overlaps.length > 0 ? { overlaps } : {}),
     });
   }
 
@@ -411,7 +578,8 @@ export function registerRenderTools(server: McpServer) {
         "Unknown keys are REFUSED rather than ignored, and nothing is rendered when the tree or the stack is invalid — the response names the path. " +
         "PICTURES go in the tree's `media`, each as {name, nodeId} — a picture ATTACHED to the covered curriculum (attach_image; walk_document_section lists them under `pictures` with the id), which the server resolves to its file — OR {name, relPath}, a path to an object already in THIS namespace's documents/ area, OR {name, data} with data base64 (an illustrated document is megabytes the tool call cannot carry, so prefer the first two). Prefer nodeId: the graph then knows which picture the page carries, and lint_content can check the page against what is attached. Exactly one of nodeId/relPath/data per entry; an entry that resolves to nothing is refused, naming it, not rendered with the wrong image. A VECTOR picture (SVG, by any of the three) is rasterized to PNG when the page is laid out, so the pictograms' SVG masters can be named directly; an SVG that sets text with a font is refused (the server has no fonts) — convert the text to outlines first. " +
         "ONE SOURCE, ONE FILE PER LANGUAGE. When the formatter's `language.strategy` is 'per-file', each declared variant gets its own document: lines marked `inAllFiles` print in every one, a line tagged with a variant prints only in that variant's file, and `files[]` comes back with one entry each. Pass `translateInto` (a variant id, e.g. 'wo') to have the server DERIVE that language from the one the tree already carries, translating line by line through the subject's MOHEBS glossary so the wording matches materials already in classrooms — a tree that already has those lines is left alone. Translation spends a metered backend, so it needs a ROLE in the workspace. " +
-        "Pass `measure:true` to lay each file out and COUNT ITS PAGES — page counts are measured on the render, never estimated from the source (an estimate once put a document at 2.5 pages that rendered at eleven). Each file then carries `measurement` with the page count, the page size actually produced, and the whitespace left below the last line of each page; with `budget.maxPages` declared it also carries `fits`. Measuring starts a whole office suite, so it is off by default, and where the deployment has no layout engine it reports `available:false` rather than a guess. " +
+        "Pass `measure:true` to lay each file out and COUNT ITS PAGES — page counts are measured on the render, never estimated from the source (an estimate once put a document at 2.5 pages that rendered at eleven). Each file then carries `measurement` with the page count, the page size actually produced, where every PICTURE landed (`perPage[].images`), and the whitespace left below the last MARK of each page — picture or word; with `budget.maxPages` declared it also carries `fits`, with `budget.reserveBottomCm` declared `reserveKept` for the last page, and `overlaps` names a band drawn over the band before it or over words (the defect a page count never shows). Measuring starts a whole office suite, so it is off by default, and where the deployment has no layout engine it reports `available:false` rather than a guess. " +
+        "A tree block {kind:'clear'} ends a wrap: what follows starts below the lowest floated picture, so a short activity beside a tall band no longer lets the next band draw over it. page_geometry gives the numbers to compose against BEFORE rendering — the first render should be a calculation, not a guess. " +
         "Output goes to the SEGREGATED previews/ prefix: short-lived, invisible to list_documents and reconcile, and never to be recorded via log_generation. Renders from the DRAFT when one is open and from PUBLISHED otherwise — `renderedFrom` says which, so a sheet is never mistaken for one made from unpublished edits. Curators and approvers only.",
       inputSchema: {
         nodeId: z.string(),
@@ -422,6 +590,25 @@ export function registerRenderTools(server: McpServer) {
       },
     },
     guarded(async (a: RenderArgs) => asJson(await renderDocument(a))),
+  );
+
+  server.registerTool(
+    "page_geometry",
+    {
+      title: "The fixed numbers of a page, before rendering",
+      description:
+        "What render_document will lay a page out with, for a DocumentSection or a whole document (TLM): page size and margins, the usable width and height, the line pitch and lines per page (under an exact leading), the block styles and their line budgets, the image ceilings per role, and — for the `pictures` you say you will place ({role, aspectRatio, float?}) — each one's printed width and height, the width left for text beside a floated one, and `linesBeside`: how many body lines it stands beside, which is how long its anchor block must run before the next float, or where a {kind:'clear'} block goes. " +
+        "Read it once per document and compose by arithmetic; then render ONCE with measure:true rather than measuring, guessing and re-rendering. Every number comes from the same merged formatter stack the renderer uses, sized by the renderer's own function, so they cannot disagree with the file. Draft when one is open, published otherwise; refused, naming the formatters, when none carries geometry. Curators and approvers.",
+      inputSchema: {
+        nodeId: z.string(),
+        pictures: z.array(z.object({
+          role: z.string().min(1),
+          aspectRatio: z.number().positive(),
+          float: z.boolean().optional(),
+        }).strict()).max(50).optional(),
+      },
+    },
+    guarded(async (a: GeometryArgs) => asJson(await pageGeometry(a))),
   );
 
   server.registerTool(

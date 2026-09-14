@@ -13,7 +13,8 @@
  * chased.
  *
  * That honesty costs something: measuring means laying the file out, which
- * means LibreOffice and poppler in the image. Neither is a Node dependency, so
+ * means LibreOffice and poppler in the image (pdfinfo for the count,
+ * pdftotext for the words, pdftohtml for the pictures). Neither is a Node dependency, so
  * `available` is part of the result rather than an assumption, and a deployment
  * without them keeps working with page counts absent instead of wrong.
  */
@@ -28,6 +29,35 @@ const run = promisify(execFile);
 const PT_PER_CM = 72 / 2.54;
 const ptToCm = (pt: number) => pt / PT_PER_CM;
 
+/** A box on the page, in points from the top-left corner. */
+type Box = { top: number; bottom: number; left: number; right: number };
+type Word = Box & { text: string };
+
+/** Where one picture landed, in centimetres from the page's top-left corner. */
+export type PageImage = {
+  topCm: number;
+  bottomCm: number;
+  leftCm: number;
+  rightCm: number;
+  widthCm: number;
+  heightCm: number;
+};
+
+/*
+ * Two marks that share ink — the thing a rendered page can get wrong while
+ * counting as one page and reading as finished.
+ *
+ * A floated band anchors to its paragraph; when that paragraph is shorter
+ * than the band, the next band anchors beside it and draws over it. Reported
+ * from a real session at 0.15 cm, then 0.36 cm, then a band over the banner
+ * that followed it by 1.4 mm — each found by opening the PDF, because the
+ * page count and the whitespace were both fine. Images are numbered as they
+ * appear on the page, from 1, matching `images`.
+ */
+export type Overlap =
+  | { kind: "image-over-image"; images: [number, number]; overlapCm: number }
+  | { kind: "image-over-text"; image: number; words: number; text: string; overlapCm: number };
+
 /** What one page turned out to be, once laid out. */
 export type PageMeasurement = {
   page: number;
@@ -35,23 +65,27 @@ export type PageMeasurement = {
   /** Where the ink starts and stops down the page. */
   textTopCm: number | null;
   textBottomCm: number | null;
+  /** The lowest edge of the lowest picture; null on a page with none. */
+  imageBottomCm: number | null;
+  /** The lowest mark on the page, text or picture. */
+  inkBottomCm: number | null;
   /*
-   * Whitespace below the last WORD — the number the tightening watched, with one
-   * limitation worth knowing before trusting it.
+   * Whitespace below the last MARK on the page — text or picture.
    *
-   * `pdftotext -bbox` emits words. It does not emit images. So a page that ends
-   * with a picture reports the gap below the last line of TEXT, not below the
-   * last mark on the page, and OVERSTATES how much room is left — the dangerous
-   * direction for a number whose job is to say how close a sheet is to
-   * overflowing.
-   *
-   * Measured on the twenty golden sheets: this reports 3.89-9.83 cm where the
-   * production note records 1.4-9.9 cm. The upper bounds agree closely; the
-   * lower does not, and those sheets end in full-width image bands. Use it to
-   * compare pages against each other, and the PAGE COUNT to decide whether a
-   * sheet fits.
+   * It used to be the gap below the last WORD: `pdftotext -bbox` emits words
+   * and never images, so a page ending in a picture band OVERSTATED how much
+   * room was left, the dangerous direction for a number whose job is to say how
+   * close a sheet is to overflowing. On the golden sheets it reported 3.89 cm
+   * where the production note recorded 1.4; a real session saw 2.77 cm reported
+   * against 2.26 on the page, and a reserve check passed server-side that
+   * failed in print. The pictures now come from `pdftohtml -xml`, so this is
+   * the gap below whichever is lower.
    */
   freeBelowCm: number | null;
+  /** Every picture on the page, in reading order. */
+  images: PageImage[];
+  /** Marks that share ink. Empty is the answer wanted; it is only trustworthy with `images` filled. */
+  overlaps: Overlap[];
 };
 
 export type Measurement =
@@ -62,6 +96,8 @@ export type Measurement =
       pageWidthCm: number;
       pageHeightCm: number;
       pageSize: string | null;      // "A4", "Letter", … as poppler names it
+      /** Whether the pictures were located: false means `images` is empty and `overlaps` says nothing. */
+      picturesMeasured: boolean;
       perPage: PageMeasurement[];
     };
 
@@ -92,22 +128,105 @@ export function parsePdfInfo(text: string): { pages: number; widthPt: number; he
  * fixed, poppler emits it machine-first, and pulling in a parser for two tag
  * names would be the larger risk.
  */
-export function parseBBox(xhtml: string, heightPt: number): PageMeasurement[] {
-  const pages: PageMeasurement[] = [];
+export function parseWords(xhtml: string): Word[][] {
+  const pages: Word[][] = [];
   for (const page of xhtml.matchAll(/<page\b[^>]*>([\s\S]*?)<\/page>/g)) {
-    const words = [...page[1].matchAll(/<word\s+xMin="([\d.]+)"\s+yMin="([\d.]+)"\s+xMax="([\d.]+)"\s+yMax="([\d.]+)"/g)];
-    const tops = words.map((w) => Number(w[2]));
-    const bottoms = words.map((w) => Number(w[4]));
-    const bottom = bottoms.length ? Math.max(...bottoms) : null;
-    pages.push({
-      page: pages.length + 1,
-      words: words.length,
-      textTopCm: tops.length ? round(ptToCm(Math.min(...tops))) : null,
-      textBottomCm: bottom === null ? null : round(ptToCm(bottom)),
-      freeBelowCm: bottom === null ? null : round(ptToCm(heightPt - bottom)),
-    });
+    const words = [...page[1].matchAll(/<word\s+xMin="([\d.]+)"\s+yMin="([\d.]+)"\s+xMax="([\d.]+)"\s+yMax="([\d.]+)">([^<]*)</g)];
+    pages.push(words.map((w) => ({ left: Number(w[1]), top: Number(w[2]), right: Number(w[3]), bottom: Number(w[4]), text: w[5] })));
   }
   return pages;
+}
+
+/*
+ * `pdftohtml -xml` output: one <page> per page carrying its own height, and an
+ * <image> per picture with its box. The units follow the zoom the tool was run
+ * at, so every box is scaled by the page height pdfinfo reported rather than
+ * trusted — a default zoom of 1.5 would otherwise put every picture half again
+ * as far down the page as it is.
+ */
+export function parseImages(xml: string, heightPt: number): Box[][] {
+  const pages: Box[][] = [];
+  for (const page of xml.matchAll(/<page\b([^>]*)>([\s\S]*?)<\/page>/g)) {
+    const declared = /height="([\d.]+)"/.exec(page[1]);
+    const scale = declared ? heightPt / Number(declared[1]) : 1;
+    const images = [...page[2].matchAll(/<image\s+top="([\d.]+)"\s+left="([\d.]+)"\s+width="([\d.]+)"\s+height="([\d.]+)"/g)];
+    pages.push(images.map((i) => {
+      const top = Number(i[1]) * scale, left = Number(i[2]) * scale;
+      return { top, left, right: left + Number(i[3]) * scale, bottom: top + Number(i[4]) * scale };
+    }));
+  }
+  return pages;
+}
+
+/** The old entry point: words only, kept for callers that have no picture boxes. */
+export function parseBBox(xhtml: string, heightPt: number): PageMeasurement[] {
+  return measurePages(parseWords(xhtml), [], heightPt);
+}
+
+/*
+ * Two boxes share ink when they overlap in BOTH directions by more than a
+ * hair. Half a millimetre: a pictogram set in a line of text sits flush
+ * against its neighbours' glyph boxes, and that touch is not an overlap.
+ */
+const OVERLAP_TOLERANCE_PT = 0.05 * PT_PER_CM;
+
+function verticalOverlapPt(a: Box, b: Box): number {
+  const across = Math.min(a.right, b.right) - Math.max(a.left, b.left);
+  const down = Math.min(a.bottom, b.bottom) - Math.max(a.top, b.top);
+  return across > OVERLAP_TOLERANCE_PT && down > OVERLAP_TOLERANCE_PT ? down : 0;
+}
+
+function overlapsOn(words: Word[], images: Box[]): Overlap[] {
+  const found: Overlap[] = [];
+  images.forEach((image, i) => {
+    images.slice(i + 1).forEach((other, j) => {
+      const down = verticalOverlapPt(image, other);
+      if (down > 0) found.push({ kind: "image-over-image", images: [i + 1, i + j + 2], overlapCm: round(ptToCm(down)) });
+    });
+    const covered = words.filter((word) => verticalOverlapPt(image, word) > 0);
+    if (covered.length > 0) {
+      const deepest = Math.max(...covered.map((word) => verticalOverlapPt(image, word)));
+      found.push({
+        kind: "image-over-text", image: i + 1, words: covered.length,
+        text: covered.slice(0, 6).map((word) => word.text).join(" ") + (covered.length > 6 ? " …" : ""),
+        overlapCm: round(ptToCm(deepest)),
+      });
+    }
+  });
+  return found;
+}
+
+/**
+ * One measurement per page, from where the words and the pictures landed.
+ *
+ * A page with pictures but no picture boxes (poppler's `pdftohtml` absent)
+ * measures as before — text only — and says nothing about overlaps rather
+ * than reporting none.
+ */
+export function measurePages(wordPages: Word[][], imagePages: Box[][], heightPt: number): PageMeasurement[] {
+  const count = Math.max(wordPages.length, imagePages.length);
+  return Array.from({ length: count }, (_, index) => {
+    const words = wordPages[index] ?? [];
+    const images = imagePages[index] ?? [];
+    const textBottom = words.length ? Math.max(...words.map((w) => w.bottom)) : null;
+    const imageBottom = images.length ? Math.max(...images.map((i) => i.bottom)) : null;
+    const inkBottom = textBottom === null ? imageBottom : imageBottom === null ? textBottom : Math.max(textBottom, imageBottom);
+    return {
+      page: index + 1,
+      words: words.length,
+      textTopCm: words.length ? round(ptToCm(Math.min(...words.map((w) => w.top)))) : null,
+      textBottomCm: textBottom === null ? null : round(ptToCm(textBottom)),
+      imageBottomCm: imageBottom === null ? null : round(ptToCm(imageBottom)),
+      inkBottomCm: inkBottom === null ? null : round(ptToCm(inkBottom)),
+      freeBelowCm: inkBottom === null ? null : round(ptToCm(heightPt - inkBottom)),
+      images: images.map((i) => ({
+        topCm: round(ptToCm(i.top)), bottomCm: round(ptToCm(i.bottom)),
+        leftCm: round(ptToCm(i.left)), rightCm: round(ptToCm(i.right)),
+        widthCm: round(ptToCm(i.right - i.left)), heightCm: round(ptToCm(i.bottom - i.top)),
+      })),
+      overlaps: overlapsOn(words, images),
+    };
+  });
 }
 
 const round = (n: number) => Math.round(n * 100) / 100;
@@ -171,12 +290,22 @@ export async function measureDocx(bytes: Buffer, options: MeasureOptions = {}): 
       return { available: false, reason: "`pdfinfo` returned output this cannot read." };
     }
 
-    // -bbox is optional: without pdftotext the page COUNT still stands, and a
-    // count with no whitespace figures beats refusing the whole measurement.
-    let perPage: PageMeasurement[] = [];
+    // The boxes are optional: without pdftotext the page COUNT still stands,
+    // and a count with no whitespace figures beats refusing the whole
+    // measurement. Without pdftohtml the pictures are missing and the
+    // measurement says so, rather than reporting a page with no overlaps.
+    let words: Word[][] = [];
     if (await which("pdftotext")) {
       const { stdout } = await run("pdftotext", ["-bbox", pdfPath, "-"], { timeout });
-      perPage = parseBBox(stdout, info.heightPt);
+      words = parseWords(stdout);
+    }
+    let images: Box[][] = [];
+    const picturesMeasured = Boolean(await which("pdftohtml"));
+    if (picturesMeasured) {
+      // -zoom 1 keeps the boxes in points; the page height is checked anyway.
+      // The pictures themselves are written beside the PDF and swept with it.
+      const { stdout } = await run("pdftohtml", ["-xml", "-zoom", "1", "-noroundcoord", "-q", "-stdout", pdfPath], { timeout, maxBuffer: 64 * 1024 * 1024 });
+      images = parseImages(stdout, info.heightPt);
     }
 
     return {
@@ -185,7 +314,8 @@ export async function measureDocx(bytes: Buffer, options: MeasureOptions = {}): 
       pageWidthCm: round(ptToCm(info.widthPt)),
       pageHeightCm: round(ptToCm(info.heightPt)),
       pageSize: info.size,
-      perPage,
+      picturesMeasured,
+      perPage: measurePages(words, images, info.heightPt),
     };
   } catch (error) {
     return { available: false, reason: `Laying the document out failed: ${(error as Error).message}` };

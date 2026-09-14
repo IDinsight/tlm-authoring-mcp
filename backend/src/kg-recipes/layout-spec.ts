@@ -73,6 +73,7 @@ export type TemplateBlock =
   | { kind: "line"; style?: string; variant?: string; pageBreak?: "before"; anchor?: "covered" | "none"; when?: { rank: number }; forEach?: z.infer<typeof forEachSchema>; runs: z.infer<typeof runSchema>[] }
   | { kind: "table"; style?: string; columnsCm?: number[]; pageBreak?: "before"; when?: { rank: number }; rows: TemplateCell[][] }
   | { kind: "spacer"; sizePt: number; leadingPt: number }
+  | { kind: "clear" }
   | { kind: "children" };
 
 export type TemplateCell = { blocks: TemplateBlock[]; style?: string; span?: number };
@@ -102,6 +103,8 @@ export const templateBlockSchema: z.ZodType<TemplateBlock> = z.lazy(() =>
       sizePt: z.number().positive(),
       leadingPt: z.number().positive(),
     }).strict(),
+    // The end of a wrap: what follows starts below the floated pictures.
+    z.object({ kind: z.literal("clear") }).strict(),
     // The composed child sections, in order — the one block only a root template uses.
     z.object({ kind: z.literal("children") }).strict(),
   ]),

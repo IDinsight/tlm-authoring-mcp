@@ -294,6 +294,13 @@ close a sheet is to overflowing. This run reports 3.89–9.83 cm where the produ
 image bands. Use it to compare pages with each other; use the PAGE COUNT to decide whether a sheet
 fits.
 
+> **Closed (2026-09-14).** `measureDocx` now reads the pictures too (`pdftohtml -xml`, scaled by the
+> page height `pdfinfo` reported), so `freeBelowCm` is the gap below the last mark, picture or word,
+> and each page reports `overlaps` — a band drawn over the band before it, or over words. The same
+> change gave the tree a `clear` block (the end of a wrap) and the server a `page_geometry` read, so
+> a page is composed by arithmetic and rendered once. See
+> [`rendering.md`](../technical-reference/rendering.md).
+
 ### Reading a correction back (WP6)
 
 An expert opens a sheet, fixes a sentence, sends it back. The hard part was never the `.docx`: it

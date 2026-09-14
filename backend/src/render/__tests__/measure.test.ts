@@ -13,7 +13,11 @@
  * is the defect.
  */
 import { describe, it, expect } from "vitest";
-import { parsePdfInfo, parseBBox, measureDocx } from "../measure.js";
+import { execFileSync } from "node:child_process";
+import { parsePdfInfo, parseBBox, parseWords, parseImages, measurePages, measureDocx } from "../measure.js";
+import { renderDocx } from "../docx.js";
+import { resolveRenderSpec } from "../resolve-spec.js";
+import { rasterizeSvg } from "../raster.js";
 
 // Real `pdfinfo` output shape, trimmed to the lines that are read.
 const PDFINFO_A4 = `Title:          Guide-Lecon-1
@@ -90,6 +94,138 @@ describe("reading where the ink lands", () => {
   it("returns nothing for output with no pages in it", () => {
     expect(parseBBox("<html><body></body></html>", A4_PT)).toEqual([]);
   });
+});
+
+// `pdftohtml -xml -zoom 1`, captured from a LibreOffice PDF of a page with two
+// floated bands anchored to two one-line activities — the second band drawn
+// 32 pt into the first, which is the defect this exists to see.
+const IMAGES_XML = `<?xml version="1.0" encoding="UTF-8"?>
+<pdf2xml producer="poppler" version="26.09.0">
+<page number="1" position="absolute" top="0" left="0" height="841" width="595">
+	<fontspec id="0" size="12" family="Andika" color="#000000"/>
+<image top="56.450764" left="340.200000" width="212.550000" height="46.200000" src="probe-1_1.png"/>
+<image top="70.450764" left="340.200000" width="212.550000" height="46.200000" src="probe-1_2.png"/>
+<text top="56.972764" left="42.600000" width="217.726000" height="13.680000" font="0">• Quel signe manque ?</text>
+</page>
+<page number="2" position="absolute" top="0" left="0" height="841" width="595">
+</page>
+</pdf2xml>`;
+
+const TWO_BANDS = `<html><body>
+<page width="595.303937" height="841.889764">
+  <word xMin="42.60" yMin="56.97" xMax="46.80" yMax="70.65">•</word>
+  <word xMin="49.80" yMin="56.97" xMax="73.30" yMax="70.65">Quel</word>
+  <word xMin="42.60" yMin="70.97" xMax="46.80" yMax="84.65">•</word>
+  <word xMin="49.80" yMin="70.97" xMax="97.00" yMax="84.65">Combien</word>
+</page>
+<page width="595.303937" height="841.889764">
+</page>
+</body></html>`;
+
+describe("reading where the pictures landed", () => {
+  it("reports each picture's box in centimetres, scaled by the page height pdfinfo gave", () => {
+    const pages = parseImages(IMAGES_XML, A4_PT);
+    expect(pages).toHaveLength(2);
+    expect(pages[0]).toHaveLength(2);
+    expect(pages[1]).toHaveLength(0);
+    const measured = measurePages(parseWords(TWO_BANDS), pages, A4_PT);
+    expect(measured[0].images[0]).toMatchObject({ topCm: 1.99, leftCm: 12.01, widthCm: 7.51, heightCm: 1.63 });
+  });
+
+  it("rescales boxes that poppler emitted at its default zoom", () => {
+    // pdftohtml's default zoom is 1.5: the page declares height 1263 for an A4
+    // page of 841.89 pt, and every box is half again too far down unless
+    // scaled by what the page itself says.
+    const zoomed = IMAGES_XML.replace('height="841" width="595"', 'height="1263" width="892"')
+      .replace('top="56.450764" left="340.200000" width="212.550000" height="46.200000"', 'top="84.68" left="510.30" width="318.83" height="69.30"');
+    const [page] = parseImages(zoomed, A4_PT);
+    expect(page[0].top).toBeCloseTo(56.45, 0);
+    expect(page[0].right - page[0].left).toBeCloseTo(212.55, 0);
+  });
+
+  it("measures the whitespace below the last MARK, picture or word", () => {
+    // The number that overstated the room left on every page ending in a band:
+    // words stop at 84.65 pt, the lower band at 116.65.
+    const [page] = measurePages(parseWords(TWO_BANDS), parseImages(IMAGES_XML, A4_PT), A4_PT);
+    expect(page.textBottomCm).toBeCloseTo(2.99, 1);
+    expect(page.imageBottomCm).toBeCloseTo(4.11, 1);
+    expect(page.inkBottomCm).toBe(page.imageBottomCm);
+    expect(page.freeBelowCm).toBeCloseTo(29.7 - 4.11, 1);
+  });
+
+  it("reports a band drawn over the band before it, and by how much", () => {
+    const [page] = measurePages(parseWords(TWO_BANDS), parseImages(IMAGES_XML, A4_PT), A4_PT);
+    expect(page.overlaps).toEqual([{ kind: "image-over-image", images: [1, 2], overlapCm: 1.14 }]);
+  });
+
+  it("reports a picture drawn over words, naming them", () => {
+    const words = parseWords(`<html><body><page width="595" height="841.89">
+      <word xMin="345.00" yMin="104.00" xMax="400.00" yMax="117.00">RÉPONSE</word>
+      <word xMin="403.00" yMin="104.00" xMax="410.00" yMax="117.00">:</word>
+      <word xMin="42.60" yMin="104.00" xMax="60.00" yMax="117.00">beside</word>
+    </page></body></html>`);
+    const [page] = measurePages(words, parseImages(IMAGES_XML, A4_PT), A4_PT);
+    const overText = page.overlaps.filter((o) => o.kind === "image-over-text");
+    // The first band ends at 102.65 pt, so only the lower one reaches these
+    // words; the word beside the bands is not under either.
+    expect(overText).toEqual([{ kind: "image-over-text", image: 2, words: 2, text: "RÉPONSE :", overlapCm: 0.45 }]);
+  });
+
+  it("does not call a pictogram flush against its neighbours an overlap", () => {
+    // Half a millimetre of shared box is a touch, not a defect.
+    const images = [[{ top: 100, bottom: 114, left: 60, right: 74 }]];
+    const words = [[{ top: 100, bottom: 114, left: 42, right: 61, text: "Sept" }]];
+    const [page] = measurePages(words, images, A4_PT);
+    expect(page.overlaps).toEqual([]);
+  });
+
+  it("keeps the words-only entry point working, with the picture fields empty", () => {
+    const [page] = parseBBox(TWO_BANDS, A4_PT);
+    expect(page.imageBottomCm).toBeNull();
+    expect(page.images).toEqual([]);
+    expect(page.freeBelowCm).toBeCloseTo(29.7 - 2.99, 1);
+  });
+});
+
+/*
+ * The whole chain, where this machine can run it: a page rendered by this
+ * renderer, laid out by LibreOffice, read back by poppler. CI has neither and
+ * skips; a developer's laptop with both proves the clear block does what its
+ * comment says, which no parser test can.
+ */
+const hasEngine = ["soffice", "pdfinfo", "pdftotext", "pdftohtml"].every((bin) => {
+  try { execFileSync("which", [bin]); return true; } catch { return false; }
+});
+
+describe.skipIf(!hasEngine)("measuring a page this renderer produced", () => {
+  const spec = resolveRenderSpec([{ id: "f", properties: { raw: { render: {
+    page: { size: "A4", marginsCm: { top: 1.5, right: 1.5, bottom: 1.5, left: 1.5 } },
+    type: { family: "Andika", sizePt: 12, leadingPt: 14, leadingRule: "exact" },
+    images: { maxHeightCm: { band: 1.63 }, placement: "float-right" },
+  } } } }]);
+  if (!spec.ok) throw new Error(spec.errors.join("; "));
+  const band = { image: { media: "band.png", role: "band", aspectRatio: 4.6, float: true } };
+  const media = [{ name: "band.png", data: rasterizeSvg(Buffer.from(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 46 10"><rect width="46" height="10" fill="#c02828"/></svg>`)) }];
+  const activity = (text: string) => ({ kind: "line" as const, runs: [band, { text }] });
+
+  it("sees the second band drawn over the first when nothing clears the wrap", async () => {
+    const bytes = renderDocx({ media, blocks: [activity("Quel signe manque ?"), activity("Combien de cailloux ?")] }, spec.spec);
+    const result = await measureDocx(bytes);
+    if (!result.available) throw new Error(result.reason);
+    expect(result.picturesMeasured).toBe(true);
+    expect(result.perPage[0].images).toHaveLength(2);
+    expect(result.perPage[0].overlaps).toEqual([expect.objectContaining({ kind: "image-over-image", images: [1, 2] })]);
+    expect(result.perPage[0].overlaps[0].overlapCm).toBeGreaterThan(1);
+  }, 60_000);
+
+  it("sees no overlap once a clear block ends the wrap, and only a hair of white below the band", async () => {
+    const bytes = renderDocx({ media, blocks: [activity("Quel signe manque ?"), { kind: "clear" }, activity("Combien de cailloux ?")] }, spec.spec);
+    const result = await measureDocx(bytes);
+    if (!result.available) throw new Error(result.reason);
+    const [page] = result.perPage;
+    expect(page.overlaps).toEqual([]);
+    expect(page.images[1].topCm - page.images[0].bottomCm).toBeLessThan(0.2);
+  }, 60_000);
 });
 
 describe("when the environment cannot lay a document out", () => {

@@ -18,6 +18,7 @@
  * previews/ prefix, never the canonical bucket or history.
  */
 import { describe, it, expect, beforeAll, beforeEach, afterAll, vi } from "vitest";
+import { execFileSync } from "node:child_process";
 import { seedStore, seededContexts, CE1_READING, CURATOR, APPROVER, SIGNED_IN_NO_ROLE } from "../../__tests__/index.js";
 import { newSessionState, runInSession, previewKey } from "../../context/index.js";
 import { __setKgStoreForTest, __resetMutationsForTest } from "../../kg-store/index.js";
@@ -25,7 +26,7 @@ import { __setStorageForTest } from "../../storage/index.js";
 import { __setActorForTest, type Actor } from "../../actor.js";
 import { activateContext } from "../../activate.js";
 import { runEditNodes } from "../recipes.js";
-import { renderDocument, proposeFromDocument } from "../render.js";
+import { renderDocument, proposeFromDocument, pageGeometry } from "../render.js";
 import { checkStale } from "../documents.js";
 import { unzip, documentSchema } from "../../render/index.js";
 import { CONFIG } from "../../config.js";
@@ -36,10 +37,18 @@ import type { StorageAdapter, HistoryFile } from "../../types.js";
 // lands in its own file — not that Gemini translates. A real call here would
 // spend metered budget on every test run.
 const translated: { text: string; direction: string; glossaryTerms: number }[] = [];
+// How many BATCHES reached the translator: the render must send a page's lines
+// together, not one call per line, which is what timed a real render out.
+let batches = 0;
+let failLinesMatching: RegExp | null = null;
 vi.mock("../../translation/index.js", () => ({
-  translate: async (input: { text: string; direction: string; glossary?: unknown[] }) => {
-    translated.push({ text: input.text, direction: input.direction, glossaryTerms: (input.glossary ?? []).length });
-    return { translation: `wo:${input.text}`, sourceLanguage: "French", targetLanguage: "Wolof", model: "stub", glossaryTerms: [] };
+  translateBatch: async (input: { texts: string[]; direction: string; glossaryFor: (text: string) => unknown[] }) => {
+    batches++;
+    return input.texts.map((text, index) => {
+      if (failLinesMatching?.test(text)) return { index, text, ok: false, error: "stub refused" };
+      translated.push({ text, direction: input.direction, glossaryTerms: input.glossaryFor(text).length });
+      return { index, text, ok: true, translation: `wo:${text}`, sourceLanguage: "French", targetLanguage: "Wolof", model: "stub", glossaryTerms: [] };
+    });
   },
 }));
 
@@ -310,7 +319,7 @@ describe("deriving Wolof from the French the tree carries", () => {
     ],
   };
 
-  beforeEach(() => { translated.length = 0; CONFIG.gemini.apiKey = "test-key"; });
+  beforeEach(() => { translated.length = 0; batches = 0; failLinesMatching = null; CONFIG.gemini.apiKey = "test-key"; });
   afterAll(() => { CONFIG.gemini.apiKey = ""; });
 
   it("produces the Wolof file from a tree that had no Wolof in it", async () => {
@@ -341,6 +350,31 @@ describe("deriving Wolof from the French the tree carries", () => {
     expect(translated[0].direction).toBe("fr>wo");
   });
 
+  it("sends the page's lines to the translator in ONE batch", async () => {
+    const twoLines = { blocks: [
+      ...FRENCH_ONLY.blocks,
+      { kind: "line", variant: "fr", runs: [{ text: "Comptez-les." }] },
+    ] };
+    await withCtx(CURATOR, async () => {
+      await stageRenderBag(WITH_WOLOF);
+      await renderDocument({ nodeId: sectionId, document: twoLines, translateInto: "wo" });
+    });
+    expect(translated.map((t) => t.text)).toEqual(["Nommez ces objets.", "Comptez-les."]);
+    expect(batches).toBe(1);
+  });
+
+  it("renders NOTHING when a line could not be translated, and names it", async () => {
+    // A Wolof file with one French line left in it reads as finished.
+    failLinesMatching = /Nommez/;
+    const out = await withCtx(CURATOR, async () => {
+      await stageRenderBag(WITH_WOLOF);
+      return renderDocument({ nodeId: sectionId, document: FRENCH_ONLY, translateInto: "wo" });
+    });
+    expect(out.error).toContain("could not be translated");
+    expect(out.error).toContain("Nommez ces objets.");
+    expect(uploads).toHaveLength(0);
+  });
+
   it("colours the derived lines as the formatter says, in their own file", async () => {
     await withCtx(CURATOR, async () => {
       await stageRenderBag(WITH_WOLOF);
@@ -364,10 +398,83 @@ describe("deriving Wolof from the French the tree carries", () => {
   });
 });
 
+// Whether this machine can lay a document out. CI cannot, and that is the case
+// worth pinning: the tool must report that it could not measure rather than
+// fill the gap in. A developer's laptop with LibreOffice installed measures for
+// real, so the no-engine tests step aside there rather than fail.
+const hasLayoutEngine = (() => {
+  try { execFileSync("which", ["soffice"]); return true; } catch { return false; }
+})();
+
+describe("the fixed numbers of a page, before rendering", () => {
+  // Andika 12 on a 14 pt exact leading, the teacher sheet's setting: 0.49 cm a
+  // line. A 4.6:1 band under a 1.63 cm ceiling is 7.5 cm wide — every one of
+  // these was found by rendering three times a sheet.
+  const FICHE_BAG = {
+    ...RENDER_BAG,
+    page: { size: "A4", marginsCm: { top: 1.5, right: 1.5, bottom: 1.5, left: 1.5 } },
+    type: { family: "Andika", sizePt: 12, leadingPt: 14, leadingRule: "exact" },
+    budget: { maxPages: 2, reserveBottomCm: 2.5 },
+    images: { maxHeightCm: { band: 1.63, scene: 4 }, inlineHeightCm: { picto: 0.49 }, placement: "float-right", fullWidthAboveAspectRatio: 7 },
+  };
+
+  it("reports the page, the line pitch and the lines per page from the merged stack", async () => {
+    const out = await withCtx(CURATOR, async () => {
+      await stageRenderBag(FICHE_BAG);
+      return pageGeometry({ nodeId: sectionId });
+    });
+    expect(out.resolvedFrom).toBe("draft");
+    expect(out.page).toMatchObject({ size: "A4", usableWidthCm: 18, usableHeightCm: 26.7 });
+    expect(out.type).toMatchObject({ leadingPt: 14, linePitchCm: 0.49, linesPerPage: 54 });
+    expect(out.budget).toEqual({ maxPages: 2, reserveBottomCm: 2.5 });
+    expect(Object.keys(out.styles as object)).toContain("bullet");
+  });
+
+  it("sizes the pictures the caller means to place, and says how many lines each floats beside", async () => {
+    const out = await withCtx(CURATOR, async () => {
+      await stageRenderBag(FICHE_BAG);
+      return pageGeometry({ nodeId: sectionId, pictures: [
+        { role: "band", aspectRatio: 4.6, float: true },
+        { role: "band", aspectRatio: 8, float: true },
+        { role: "picto", aspectRatio: 1 },
+      ] });
+    });
+    const [band, wide, picto] = out.pictures as Array<Record<string, unknown>>;
+    // 1.63 cm tall, 7.5 cm wide, 10.35 cm left for text beside it, and it
+    // stands beside four body lines — so its anchor block runs four lines or
+    // the next band draws over it.
+    expect(band).toMatchObject({ widthCm: 7.5, heightCm: 1.63, wrapWidthCm: 10.35, linesBeside: 4 });
+    // Wider than the ratio the formatter floats up to: full width, no wrap.
+    expect(wide).toMatchObject({ fullWidth: true });
+    expect(wide).not.toHaveProperty("wrapWidthCm");
+    // Inline: line-sized from its own table, nothing to wrap beside.
+    expect(picto).toMatchObject({ widthCm: 0.49, heightCm: 0.49 });
+    expect(picto).not.toHaveProperty("linesBeside");
+  });
+
+  it("gives no line pitch under a leading that grows with its content", async () => {
+    const out = await withCtx(CURATOR, async () => {
+      await stageRenderBag({ ...FICHE_BAG, type: { ...FICHE_BAG.type, leadingRule: "atLeast" } });
+      return pageGeometry({ nodeId: sectionId });
+    });
+    expect((out.type as Record<string, unknown>).linePitchCm).toBeNull();
+    expect((out.type as Record<string, unknown>).linesPerPage).toBeNull();
+  });
+
+  it("refuses like render_document when no formatter carries geometry", async () => {
+    const out = await withCtx(CURATOR, () => pageGeometry({ nodeId: sectionId }));
+    expect(out.error).toContain("NONE declares a `render` bag");
+  });
+
+  it("is closed to a signed-in caller with no role, like the draft it may read", async () => {
+    const out = await withCtx(SIGNED_IN_NO_ROLE, () => pageGeometry({ nodeId: sectionId }));
+    expect(out.error ?? out.phase).toBeDefined();
+    expect(out.page).toBeUndefined();
+  });
+});
+
 describe("counting the pages", () => {
-  // No LibreOffice in this environment, which is the case worth pinning: the
-  // tool must report that it could not measure rather than fill the gap in.
-  it("reports that it could not measure, and never invents a count", async () => {
+  it.skipIf(hasLayoutEngine)("reports that it could not measure, and never invents a count", async () => {
     const out = await withCtx(CURATOR, async () => {
       await stageRenderBag(RENDER_BAG);
       return renderDocument({ nodeId: sectionId, document: TREE, measure: true });
@@ -389,7 +496,7 @@ describe("counting the pages", () => {
     expect((out.files as Array<Record<string, unknown>>)[0].measurement).toBeUndefined();
   });
 
-  it("still produces the document when it cannot be measured", async () => {
+  it.skipIf(hasLayoutEngine)("still produces the document when it cannot be measured", async () => {
     // A missing page count is not a failed render. The file is the deliverable.
     const out = await withCtx(CURATOR, async () => {
       await stageRenderBag(RENDER_BAG);
