@@ -10,6 +10,9 @@ whether it will fit — produce the artifact and measure the artifact.
 
 ## La séquence, dans cet ordre
 
+Pour une **leçon entière** — tous les documents qui la couvrent, toutes leurs langues, et
+seulement ce qui est périmé — voir `produire-une-lecon`, qui applique cette séquence page par page.
+
 Elle est écrite ici pour n'être **reprise, jamais réinventée**. Une session qui la redéduit de la
 prose choisit à chaque fois autrement où alléger la page — avant le premier rendu ou après — et le
 nombre de tentatives change avec elle. Chaque étape nomme l'outil et **d'où vient sa règle** ; aucune

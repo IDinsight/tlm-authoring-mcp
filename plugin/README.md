@@ -93,7 +93,8 @@ in `session-autorat` (« Proposer, puis écrire »).
 | always | `session-autorat` | session discipline, the shared write procedure, two-phase writes, never asking for an id |
 | build the curriculum | `construire-le-programme` | standards, components, the course, lessons, groupings — from scratch or evolving |
 | create documents | `composer-un-document` | a book or a guide: what it covers, its formatter, its grids, its sections, its journal |
-| create documents | `produire-et-mesurer` | produce the file and check it fits |
+| create documents | `produire-et-mesurer` | produce one file and check it fits |
+| create documents | `produire-une-lecon` | every file a lesson owes, only what is stale, one review, a delivery note |
 | create documents | `illustrations` | build and verify a lesson's illustration dossier |
 | create documents | `reprendre-corrections` | an expert hands back a corrected `.docx` |
 | evaluate | `evaluer` | one review of a document or draft: wiring, coverage, contradictions, grids, render |
@@ -112,7 +113,7 @@ inside a subagent and returned about 2,000 to the main thread. Route every bulk 
 ## Commands
 
 `/ou-en-suis-je` · `/construire` · `/composer` · `/evaluer` · `/reprendre-corrections` ·
-`/produire` · `/mesurer` · `/relire` · `/publier` · `/nouveau-cours` · `/decisions`
+`/produire` · `/lecon` · `/mesurer` · `/relire` · `/publier` · `/nouveau-cours` · `/decisions`
 
 `/nouveau-cours` and `/relire` are kept for habit; they point at `construire-le-programme` +
 `composer-un-document` and at `evaluer`.
