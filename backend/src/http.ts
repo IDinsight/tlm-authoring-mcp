@@ -33,6 +33,7 @@ import { CONFIG, basePrefix, DEFAULT_WORKSPACE, explorerOrigins } from "./config
 import { newSessionState, runInSession, listAvailableContexts, type SessionState } from "./context/index.js";
 import { readGlobalObject, writeGlobalObject } from "./storage/index.js";
 import { activateContext, refreshAvailableContexts } from "./activate.js";
+import { warmLayoutEngine } from "./render/index.js";
 import { consentPage } from "./consent.js";
 import { landingPage } from "./landing.js";
 import { resolveActor, withMemberships, runAsActor, type Actor } from "./actor.js";
@@ -436,6 +437,12 @@ async function main() {
   } catch (e) {
     console.error(`${LOG} could not list namespaces from the store:`, (e as Error).message);
   }
+
+  // Warm the layout engine's profile while the server comes up, so the first
+  // measured render does not pay LibreOffice's cold start inside a request. Best
+  // effort and unawaited: a conversion that finds no warm profile makes its own.
+  void warmLayoutEngine().then((profile) =>
+    console.error(`${LOG} layout engine ${profile ? "warmed" : "not available — page counts will report unavailable"}`));
 
   const app = express();
   app.use(express.json({ limit: "8mb" }));

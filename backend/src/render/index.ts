@@ -13,7 +13,7 @@ export { imageSize, imageAspectRatio, type ImageSize } from "./image-size.js";
 export { markAnswerCells, bandCells, type AnswerMarkStyle, type AnswerMark } from "./answer-mark.js";
 export { resolveRenderSpec, type ResolvedSpec, type SpecCarrier } from "./resolve-spec.js";
 export { splitByVariant, deriveVariant, hasVariant, type Variant, type TranslateLines } from "./variants.js";
-export { measureDocx, parsePdfInfo, parseBBox, parseWords, parseImages, measurePages, type Measurement, type PageMeasurement, type PageImage, type Overlap } from "./measure.js";
+export { measureDocx, warmLayoutEngine, parsePdfInfo, parseBBox, parseWords, parseImages, measurePages, type Measurement, type PageMeasurement, type PageImage, type Overlap } from "./measure.js";
 export { readDocx, type ReadDocument, type ReadBlock } from "./read-docx.js";
 export { readGeometry, type ExtractedGeometry, type UnnamedFill, type UnnamedHeight } from "./read-geometry.js";
 export { proposeEdits, editItems, documentText, normalise, type Proposal, type TextSlot } from "./propose.js";
