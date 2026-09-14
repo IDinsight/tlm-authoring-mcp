@@ -78,3 +78,6 @@ with the same twenty pictures, two tables and one break as the file the experts 
   read the picture is a `problem`, never a guess.
 - The answer signs under a band's cells (a rule newer than the delivered corpus) are not yet in the
   pupil template: the delivered files carry them inside the band image.
+- A table's rows are a list of lists, which Firestore refuses; the store wraps and unwraps them at
+  its boundary (`kg-store/firestore-shape.ts`, see the store reference). The first template import
+  found this; the in-memory test store never would.

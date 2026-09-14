@@ -21,6 +21,7 @@ import { CONFIG } from "../config.js";
 import type { AuditQuery, AuditRecord, KgNodeStore, PendingEntry, Slot, SlotDelta, StoredConfig, StoredEdge, StoredMeta, StoredNode, StoredPointer } from "./types.js";
 import { otherSlot } from "./types.js";
 import { matchesAuditQuery, sortAuditNewestFirst } from "./audit.js";
+import { toFirestoreShape, fromFirestoreShape } from "./firestore-shape.js";
 import { timed, note } from "../utils/index.js";
 
 const require = createRequire(import.meta.url);
@@ -221,10 +222,10 @@ export function createFirestoreKgStore(): KgNodeStore {
         fetchPointer(namespace),
         db.collection(NODES).where("namespace", "==", namespace).where("slot", "==", slot).get(),
       ]);
-      const directData = direct.docs.map((d) => d.data() as StoredNode & Record<string, unknown>);
+      const directData = direct.docs.map((d) => fromFirestoreShape(d.data()) as StoredNode & Record<string, unknown>);
       if (p?.draftSlot === slot) {
         const canon = await db.collection(NODES).where("namespace", "==", namespace).where("slot", "==", p.publishedSlot).get();
-        return mergeOverlay(canon.docs.map((d) => d.data() as StoredNode), directData);
+        return mergeOverlay(canon.docs.map((d) => fromFirestoreShape(d.data()) as StoredNode), directData);
       }
       return directData.filter((d) => !d[TOMBSTONE]) as StoredNode[];
     },
@@ -234,10 +235,10 @@ export function createFirestoreKgStore(): KgNodeStore {
         fetchPointer(namespace),
         db.collection(EDGES).where("namespace", "==", namespace).where("slot", "==", slot).get(),
       ]);
-      const directData = direct.docs.map((d) => d.data() as StoredEdge & Record<string, unknown>);
+      const directData = direct.docs.map((d) => fromFirestoreShape(d.data()) as StoredEdge & Record<string, unknown>);
       if (p?.draftSlot === slot) {
         const canon = await db.collection(EDGES).where("namespace", "==", namespace).where("slot", "==", p.publishedSlot).get();
-        return mergeOverlay(canon.docs.map((d) => d.data() as StoredEdge), directData);
+        return mergeOverlay(canon.docs.map((d) => fromFirestoreShape(d.data()) as StoredEdge), directData);
       }
       return directData.filter((d) => !d[TOMBSTONE]) as StoredEdge[];
     },
@@ -279,8 +280,8 @@ export function createFirestoreKgStore(): KgNodeStore {
       const targetNodeIds = new Set(batch.nodes.map((n) => docId(namespace, slot, n.id)));
       const targetEdgeIds = new Set(batch.edges.map((e) => docId(namespace, slot, e.id)));
 
-      const nodeWrites = batch.nodes.map((n) => ({ ref: db.collection(NODES).doc(docId(namespace, slot, n.id)), data: { ...n, namespace, slot } }));
-      const edgeWrites = batch.edges.map((e) => ({ ref: db.collection(EDGES).doc(docId(namespace, slot, e.id)), data: { ...e, namespace, slot } }));
+      const nodeWrites = batch.nodes.map((n) => ({ ref: db.collection(NODES).doc(docId(namespace, slot, n.id)), data: toFirestoreShape({ ...n, namespace, slot }) }));
+      const edgeWrites = batch.edges.map((e) => ({ ref: db.collection(EDGES).doc(docId(namespace, slot, e.id)), data: toFirestoreShape({ ...e, namespace, slot }) }));
       const nodeDeletes = existingNodes.docs.filter((d) => !targetNodeIds.has(d.id)).map((d) => d.ref);
       const edgeDeletes = existingEdges.docs.filter((d) => !targetEdgeIds.has(d.id)).map((d) => d.ref);
 
@@ -309,7 +310,7 @@ export function createFirestoreKgStore(): KgNodeStore {
         const doc = await tx.get(pRef as unknown as FsDocRef);
         const prev = (doc.data() as PointerDoc | undefined) ?? {};
         tx.set(pRef as unknown as FsDocRef, { ...prev, [metaField(slot)]: { ...batch.meta } }, { merge: true });
-        if (audit) tx.set(db.collection(AUDIT).doc(audit.id) as unknown as FsDocRef, audit as unknown as Record<string, unknown>);
+        if (audit) tx.set(db.collection(AUDIT).doc(audit.id) as unknown as FsDocRef, toFirestoreShape(audit as unknown as Record<string, unknown>));
       });
     },
 
@@ -320,8 +321,8 @@ export function createFirestoreKgStore(): KgNodeStore {
       // merge and becomes a canonical delete at publish). No full-slot read or
       // rewrite; correct because runGraphMutation computed the delta against this
       // draft's current (merged) contents (base-version hash-CAS — see types.ts).
-      const nodeUpserts = delta.upsertNodes.map((n) => ({ ref: db.collection(NODES).doc(docId(namespace, slot, n.id)), data: { ...n, namespace, slot } }));
-      const edgeUpserts = delta.upsertEdges.map((e) => ({ ref: db.collection(EDGES).doc(docId(namespace, slot, e.id)), data: { ...e, namespace, slot } }));
+      const nodeUpserts = delta.upsertNodes.map((n) => ({ ref: db.collection(NODES).doc(docId(namespace, slot, n.id)), data: toFirestoreShape({ ...n, namespace, slot }) }));
+      const edgeUpserts = delta.upsertEdges.map((e) => ({ ref: db.collection(EDGES).doc(docId(namespace, slot, e.id)), data: toFirestoreShape({ ...e, namespace, slot }) }));
       const nodeTombstones = delta.removeNodeIds.map((id) => ({ ref: db.collection(NODES).doc(docId(namespace, slot, id)), data: { id, namespace, slot, [TOMBSTONE]: true } }));
       const edgeTombstones = delta.removeEdgeIds.map((id) => ({ ref: db.collection(EDGES).doc(docId(namespace, slot, id)), data: { id, namespace, slot, [TOMBSTONE]: true } }));
 
@@ -339,7 +340,7 @@ export function createFirestoreKgStore(): KgNodeStore {
         const doc = await tx.get(pRef as unknown as FsDocRef);
         const prev = (doc.data() as PointerDoc | undefined) ?? {};
         tx.set(pRef as unknown as FsDocRef, { ...prev, [metaField(slot)]: { ...meta } }, { merge: true });
-        if (audit) tx.set(db.collection(AUDIT).doc(audit.id) as unknown as FsDocRef, audit as unknown as Record<string, unknown>);
+        if (audit) tx.set(db.collection(AUDIT).doc(audit.id) as unknown as FsDocRef, toFirestoreShape(audit as unknown as Record<string, unknown>));
       });
     },
 
@@ -352,8 +353,8 @@ export function createFirestoreKgStore(): KgNodeStore {
       // costs a few hundred writes instead of rewriting every doc, which is what
       // times out (DEADLINE_EXCEEDED) over a slow link. The caller computes
       // `delta` against this slot's current contents.
-      const nodeUpserts = delta.upsertNodes.map((n) => ({ ref: db.collection(NODES).doc(docId(namespace, slot, n.id)), data: { ...n, namespace, slot } }));
-      const edgeUpserts = delta.upsertEdges.map((e) => ({ ref: db.collection(EDGES).doc(docId(namespace, slot, e.id)), data: { ...e, namespace, slot } }));
+      const nodeUpserts = delta.upsertNodes.map((n) => ({ ref: db.collection(NODES).doc(docId(namespace, slot, n.id)), data: toFirestoreShape({ ...n, namespace, slot }) }));
+      const edgeUpserts = delta.upsertEdges.map((e) => ({ ref: db.collection(EDGES).doc(docId(namespace, slot, e.id)), data: toFirestoreShape({ ...e, namespace, slot }) }));
       const nodeDeletes = delta.removeNodeIds.map((id) => db.collection(NODES).doc(docId(namespace, slot, id)));
       const edgeDeletes = delta.removeEdgeIds.map((id) => db.collection(EDGES).doc(docId(namespace, slot, id)));
 
@@ -372,7 +373,7 @@ export function createFirestoreKgStore(): KgNodeStore {
         const doc = await tx.get(pRef as unknown as FsDocRef);
         const prev = (doc.data() as PointerDoc | undefined) ?? {};
         tx.set(pRef as unknown as FsDocRef, { ...prev, [metaField(slot)]: { ...meta } }, { merge: true });
-        if (audit) tx.set(db.collection(AUDIT).doc(audit.id) as unknown as FsDocRef, audit as unknown as Record<string, unknown>);
+        if (audit) tx.set(db.collection(AUDIT).doc(audit.id) as unknown as FsDocRef, toFirestoreShape(audit as unknown as Record<string, unknown>));
       });
     },
 
@@ -395,7 +396,7 @@ export function createFirestoreKgStore(): KgNodeStore {
         const doc = await tx.get(pRef as unknown as FsDocRef);
         const prev = (doc.data() as PointerDoc | undefined) ?? {};
         tx.set(pRef as unknown as FsDocRef, { ...prev, [configField(slot)]: { ...config } });
-        if (audit) tx.set(db.collection(AUDIT).doc(audit.id) as unknown as FsDocRef, audit as unknown as Record<string, unknown>);
+        if (audit) tx.set(db.collection(AUDIT).doc(audit.id) as unknown as FsDocRef, toFirestoreShape(audit as unknown as Record<string, unknown>));
       });
     },
 
@@ -452,7 +453,7 @@ export function createFirestoreKgStore(): KgNodeStore {
           [metaField(to)]: p[metaField(from)] ?? null,
           [configField(to)]: p[configField(from)] ?? null,
         });
-        if (audit) tx.set(db.collection(AUDIT).doc(audit.id) as unknown as FsDocRef, audit as unknown as Record<string, unknown>);
+        if (audit) tx.set(db.collection(AUDIT).doc(audit.id) as unknown as FsDocRef, toFirestoreShape(audit as unknown as Record<string, unknown>));
       });
     },
 
@@ -505,15 +506,15 @@ export function createFirestoreKgStore(): KgNodeStore {
             [metaField(draftSlot)]: null,
             [configField(draftSlot)]: null,
           });
-          if (audit) tx.set(db.collection(AUDIT).doc(audit.id) as unknown as FsDocRef, audit as unknown as Record<string, unknown>);
+          if (audit) tx.set(db.collection(AUDIT).doc(audit.id) as unknown as FsDocRef, toFirestoreShape(audit as unknown as Record<string, unknown>));
         });
         return;
       }
 
       // ── Large: materialize into the draft slot, then atomic swap ────────────
       const [canonN, canonE] = await Promise.all([nodeSlotQuery(pub).get(), edgeSlotQuery(pub).get()]);
-      const mergedN = mergeOverlay(canonN.docs.map((d) => d.data() as StoredNode), ovN.docs.map((d) => d.data() as Record<string, unknown>));
-      const mergedE = mergeOverlay(canonE.docs.map((d) => d.data() as StoredEdge), ovE.docs.map((d) => d.data() as Record<string, unknown>));
+      const mergedN = mergeOverlay(canonN.docs.map((d) => fromFirestoreShape(d.data()) as StoredNode), ovN.docs.map((d) => d.data() as Record<string, unknown>));
+      const mergedE = mergeOverlay(canonE.docs.map((d) => fromFirestoreShape(d.data()) as StoredEdge), ovE.docs.map((d) => d.data() as Record<string, unknown>));
       const mergedNodeDocIds = new Set(mergedN.map((n) => docId(namespace, draftSlot, n.id)));
       const mergedEdgeDocIds = new Set(mergedE.map((e) => docId(namespace, draftSlot, e.id)));
       // Overlay docs the merge doesn't keep (tombstones) must be deleted from the
@@ -521,8 +522,8 @@ export function createFirestoreKgStore(): KgNodeStore {
       const staleOverlayN = ovN.docs.filter((d) => !mergedNodeDocIds.has(d.id)).map((d) => d.ref);
       const staleOverlayE = ovE.docs.filter((d) => !mergedEdgeDocIds.has(d.id)).map((d) => d.ref);
       await Promise.all([
-        commitInChunks(db, mergedN, (b, n) => { b.set(db.collection(NODES).doc(docId(namespace, draftSlot, n.id)) as unknown as FsDocRef, { ...n, slot: draftSlot }); }, "publish.materializeNodes"),
-        commitInChunks(db, mergedE, (b, e) => { b.set(db.collection(EDGES).doc(docId(namespace, draftSlot, e.id)) as unknown as FsDocRef, { ...e, slot: draftSlot }); }, "publish.materializeEdges"),
+        commitInChunks(db, mergedN, (b, n) => { b.set(db.collection(NODES).doc(docId(namespace, draftSlot, n.id)) as unknown as FsDocRef, toFirestoreShape({ ...n, slot: draftSlot })); }, "publish.materializeNodes"),
+        commitInChunks(db, mergedE, (b, e) => { b.set(db.collection(EDGES).doc(docId(namespace, draftSlot, e.id)) as unknown as FsDocRef, toFirestoreShape({ ...e, slot: draftSlot })); }, "publish.materializeEdges"),
         commitInChunks(db, staleOverlayN, (b, r) => { b.delete(r); }, "publish.clearOverlayNodes"),
         commitInChunks(db, staleOverlayE, (b, r) => { b.delete(r); }, "publish.clearOverlayEdges"),
       ]);
@@ -535,7 +536,7 @@ export function createFirestoreKgStore(): KgNodeStore {
         const p = ((await tx.get(pRef as unknown as FsDocRef)).data() as PointerDoc | undefined) ?? null;
         if (!p || p.draftSlot !== draftSlot) throw new Error(`publishDraft: '${namespace}' draft moved mid-publish; retry.`);
         tx.update(pRef as unknown as FsDocRef, { publishedSlot: draftSlot, draftSlot: null });
-        if (audit) tx.set(db.collection(AUDIT).doc(audit.id) as unknown as FsDocRef, audit as unknown as Record<string, unknown>);
+        if (audit) tx.set(db.collection(AUDIT).doc(audit.id) as unknown as FsDocRef, toFirestoreShape(audit as unknown as Record<string, unknown>));
       });
       // Clean the old canonical slot (now scratch) so the next createDraft's
       // target is empty. Off the critical path — published already flipped.
@@ -568,7 +569,7 @@ export function createFirestoreKgStore(): KgNodeStore {
         const p = ((await tx.get(ref as unknown as FsDocRef)).data() as PointerDoc | undefined) ?? null;
         if (!p || p.draftSlot !== draftSlot) return; // someone else changed it — leave their state
         tx.update(ref as unknown as FsDocRef, { draftSlot: null, [metaField(draftSlot)]: null, [configField(draftSlot)]: null });
-        if (audit) tx.set(db.collection(AUDIT).doc(audit.id) as unknown as FsDocRef, audit as unknown as Record<string, unknown>);
+        if (audit) tx.set(db.collection(AUDIT).doc(audit.id) as unknown as FsDocRef, toFirestoreShape(audit as unknown as Record<string, unknown>));
       });
     },
 
@@ -580,7 +581,7 @@ export function createFirestoreKgStore(): KgNodeStore {
     // publishDraft / discardDraft above.
     async appendAudit(record) {
       // create-style write on a fresh doc id — never an update / delete.
-      await db.collection(AUDIT).doc(record.id).set(record as unknown as Record<string, unknown>);
+      await db.collection(AUDIT).doc(record.id).set(toFirestoreShape(record as unknown as Record<string, unknown>));
     },
 
     // ── Pending confirm payloads ────────────────────────────────────────────
@@ -601,7 +602,7 @@ export function createFirestoreKgStore(): KgNodeStore {
       // Firestore accepts the write (see stripUndefined). `proposedHash` is left
       // untouched, so the confirm-side integrity check is unaffected.
       await db.collection(PENDING).doc(`${nsSlug(namespace)}::${nonce}`).set({
-        namespace, nonce, ...entry, payload: stripUndefined(entry.payload),
+        namespace, nonce, ...entry, payload: toFirestoreShape(stripUndefined(entry.payload)),
         expiresAtTs: new Date(entry.expiresAt),   // Timestamp companion for TTL
       } as unknown as Record<string, unknown>);
     },
@@ -611,7 +612,7 @@ export function createFirestoreKgStore(): KgNodeStore {
       const data = doc.data() as (PendingEntry & Record<string, unknown>) | undefined;
       if (!data) return null;
       if (Date.now() > data.expiresAt) { await doc.ref.delete(); return null; }
-      return { op: data.op, proposedHash: data.proposedHash, payload: data.payload, expiresAt: data.expiresAt };
+      return { op: data.op, proposedHash: data.proposedHash, payload: fromFirestoreShape(data.payload), expiresAt: data.expiresAt };
     },
     async deletePending(namespace, nonce) {
       await db.collection(PENDING).doc(`${nsSlug(namespace)}::${nonce}`).delete();
@@ -629,7 +630,7 @@ export function createFirestoreKgStore(): KgNodeStore {
       if (query.sinceTs != null) q = (q as FsCollection).where("ts", ">=", query.sinceTs);
       if (query.untilTs != null) q = (q as FsCollection).where("ts", "<=", query.untilTs);
       const snap = await q.get();
-      const rows = snap.docs.map((d) => d.data() as AuditRecord).filter((r) => matchesAuditQuery(r, query));
+      const rows = snap.docs.map((d) => fromFirestoreShape(d.data()) as AuditRecord).filter((r) => matchesAuditQuery(r, query));
       return sortAuditNewestFirst(rows).slice(0, query.limit ?? Infinity);
     },
   };
