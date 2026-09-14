@@ -87,23 +87,63 @@ const silenced = (node: MutationNode, rule: LintRule): boolean => {
   return ignored.has(rule.id) || ignored.has(DECLARED_PREFIX + rule.id);
 };
 
+/*
+ * The node a lint is asked about, when it is: a DocumentSection or the
+ * document itself. The guide and content rules then read only that node and
+ * what hangs under it — the page being composed, not the 374 sections beside
+ * it. One rule about bullet length has over a thousand hits across a subject;
+ * a composer checking one section needs the three on that section.
+ */
+export type DeclaredScope = { nodeId: string };
+
+/** What a scope resolved to, reported back so a caller knows what was and was not read. */
+export type DeclaredScopeResolved = { nodeId: string; document: string; sections: number };
+
+/** The document a section or document node belongs to, climbing containment; the node itself when it is the document. */
+function documentOfScope(graph: MutationGraph, nodeId: string, nodes: Map<string, MutationNode>): MutationNode | null {
+  const own = nodes.get(nodeId);
+  if (!own) return null;
+  if (labelsOf(own).includes(TLM_LABEL)) return own;
+  if (!labelsOf(own).includes(SECTION_LABEL)) return null;
+  let current = nodeId;
+  for (let step = 0; step < 8; step++) {
+    const parent = graph.edges.find((edge) => edge.type === CONTAINMENT && edge.to === current)?.from;
+    if (!parent) return null;
+    const node = nodes.get(parent);
+    if (node && labelsOf(node).includes(TLM_LABEL)) return node;
+    current = parent;
+  }
+  return null;
+}
+
 /**
  * The guide and content rules of every formatter in the graph, run over what
- * each formatter governs. Every rule that ran is listed too, so a caller can
+ * each formatter governs — or, with a scope, over the one node asked about
+ * and what hangs under it. Every rule that ran is listed too, so a caller can
  * say "checked against N declared rules" and not only "found nothing".
  */
-export function lintDeclared(graph: MutationGraph): { findings: LintFinding[]; rulesRun: string[] } {
+export function lintDeclared(graph: MutationGraph, scope?: DeclaredScope): { findings: LintFinding[]; rulesRun: string[]; scope: DeclaredScopeResolved | null } {
   const nodes = byId(graph);
   const findings: LintFinding[] = [];
   const rulesRun = new Set<string>();
+
+  // With a scope: the document the rules must govern, and the ids the
+  // sections read are kept to (the scope node and everything under it).
+  const scopeDocument = scope ? documentOfScope(graph, scope.nodeId, nodes) : null;
+  if (scope && !scopeDocument) return { findings: [], rulesRun: [], scope: null };
+  const within = scope ? new Set<string>([scope.nodeId, ...descendants(graph, scope.nodeId)]) : null;
+  let sectionsRead = 0;
 
   for (const carrier of graph.nodes) {
     const rules = lintRulesOf(carrier)?.filter((rule) => rule.where !== "page");
     if (!rules || rules.length === 0) continue;
     const document = documentOf(graph, carrier.id, nodes);
     if (!document) continue;
+    if (scopeDocument && document.id !== scopeDocument.id) continue;
 
-    const sections = [document, ...descendants(graph, document.id).map((id) => nodes.get(id)!).filter((n) => n && labelsOf(n).includes(SECTION_LABEL))];
+    const underDocument = [document, ...descendants(graph, document.id).map((id) => nodes.get(id)!).filter((n) => n && labelsOf(n).includes(SECTION_LABEL))];
+    const sections = within ? underDocument.filter((section) => within.has(section.id)) : underDocument;
+    sectionsRead = Math.max(sectionsRead, sections.length);
     for (const rule of rules) {
       rulesRun.add(DECLARED_PREFIX + rule.id);
       const picked = rule.sections ? sections.filter((section) => new RegExp(rule.sections!, "u").test(titleOf(section))) : sections;
@@ -138,7 +178,11 @@ export function lintDeclared(graph: MutationGraph): { findings: LintFinding[]; r
       }
     }
   }
-  return { findings, rulesRun: [...rulesRun] };
+  return {
+    findings,
+    rulesRun: [...rulesRun],
+    scope: scope && scopeDocument ? { nodeId: scope.nodeId, document: scopeDocument.id, sections: sectionsRead } : null,
+  };
 }
 
 /** The page rules of a formatter stack, nearest last — every one applies. */

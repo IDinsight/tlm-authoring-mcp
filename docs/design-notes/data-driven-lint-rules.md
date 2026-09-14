@@ -39,6 +39,21 @@ rule. It knows nothing about PT-07, [FR], or a parenthesis: those are on the for
 subject's graph, where the guide already keeps its control points. The six rules of the fiche are
 data in a fixture, not literals in a test.
 
+## Scope — the node asked about, not the subject
+
+A guide rule reads every section of the document its formatter governs. On the live CI-maths graph
+the bullet-length rule alone matches **1,072** existing lines across 374 sections, and
+`lint_content` had no cap on findings — importing that rule would have pushed every lint
+response in the subject past the size limit, and the composer checking one page would have read a
+thousand findings about pages it was not composing.
+
+So `lint_content` takes the `nodeId` it already needed for the page rules and gives it to the
+guide and content rules too: with a section, they read that section and what hangs under it (its
+own guide lines, the content its own `covers` reach); with the document, everything under it;
+the response says what was read under `declaredScope`. Without a node the rules still read the
+whole subject, but the list is cut to the first 50 and the count per rule is kept under
+`declaredTruncated`, with the instruction to pass `nodeId`. The skill says to pass it every time.
+
 ## Seams
 
 - A rule reads lines. A defect that spans lines — a gesture line missing before a speech line, a

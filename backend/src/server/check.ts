@@ -184,6 +184,15 @@ export type LintContentArgs = {
   nodeId?: string;
 };
 
+/** How many subject-wide declared findings a response lists before it counts the rest. */
+const DECLARED_UNSCOPED_CAP = 50;
+
+const countByRule = (findings: Array<{ rule: string }>): Record<string, number> => {
+  const counts: Record<string, number> = {};
+  for (const finding of findings) counts[finding.rule] = (counts[finding.rule] ?? 0) + 1;
+  return counts;
+};
+
 // The core, exported so tests drive the real logic (the shape every tool group
 // here uses).
 export async function runLintContent(args: LintContentArgs = {}): Promise<Record<string, unknown>> {
@@ -224,13 +233,28 @@ export async function runLintContent(args: LintContentArgs = {}): Promise<Record
   // The rules the subject's own formatters declare (properties.lintRules):
   // subject knowledge as data, run by the same lint. Subject only — a catalog
   // formatter governs no document until it is applied.
+  // With `nodeId`, the guide and content rules read that node and what hangs
+  // under it — the section being composed, not every section of the subject.
   const declared = (scope === "subject" || scope === "all")
-    ? lintDeclared(subject)
-    : { findings: [], rulesRun: [] };
+    ? lintDeclared(subject, args.nodeId ? { nodeId: args.nodeId } : undefined)
+    : { findings: [], rulesRun: [], scope: null };
   const wantedRules = args.rules?.length ? new Set(args.rules) : null;
-  const declaredFindings = declared.findings
+  const declaredAll = declared.findings
     .filter((finding) => !wantedRules || wantedRules.has(finding.rule) || wantedRules.has(finding.rule.replace(/^declared:/, "")))
     .map((finding) => ({ ...finding, where: namespace }));
+  // Unscoped, a subject-wide rule can hit a thousand existing lines (bullet
+  // length did, on 374 sections) — more than a response carries. The list is
+  // cut and the count per rule kept, so the answer is "1,072, here are 50,
+  // pass nodeId" rather than a response that never arrives.
+  const declaredFindings = declaredAll.length > DECLARED_UNSCOPED_CAP ? declaredAll.slice(0, DECLARED_UNSCOPED_CAP) : declaredAll;
+  const declaredTruncated = declaredAll.length > DECLARED_UNSCOPED_CAP
+    ? {
+      total: declaredAll.length,
+      listed: DECLARED_UNSCOPED_CAP,
+      byRule: countByRule(declaredAll),
+      note: "Declared findings over the whole subject were cut to the first " + DECLARED_UNSCOPED_CAP + ". Pass `nodeId` (the section or document you are working on) to read only its own lines, all of them.",
+    }
+    : null;
 
   // The page half, only when a caller sent a page. It reports its own problems
   // separately from a refusal to check: "I found nothing" and "I could not look"
@@ -244,6 +268,10 @@ export async function runLintContent(args: LintContentArgs = {}): Promise<Record
   return {
     findings,
     count: findings.length,
+    // What the declared rules read: the scope node's own lines, or the whole
+    // subject cut to a listable size.
+    ...(declared.scope ? { declaredScope: declared.scope } : {}),
+    ...(declaredTruncated ? { declaredTruncated } : {}),
     checked: checked.map(({ where, graph }) => ({ where, nodes: graph.nodes.length })),
     rulesRun: [
       ...lintableRules().map((rule) => rule.id),
@@ -380,7 +408,7 @@ export function registerContentLintTools(server: McpServer) {
         "It reads the active subject AND both catalog libraries by default (`scope`: 'subject' | 'catalog' | 'all'), resolving references across both so a cross-library citation is not reported as broken. Narrow with `rules`. " +
         "Each finding carries the rule, the node, what is wrong and what to do — English, like every payload here; relay them in the expert's language. Nothing blocks a publish. A finding that is deliberate is silenced ON THE NODE with metadata.lintIgnore: [\"rule-id\"], which needs no deploy. " +
         "PASS A COMPOSED PAGE and it checks that too: `document` (the block tree, exactly as render_document takes it) plus `nodeId` (the DocumentSection or TLM it was composed for, which is what resolves the formatter stack it will be laid out with). The page rules ask whether the page contradicts its own geometry — a `style` no formatter defines, a line over the `maxChars` its style declares, more pictures than images.maxPerSection allows, a picture missing from the document's own `media` — and whether it agrees with the graph on its pictures: one placed that is not attached to the covered curriculum (attach_image), one attached that the page leaves out. Every one of those RENDERS SUCCESSFULLY and wrongly: an undefined style silently becomes body text, and an unresolvable picture silently becomes the document's FIRST picture. Run it before render_document, not after. " +
-        "The thirty-odd control points a particular fiche is checked against — speech-colour purity, answer labels, no placeholder left in clear — are SUBJECT knowledge and stay in that subject's guide, where a curator changes them without a deploy. A rule here only ever asks a question the DATA answers. THE SUBJECT CAN DECLARE ITS OWN LINE RULES AS DATA: a formatter's `properties.lintRules` is a list of {id, where:'guide'|'content'|'page', match, require?, forbid?, maxChars?, unless?, sections?, message, fix?} — a line matching `match` must also match `require`, must not match `forbid`, must not exceed `maxChars`; `unless` exempts lines, `sections` limits guide/content rules to sections whose title matches. A guide rule reads the assembly guides of the document the formatter is attached to and every section under it, a content rule the curriculum those sections cover, a page rule the composed page checked against that stack. Findings come back as `declared:<id>`, silenced on a node with metadata.lintIgnore like any rule; validated at edit_nodes/add_nodes time. This is how « PT-07 called without its example » or « a [FR] line that never prints » becomes a check without a deploy. " +
+        "The thirty-odd control points a particular fiche is checked against — speech-colour purity, answer labels, no placeholder left in clear — are SUBJECT knowledge and stay in that subject's guide, where a curator changes them without a deploy. A rule here only ever asks a question the DATA answers. THE SUBJECT CAN DECLARE ITS OWN LINE RULES AS DATA: a formatter's `properties.lintRules` is a list of {id, where:'guide'|'content'|'page', match, require?, forbid?, maxChars?, unless?, sections?, message, fix?} — a line matching `match` must also match `require`, must not match `forbid`, must not exceed `maxChars`; `unless` exempts lines, `sections` limits guide/content rules to sections whose title matches. A guide rule reads the assembly guides of the document the formatter is attached to and every section under it, a content rule the curriculum those sections cover, a page rule the composed page checked against that stack. Findings come back as `declared:<id>`, silenced on a node with metadata.lintIgnore like any rule; validated at edit_nodes/add_nodes time. WITH `nodeId` the guide and content rules read THAT node and what hangs under it only (`declaredScope` says what was read) — pass the section you are composing, every time; without it they read the whole subject and the list is cut to the first 50 with the count per rule under `declaredTruncated`.This is how « PT-07 called without its example » or « a [FR] line that never prints » becomes a check without a deploy. " +
         "`rulesPending` lists what did not run and why — the page rules appear there until you send a page, so read it rather than assuming everything was checked. Read-only.",
       inputSchema: {
         scope: z.enum(["subject", "catalog", "all"]).optional(),
