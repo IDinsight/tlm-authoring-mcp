@@ -142,7 +142,7 @@ export async function deriveVariant(
       if (block.kind !== "line" || block.variant !== from) continue;
 
       const runs: Run[] = block.runs.map((run) => {
-        if (!("text" in run) || !run.text.trim()) return run;
+        if (!isTranslated(run)) return run;
         return { ...run, text: translations[next++] };
       });
       // The page break belongs to the SOURCE line: two lines both starting a
@@ -157,7 +157,16 @@ export async function deriveVariant(
   return { ...tree, blocks: derive(tree.blocks) };
 }
 
-/** The text runs of every `from` line, in reading order — blank runs excluded, they are kept as they are. */
+/*
+ * Which runs the translator sees: text with words in it, unless the run says
+ * `translate: false`. A blank run and a picture are kept as they are; so is a
+ * run the composer pinned — the parenthesis after a speech line, which the
+ * teacher sheet prints in French in both files.
+ */
+const isTranslated = (run: Run): run is Extract<Run, { text: string }> =>
+  "text" in run && run.text.trim().length > 0 && run.translate !== false;
+
+/** The text runs of every `from` line, in reading order — blank and pinned runs excluded, they are kept as they are. */
 function textsToTranslate(blocks: Block[], from: string): string[] {
   const out: string[] = [];
   for (const block of blocks) {
@@ -167,7 +176,7 @@ function textsToTranslate(blocks: Block[], from: string): string[] {
     }
     if (block.kind !== "line" || block.variant !== from) continue;
     for (const run of block.runs) {
-      if ("text" in run && run.text.trim()) out.push(run.text);
+      if (isTranslated(run)) out.push(run.text);
     }
   }
   return out;

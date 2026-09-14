@@ -102,7 +102,7 @@ export function createFirebaseStorage(): StorageAdapter {
       const [url] = await f.getSignedUrl({ version: "v4", action: "read", expires: expiresMs });
       return { url, objectKey: docKey(relPath), expiresAt: new Date(expiresMs).toISOString(), exists };
     },
-    async createPreviewUpload(relPath) {
+    async createPreviewUpload(relPath, contentType = DOCX_MIME) {
       // Preview objects are throwaway, so a SHORTER 10-minute lifetime than the
       // 15-minute canonical URLs — long enough to upload the generated .docx and
       // open it, short enough that a preview link doesn't linger. Both the write
@@ -111,9 +111,9 @@ export function createFirebaseStorage(): StorageAdapter {
       const key = previewKey(relPath);
       const f = bucket().file(key);
       const expiresMs = Date.now() + 10 * 60 * 1000;
-      const [uploadUrl] = await f.getSignedUrl({ version: "v4", action: "write", expires: expiresMs, contentType: DOCX_MIME });
+      const [uploadUrl] = await f.getSignedUrl({ version: "v4", action: "write", expires: expiresMs, contentType });
       const [downloadUrl] = await f.getSignedUrl({ version: "v4", action: "read", expires: expiresMs });
-      return { uploadUrl, downloadUrl, objectKey: key, contentType: DOCX_MIME, expiresAt: new Date(expiresMs).toISOString() };
+      return { uploadUrl, downloadUrl, objectKey: key, contentType, expiresAt: new Date(expiresMs).toISOString() };
     },
     async readHistory() {
       const f = bucket().file(historyKey());

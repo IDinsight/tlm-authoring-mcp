@@ -66,6 +66,18 @@ export function filterByQuery(terms: TermResult[], query: string, limit: number)
   return terms.filter((term) => renderingValues(term).some((v) => noAccents(v).includes(needle))).slice(0, limit);
 }
 
+/*
+ * Look several terms up against one read of the lexicon, keyed by the term as
+ * sent, and name the ones with no entry. A lesson's objects were twelve calls
+ * (chèvre, tache, calebasse…), nine of them empty — and the empties ARE the
+ * finding a terminology check reports, so they come back as a list.
+ */
+export function lookupTerms(terms: TermResult[], queries: string[], limit: number): { results: Record<string, TermResult[]>; missing: string[] } {
+  const results = Object.fromEntries(queries.map((query) => [query, filterByQuery(terms, query, limit)]));
+  const missing = queries.filter((query) => results[query].length === 0);
+  return { results, missing };
+}
+
 // Build a term bank for a passage: keep entries whose any rendering APPEARS in
 // the passage — the direction the translate grounding needs.
 export function filterByText(terms: TermResult[], text: string, limit: number): TermResult[] {

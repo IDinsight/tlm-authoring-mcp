@@ -52,7 +52,10 @@ const imageRunSchema = z.object({
 }).strict();
 
 const runSchema = z.union([
-  z.object({ text: z.string(), style: styleName.optional() }).strict(),
+  // `translate: false` keeps the run's words as written when the server derives
+  // another language for the line: the trailing parenthesis of a speech line
+  // in the CI-maths teacher sheet prints in French in the Wolof file too.
+  z.object({ text: z.string(), style: styleName.optional(), translate: z.literal(false).optional() }).strict(),
   z.object({ image: imageRunSchema }).strict(),
 ]);
 

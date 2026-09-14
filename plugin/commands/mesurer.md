@@ -8,7 +8,9 @@ Measure: $ARGUMENTS
 **A file the server rendered is already measured.** If the document came out of `render_document`,
 call it again with `measure:true` (by `treeRef`, nothing retyped) and read `measurement`: pages,
 `freeBelowCm` per page, `reserveKept`, `overlaps`, `gaps`, `fonts` + `fontAsDeclared`, and
-`elapsedMs`. That is the measurement; do not commission a second one of the same file.
+`elapsedMs`. That is the measurement; do not commission a second one of the same file. Add
+`pagePictures:true` to that call when the page has to be LOOKED at as well: each file then lists a
+PNG of each page (`pagePictures[]`), so nothing is converted or rasterised locally.
 
 **For a file the server did not render** — deposited, corrected by an expert, produced elsewhere —
 read the budget first, then delegate. The thresholds belong to the document, not to you and not

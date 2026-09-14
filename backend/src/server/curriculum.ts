@@ -17,7 +17,7 @@ import { asJson, guarded } from "./shared.js";
 import { withContextOverride, withContextOverrideResult, contextField, type WithContext } from "./context-override.js";
 import { getActiveAdapter } from "../adapters/index.js";
 import { standardsFor } from "../curriculum/index.js";
-import { effectiveTerms, filterByQuery } from "./glossary-read.js";
+import { effectiveTerms, filterByQuery, lookupTerms } from "./glossary-read.js";
 import { activeWorkspace } from "../context/index.js";
 import { kgNamespace } from "../kg-store/index.js";
 
@@ -61,12 +61,19 @@ export function registerCurriculumTools(server: McpServer) {
     guarded(async (a: { nodeId?: string; nodeIds?: string[] } & WithContext) =>
       asJson(await withContextOverride(a.context, async () => readStandards(a)))));
 
-  server.registerTool("get_terminology", { title: "Get terminology (FR/Wolof)", description: "Search the workspace's French/Wolof lexicon for a term's established wording. Each result carries `francais`/`wolof` plus the full `renderings` map. Returns [] if nothing matches — then say the wording is missing rather than invent it. The lexicon belongs to the WORKSPACE and is narrowed to the active subject/grade, so the response echoes `namespace`: a term missing here may simply be a term of another subject.", inputSchema: { query: z.string(), limit: z.number().int().optional(), ...contextField } },
-    guarded(async (a: { query: string; limit?: number } & WithContext) =>
-      withContextOverrideResult(a.context, async () =>
-        asJson({
-          namespace: kgNamespace(activeWorkspace(), getActiveAdapter().grade, getActiveAdapter().subject),
-          query: a.query,
-          results: filterByQuery(await effectiveTerms(), a.query, a.limit ?? 20),
-        }))));
+  server.registerTool("get_terminology", { title: "Get terminology (FR/Wolof)", description: "Search the workspace's French/Wolof lexicon for a term's established wording. Each result carries `francais`/`wolof` plus the full `renderings` map. Returns [] if nothing matches — then say the wording is missing rather than invent it. The lexicon belongs to the WORKSPACE and is narrowed to the active subject/grade, so the response echoes `namespace`: a term missing here may simply be a term of another subject. " +
+    "`queries` (an array) looks MANY terms up in ONE call against a single lexicon read — the objects of a lesson are one call, not twelve. `results` is then keyed by the term as sent, and `missing` lists the terms with no entry, which is the finding a terminology check reports. Pass `query` OR `queries`.", inputSchema: { query: z.string().optional(), queries: z.array(z.string()).optional(), limit: z.number().int().optional(), ...contextField } },
+    guarded(async (a: { query?: string; queries?: string[]; limit?: number } & WithContext) =>
+      withContextOverrideResult(a.context, async () => {
+        const namespace = kgNamespace(activeWorkspace(), getActiveAdapter().grade, getActiveAdapter().subject);
+        const limit = a.limit ?? 20;
+        if (a.queries && a.queries.length > 0) {
+          const { results, missing } = lookupTerms(await effectiveTerms(), a.queries, limit);
+          return asJson({ namespace, results, ...(missing.length > 0 ? { missing } : {}) });
+        }
+        if (a.query === undefined) {
+          return asJson({ error: "get_terminology needs a `query` (one term) or `queries` (several terms)." });
+        }
+        return asJson({ namespace, query: a.query, results: filterByQuery(await effectiveTerms(), a.query, limit) });
+      })));
 }

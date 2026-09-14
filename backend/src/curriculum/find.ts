@@ -135,6 +135,30 @@ function displayTitle(node: FindableNode): string {
   return alreadyPrefixed ? title : `${groupName} ${title}`;
 }
 
+/*
+ * A second name a node answers to: its `ordinalName`, when it carries one.
+ *
+ * A CI-maths Lesson is titled by what it teaches (« Lier un indice à une
+ * image ») and numbered in `ordinalName` (« V2 — Leçon 25 »), so « Leçon 25 »
+ * found nothing while « 25 » found ten sections. The title stays what is
+ * reported; the alias only widens what lands.
+ */
+function ordinalNameOf(node: FindableNode): string {
+  const properties = (node.properties ?? {}) as Record<string, unknown>;
+  const raw = (properties.raw ?? {}) as Record<string, unknown>;
+  for (const candidate of [properties.ordinalName, raw.ordinalName]) {
+    if (typeof candidate === "string" && candidate.length > 0) return candidate;
+  }
+  return "";
+}
+
+/** The better of two match qualities — a node matched by title and by alias keeps the stronger one. */
+function betterOf(a: MatchQuality | null, b: MatchQuality | null): MatchQuality | null {
+  if (!a) return b;
+  if (!b) return a;
+  return QUALITY_RANK[a] <= QUALITY_RANK[b] ? a : b;
+}
+
 // How the query matches this title, or null when it doesn't. "words" is the
 // loosest tier: every word of the query appears somewhere in the title, in any
 // order ("nombres chapitre 5" finds "Chapitre 5 : Les nombres…").
@@ -193,7 +217,10 @@ export function findNodes(graph: FindableGraph, args: FindArgs): FoundNode[] {
   for (const node of graph.nodes) {
     if (wanted && !(node.labels ?? []).some((label) => wanted.has(label))) continue;
     const title = titleOf.get(node.id) ?? "";
-    const match = qualityOf(normalizedQuery, normalize(title));
+    const match = betterOf(
+      qualityOf(normalizedQuery, normalize(title)),
+      qualityOf(normalizedQuery, normalize(ordinalNameOf(node))),
+    );
     if (!match) continue;
     hits.push({ id: node.id, labels: node.labels ?? [], title, match, path: pathOf(node.id, parentOf, titleOf) });
   }

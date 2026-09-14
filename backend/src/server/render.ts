@@ -53,6 +53,8 @@ type RenderArgs = {
   translateInto?: string;
   /** Lay each file out and count its pages. Slow; off by default. */
   measure?: boolean;
+  /** With `measure`, also return a PNG of each page — the look the numbers cannot give. */
+  pagePictures?: boolean;
 };
 
 /*
@@ -563,11 +565,15 @@ export async function renderDocument(a: RenderArgs): Promise<Record<string, unkn
    */
   const rendered = variants.map((variant) => ({ variant, bytes: renderDocx(variant.tree, spec.spec) }));
   const measurements = a.measure
-    ? await Promise.all(rendered.map(({ bytes }) => measureDocx(bytes, { timeoutMs: MEASURE_BUDGET_MS })))
+    ? await Promise.all(rendered.map(({ bytes }) => measureDocx(bytes, { timeoutMs: MEASURE_BUDGET_MS, pagePictures: a.pagePictures })))
     : rendered.map(() => null);
 
   for (const [index, { variant, bytes }] of rendered.entries()) {
-    const measurement = measurements[index];
+    // The page pictures are bytes, not numbers: they go to the bucket, not
+    // into the response. What stays on `measurement` is what serializes.
+    const measured = measurements[index];
+    const pagePngs = measured?.available ? measured.pagePictures ?? [] : [];
+    const measurement = measured?.available ? { ...measured, pagePictures: undefined } : measured;
     const fits = measurement?.available && maxPages !== undefined
       ? measurement.pages <= maxPages
       : null;
@@ -599,6 +605,22 @@ export async function renderDocument(a: RenderArgs): Promise<Record<string, unkn
     if (!put.ok) {
       return { preview: true, error: `Upload failed (${put.status} ${put.statusText}).`, objectKey: signed.objectKey };
     }
+    // One PNG per page beside the file, same short life: the caller opens
+    // them instead of installing the font and the office suite to look.
+    const pagePictures: Record<string, unknown>[] = [];
+    for (const [pageIndex, png] of pagePngs.entries()) {
+      const pageKey = `${suffixed(relPath, variant.fileSuffix).replace(/\.docx$/i, "")}-p${pageIndex + 1}.png`;
+      const signedPage = await storage.createPreviewUpload(pageKey, "image/png");
+      const putPage = await fetch(signedPage.uploadUrl, {
+        method: "PUT",
+        headers: { "Content-Type": signedPage.contentType },
+        body: new Uint8Array(png),
+      });
+      if (!putPage.ok) {
+        return { preview: true, error: `Page picture upload failed (${putPage.status} ${putPage.statusText}).`, objectKey: signedPage.objectKey };
+      }
+      pagePictures.push({ page: pageIndex + 1, downloadUrl: signedPage.downloadUrl, objectKey: signedPage.objectKey, expiresAt: signedPage.expiresAt, bytes: png.length });
+    }
     files.push({
       variant: variant.id || null,
       lang: variant.lang || null,
@@ -607,6 +629,7 @@ export async function renderDocument(a: RenderArgs): Promise<Record<string, unkn
       expiresAt: signed.expiresAt,
       bytes: bytes.length,
       ...(measurement ? { measurement } : {}),
+      ...(pagePictures.length > 0 ? { pagePictures } : {}),
       ...(fits === null ? {} : { fits, maxPages }),
       ...(reserveKept === null ? {} : { reserveKept, reserveBottomCm: reserve, lastPageFreeBelowCm: lastPage?.freeBelowCm }),
       ...(fontOk === null ? {} : { fontAsDeclared: fontOk, ...(fontOk ? {} : { fontNote: `The formatter declares '${spec.spec.type?.family}' and the PDF carries ${measurement!.available ? measurement!.fonts.map((f) => f.name).join(", ") : "?"}: a substitute was used, so every line count here describes a document nobody will receive. Install the declared face in the image.` }) }),
@@ -670,7 +693,7 @@ export function registerRenderTools(server: McpServer) {
         "Unknown keys are REFUSED rather than ignored, and nothing is rendered when the tree or the stack is invalid — the response names the path. " +
         "PICTURES go in the tree's `media`, each as {name, nodeId} — a picture ATTACHED to the covered curriculum (attach_image; walk_document_section lists them under `pictures` with the id), which the server resolves to its file; add `mark:'answer'` to get the TEACHER'S COPY, the same picture with a check drawn on the cell(s) its node records as correct (`answerMark` in `pictures`; set with attach_image's `answerCells` or edit_nodes), so the key is never drawn by hand and the page still names the attached picture — OR {name, relPath}, a path to an object already in THIS namespace's documents/ area, OR {name, data} with data base64 (an illustrated document is megabytes the tool call cannot carry, so prefer the first two). Prefer nodeId: the graph then knows which picture the page carries, and lint_content can check the page against what is attached. Exactly one of nodeId/relPath/data per entry; an entry that resolves to nothing is refused, naming it, not rendered with the wrong image. A VECTOR picture (SVG, by any of the three) is rasterized to PNG when the page is laid out, so the pictograms' SVG masters can be named directly; an SVG that sets text with a font is refused (the server has no fonts) — convert the text to outlines first. " +
         "ONE SOURCE, ONE FILE PER LANGUAGE. When the formatter's `language.strategy` is 'per-file', each declared variant gets its own document: lines marked `inAllFiles` print in every one, a line tagged with a variant prints only in that variant's file, and `files[]` comes back with one entry each. Pass `translateInto` (a variant id, e.g. 'wo') to have the server DERIVE that language from the one the tree already carries, translating line by line through the subject's MOHEBS glossary so the wording matches materials already in classrooms — a tree that already has those lines is left alone. Translation spends a metered backend, so it needs a ROLE in the workspace. " +
-        "Pass `measure:true` to lay each file out and COUNT ITS PAGES — page counts are measured on the render, never estimated from the source (an estimate once put a document at 2.5 pages that rendered at eleven). Each file then carries `measurement` with the page count, the page size actually produced, where every PICTURE landed (`perPage[].images`), and the whitespace left below the last MARK of each page — picture or word; with `budget.maxPages` declared it also carries `fits`, with `budget.reserveBottomCm` declared `reserveKept` for the last page, and `overlaps` names a band drawn over the band before it or over words (the defect a page count never shows); `gaps` names white between lines that no picture explains — a {kind:'clear'} nothing needed costs a body line, and this is where it shows; `fontAsDeclared` says whether the PDF carries the face the formatter declares (`measurement.fonts` lists what it does), because a silent substitute makes every count describe a document nobody receives. This is the whole measurement a production needs — pages, reserve, overlaps, gaps, fonts — so nothing measures a server-rendered file a second time. Measuring starts a whole office suite, so it is off by default, and where the deployment has no layout engine it reports `available:false` rather than a guess. " +
+        "Pass `measure:true` to lay each file out and COUNT ITS PAGES — page counts are measured on the render, never estimated from the source (an estimate once put a document at 2.5 pages that rendered at eleven). Each file then carries `measurement` with the page count, the page size actually produced, where every PICTURE landed (`perPage[].images`), and the whitespace left below the last MARK of each page — picture or word; with `budget.maxPages` declared it also carries `fits`, with `budget.reserveBottomCm` declared `reserveKept` for the last page, and `overlaps` names a band drawn over the band before it or over words (the defect a page count never shows — a pictogram set IN a line that touches the words beside it is only counted, `inlineTouches`, never listed); `gaps` names white between lines that no picture explains — a {kind:'clear'} nothing needed costs a body line, and this is where it shows; `fontAsDeclared` says whether the PDF carries the face the formatter declares (`measurement.fonts` lists what it does), because a silent substitute makes every count describe a document nobody receives. This is the whole measurement a production needs — pages, reserve, overlaps, gaps, fonts — so nothing measures a server-rendered file a second time. `pagePictures:true` (with measure) also puts a PNG of each page beside the file, listed under `pagePictures[]` with the same short life: the LOOK the numbers cannot give — a band cropping a banner, a check in the wrong cell — with nothing to install locally; open them instead of laying the file out again on a laptop. Measuring starts a whole office suite, so it is off by default, and where the deployment has no layout engine it reports `available:false` rather than a guess. " +
         "A tree block {kind:'clear'} ends a wrap: what follows starts below the lowest floated picture, so a short activity beside a tall band no longer lets the next band draw over it. page_geometry gives the numbers to compose against BEFORE rendering — the first render should be a calculation, not a guess. " +
         "Output goes to the SEGREGATED previews/ prefix: short-lived, invisible to list_documents and reconcile, and never to be recorded via log_generation. Renders from the DRAFT when one is open and from PUBLISHED otherwise — `renderedFrom` says which, so a sheet is never mistaken for one made from unpublished edits. Curators and approvers only.",
       inputSchema: {
@@ -681,6 +704,7 @@ export function registerRenderTools(server: McpServer) {
         relPath: z.string().optional(),
         translateInto: z.string().optional(),
         measure: z.boolean().optional(),
+        pagePictures: z.boolean().optional(),
       },
     },
     guarded(async (a: RenderArgs) => asJson(await renderDocument(a))),
