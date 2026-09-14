@@ -200,6 +200,16 @@ describe("the read side — a section covering the lesson lists its pictures", (
     }
   });
 
+  it("leaves the pictures out with include:[], and says so — they are the lesson's, read once", async () => {
+    // Ten phase reads of one lesson each carried the lesson's ten picture
+    // descriptions, ~15 KB of the same text; a part the caller can leave out.
+    const scope = await withActiveContext(CURATOR, () => walkDocumentSection({ sectionId, include: [] }));
+    expect(scope.pictures).toBeUndefined();
+    expect(scope.omitted).toContain("pictures");
+    const withPictures = await withActiveContext(CURATOR, () => walkDocumentSection({ sectionId, include: ["pictures"] }));
+    expect((withPictures.pictures as unknown[]).length).toBeGreaterThan(0);
+  });
+
   it("walk_document_section returns a newly attached picture with the id a render media entry needs", async () => {
     const before = (await picturesOf()).length;
     const done = await withActiveContext(CURATOR, () =>
@@ -225,10 +235,4 @@ describe("the read side — a section covering the lesson lists its pictures", (
     expect((await picturesOf({ slot: "draft" })).length).toBe(before);
   });
 
-  it("keeps the list even when the caller asks for the section alone", async () => {
-    const full = await picturesOf();
-    const alone = await picturesOf({ include: [] });
-    expect(alone.length).toBe(full.length);
-    expect(alone.length).toBeGreaterThan(0);
-  });
 });

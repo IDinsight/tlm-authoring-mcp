@@ -384,7 +384,7 @@ describe("documentSectionSubgraph — bounded without ever refusing", () => {
 describe("documentSectionSubgraph — include", () => {
   it("returns every part when include is omitted, exactly as before", () => {
     const all = scopeOf(documentSectionSubgraph(modelA, "sec-1"));
-    const explicit = scopeOf(documentSectionSubgraph(modelA, "sec-1", { include: ["document", "curriculum", "routine", "formatters"] }));
+    const explicit = scopeOf(documentSectionSubgraph(modelA, "sec-1", { include: ["document", "curriculum", "routine", "formatters", "pictures"] }));
 
     expect(explicit).toEqual(all);
     // Nothing was left out, so nothing is reported as left out.
@@ -400,7 +400,7 @@ describe("documentSectionSubgraph — include", () => {
     // This is the part that matters: `routine: null` means "no routine applies to
     // this section", and a caller that read a MISSING routine as that would
     // compose the section with no routine at all. So the omission is stated.
-    expect(lean.omitted).toEqual(["document", "curriculum", "routine", "formatters"]);
+    expect(lean.omitted).toEqual(["document", "curriculum", "routine", "formatters", "pictures"]);
   });
 
   it("keeps the document's IDENTITY when the document is omitted, and only sheds its weight", () => {

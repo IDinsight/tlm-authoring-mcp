@@ -15,6 +15,7 @@
  */
 
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import { resolveTreeInput, parkTree, TREE_PATCH_SCHEMA, type TreePatchOp } from "./tree-park.js";
 import { z } from "zod";
 import { randomUUID } from "node:crypto";
 import { asJson, guarded } from "./shared.js";
@@ -177,6 +178,9 @@ export type LintContentArgs = {
    * made and the server brings what it will be judged against.
    */
   document?: unknown;
+  /** Instead of `document`: a tree a previous call kept, optionally patched. */
+  treeRef?: string;
+  patch?: TreePatchOp[];
   nodeId?: string;
 };
 
@@ -220,7 +224,7 @@ export async function runLintContent(args: LintContentArgs = {}): Promise<Record
   // The page half, only when a caller sent a page. It reports its own problems
   // separately from a refusal to check: "I found nothing" and "I could not look"
   // are different answers and a composer must not read one as the other.
-  const page = args.document !== undefined
+  const page = args.document !== undefined || args.treeRef !== undefined
     ? await lintComposedPage(args, subject, namespace)
     : null;
   const findings = [...graphFindings, ...(page && "findings" in page ? page.findings : [])];
@@ -278,7 +282,11 @@ async function lintComposedPage(
     return { error: "Checking a `document` needs `nodeId` too — the node it was composed for. That is what resolves the formatter stack the page is judged against; without it there is no geometry to check." };
   }
 
-  const treeErrors = validateDocumentTree(args.document);
+  const input = await resolveTreeInput(namespace, args);
+  if ("error" in input) return { error: input.error };
+  const tree = input.tree;
+
+  const treeErrors = validateDocumentTree(tree);
   if (treeErrors.length > 0) {
     return { error: `That is not a valid block tree, so no page rule could read it: ${treeErrors.slice(0, 5).join("; ")}${treeErrors.length > 5 ? `; +${treeErrors.length - 5} more` : ""}.` };
   }
@@ -311,9 +319,13 @@ async function lintComposedPage(
   // would be a clean bill on geometry the render is not going to use — so the
   // caller is told, rather than left to assume the two agree.
   const draftOpen = Boolean((await getKgStore().readPointer(namespace))?.draftSlot);
+  // The tree this checked, kept for the render that follows. A ref used as it
+  // stands is echoed; a tree sent inline or patched is parked afresh.
+  const unchangedRef = input.from === "treeRef" && !(args.patch && args.patch.length > 0) ? args.treeRef : undefined;
+  const parked = unchangedRef ? { treeRef: unchangedRef } : await parkTree(namespace, tree);
   return {
     findings: lintPage({
-      tree: args.document as PageInput["tree"],
+      tree: tree as PageInput["tree"],
       spec: resolved.spec,
       scopeId: args.nodeId,
       ignore: ignoredRules(scopeNode),
@@ -328,7 +340,8 @@ async function lintComposedPage(
       nodeId: args.nodeId,
       geometryFrom: resolved.from,
       geometrySlot: "published",
-      blocks: (args.document as PageInput["tree"]).blocks.length,
+      blocks: (tree as PageInput["tree"]).blocks.length,
+      ...(parked ?? { treeRef: null }),
       ...(draftOpen
         ? {
             warning:
@@ -357,7 +370,9 @@ export function registerContentLintTools(server: McpServer) {
         document: z
           .unknown()
           .optional()
-          .describe("A composed page to check as well as the graph — the same { blocks, media } block tree render_document takes. Needs `nodeId`."),
+          .describe("A composed page to check as well as the graph — the same { blocks, media } block tree render_document takes. Needs `nodeId`. Or pass `treeRef` instead."),
+        treeRef: z.string().optional().describe("Instead of `document`: the `treeRef` a previous compose_section / lint_content / render_document call handed back. The response's `checked.treeRef` names the tree it checked, patched or not, for render_document to take next."),
+        patch: TREE_PATCH_SCHEMA.optional(),
         nodeId: z
           .string()
           .optional()

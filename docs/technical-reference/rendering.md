@@ -71,10 +71,30 @@ as a Letter-sized sheet. The project has paid for that once.
 ## `render_document`
 
 `nodeId` names the `DocumentSection` (or `TeachingLearningMaterial`) being rendered; `document` is the
-block tree. The server merges that node's formatter stack, validates the tree against it, lays out the
-`.docx` and returns a short-lived `downloadUrl`. The tree shape is advertised in
-`get_capabilities` under `section:'document'` — call `preview_generation` first for the section's
-curriculum, routine and formatter prose.
+block tree — or `treeRef`, see below. The server merges that node's formatter stack, validates the
+tree against it, lays out the `.docx` and returns a short-lived `downloadUrl`. The tree shape is
+advertised in `get_capabilities` under `section:'document'` — call `preview_generation` first for the
+section's curriculum, routine and formatter prose.
+
+### The tree by reference — `treeRef` and `patch`
+
+A teacher sheet's tree is 20–26 KB, and the loop that produces one — compose, lint, render, measure,
+fix, render again — carried it in full on every call: four or five times a sheet, ~100 KB of retyped
+JSON, about a third of the wall clock (measured on Leçons 24 and 25). So the server keeps it.
+`compose_section`, `lint_content` and `render_document` each hand back a **`treeRef`** for the tree
+they used; the next call passes `treeRef` instead of `document`, and a correction travels as a
+**`patch`** — a list of ops applied in order on block paths (`blocks[3]`, or inside a table cell
+`blocks[1].rows[0][0].blocks[2]`, the same form lint findings use): `replace`, `insert-before`,
+`insert-after`, `remove`, plus `media` (upsert an entry by name) and `remove-media`. A patch is
+applied to a copy and the result validated; one that breaks the page is refused whole, naming the op,
+and nothing is rendered. The response's ref is always for the tree **actually used**, patched or not.
+
+A ref lives 24 hours, in the namespace it was made in (`server/tree-park.ts`, on the same pending
+store the two-phase tools park their large payloads in — stored as one JSON string, because a block
+tree nests arrays in arrays and Firestore refuses those as fields). A ref that resolves to nothing is
+a refusal naming it with the only two causes it can have — expired, or another namespace — and the
+caller re-sends the tree. A tree over ~900 KB (pictures inlined as base64) is not kept and the
+response says so; such a tree should be naming its pictures by `nodeId` or `relPath` anyway.
 
 **One source, one file per language.** When the formatter's `language.strategy` is `per-file`, each
 declared variant gets its own document: a line tagged with a variant prints only in that variant's

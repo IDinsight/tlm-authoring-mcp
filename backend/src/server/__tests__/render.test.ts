@@ -406,6 +406,51 @@ const hasLayoutEngine = (() => {
   try { execFileSync("which", ["soffice"]); return true; } catch { return false; }
 })();
 
+describe("a tree kept between calls", () => {
+  it("hands back a treeRef, and renders the same page again from it with a patch", async () => {
+    const first = await withCtx(CURATOR, async () => {
+      await stageRenderBag(RENDER_BAG);
+      return renderDocument({ nodeId: sectionId, document: TREE });
+    });
+    expect(String(first.treeRef)).toMatch(/^tree_/);
+    expect(first.treeRefExpiresAt).toBeDefined();
+
+    // The second render names the ref and corrects one line; nothing retyped.
+    const second = await withCtx(CURATOR, () => renderDocument({
+      nodeId: sectionId, treeRef: first.treeRef as string,
+      patch: [{ op: "replace", path: "blocks[1]", block: { kind: "line", style: "bullet", variant: "fr", runs: [{ text: "Écoutez bien." }] } }],
+    }));
+    expect(second.error).toBeUndefined();
+    const xml = unzip(uploads.at(-1)!.body).get("word/document.xml")!.toString("utf8");
+    expect(xml).toContain("Écoutez bien.");
+    expect(xml).not.toContain("Regardez bien.");
+    // And the patched tree has a ref of its own, distinct from the first.
+    expect(second.treeRef).not.toBe(first.treeRef);
+  });
+
+  it("refuses a ref it does not hold, naming it, and renders nothing", async () => {
+    const out = await withCtx(CURATOR, async () => {
+      await stageRenderBag(RENDER_BAG);
+      return renderDocument({ nodeId: sectionId, treeRef: "tree_ffffffffffffffffffffffff" });
+    });
+    expect(out.error).toContain("tree_ffffffffffffffffffffffff");
+    expect(uploads).toHaveLength(0);
+  });
+
+  it("refuses a patch that breaks the page, before rendering", async () => {
+    const first = await withCtx(CURATOR, async () => {
+      await stageRenderBag(RENDER_BAG);
+      return renderDocument({ nodeId: sectionId, document: TREE });
+    });
+    const out = await withCtx(CURATOR, () => renderDocument({
+      nodeId: sectionId, treeRef: first.treeRef as string,
+      patch: [{ op: "replace", path: "blocks[7]", block: { kind: "clear" } }],
+    }));
+    expect(out.error).toMatch(/patch could not be applied.*past the end/);
+    expect(uploads).toHaveLength(1);
+  });
+});
+
 describe("the fixed numbers of a page, before rendering", () => {
   // Andika 12 on a 14 pt exact leading, the teacher sheet's setting: 0.49 cm a
   // line. A 4.6:1 band under a 1.63 cm ceiling is 7.5 cm wide — every one of

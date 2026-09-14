@@ -19,24 +19,33 @@ nombre de tentatives change avec elle. Chaque étape nomme l'outil et **d'où vi
 règle n'est recopiée ici, parce qu'une copie vieillit sans que rien ne le signale.
 
 1. **Lire les entrées** — `walk_document_section`, la première section d'un document en entier,
-   chaque suivante avec `include:[]`. Les règles sont la pile de mises en forme que la lecture
-   renvoie, et rien d'autre. Notez au passage les valeurs du `render` que la mesure demandera.
+   chaque suivante avec `include:[]` (les images attachées sont celles de la leçon, les mêmes pour
+   chaque section : `pictures` se lit une fois, puis se laisse). Les règles sont la pile de mises en
+   forme que la lecture renvoie, et rien d'autre. Notez au passage les valeurs du `render` que la
+   mesure demandera.
 2. **Composer l'arbre de blocs** — `compose_section` d'abord : ce que les gabarits de la mise en forme
-   couvrent est rempli depuis le graphe, identique à chaque appel ; vous composez seulement ce qu'il
-   renvoie dans `unfilled`, dans la forme que `get_capabilities section:'document'` décrit.
-3. **Vérifier la page contre le graphe, AVANT tout rendu** — `lint_content` avec `document` et
-   `nodeId` (voir « Vérifier la page avant de rendre »). C'est le seul allègement légitime avant le
-   premier rendu : ce que la vérification signale, pas ce que vous estimez. Un refus de vérifier est
-   un arrêt, pas un feu vert.
-4. **Rendre et compter** — `render_document` puis `mesureur`, contre le budget lu dans le `render`
-   de la mise en forme et passé dans l'appel.
-5. **Si ça déborde** — rendre une fois sans aucune image et compter ; puis resserrer dans l'ordre
-   fixe de « When a sheet overflows », et **après chaque changement, refaire les étapes 3 et 4**.
-   Un resserrage peut casser ce que la vérification garantissait.
+   couvrent est rempli depuis le graphe, identique à chaque appel, et **gardé côté serveur sous
+   `treeRef`** ; vous composez seulement ce qu'il renvoie dans `unfilled`, dans la forme que
+   `get_capabilities section:'document'` décrit, et vous l'insérez par `patch` sur ce `treeRef`
+   — jamais en recopiant l'arbre.
+3. **Vérifier la page contre le graphe, AVANT tout rendu** — `lint_content` avec `treeRef` (ou
+   `document`) et `nodeId` (voir « Vérifier la page avant de rendre »). C'est le seul allègement
+   légitime avant le premier rendu : ce que la vérification signale, pas ce que vous estimez. Un
+   refus de vérifier est un arrêt, pas un feu vert. La réponse porte `checked.treeRef` : c'est lui
+   qu'on rend.
+4. **Rendre et compter** — `render_document` avec `treeRef` et `measure:true`, puis `mesureur`,
+   contre le budget lu dans le `render` de la mise en forme et passé dans l'appel.
+5. **Si ça déborde ou se chevauche** — corriger par `patch` sur le `treeRef` du dernier rendu (un
+   `clear` inséré, une ligne remplacée), jamais en renvoyant l'arbre entier ; en cas de débordement,
+   rendre une fois sans aucune image et compter, puis resserrer dans l'ordre fixe de « When a sheet
+   overflows », et **après chaque changement, refaire les étapes 3 et 4**. Un resserrage peut
+   casser ce que la vérification garantissait.
 6. **Un regard, une fois** — `relecteur` sur le rendu final, contre la grille que
    `evaluate_document` remonte pour ce document ; `terminologue` si le document est traduit.
 7. **Déposer** — `create_upload_url` puis `log_generation` pour un livrable, `create_preview_upload_url`
-   seul pour un aperçu. Les deux voies ne se mélangent jamais.
+   seul pour un aperçu. Les deux voies ne se mélangent jamais. Plusieurs fichiers se signent en UN
+   appel (`relPaths`, une confirmation pour tous) — pour les liens de téléchargement et les dépôts
+   d'images aussi ; un appel par fichier, c'est dix-sept allers-retours par leçon.
 
 Ce qui varie d'une matière à l'autre — la mise en forme, la grille, la routine — est lu aux étapes
 1, 3 et 6. La séquence, elle, ne varie pas.

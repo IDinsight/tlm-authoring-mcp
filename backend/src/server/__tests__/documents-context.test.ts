@@ -228,6 +228,44 @@ describe("the membership gate is applied to the NAMED namespace", () => {
   });
 });
 
+describe("several files in one call", () => {
+  it("signs a list of downloads at once, explaining each miss in place", async () => {
+    const result = await callAs(SENEGAL_CURATOR, "create_download_url", { relPaths: ["chapitre_05/Manuel.docx", "chapitre_05/Absent.docx"] });
+    const files = result.files as Array<Record<string, unknown>>;
+    expect(files.map((f) => f.relPath)).toEqual(["chapitre_05/Manuel.docx", "chapitre_05/Absent.docx"]);
+    expect(files[0].exists).toBe(true);
+    expect(files[0].note).toBeUndefined();
+    expect(files[1].exists).toBe(false);
+    expect(String(files[1].note)).toContain("chapitre_05/Manuel.docx");
+    expect(result.missing).toBe(1);
+    expect(result.namespace).toBe(kgNamespace("senegal", "ci", "maths"));
+  });
+
+  it("signs a batch of image uploads under ONE confirmation that counts them", async () => {
+    const notice = await callAs(SENEGAL_CURATOR, "create_media_upload_url", { relPaths: ["media/a.png", "media/b.png", "media/c.png", "media/d.png"] });
+    expect(notice.needsConfirmation).toBeTruthy();
+    expect(JSON.stringify(notice)).toMatch(/4 image upload URLs/);
+    const result = await callAs(SENEGAL_CURATOR, "create_media_upload_url", { relPaths: ["media/a.png", "media/b.jpg"], confirm: true });
+    const files = result.files as Array<Record<string, unknown>>;
+    expect(files.map((f) => f.contentType)).toEqual(["image/png", "image/jpeg"]);
+    expect(String(files[1].objectKey)).toContain("documents/media/b.jpg");
+  });
+
+  it("refuses the whole batch when one path is not an image, naming it", async () => {
+    const result = await callAs(SENEGAL_CURATOR, "create_media_upload_url", { relPaths: ["media/a.png", "notes/plan.docx"], confirm: true });
+    expect(String((result.error as { message?: string })?.message ?? result.error)).toMatch(/'notes\/plan.docx' is not a supported image/);
+    expect(result.files).toBeUndefined();
+  });
+
+  it("takes relPath OR relPaths, and keeps the single-file shape for relPath", async () => {
+    const both = await callAs(SENEGAL_CURATOR, "create_download_url", { relPath: "a.docx", relPaths: ["b.docx"] });
+    expect(String((both.error as { message?: string })?.message ?? both.error)).toMatch(/not both/);
+    const one = await callAs(SENEGAL_CURATOR, "create_download_url", { relPath: "chapitre_05/Manuel.docx" });
+    expect(one.files).toBeUndefined();
+    expect(one.exists).toBe(true);
+  });
+});
+
 describe("create_media_upload_url — an image the render tree references by relPath", () => {
   it("signs an image URL with the type inferred from the extension, in the named namespace", async () => {
     const result = await callAs(SENEGAL_CURATOR, "create_media_upload_url", {
