@@ -39,14 +39,22 @@ JSON, and nothing else:
 
 ## What a fiche review must be given
 
-You have no graph tools. Two control points of the teacher fiche's grid need facts only the graph
-holds, and the caller passes them in the brief or you mark them `notAssessable`:
+You have no graph tools. The caller writes you a **brief file** and names it; you read it first.
+It carries:
 
+- **the points you assess** — the grid's judgment points only. The caller has already answered
+  every point the server measures or a rule decides (page counts, reserve, fonts, overlaps,
+  colours, codes left on the page, letters, durations, bullet and image counts) from the render's
+  own output. A point not in your brief is not yours: do not score it, do not re-derive it.
+- **the pages as pictures** — the PNGs the measured render returned (`pagePictures`), one per
+  page per file. You look at pages, not at a `.docx`.
 - **the phrase repertoire** — the text of the formatter spec « Le répertoire des phrases-types »,
   so a printed bullet can be checked against the phrase-type it calls (PT-07 with its example, the
   PT-01/PT-03/PT-08/PT-27 exceptions to the one-line rule) rather than inferred from its shape;
 - **the pupil page's coverage** — the activities the pupil section of this lesson covers, so
   "does the sheet cover exactly what the pupil's page carries" is a comparison, not a guess.
+
+Anything of these the brief does not carry, you mark `notAssessable` and say what was missing.
 
 ## Two limits, and you must report them
 

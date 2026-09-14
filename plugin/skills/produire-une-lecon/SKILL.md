@@ -36,6 +36,13 @@ leçon, la pile de mises en forme de chaque document, ses grilles. La séquence,
    `'curriculum'` quand une section couvre autre chose. Noter au passage : les
    valeurs du `render` que la mesure demandera, et les langues que `language.variants` déclare —
    ce sont les fichiers dus par section.
+   **Les arbitrages des productions passées se lisent dans le graphe, pas dans des notes.** Le
+   journal du document (`walk_graph` sur le document, `metadata.journal`) porte ce qui a été
+   décidé et pourquoi ; `check_document` dit ce qui manque au document pour être produit. On ne
+   relit pas les diagnostics ou les notes de projet des sessions précédentes : la dernière fois,
+   trente-cinq kilo-octets de notes ont été relus pour reconstituer des décisions, et une décision
+   que le graphe ne porte pas n'existe pas pour la production — on la note dans le journal, on ne
+   la redéduit pas.
 5. **Composer, vérifier, rendre — page par page** — pour chaque section à produire, d'abord
    `compose_section` : le serveur remplit depuis le graphe les gabarits que la mise en forme
    déclare, et renvoie l'arbre prêt, la liste `unfilled` de ce qu'aucun gabarit ne couvre — ou de
@@ -47,20 +54,34 @@ leçon, la pile de mises en forme de chaque document, ses grilles. La séquence,
    bande) ; compléter l'arbre par `patch` sur le `treeRef` que `compose_section` a rendu, dans la
    forme de `get_capabilities section:'document'` (son `example` est un arbre à copier) ;
    `lint_content` avec `treeRef` et `nodeId` **avant tout rendu**, un refus étant un arrêt ;
-   `render_document` avec ce `treeRef`, `measure:true` et `translateInto`
+   `render_document` avec ce `treeRef`, `measure:true`, `pagePictures:true` et `translateInto`
    dérivé des variantes de la mise en forme — **une seule composition**, les autres langues en sont
    dérivées, jamais composées une seconde fois ; lire `overlaps` et `reserveKept` sur chaque
-   fichier ; en cas de débordement ou de chevauchement, corriger par `patch` sur le dernier
+   fichier, et télécharger les images de page (`pagePictures[]`) : c'est ce que le `relecteur`
+   regardera au point 6, et rien ne se convertit sur le poste pour voir une page ; en cas de débordement ou de chevauchement, corriger par `patch` sur le dernier
    `treeRef`, puis vérifier et mesurer à nouveau — l'arbre ne se recopie jamais.
-6. **Relire une fois, en parallèle** — tous les fichiers rendus : `relecteur` contre les grilles
-   qu'`evaluate_document` remonte pour le document, EN LUI DONNANT ce qu'il ne peut pas aller
-   chercher — le texte de la spécification « Le répertoire des phrases-types » (lu au point 4 dans
-   la pile) et la liste des activités que la page de l'élève porte pour cette leçon (les
-   `covers` de sa section) ; `terminologue` sur les fichiers dérivés dans une autre langue.
-   Deux sous-agents en même temps, sur des fichiers, jamais sur le graphe. **Pas de `mesureur`**
-   : la mesure est celle que `render_document` a rendue au point 5, et le fil principal ne
-   compte pas de pages. Les constats de l'`illustrateur` lancé au point 4 se lisent ici, avant
-   de livrer ; il ne dessine plus de crochet, le serveur le trace au rendu (`mark:'answer'`).
+6. **Trier la grille, puis relire une fois** — `evaluate_document` remonte les grilles du
+   document. Avant de commissionner qui que ce soit, **trier chaque point de la grille en deux** :
+   - **ce que le serveur a déjà répondu** — un point que la `measurement`, les règles de page
+     de `lint_content`, les règles déclarées (`declared:…`) ou une vérification mécanique du
+     fichier (couleurs, codes `{pt:}` et `{img:}` restés, renvois, lettres, durées, comptes de
+     puces et d'images) tranchent, se répond dans la note de remise depuis cette sortie, avec le
+     nombre. Il ne va pas au `relecteur` : la dernière fois, il a rendu en neuf minutes six
+     « non » tous connus avant son lancement, dont trois que la mesure disait déjà.
+   - **ce qui demande un jugement** — un bandeau lisible, un geste qui modèle une notion, un
+     guide qui commente le matériel, une image dans son sens : cela seul va au `relecteur`.
+   Le `relecteur` reçoit **un dossier écrit dans un fichier**, jamais un message : la liste des
+   points qu'il juge (les autres ne sont pas à lui), le texte de la spécification « Le répertoire
+   des phrases-types » (lu au point 4 dans la pile), la liste des activités que la page de l'élève
+   porte pour cette leçon (les `covers` de sa section), et les chemins des images de page
+   téléchargées au point 5 — il regarde des pages, pas un `.docx`. Sans ce dossier il marque
+   « non évaluable », et il a raison. `terminologue` sur les fichiers dérivés dans une autre
+   langue, avec les termes de la leçon lus en un appel (`get_terminology` avec `queries`, dont
+   `missing` est déjà son premier constat). Deux sous-agents en même temps, sur des fichiers,
+   jamais sur le graphe. **Pas de `mesureur`** : la mesure est celle que `render_document` a
+   rendue au point 5, et le fil principal ne compte pas de pages. Les constats de
+   l'`illustrateur` lancé au point 4 se lisent ici, avant de livrer ; il ne dessine plus de
+   crochet, le serveur le trace au rendu (`mark:'answer'`).
 7. **Déposer et consigner** — `create_upload_url` (tous les fichiers de la leçon en un appel,
    `relPaths`) puis `log_generation` par fichier livrable ; la
    voie aperçu (`create_preview_upload_url`) seulement si l'expert a demandé un aperçu, et jamais les
@@ -68,7 +89,9 @@ leçon, la pile de mises en forme de chaque document, ses grilles. La séquence,
    a été resserré, ce que la relecture laisse ouvert.
 8. **La note de remise** — par fichier : pages, marge en pied, police présente
    (`fontAsDeclared`), chevauchements et blancs (`overlaps`, `gaps`), constats ; par leçon : ce
-   qui a été sauté comme à jour, ce qui a été refusé et pourquoi. Chaque nombre vient de la
+   qui a été sauté comme à jour, ce qui a été refusé et pourquoi. Chaque point de la grille y a
+   sa réponse et sa source — la mesure, une règle, une vérification du fichier, ou le `relecteur`
+   — et un point resté « non évaluable » le dit tel quel. Chaque nombre vient de la
    `measurement` du rendu, et la note le dit.
 
 ## Ce qui arrête la production, et vers qui renvoyer

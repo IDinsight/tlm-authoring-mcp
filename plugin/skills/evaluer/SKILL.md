@@ -27,11 +27,16 @@ contre une grille n'est pas encore outillé, et ce n'est pas demandé.
    `metadata.lintIgnore` ; pas de déploiement. Lisez `rulesPending` : tant qu'il n'est pas vide,
    tout n'est pas vérifié.
 4. **`evaluate_document`** — les grilles attachées au document. Il remonte les grilles et le
-   document ; vous le notez contre elles, ou vous le confiez au sous-agent `relecteur` avec le
-   fichier rendu. Un document peut porter plusieurs grilles, et toutes s'appliquent.
-5. **Le rendu** — un regard, une fois, par `relecteur` sur le fichier final ; `mesureur` pour tout
-   ce qui se compte ; `terminologue` si le document est traduit. Les sous-agents travaillent sur
-   des fichiers, jamais sur le graphe.
+   document. **Triez la grille avant de la confier** : un point que la mesure du rendu, une règle
+   de page ou une règle déclarée tranche déjà (pages, marge, police, chevauchements, couleurs,
+   codes restés, lettres, durées) se répond depuis cette sortie ; seuls les points de jugement
+   vont au sous-agent `relecteur`, dans un dossier écrit en fichier — les points qu'il juge, les
+   images de page du rendu (`pagePictures`), le répertoire des phrases-types, la couverture de la
+   page de l'élève. Un document peut porter plusieurs grilles, et toutes s'appliquent.
+5. **Le rendu** — un regard, une fois, par `relecteur` sur les images de page du rendu final ;
+   `mesureur` seulement pour un fichier que le serveur n'a pas rendu ; `terminologue` si le
+   document est traduit, avec les termes lus en un appel (`get_terminology`, `queries`). Les
+   sous-agents travaillent sur des fichiers, jamais sur le graphe.
 
 ## Une seule relecture, pas cinq résultats d'outil
 
