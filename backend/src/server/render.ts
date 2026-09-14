@@ -33,7 +33,7 @@ import { getKgStore, kgNamespace, toAuditActor, nextAuditSeq } from "../kg-store
 import { currentActor } from "../actor.js";
 import { getStorageAdapter } from "../storage/index.js";
 import { formatterStackFor } from "../curriculum/index.js";
-import { documentSchema, renderDocx, resolveRenderSpec, missingMediaNames, splitByVariant, deriveVariant, hasVariant, measureDocx, readDocx, proposeEdits, editItems, documentText, normalise, rasterizeSvgMedia, markAnswerCells, usableWidthCm, imageSizeCm, floatGutterCm, PAGE_CM, type DocumentTree, type TextSlot, type TranslateLines } from "../render/index.js";
+import { documentSchema, renderDocx, resolveRenderSpec, missingMediaNames, splitByVariant, deriveVariant, hasVariant, measureDocx, readDocx, proposeEdits, editItems, documentText, normalise, rasterizeSvgMedia, markAnswerCells, type AnswerMark, usableWidthCm, imageSizeCm, floatGutterCm, PAGE_CM, type DocumentTree, type TextSlot, type TranslateLines } from "../render/index.js";
 import { displayName, descriptionBody, imageMimeFor } from "../utils/index.js";
 import { translateBatch } from "../translation/index.js";
 import { effectiveTerms, filterByText } from "./glossary-read.js";
@@ -82,10 +82,12 @@ function attachedPicturePath(nodes: GraphNode[], nodeId: string): { relPath: str
  * media entry that asked for the mark: a teacher's copy with no check on it
  * is the plain band wearing the key's name.
  */
-function answerCellsOf(nodes: GraphNode[], nodeId: string): number[] | null {
-  const metadata = (nodes.find((n) => n.id === nodeId)?.properties ?? {}).metadata as { answerMark?: { cells?: unknown } } | undefined;
+function answerMarkOf(nodes: GraphNode[], nodeId: string): AnswerMark | null {
+  const metadata = (nodes.find((n) => n.id === nodeId)?.properties ?? {}).metadata as { answerMark?: { cells?: unknown; of?: unknown } } | undefined;
   const cells = metadata?.answerMark?.cells;
-  return Array.isArray(cells) && cells.length > 0 && cells.every((c) => typeof c === "number") ? (cells as number[]) : null;
+  if (!Array.isArray(cells) || cells.length === 0 || !cells.every((c) => typeof c === "number")) return null;
+  const of = metadata?.answerMark?.of;
+  return { cells: cells as number[], ...(typeof of === "number" ? { of } : {}) };
 }
 
 function suffixed(relPath: string, suffix: string): string {
@@ -389,7 +391,7 @@ export async function renderDocument(a: RenderArgs): Promise<Record<string, unkn
   const unresolved: string[] = [];
   const unattached: string[] = [];
   // Entries asking for the teacher's copy: drawn once every picture is raster.
-  const toMark: { name: string; cells: number[] }[] = [];
+  const toMark: { name: string; mark: AnswerMark }[] = [];
   for (const m of tree.data.media ?? []) {
     if (m.data !== undefined) {
       media.push({ name: m.name, data: Buffer.from(m.data, "base64") });
@@ -411,12 +413,12 @@ export async function renderDocument(a: RenderArgs): Promise<Record<string, unkn
       }
       relPath = attached.relPath;
       if (m.mark === "answer") {
-        const cells = answerCellsOf(model.rawGraph?.nodes ?? [], m.nodeId);
-        if (!cells) {
-          unattached.push(`'${m.name}': asks for the answer mark, but '${m.nodeId}' records no correct cell — set it with attach_image's \`answerCells\` or edit_nodes (metadata.answerMark: {cells: [k]})`);
+        const mark = answerMarkOf(model.rawGraph?.nodes ?? [], m.nodeId);
+        if (!mark) {
+          unattached.push(`'${m.name}': asks for the answer mark, but '${m.nodeId}' records no correct cell — set it with attach_image's \`answerCells\` (+ \`answerCellsOf\`) or edit_nodes (metadata.answerMark: {cells: [k], of: n})`);
           continue;
         }
-        toMark.push({ name: m.name, cells });
+        toMark.push({ name: m.name, mark });
       }
     }
     if (!storage.downloadObject) {
@@ -476,7 +478,7 @@ export async function renderDocument(a: RenderArgs): Promise<Record<string, unkn
     const ask = toMark.find((m) => m.name === entry.name);
     if (!ask) continue;
     try {
-      entry.data = markAnswerCells(entry.data, ask.cells, spec.spec.images?.answerMark ?? {});
+      entry.data = markAnswerCells(entry.data, ask.mark, spec.spec.images?.answerMark ?? {});
       marked.push(entry.name);
     } catch (error) {
       markFailed.push(`'${entry.name}' ${(error as Error).message}`);

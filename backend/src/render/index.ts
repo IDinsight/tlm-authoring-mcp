@@ -10,7 +10,7 @@ export type { Block, Cell, Run, ImageRun, DocumentTree } from "./document.js";
 export { renderDocx, usableWidthCm, imageSizeCm, floatGutterCm, PAGE_CM } from "./docx.js";
 export { rasterizeSvgMedia, rasterizeSvg, isSvg, isPng, mediaPartName, RASTER_LONG_SIDE_PX, type MediaBytes, type RasterRefusal } from "./raster.js";
 export { imageSize, imageAspectRatio, type ImageSize } from "./image-size.js";
-export { markAnswerCells, bandCells, type AnswerMarkStyle } from "./answer-mark.js";
+export { markAnswerCells, bandCells, type AnswerMarkStyle, type AnswerMark } from "./answer-mark.js";
 export { resolveRenderSpec, type ResolvedSpec, type SpecCarrier } from "./resolve-spec.js";
 export { splitByVariant, deriveVariant, hasVariant, type Variant, type TranslateLines } from "./variants.js";
 export { measureDocx, parsePdfInfo, parseBBox, parseWords, parseImages, measurePages, type Measurement, type PageMeasurement, type PageImage, type Overlap } from "./measure.js";

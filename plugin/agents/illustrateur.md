@@ -55,6 +55,7 @@ JSON, and nothing else:
       "name": "the file name, as the formatter's convention builds it",
       "stage": "cell | band | answer",
       "answerCells": [2],
+      "answerCellsOf": 4,
       "produced": true,
       "checkedVisually": true,
       "problems": ["what is wrong with the produced image, if anything"]

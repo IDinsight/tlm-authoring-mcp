@@ -24,34 +24,46 @@ describe("how many cells a band has", () => {
 
 describe("drawing the check", () => {
   it("returns a PNG of the same size, and not the same bytes", () => {
-    const marked = markAnswerCells(BAND, [2]);
+    const marked = markAnswerCells(BAND, { cells: [2] });
     expect(isPng(marked)).toBe(true);
     expect(imageSize(marked)).toEqual(imageSize(BAND));
     expect(marked.equals(BAND)).toBe(false);
   });
 
   it("marks two cells when the answer line gives two, and each differently from one", () => {
-    const one = markAnswerCells(BAND, [2]);
-    const two = markAnswerCells(BAND, [1, 2]);
+    const one = markAnswerCells(BAND, { cells: [2] });
+    const two = markAnswerCells(BAND, { cells: [1, 2] });
     expect(two.equals(one)).toBe(false);
     // Deterministic: the same ask draws the same bytes.
-    expect(markAnswerCells(BAND, [2]).equals(one)).toBe(true);
+    expect(markAnswerCells(BAND, { cells: [2] }).equals(one)).toBe(true);
   });
 
   it("honours the formatter's colour and corner", () => {
-    const black = markAnswerCells(BAND, [1]);
-    const red = markAnswerCells(BAND, [1], { colour: "#E24B4A" });
-    const bottomRight = markAnswerCells(BAND, [1], { corner: "bottom-right" });
+    const black = markAnswerCells(BAND, { cells: [1] });
+    const red = markAnswerCells(BAND, { cells: [1] }, { colour: "#E24B4A" });
+    const bottomRight = markAnswerCells(BAND, { cells: [1] }, { corner: "bottom-right" });
     expect(red.equals(black)).toBe(false);
     expect(bottomRight.equals(black)).toBe(false);
   });
 
-  it("refuses a cell the band does not have, saying how many it has", () => {
-    expect(() => markAnswerCells(BAND, [4])).toThrow(/names cell 4 .* 3 square cell/);
-    expect(() => markAnswerCells(BAND, [0])).toThrow(/names cell 0/);
+  it("refuses a cell the band does not have, saying how many it has and that the count was a guess", () => {
+    expect(() => markAnswerCells(BAND, { cells: [4] })).toThrow(/names cell 4 but the band has 3 cell.*guessed.*record `of`/);
+    expect(() => markAnswerCells(BAND, { cells: [0] })).toThrow(/names cell 0/);
+  });
+
+  it("takes the recorded cell count over the square-vignette guess", () => {
+    // The delivered bands: 4.6:1, a reference cell and three signed ones — four
+    // cells, where width over height rounds to five. Recorded, cell 4 is real
+    // and lands in the last quarter; guessed, it would land in the fourth fifth.
+    const wide = rasterizeSvg(Buffer.from(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1380 300"><rect width="1380" height="300" fill="#fff"/></svg>`));
+    expect(bandCells(1380, 300)).toBe(5);
+    const recorded = markAnswerCells(wide, { cells: [4], of: 4 });
+    const guessed = markAnswerCells(wide, { cells: [4] });
+    expect(recorded.equals(guessed)).toBe(false);
+    expect(() => markAnswerCells(wide, { cells: [5], of: 4 })).toThrow(/band has 4 cell/);
   });
 
   it("refuses bytes that are not a raster picture", () => {
-    expect(() => markAnswerCells(Buffer.from("<svg/>"), [1])).toThrow(/not a PNG or JPEG/);
+    expect(() => markAnswerCells(Buffer.from("<svg/>"), { cells: [1] })).toThrow(/not a PNG or JPEG/);
   });
 });

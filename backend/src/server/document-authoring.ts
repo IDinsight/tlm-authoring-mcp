@@ -208,6 +208,8 @@ type AttachImageToolArgs = {
   position?: number;
   /** The correct cell(s) of a band, 1-based left to right — what the teacher's check is drawn on. */
   answerCells?: number[];
+  /** How many cells the band has in all, reference included — recorded, since a file cannot say. */
+  answerCellsOf?: number;
   returnMode?: ReturnMode;
   idempotencyKey?: string;
   confirm?: boolean;
@@ -269,6 +271,7 @@ export async function runAttachImage(a: AttachImageToolArgs): Promise<Record<str
     namespace, newNodeId, parentId: parent.id,
     name: a.name, description: a.description, uri: documentObjectUri(a.relPath), position: a.position,
     ...(a.answerCells ? { answerCells: a.answerCells } : {}),
+    ...(a.answerCellsOf !== undefined ? { answerCellsOf: a.answerCellsOf } : {}),
   };
 
   return runBatchMutation({
@@ -424,7 +427,8 @@ export function registerDocumentAuthoringTools(server: McpServer) {
         description: z.string().optional(),
         relPath: z.string().optional(),
         commissioned: z.boolean().optional(),
-        answerCells: z.array(z.number().int().positive()).min(1).max(8).optional().describe("For a band with a correct answer: the correct cell(s), 1 = leftmost, every vignette counted (a reference cell included), two when the answer line gives two. render_document draws the teacher's check there for a media entry with mark:'answer'; the pupil's file stays plain. Set it later with edit_nodes (properties: {\"metadata.answerMark\": {cells: [k]}})."),
+        answerCells: z.array(z.number().int().positive()).min(1).max(8).optional().describe("For a band with a correct answer: the correct cell(s), 1 = leftmost, every vignette counted (a reference cell included), two when the answer line gives two. render_document draws the teacher's check there for a media entry with mark:'answer'; the pupil's file stays plain. Set it later with edit_nodes (properties: {\"metadata.answerMark\": {cells: [k], of: n}})."),
+        answerCellsOf: z.number().int().positive().max(12).optional().describe("How many cells the band has IN ALL, a reference cell included — a 4.6:1 band with a reference and three signed cells is 4. Give it with answerCells: the count cannot be read off the file (the vignettes are not square), and without it the server guesses from the shape."),
         position: z.number().optional(),
         returnMode: z.enum(["summary", "full"]).optional(),
         idempotencyKey: z.string().optional(),

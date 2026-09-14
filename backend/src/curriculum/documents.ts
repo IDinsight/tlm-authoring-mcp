@@ -148,7 +148,7 @@ export type SectionPicture = {
   contentType: string;
   illustrates: string;      // the Lesson or Activity it hangs under
   /** The correct cell(s) the picture records — what a `mark:'answer'` media entry draws the check on. */
-  answerMark?: { cells: number[] };
+  answerMark?: { cells: number[]; of?: number };
 };
 
 function pictureOf(raw: RawGraphSnapshot, node: RawNode): SectionPicture | null {
@@ -171,9 +171,11 @@ function pictureOf(raw: RawGraphSnapshot, node: RawNode): SectionPicture | null 
   };
 }
 
-function answerMarkOf(p: Record<string, unknown>): { cells: number[] } | null {
-  const cells = (p.metadata as { answerMark?: { cells?: unknown } } | undefined)?.answerMark?.cells;
-  return Array.isArray(cells) && cells.length > 0 && cells.every((c) => typeof c === "number") ? { cells: cells as number[] } : null;
+function answerMarkOf(p: Record<string, unknown>): { cells: number[]; of?: number } | null {
+  const mark = (p.metadata as { answerMark?: { cells?: unknown; of?: unknown } } | undefined)?.answerMark;
+  const cells = mark?.cells;
+  if (!Array.isArray(cells) || cells.length === 0 || !cells.every((c) => typeof c === "number")) return null;
+  return { cells: cells as number[], ...(typeof mark?.of === "number" ? { of: mark.of } : {}) };
 }
 
 /** The pictures attached anywhere under `ids`, in stored order. */
