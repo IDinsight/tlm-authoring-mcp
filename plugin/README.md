@@ -94,7 +94,7 @@ in `session-autorat` (« Proposer, puis écrire »).
 | build the curriculum | `construire-le-programme` | standards, components, the course, lessons, groupings — from scratch or evolving |
 | create documents | `composer-un-document` | a book or a guide: what it covers, its formatter, its grids, its sections, its journal |
 | create documents | `produire-et-mesurer` | produce one file and check it fits |
-| create documents | `produire-une-lecon` | every file a lesson owes, only what is stale, one review, a delivery note |
+| create documents | `produire-une-lecon` | every file a lesson owes, only what is stale, a delivery note (the review is `evaluer`) |
 | create documents | `illustrations` | build and verify a lesson's illustration dossier |
 | create documents | `reprendre-corrections` | an expert hands back a corrected `.docx` |
 | evaluate | `evaluer` | one review of a document or draft: wiring, coverage, contradictions, grids, render |
