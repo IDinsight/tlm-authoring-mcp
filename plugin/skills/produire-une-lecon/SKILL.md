@@ -45,10 +45,15 @@ leçon, la pile de mises en forme de chaque document, ses grilles. La séquence,
    la redéduit pas.
 5. **Composer, vérifier, rendre — page par page** — pour chaque section à produire, d'abord
    `compose_section` : le serveur remplit depuis le graphe les gabarits que la mise en forme
-   déclare, et renvoie l'arbre prêt, la liste `unfilled` de ce qu'aucun gabarit ne couvre — ou de
-   chaque TROU qu'un gabarit laisse (`insertAt` : le chemin de bloc où insérer, à remplir du
-   dernier trou au premier) — à composer vous-même, à sa place, depuis son guide, et `problems` (une image ou un contenu que le
-   graphe n'a pas : on corrige le graphe, jamais la page). Puis la séquence de `produire-et-mesurer`
+   déclare, et **compile lui-même les guides des sections** que le gabarit lui confie — chaque
+   ligne préfixée devient une puce dans sa voix, chaque appel de phrase-type sa rédaction du
+   répertoire, chaque marqueur d'image l'image attachée avec sa pastille ; `compiled` dit, par
+   section, combien de lignes sont imprimées, combien restent dans le guide, et ce qu'il n'a pas
+   su résoudre. **On ne recompose pas une phase compilée : on la relit.** Il renvoie l'arbre prêt,
+   la liste `unfilled` de ce qu'aucun gabarit ne couvre — ou de chaque TROU qu'un gabarit laisse
+   (`insertAt` : le chemin de bloc où insérer, à remplir du dernier trou au premier) — à composer
+   vous-même, à sa place, depuis son guide, et `problems` (une image ou un contenu que le graphe
+   n'a pas, un appel sans son exemple, un préfixe inconnu : on corrige le graphe, jamais la page). Puis la séquence de `produire-et-mesurer`
    sur le résultat : `page_geometry` une fois par document, avec les images qu'on va placer, pour
    composer par le calcul (`linesBeside`, un `clear` après chaque bloc d'ancrage plus court que sa
    bande) ; compléter l'arbre par `patch` sur le `treeRef` que `compose_section` a rendu, dans la

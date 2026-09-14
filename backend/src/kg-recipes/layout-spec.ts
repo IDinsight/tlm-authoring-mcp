@@ -24,6 +24,16 @@
  *   {{item}} (inside forEach)  {{rank}} (1-based, among siblings this template matched)
  *   with an optional filter: {{covered.ordinalName|match:Leçon (\d+)}} keeps group 1,
  *   {{covered.name|upper}} upper-cases.
+ *
+ * A template may also hand a section's own GUIDE to the compiler
+ * (`{kind: "guide"}`, curriculum/guide-compile.ts): the guide's lines become
+ * the page's lines by the GRAMMAR the same bag declares under `guide` —
+ * which line prefixes print and in which voice, how a phrase of the
+ * repertoire is called and what it says, how a picture is named and marked,
+ * which inline assets a line may carry. The grammar is the subject's; the
+ * compiler knows only that a line matches a pattern and what each pattern
+ * yields. A subject whose guides are free prose declares none and keeps its
+ * holes.
  */
 
 import { z } from "zod";
@@ -80,7 +90,8 @@ export type TemplateBlock =
   | { kind: "spacer"; sizePt: number; leadingPt: number }
   | { kind: "clear" }
   | { kind: "children" }
-  | { kind: "unfilled" };
+  | { kind: "unfilled" }
+  | { kind: "guide"; vars?: Record<string, string> };
 
 export type TemplateCell = { blocks: TemplateBlock[]; style?: string; span?: number };
 
@@ -117,6 +128,11 @@ export const templateBlockSchema: z.ZodType<TemplateBlock> = z.lazy(() =>
     // guide. The composer emits nothing here and reports the section under
     // `unfilled` with `insertAt`, the block path to patch the lines in at.
     z.object({ kind: z.literal("unfilled") }).strict(),
+    // The section's own guide, COMPILED by the grammar the bag declares:
+    // where a hole left the lines to a model, this has the server write them.
+    // `vars` fills phrase slots the template knows and the guide does not —
+    // the phase's pictogram, say.
+    z.object({ kind: z.literal("guide"), vars: z.record(z.string().min(1).max(64), z.string().max(200)).optional() }).strict(),
   ]),
 ) as z.ZodType<TemplateBlock>;
 
@@ -139,12 +155,102 @@ export const templateSchema = z.object({
   blocks: z.array(templateBlockSchema).min(1),
 }).strict();
 
+/*
+ * The GUIDE GRAMMAR — how a section's assembly guide reads as page lines.
+ * Three motifs, each a regular expression with NAMED groups the compiler
+ * reads, and the tables that give the matches their meaning:
+ *
+ *   line    ‹prefix›, ‹text›   a printed line; `prefixes` maps the prefix to its
+ *                              voice (the render variant) — a prefix not listed
+ *                              is a reported defect, a line matching nothing
+ *                              stays in the guide unprinted.
+ *   call    ‹id›, ‹args›       a phrase of the repertoire (`phrases`, id → text
+ *                              with ⟨slots⟩); `vars` on the template block, a
+ *                              marker argument (into `markerSlot`) and the free
+ *                              argument fill the slots, in that order.
+ *   image   ‹name›, ‹marker›?  opens a block: the attached picture of that name
+ *                              floats on the block's first printed line, the
+ *                              marker becomes its pastille (`markers` maps the
+ *                              glyph to an inline asset).
+ *   inline  ‹name›             an asset set in the line — a pictogram, a
+ *                              pastille — from `assets`, by name.
+ *   trailing ‹tail›            the end of a speech line printed apart — an
+ *                              answer in parentheses — in its own style, kept
+ *                              untranslated.
+ */
+const groupName = z.string().min(1).max(64);
+
+export const guideGrammarSchema = z.object({
+  line: z.object({ pattern: regexSource, style: styleName.optional() }).strict(),
+  prefixes: z.record(z.string().min(1).max(8), z.object({ variant: groupName.optional() }).strict()),
+  call: z.object({
+    pattern: regexSource,
+    phrases: z.record(z.string().min(1).max(32), z.string().min(1).max(600)),
+    slot: regexSource.optional(),
+    markerSlot: groupName.optional(),
+  }).strict().optional(),
+  inline: z.object({
+    pattern: regexSource,
+    assets: z.record(z.string().min(1).max(64), z.object({ relPath: z.string().min(1), role: groupName }).strict()),
+  }).strict().optional(),
+  image: z.object({
+    pattern: regexSource,
+    roles: z.array(z.object({ match: regexSource, role: groupName }).strict()).optional(),
+    defaultRole: groupName.optional(),
+    // The teacher's copy: drawn only on a picture that records its correct cell.
+    mark: z.literal("answer").optional(),
+  }).strict().optional(),
+  markers: z.record(z.string().min(1).max(4), z.string().min(1).max(64)).optional(),
+  trailing: z.object({
+    pattern: regexSource,
+    style: styleName.optional(),
+    translate: z.literal(false).optional(),
+    prefixes: z.array(z.string().min(1).max(8)).optional(),
+  }).strict().optional(),
+}).strict();
+
+export type GuideGrammar = z.infer<typeof guideGrammarSchema>;
+
 export const layoutSpecSchema = z.object({
   templates: z.array(templateSchema).min(1),
+  guide: guideGrammarSchema.optional(),
 }).strict();
 
 export type LayoutSpec = z.infer<typeof layoutSpecSchema>;
 export type LayoutTemplate = z.infer<typeof templateSchema>;
+
+/** The named groups each grammar pattern must carry, or the compiler would read nothing from a match. */
+const REQUIRED_GROUPS: Array<[keyof GuideGrammar, string, string[]]> = [
+  ["line", "line.pattern", ["prefix", "text"]],
+  ["call", "call.pattern", ["id"]],
+  ["inline", "inline.pattern", ["name"]],
+  ["image", "image.pattern", ["name"]],
+];
+
+function grammarErrors(grammar: GuideGrammar, tool: string): string[] {
+  const errors: string[] = [];
+  const tryCompile = (source: string | undefined, where: string) => {
+    if (source === undefined) return;
+    try { new RegExp(source, "u"); } catch (e) { errors.push(`${tool}: 'layout.guide.${where}' is not a valid regular expression (${(e as Error).message}).`); }
+  };
+  for (const [key, where, groups] of REQUIRED_GROUPS) {
+    const section = grammar[key] as { pattern?: string } | undefined;
+    if (!section?.pattern) continue;
+    tryCompile(section.pattern, where);
+    for (const group of groups) {
+      if (!section.pattern.includes(`(?<${group}>`)) errors.push(`${tool}: 'layout.guide.${where}' must name a (?<${group}>…) group; the compiler reads the match by it.`);
+    }
+  }
+  tryCompile(grammar.call?.slot, "call.slot");
+  if (grammar.call?.slot && !grammar.call.slot.includes("(?<name>")) errors.push(`${tool}: 'layout.guide.call.slot' must name a (?<name>…) group.`);
+  tryCompile(grammar.trailing?.pattern, "trailing.pattern");
+  grammar.image?.roles?.forEach((rule, i) => tryCompile(rule.match, `image.roles[${i}].match`));
+  if (grammar.markers && !grammar.inline) errors.push(`${tool}: 'layout.guide.markers' names inline assets, so 'layout.guide.inline' must declare them.`);
+  for (const [glyph, asset] of Object.entries(grammar.markers ?? {})) {
+    if (grammar.inline && !grammar.inline.assets[asset]) errors.push(`${tool}: 'layout.guide.markers.${glyph}' names '${asset}', which 'inline.assets' does not declare.`);
+  }
+  return errors;
+}
 
 /** Every regular expression in a template must compile, or the composer would throw mid-page. */
 function regexErrors(layout: LayoutSpec, tool: string): string[] {
@@ -164,6 +270,7 @@ function regexErrors(layout: LayoutSpec, tool: string): string[] {
     });
     walk(template.blocks, `templates[${t}].blocks`);
   });
+  if (layout.guide) errors.push(...grammarErrors(layout.guide, tool));
   return errors;
 }
 
@@ -206,20 +313,24 @@ export function layoutBagOf(node: { properties?: Record<string, unknown> }): unk
  * application order (document-wide first, the section's own last), and the
  * NEAREST template with a given name wins, as a render value does.
  */
-export function resolveLayout(stack: Array<{ id: string; properties?: Record<string, unknown> }>): { ok: true; templates: LayoutTemplate[]; from: string[] } | { ok: false; errors: string[]; from: string[] } {
+export function resolveLayout(stack: Array<{ id: string; properties?: Record<string, unknown> }>): { ok: true; templates: LayoutTemplate[]; guide?: GuideGrammar; from: string[] } | { ok: false; errors: string[]; from: string[] } {
   const byName = new Map<string, LayoutTemplate>();
   const from: string[] = [];
   const errors: string[] = [];
+  // The guide grammar too is nearest-wins: the first bag (nearest) declaring one.
+  let guide: GuideGrammar | undefined;
   for (const node of [...stack].reverse()) {
     const bag = layoutBagOf(node);
     if (bag === undefined) continue;
     const problems = validateLayoutSpec(bag, `formatter ${node.id}`);
     if (problems.length) { errors.push(...problems); continue; }
     from.push(node.id);
-    for (const template of (bag as LayoutSpec).templates) {
+    const spec = bag as LayoutSpec;
+    for (const template of spec.templates) {
       if (!byName.has(template.name)) byName.set(template.name, template);
     }
+    if (guide === undefined && spec.guide) guide = spec.guide;
   }
   if (errors.length) return { ok: false, errors, from };
-  return { ok: true, templates: [...byName.values()], from };
+  return { ok: true, templates: [...byName.values()], ...(guide ? { guide } : {}), from };
 }

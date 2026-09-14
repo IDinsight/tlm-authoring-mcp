@@ -38,4 +38,4 @@ export {
 export { renderSpecSchema, validateRenderSpec, validateRenderInBag, type RenderSpec } from "./render-spec.js";
 // The formatter's structural half — templates the composer fills from the graph.
 export { lintRuleSchema, lintRulesSchema, validateLintRules, validateLintRulesInBag, lintRulesOf, lineBreaks, type LintRule } from "./lint-rules.js";
-export { layoutSpecSchema, templateSchema, validateLayoutSpec, validateLayoutInBag, layoutBagOf, resolveLayout, type LayoutSpec, type LayoutTemplate, type TemplateBlock, type TemplateCell } from "./layout-spec.js";
+export { layoutSpecSchema, templateSchema, guideGrammarSchema, validateLayoutSpec, validateLayoutInBag, layoutBagOf, resolveLayout, type LayoutSpec, type LayoutTemplate, type TemplateBlock, type TemplateCell, type GuideGrammar } from "./layout-spec.js";

@@ -2,104 +2,588 @@
   "templates": [
     {
       "name": "fiche",
-      "match": { "section": "^Fiche — Leçon", "root": true },
+      "match": {
+        "section": "^Fiche — Leçon",
+        "root": true
+      },
       "blocks": [
-        { "kind": "table", "rows": [[
-          { "style": "bandeau-semaine", "blocks": [{ "kind": "line", "runs": [{ "text": "Semaine {{covered.position|ceil-div:5}}" }] }] },
-          { "style": "bandeau-lecon", "blocks": [{ "kind": "line", "runs": [{ "text": "Leçon {{covered.position}}" }] }] },
-          { "style": "bandeau-jour", "blocks": [{ "kind": "line", "runs": [{ "text": "jour {{covered.position|mod-1based:5}}" }] }] }
-        ]] },
-        { "kind": "table", "rows": [[ { "style": "bandeau-os", "blocks": [{ "kind": "line", "runs": [{ "text": "OS – {{covered.name}}." }] }] } ]] },
-        { "kind": "table", "rows": [[ { "style": "bandeau-materiel", "blocks": [{ "kind": "line", "runs": [
-          { "image": { "role": "picto-materiel", "asset": { "relPath": "assets/picto-materiel.svg" } } },
-          { "text": "  {{section.guide|match:^Case MATÉRIEL : (.+)$}}" }
-        ] }] } ]] },
-        { "kind": "children" }
+        {
+          "kind": "table",
+          "rows": [
+            [
+              {
+                "style": "bandeau-semaine",
+                "blocks": [
+                  {
+                    "kind": "line",
+                    "runs": [
+                      {
+                        "text": "Semaine {{covered.position|ceil-div:5}}"
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "style": "bandeau-lecon",
+                "blocks": [
+                  {
+                    "kind": "line",
+                    "runs": [
+                      {
+                        "text": "Leçon {{covered.position}}"
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "style": "bandeau-jour",
+                "blocks": [
+                  {
+                    "kind": "line",
+                    "runs": [
+                      {
+                        "text": "jour {{covered.position|mod-1based:5}}"
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          ]
+        },
+        {
+          "kind": "table",
+          "rows": [
+            [
+              {
+                "style": "bandeau-os",
+                "blocks": [
+                  {
+                    "kind": "line",
+                    "runs": [
+                      {
+                        "text": "OS – {{covered.name}}."
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          ]
+        },
+        {
+          "kind": "table",
+          "rows": [
+            [
+              {
+                "style": "bandeau-materiel",
+                "blocks": [
+                  {
+                    "kind": "line",
+                    "runs": [
+                      {
+                        "image": {
+                          "role": "picto-materiel",
+                          "asset": {
+                            "relPath": "assets/picto-materiel.svg"
+                          }
+                        }
+                      },
+                      {
+                        "text": "  {{section.guide|match:^Case MATÉRIEL : (.+)$}}"
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          ]
+        },
+        {
+          "kind": "children"
+        }
       ]
     },
     {
       "name": "phase-1",
-      "match": { "section": "^PHASE 1 " },
+      "match": {
+        "section": "^PHASE 1 "
+      },
       "blocks": [
-        { "kind": "table", "rows": [[ { "style": "bandeau-seance", "blocks": [{ "kind": "line", "runs": [{ "text": "Séance 1 | 30 min" }] }] } ]] },
-        { "kind": "table", "rows": [[ { "style": "bandeau-phase-bleu", "blocks": [{ "kind": "line", "runs": [{ "text": "{{section.title|match:^PHASE \\d+ — (.+)$}}" }] }] } ]] },
-        { "kind": "unfilled" }
+        {
+          "kind": "table",
+          "rows": [
+            [
+              {
+                "style": "bandeau-seance",
+                "blocks": [
+                  {
+                    "kind": "line",
+                    "runs": [
+                      {
+                        "text": "Séance 1 | 30 min"
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          ]
+        },
+        {
+          "kind": "table",
+          "rows": [
+            [
+              {
+                "style": "bandeau-phase-bleu",
+                "blocks": [
+                  {
+                    "kind": "line",
+                    "runs": [
+                      {
+                        "text": "{{section.title|match:^PHASE \\d+ — (.+)$}}"
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          ]
+        },
+        {
+          "kind": "guide"
+        }
       ]
     },
     {
       "name": "phase-je-fais",
-      "match": { "section": "^PHASE [23] " },
+      "match": {
+        "section": "^PHASE [23] "
+      },
       "blocks": [
-        { "kind": "table", "rows": [[ { "style": "bandeau-phase-bleu", "blocks": [{ "kind": "line", "runs": [
-          { "image": { "role": "picto-section", "asset": { "relPath": "assets/picto-je-fais.svg" } } },
-          { "text": "  {{section.title|match:^PHASE \\d+ — (.+)$}}" }
-        ] }] } ]] },
-        { "kind": "unfilled" }
+        {
+          "kind": "table",
+          "rows": [
+            [
+              {
+                "style": "bandeau-phase-bleu",
+                "blocks": [
+                  {
+                    "kind": "line",
+                    "runs": [
+                      {
+                        "image": {
+                          "role": "picto-section",
+                          "asset": {
+                            "relPath": "assets/picto-je-fais.svg"
+                          }
+                        }
+                      },
+                      {
+                        "text": "  {{section.title|match:^PHASE \\d+ — (.+)$}}"
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          ]
+        },
+        {
+          "kind": "guide"
+        }
       ]
     },
     {
       "name": "phase-nous-faisons",
-      "match": { "section": "^PHASE 4 " },
+      "match": {
+        "section": "^PHASE 4 "
+      },
       "blocks": [
-        { "kind": "table", "rows": [[ { "style": "bandeau-phase-bleu", "blocks": [{ "kind": "line", "runs": [
-          { "image": { "role": "picto-section", "asset": { "relPath": "assets/picto-nous-faisons.svg" } } },
-          { "text": "  {{section.title|match:^PHASE \\d+ — (.+)$}}" }
-        ] }] } ]] },
-        { "kind": "unfilled" }
+        {
+          "kind": "table",
+          "rows": [
+            [
+              {
+                "style": "bandeau-phase-bleu",
+                "blocks": [
+                  {
+                    "kind": "line",
+                    "runs": [
+                      {
+                        "image": {
+                          "role": "picto-section",
+                          "asset": {
+                            "relPath": "assets/picto-nous-faisons.svg"
+                          }
+                        }
+                      },
+                      {
+                        "text": "  {{section.title|match:^PHASE \\d+ — (.+)$}}"
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          ]
+        },
+        {
+          "kind": "guide",
+          "vars": {
+            "pictogramme": "picto-nous-faisons"
+          }
+        }
       ]
     },
     {
       "name": "phase-je-retiens",
-      "match": { "section": "^PHASE 5 " },
+      "match": {
+        "section": "^PHASE 5 "
+      },
       "blocks": [
-        { "kind": "table", "rows": [[ { "style": "bandeau-phase-vert", "blocks": [{ "kind": "line", "runs": [
-          { "image": { "role": "picto-section", "asset": { "relPath": "assets/picto-je-retiens.svg" } } },
-          { "text": "  {{section.title|match:^PHASE \\d+ — (.+)$}}" }
-        ] }] } ]] },
-        { "kind": "unfilled" }
+        {
+          "kind": "table",
+          "rows": [
+            [
+              {
+                "style": "bandeau-phase-vert",
+                "blocks": [
+                  {
+                    "kind": "line",
+                    "runs": [
+                      {
+                        "image": {
+                          "role": "picto-section",
+                          "asset": {
+                            "relPath": "assets/picto-je-retiens.svg"
+                          }
+                        }
+                      },
+                      {
+                        "text": "  {{section.title|match:^PHASE \\d+ — (.+)$}}"
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          ]
+        },
+        {
+          "kind": "guide"
+        }
       ]
     },
     {
       "name": "phase-rappel",
-      "match": { "section": "^PHASE 6 " },
+      "match": {
+        "section": "^PHASE 6 "
+      },
       "blocks": [
-        { "kind": "table", "pageBreak": "before", "rows": [[ { "style": "bandeau-seance", "blocks": [{ "kind": "line", "runs": [{ "text": "SÉANCE 2 - CONSOLIDATION ET ÉVALUATION | 30 min" }] }] } ]] },
-        { "kind": "table", "rows": [[ { "style": "bandeau-phase-bleu", "blocks": [{ "kind": "line", "runs": [
-          { "image": { "role": "picto-section", "asset": { "relPath": "assets/picto-je-retiens.svg" } } },
-          { "text": "  {{section.title|match:^PHASE \\d+ — (.+)$}}" }
-        ] }] } ]] },
-        { "kind": "unfilled" }
+        {
+          "kind": "table",
+          "pageBreak": "before",
+          "rows": [
+            [
+              {
+                "style": "bandeau-seance",
+                "blocks": [
+                  {
+                    "kind": "line",
+                    "runs": [
+                      {
+                        "text": "SÉANCE 2 - CONSOLIDATION ET ÉVALUATION | 30 min"
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          ]
+        },
+        {
+          "kind": "table",
+          "rows": [
+            [
+              {
+                "style": "bandeau-phase-bleu",
+                "blocks": [
+                  {
+                    "kind": "line",
+                    "runs": [
+                      {
+                        "image": {
+                          "role": "picto-section",
+                          "asset": {
+                            "relPath": "assets/picto-je-retiens.svg"
+                          }
+                        }
+                      },
+                      {
+                        "text": "  {{section.title|match:^PHASE \\d+ — (.+)$}}"
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          ]
+        },
+        {
+          "kind": "guide"
+        }
       ]
     },
     {
       "name": "phase-tu-fais",
-      "match": { "section": "^PHASE 7 " },
+      "match": {
+        "section": "^PHASE 7 "
+      },
       "blocks": [
-        { "kind": "table", "rows": [[ { "style": "bandeau-phase-bleu", "blocks": [{ "kind": "line", "runs": [
-          { "image": { "role": "picto-section", "asset": { "relPath": "assets/picto-tu-fais.svg" } } },
-          { "text": "  {{section.title|match:^PHASE \\d+ — (.+)$}}" }
-        ] }] } ]] },
-        { "kind": "unfilled" }
+        {
+          "kind": "table",
+          "rows": [
+            [
+              {
+                "style": "bandeau-phase-bleu",
+                "blocks": [
+                  {
+                    "kind": "line",
+                    "runs": [
+                      {
+                        "image": {
+                          "role": "picto-section",
+                          "asset": {
+                            "relPath": "assets/picto-tu-fais.svg"
+                          }
+                        }
+                      },
+                      {
+                        "text": "  {{section.title|match:^PHASE \\d+ — (.+)$}}"
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          ]
+        },
+        {
+          "kind": "guide",
+          "vars": {
+            "pictogramme": "picto-tu-fais"
+          }
+        }
       ]
     },
     {
       "name": "phase-objectivation",
-      "match": { "section": "^PHASE 8 " },
+      "match": {
+        "section": "^PHASE 8 "
+      },
       "blocks": [
-        { "kind": "table", "rows": [[ { "style": "bandeau-phase-orange", "blocks": [{ "kind": "line", "runs": [{ "text": "{{section.title|match:^PHASE \\d+ — (.+)$}}" }] }] } ]] },
-        { "kind": "unfilled" }
+        {
+          "kind": "table",
+          "rows": [
+            [
+              {
+                "style": "bandeau-phase-orange",
+                "blocks": [
+                  {
+                    "kind": "line",
+                    "runs": [
+                      {
+                        "text": "{{section.title|match:^PHASE \\d+ — (.+)$}}"
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          ]
+        },
+        {
+          "kind": "guide"
+        }
       ]
     },
     {
       "name": "phase-evaluation",
-      "match": { "section": "^PHASE 9 " },
+      "match": {
+        "section": "^PHASE 9 "
+      },
       "blocks": [
-        { "kind": "table", "rows": [[ { "style": "bandeau-phase-grisbleu", "blocks": [{ "kind": "line", "runs": [
-          { "image": { "role": "picto-section", "asset": { "relPath": "assets/picto-tu-fais.svg" } } },
-          { "text": "  {{section.title|match:^PHASE \\d+ — (.+)$}}" }
-        ] }] } ]] },
-        { "kind": "unfilled" }
+        {
+          "kind": "table",
+          "rows": [
+            [
+              {
+                "style": "bandeau-phase-grisbleu",
+                "blocks": [
+                  {
+                    "kind": "line",
+                    "runs": [
+                      {
+                        "image": {
+                          "role": "picto-section",
+                          "asset": {
+                            "relPath": "assets/picto-tu-fais.svg"
+                          }
+                        }
+                      },
+                      {
+                        "text": "  {{section.title|match:^PHASE \\d+ — (.+)$}}"
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          ]
+        },
+        {
+          "kind": "guide",
+          "vars": {
+            "pictogramme": "picto-tu-fais"
+          }
+        }
       ]
     }
-  ]
+  ],
+  "guide": {
+    "line": {
+      "pattern": "^\\[(?<prefix>[A-Z]+!?)\\]\\s*(?<text>.*)$",
+      "style": "puce"
+    },
+    "prefixes": {
+      "N": {
+        "variant": "N"
+      },
+      "N!": {
+        "variant": "N"
+      },
+      "FR": {
+        "variant": "FR"
+      },
+      "FR!": {
+        "variant": "FR"
+      }
+    },
+    "call": {
+      "pattern": "\\{pt:(?<id>PT-\\d{2})(?<args>[^}]*)\\}",
+      "phrases": {
+        "PT-01": "E. vérifie que les élèves sont sur la bonne page. Il leur demande de mettre le doigt sur l'image en haut de la page et de l'observer.",
+        "PT-02": "E. écoute les réponses sans les corriger.",
+        "PT-03": "Pour chaque activité, E. demande la question à toute la classe, les élèves partagent et justifient leurs réponses. E. demande à un élève de donner la réponse. E. corrige.",
+        "PT-04": "E. dit de mettre le doigt sur le dessin {img:⟨pictogramme⟩}, puis sur le signe à côté. {img:⟨repère⟩}",
+        "PT-05": "E. demande aux élèves de mettre le doigt sur {img:picto-je-retiens}, de regarder l'image et de partager ce qu'ils retiennent. E. reprend l'explication.",
+        "PT-06": "E. vérifie que les élèves sont sur la bonne page, le doigt sur l'image {img:picto-je-retiens}.",
+        "PT-07": "E. reprend l'explication avec des objets de la classe : ⟨exemple⟩.",
+        "PT-08": "Pour chaque activité E. circule, observe le travail des élèves, ensuite demande aux élèves de présenter et justifier leur réponse. E. corrige, au besoin.",
+        "PT-09": "E. attire l'attention des élèves sur l'illustration {img:⟨repère⟩}.",
+        "PT-11": "Nous allons tracer ensemble les signes X, O et –. Copie ce que je fais au tableau sur ton ardoise.",
+        "PT-12": "E. trace X au tableau et circule pour aider. Il répète pour O et –.",
+        "PT-13": "E. lit la question puis les trois choix à voix haute. Les élèves répondent à l'oral.",
+        "PT-14": "Objectivation : Qu'est-ce qu'on a appris aujourd'hui ?",
+        "PT-15": "E. circule et note le travail des élèves, surtout ce qui est mal compris.",
+        "PT-16": "E. ne corrige pas collectivement : l'élève doit démontrer seul.",
+        "PT-17": "Il illustre au tableau l'exemple ci-contre.",
+        "PT-18": "Que voyez-vous sur ce dessin ? Que retenez-vous de ce matin ?",
+        "PT-19": "E. fait revenir les élèves à l'image de la situation d'amorce, en haut de la première page.",
+        "PT-20": "E. circule et vérifie le matériel des élèves (cahier – stylos – crayons – gommes – ardoises – craies).",
+        "PT-21": "Aujourd'hui, vous allez me montrer ce que vous savez déjà faire ⟨domaine⟩.",
+        "PT-22": "E. fait sortir les ardoises et trace X · O · – au tableau.",
+        "PT-23": "Pour répondre, vous écrivez un seul signe : le X, le O, ou le tiret.",
+        "PT-24": "E. présente la situation n° ⟨n⟩ aux élèves. Il fait observer l'image de la situation et lit le contexte.",
+        "PT-25": "E. lit les consignes et vérifie la compréhension de ces consignes :",
+        "PT-26": "Vous devez répondre à ⟨nombre⟩ questions pour la situation ⟨n⟩. Pour répondre à chaque question, il faut observer attentivement l'image de la situation pour trouver la bonne réponse.",
+        "PT-27": "Pour chaque question, E. relit la question à toute la classe, fixe et chronomètre le temps de résolution (3 min par question). Les élèves partagent et justifient leurs réponses. E. circule entre les rangées, explique et débloque les élèves en difficulté.",
+        "PT-28": "Après 3 min, E. demande aux élèves de mettre le doigt sur {img:⟨repère⟩}.",
+        "PT-29": "E. fait corriger une à une toutes les questions et demande ce que les élèves retiennent. E. reprend l'explication en mettant l'accent sur les difficultés rencontrées.",
+        "PT-30": "E. lit le contexte et les consignes. E. vérifie la compréhension de la situation. E. demande aux élèves de faire le travail. Il fixe et chronomètre le temps pour le travail des élèves.",
+        "PT-31": "E. circule, observe le travail des élèves, les aide au besoin. E. remplit le tableau de compilation pour chaque question.",
+        "PT-32": "E. demande aux élèves de présenter et justifier leurs résultats. E. reprend la correction, explique la démarche en mettant l'accent sur les difficultés rencontrées.",
+        "PT-33": "Pour chaque question, le maître attire l'attention sur les ressources nécessaires à mobiliser et la technique d'intégration de ces ressources pour arriver au résultat."
+      },
+      "markerSlot": "repère"
+    },
+    "inline": {
+      "pattern": "\\{img:(?<name>[^}]+)\\}",
+      "assets": {
+        "picto-je-fais": {
+          "relPath": "assets/picto-je-fais.svg",
+          "role": "picto-section"
+        },
+        "picto-nous-faisons": {
+          "relPath": "assets/picto-nous-faisons.svg",
+          "role": "picto-section"
+        },
+        "picto-je-retiens": {
+          "relPath": "assets/picto-je-retiens.svg",
+          "role": "picto-section"
+        },
+        "picto-tu-fais": {
+          "relPath": "assets/picto-tu-fais.svg",
+          "role": "picto-section"
+        },
+        "picto-materiel": {
+          "relPath": "assets/picto-materiel.svg",
+          "role": "picto-materiel"
+        },
+        "rep-etoile": {
+          "relPath": "assets/rep-etoile.svg",
+          "role": "marqueur"
+        },
+        "rep-triangle": {
+          "relPath": "assets/rep-triangle.svg",
+          "role": "marqueur"
+        },
+        "rep-carre": {
+          "relPath": "assets/rep-carre.svg",
+          "role": "marqueur"
+        },
+        "rep-cercle": {
+          "relPath": "assets/rep-cercle.svg",
+          "role": "marqueur"
+        }
+      }
+    },
+    "image": {
+      "pattern": "^(?<marker>[★▲■●])?\\s*\\[IMAGE : (?<name>[^\\]\\s]+)[^\\]]*\\]",
+      "roles": [
+        {
+          "match": "-amorce$",
+          "role": "amorce"
+        },
+        {
+          "match": "je-retiens$",
+          "role": "notion"
+        },
+        {
+          "match": "^(tableau-|modelage$)",
+          "role": "scene"
+        }
+      ],
+      "defaultRole": "bande",
+      "mark": "answer"
+    },
+    "markers": {
+      "★": "rep-etoile",
+      "▲": "rep-triangle",
+      "■": "rep-carre",
+      "●": "rep-cercle"
+    },
+    "trailing": {
+      "pattern": "\\s(?<tail>\\([^()]+\\))$",
+      "style": "parenthese",
+      "translate": false,
+      "prefixes": [
+        "FR",
+        "FR!"
+      ]
+    }
+  }
 }
