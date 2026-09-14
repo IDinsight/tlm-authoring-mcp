@@ -84,6 +84,21 @@ describe("running the declared rules over what a formatter governs", () => {
     expect(first.severity).toBe("warning");
   });
 
+  it("reads only the scope node and what hangs under it when a scope is given", () => {
+    // The section being composed: its own guide lines, nothing from the
+    // document's guide or from the other section.
+    const onSec2 = lintDeclared(GRAPH, { nodeId: "sec2" });
+    expect(onSec2.scope).toEqual({ nodeId: "sec2", document: "tlm", sections: 1 });
+    expect(onSec2.findings.map((f) => `${f.rule}@${f.nodeId}`).sort()).toEqual(["declared:phase-2-only@sec2", "declared:pt-07-sans-exemple@sec2"]);
+    // A section scope carries the content its own `covers` reach.
+    const onSec4 = lintDeclared(GRAPH, { nodeId: "sec4" });
+    expect(onSec4.findings.map((f) => `${f.rule}@${f.nodeId}`)).toEqual(["declared:no-insist@act"]);
+    // The document as scope reads everything the unscoped run reads.
+    expect(lintDeclared(GRAPH, { nodeId: "tlm" }).findings).toEqual(lintDeclared(GRAPH).findings);
+    // A node that is neither a section nor a document: nothing read, and said so.
+    expect(lintDeclared(GRAPH, { nodeId: "act" })).toEqual({ findings: [], rulesRun: [], scope: null });
+  });
+
   it("is silenced on a node by metadata.lintIgnore, bare id or prefixed", () => {
     const silencedGraph = { ...GRAPH, nodes: GRAPH.nodes.map((n) => n.id === "sec2" ? { ...n, properties: { ...n.properties, raw: { ...(n.properties as any).raw, metadata: { ...(n.properties as any).raw.metadata, lintIgnore: ["declared:pt-07-sans-exemple", "phase-2-only"] } } } } : n) } as MutationGraph;
     const { findings } = lintDeclared(silencedGraph);
@@ -147,5 +162,22 @@ describe("the fiche's own rules, authored on the teacher formatter", () => {
     expect(byRule("pt-07-sans-exemple").length).toBeGreaterThan(0);
     // Every finding names the section that holds the line and quotes it.
     for (const f of declared.slice(0, 5)) { expect(f.title).toMatch(/PHASE|Fiche|Guide/); expect(f.message).toMatch(/« .+ »/); }
+
+    // Subject-wide, the bullet-length rule alone hits hundreds of existing lines:
+    // the list is cut and the count per rule kept, and the caller is told to scope.
+    const truncated = result.declaredTruncated as { total: number; listed: number; byRule: Record<string, number>; note: string } | undefined;
+    expect(truncated).toBeDefined();
+    expect(truncated!.total).toBeGreaterThan(truncated!.listed);
+    expect(truncated!.byRule["declared:puce-sur-deux-lignes"]).toBeGreaterThan(50);
+    expect(declared.length).toBe(truncated!.listed);
+
+    // Scoped to one section: only its own lines, all of them, and the scope reported.
+    const sectionId = byRule("annonce-objectif-imprimee")[0].nodeId;
+    const scoped = await withCtx(CURATOR, () => runLintContent({ scope: "subject", nodeId: sectionId }));
+    expect(scoped.declaredScope).toMatchObject({ nodeId: sectionId, sections: 1 });
+    expect(scoped.declaredTruncated).toBeUndefined();
+    const scopedDeclared = (scoped.findings as Array<{ rule: string; nodeId: string }>).filter((f) => f.rule.startsWith("declared:"));
+    expect(scopedDeclared.length).toBeGreaterThan(0);
+    expect(new Set(scopedDeclared.map((f) => f.nodeId))).toEqual(new Set([sectionId]));
   });
 });
