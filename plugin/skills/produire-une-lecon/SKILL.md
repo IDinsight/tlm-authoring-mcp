@@ -28,7 +28,8 @@ leçon, la pile de mises en forme de chaque document, ses grilles. La séquence,
    une leçon rapide et une reprise sûre.
 4. **Lire une fois** — par document, la première section en entier (`walk_document_section`,
    `nextCursor` jusqu'à ce que la pile de mises en forme soit complète), les suivantes avec
-   `include:[]`, plus `'curriculum'` quand une section couvre autre chose. Noter au passage : les
+   `include:[]` (les `pictures` sont celles de la leçon : lues une fois avec la première), plus
+   `'curriculum'` quand une section couvre autre chose. Noter au passage : les
    valeurs du `render` que la mesure demandera, et les langues que `language.variants` déclare —
    ce sont les fichiers dus par section.
 5. **Composer, vérifier, rendre — page par page** — pour chaque section à produire, d'abord
@@ -38,18 +39,20 @@ leçon, la pile de mises en forme de chaque document, ses grilles. La séquence,
    graphe n'a pas : on corrige le graphe, jamais la page). Puis la séquence de `produire-et-mesurer`
    sur le résultat : `page_geometry` une fois par document, avec les images qu'on va placer, pour
    composer par le calcul (`linesBeside`, un `clear` après chaque bloc d'ancrage plus court que sa
-   bande) ; compléter l'arbre dans la forme de `get_capabilities section:'document'` (son
-   `example` est un arbre à copier) ; `lint_content` avec `document` et `nodeId` **avant tout
-   rendu**, un refus étant un arrêt ; `render_document` avec `measure:true` et `translateInto`
+   bande) ; compléter l'arbre par `patch` sur le `treeRef` que `compose_section` a rendu, dans la
+   forme de `get_capabilities section:'document'` (son `example` est un arbre à copier) ;
+   `lint_content` avec `treeRef` et `nodeId` **avant tout rendu**, un refus étant un arrêt ;
+   `render_document` avec ce `treeRef`, `measure:true` et `translateInto`
    dérivé des variantes de la mise en forme — **une seule composition**, les autres langues en sont
    dérivées, jamais composées une seconde fois ; lire `overlaps` et `reserveKept` sur chaque
-   fichier ; en cas de débordement ou de chevauchement, corriger, puis vérifier et mesurer à
-   nouveau.
+   fichier ; en cas de débordement ou de chevauchement, corriger par `patch` sur le dernier
+   `treeRef`, puis vérifier et mesurer à nouveau — l'arbre ne se recopie jamais.
 6. **Relire une fois, en parallèle** — tous les fichiers rendus : `mesureur` sur chacun avec le
    budget lu au point 4, `relecteur` contre les grilles qu'`evaluate_document` remonte pour le
    document, `terminologue` sur les fichiers dérivés dans une autre langue. Trois sous-agents en
    même temps, sur des fichiers, jamais sur le graphe. Le fil principal ne compte pas de pages.
-7. **Déposer et consigner** — `create_upload_url` puis `log_generation` par fichier livrable ; la
+7. **Déposer et consigner** — `create_upload_url` (tous les fichiers de la leçon en un appel,
+   `relPaths`) puis `log_generation` par fichier livrable ; la
    voie aperçu (`create_preview_upload_url`) seulement si l'expert a demandé un aperçu, et jamais les
    deux pour un même fichier. Puis `append_journal` sur chaque section produite : la date, ce qui
    a été resserré, ce que la relecture laisse ouvert.

@@ -19,7 +19,7 @@
  * what is missing and what to do — and the tests below are mostly about that.
  */
 import { describe, it, expect, beforeEach, afterAll } from "vitest";
-import { seedStore, seededContexts, fakeStorage, CE1_READING, CURATOR } from "../../__tests__/index.js";
+import { seedStore, seededContexts, fakeStorage, CE1_READING, CURATOR, APPROVER } from "../../__tests__/index.js";
 import { newSessionState, runInSession } from "../../context/index.js";
 import { __setKgStoreForTest, __resetMutationsForTest, type KgNodeStore } from "../../kg-store/index.js";
 import { __setStorageForTest } from "../../storage/index.js";
@@ -96,6 +96,50 @@ describe("not being able to check is never reported as a clean page", () => {
     expect(error).toMatch(/REFUSAL, not a pass/);
     // It also points at the fix and at the tool that refuses for the same reason.
     expect(error).toMatch(/render_document refuses for the same reason/);
+  });
+});
+
+describe("a page named by ref", () => {
+  it("checks a parked tree, echoes its ref unchanged, and gives a patched one a ref of its own", async () => {
+    const { parkTree, readParkedTree } = await import("../tree-park.js");
+    const { kgNamespace } = await import("../../kg-store/index.js");
+    const ns = kgNamespace(ctx.workspace, ctx.grade, ctx.subject);
+    const bag = { page: { size: "A4" }, type: { sizePt: 12 }, blocks: { bullet: { marker: "•" } } };
+    // Geometry on a formatter of THIS section's stack, PUBLISHED by an approver
+    // — lint reads the published graph, so a staged bag alone would still be a
+    // refusal — then the lint in a fresh session, which hydrates from the store.
+    const staged = await withCtx(APPROVER, async () => {
+      const { runEditNodes } = await import("../recipes.js");
+      const { formatterStackFor } = await import("../../curriculum/index.js");
+      const model = getActiveAdapter().model();
+      const sections = (model.rawGraph?.nodes ?? []).filter((n) => (n.labels ?? []).includes("DocumentSection"));
+      let sectionId = ""; let specId = "";
+      for (const section of sections) {
+        const spec = (formatterStackFor(model, section.id) ?? []).find((n) => (n.labels ?? []).includes("FormatterSpec"));
+        if (spec) { sectionId = section.id; specId = spec.id; break; }
+      }
+      if (!specId) throw new Error("fixture has no DocumentSection with a FormatterSpec on its stack");
+      const items = [{ nodeId: specId, properties: { render: bag } }];
+      const dry = await runEditNodes({ items });
+      await runEditNodes({ items, confirm: true, confirmationToken: dry.confirmationToken as string });
+      const { publishDraftWithConfirm } = await import("../../kg-store/index.js");
+      const pub = await publishDraftWithConfirm(ns) as { confirmationToken?: string };
+      const done = await publishDraftWithConfirm(ns, { confirm: true, token: pub.confirmationToken });
+      if (!("ok" in done && done.ok)) throw new Error(`publish failed: ${JSON.stringify(done)}`);
+      return { sectionId };
+    });
+    const result = await withCtx(CURATOR, async () => {
+      const parked = (await parkTree(ns, TREE))!;
+      const same = await runLintContent({ treeRef: parked.treeRef, nodeId: staged.sectionId });
+      const patched = await runLintContent({ treeRef: parked.treeRef, nodeId: staged.sectionId, patch: [{ op: "insert-after", path: "blocks[0]", block: { kind: "clear" } }] });
+      return { parked, same, patched, ns };
+    });
+    expect((result.same as any).page?.error, JSON.stringify((result.same as any).page)).toBeUndefined();
+    expect(JSON.stringify(result.same)).toContain(result.parked.treeRef);
+    const patchedRef = /tree_[0-9a-f]{24}/.exec(JSON.stringify(result.patched))?.[0];
+    expect(patchedRef).toBeDefined();
+    expect(patchedRef).not.toBe(result.parked.treeRef);
+    expect(((await readParkedTree(result.ns, patchedRef!)) as any).blocks).toHaveLength(2);
   });
 });
 

@@ -40,10 +40,14 @@ import { effectiveTerms, filterByText } from "./glossary-read.js";
 import { denyUnlessMember } from "./membership.js";
 import { CONFIG } from "../config.js";
 import { resolveDraftModel, denyIfNotDraftReader, PREVIEW_LABEL } from "./preview.js";
+import { resolveTreeInput, parkTree, TREE_PATCH_SCHEMA, type TreePatchOp } from "./tree-park.js";
 
 type RenderArgs = {
   nodeId: string;
-  document: unknown;
+  /** The block tree — or `treeRef` (+ `patch`) naming one a previous call kept. */
+  document?: unknown;
+  treeRef?: string;
+  patch?: TreePatchOp[];
   relPath?: string;
   /** Variant id to fill in by translating, e.g. "wo". */
   translateInto?: string;
@@ -313,7 +317,12 @@ export async function renderDocument(a: RenderArgs): Promise<Record<string, unkn
   if (!resolved.ok) return resolved.refusal;
   const { draft, model, renderedFrom, spec } = resolved;
 
-  const tree = documentSchema.safeParse(a.document);
+  // The page: sent inline, or kept from a previous call and patched. A ref
+  // that resolves to nothing, or a patch that breaks the tree, is a refusal.
+  const input = await resolveTreeInput(ns, a);
+  if ("error" in input) return { preview: true, error: input.error };
+
+  const tree = documentSchema.safeParse(input.tree);
   if (!tree.success) {
     return {
       preview: true,
@@ -546,9 +555,15 @@ export async function renderDocument(a: RenderArgs): Promise<Record<string, unkn
       ` from ${renderedFrom}${draft?.draftVersion ? ` ${draft.draftVersion}` : ""}`,
   });
 
+  // Kept for the next call — a lint, a patched re-render — so the tree is not
+  // retyped. The tree as VALIDATED, before any derived language: re-rendering
+  // the ref with translateInto derives again rather than doubling the lines.
+  const parked = await parkTree(ns, tree.data);
+
   return {
     preview: true,
     label: PREVIEW_LABEL,
+    ...(parked ?? { treeRef: null, treeRefNote: `The tree was not kept: over ${Math.round(900_000 / 1000)} KB serialized. Name pictures by nodeId or relPath instead of inline data and it will fit.` }),
     files,
     // The single-file shape stays on the response for a monolingual document,
     // so a caller that only ever produces one is not made to index an array.
@@ -573,7 +588,7 @@ export function registerRenderTools(server: McpServer) {
     {
       title: "Render a composed page into a .docx",
       description:
-        "Turn a page YOU composed into a Word file. `nodeId` is the DocumentSection (or TeachingLearningMaterial) being rendered; `document` is the block tree. The server merges that node's formatter stack into one render spec, validates the tree against it, lays out the .docx and returns a short-lived `downloadUrl`. " +
+        "Turn a page YOU composed into a Word file. `nodeId` is the DocumentSection (or TeachingLearningMaterial) being rendered; `document` is the block tree — or `treeRef`, the ref a previous compose_section / lint_content / render_document call handed back, so the tree is never retyped: every response carries a fresh `treeRef` for the tree it used. A correction goes as `patch` (a few ops on block paths — replace / insert-before / insert-after / remove, plus media / remove-media) on top of `treeRef`, not as the whole page again. The server merges that node's formatter stack into one render spec, validates the tree against it, lays out the .docx and returns a short-lived `downloadUrl`. " +
         "YOU decide what is on the page — which banner, in what order, where it turns; the FORMATTER decides what it looks like. So the tree carries NO geometry: no colour, no point size, no centimetre. A block names a `style` and a picture names a `role`, both defined by the formatter; a page break says only `pageBreak:'before'` and the formatter's `pagination.pageBreakCarrier` decides how it is written. The tree shape is in get_capabilities section:'document'; call preview_generation first for the section's curriculum, routine and formatter prose. " +
         "Unknown keys are REFUSED rather than ignored, and nothing is rendered when the tree or the stack is invalid — the response names the path. " +
         "PICTURES go in the tree's `media`, each as {name, nodeId} — a picture ATTACHED to the covered curriculum (attach_image; walk_document_section lists them under `pictures` with the id), which the server resolves to its file — OR {name, relPath}, a path to an object already in THIS namespace's documents/ area, OR {name, data} with data base64 (an illustrated document is megabytes the tool call cannot carry, so prefer the first two). Prefer nodeId: the graph then knows which picture the page carries, and lint_content can check the page against what is attached. Exactly one of nodeId/relPath/data per entry; an entry that resolves to nothing is refused, naming it, not rendered with the wrong image. A VECTOR picture (SVG, by any of the three) is rasterized to PNG when the page is laid out, so the pictograms' SVG masters can be named directly; an SVG that sets text with a font is refused (the server has no fonts) — convert the text to outlines first. " +
@@ -583,7 +598,9 @@ export function registerRenderTools(server: McpServer) {
         "Output goes to the SEGREGATED previews/ prefix: short-lived, invisible to list_documents and reconcile, and never to be recorded via log_generation. Renders from the DRAFT when one is open and from PUBLISHED otherwise — `renderedFrom` says which, so a sheet is never mistaken for one made from unpublished edits. Curators and approvers only.",
       inputSchema: {
         nodeId: z.string(),
-        document: z.unknown(),
+        document: z.unknown().optional().describe("The block tree. Or pass `treeRef` instead."),
+        treeRef: z.string().optional().describe("A tree a previous compose_section / lint_content / render_document call kept (its `treeRef`), instead of re-sending `document`. Lives 24 h, in this namespace."),
+        patch: TREE_PATCH_SCHEMA.optional(),
         relPath: z.string().optional(),
         translateInto: z.string().optional(),
         measure: z.boolean().optional(),

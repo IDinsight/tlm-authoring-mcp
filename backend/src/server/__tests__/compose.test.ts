@@ -167,6 +167,14 @@ describe("compose_section — the tool", () => {
     expect((out.document as any).blocks).toEqual([]);
   });
 
+  it("keeps the composed tree under a ref the lint and the render can name", async () => {
+    const out = await withActiveContext(CURATOR, () => runComposeSection({ section: lessonSectionId }));
+    expect(String(out.treeRef)).toMatch(/^tree_/);
+    const { readParkedTree } = await import("../tree-park.js");
+    const parked = await withActiveContext(CURATOR, () => readParkedTree(String(out.namespace), String(out.treeRef)));
+    expect(parked).toEqual(out.document);
+  });
+
   it("insists on a section, and resolves it by name", async () => {
     const missing = await withActiveContext(CURATOR, () => runComposeSection({}));
     expect(String(missing.error)).toMatch(/`section` is required/);

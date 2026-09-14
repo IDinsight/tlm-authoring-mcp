@@ -13,7 +13,8 @@ description: Construire et vérifier le dossier d'illustration d'une leçon — 
    wrong, and every image made from it will be wrong the same way.
 3. **Assembled band** — compose the cells into the band the layout expects.
 4. **Answer marker** — added last, once the band is settled, so a change upstream does not orphan it.
-5. **Attach** — once an image is settled, upload it (`create_media_upload_url`, then the PUT) and
+5. **Attach** — once an image is settled, upload it (`create_media_upload_url` — all of a lesson's
+   files in one call with `relPaths`, one confirmation — then the PUTs) and
    record it in the graph with `attach_image`: the lesson or activity it illustrates BY NAME, the
    name a page will place it by, and a one-sentence description of what it shows. The description is
    not decoration: it is what a reviewer reads beside the activity's text to catch a picture that

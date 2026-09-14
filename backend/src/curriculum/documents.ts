@@ -848,7 +848,10 @@ export type DocumentSectionScope = {
  * `detail:"skeleton"` already trims the same parts, but trimming is not the same
  * as not sending: a caller who HAS the formatters wants them gone, not smaller.
  */
-export const SECTION_PARTS = ["document", "curriculum", "routine", "formatters"] as const;
+// `pictures` is a part like the others: every section of a lesson used to
+// carry the lesson's whole picture list even with include:[] — ten reads, ten
+// copies of ten descriptions.
+export const SECTION_PARTS = ["document", "curriculum", "routine", "formatters", "pictures"] as const;
 export type SectionPart = (typeof SECTION_PARTS)[number];
 
 /** Paging + verbosity + which parts to send, for one section's scope. */
@@ -957,7 +960,7 @@ export function documentSectionSubgraph(
     covers,
     ...(curriculum ? { curriculum } : {}),
     ...(routine !== undefined ? { routine } : {}),
-    ...(isContinuation ? {} : { pictures: picturesAmong(raw, curriculumIds) }),
+    ...(wanted.has("pictures") ? { pictures: picturesAmong(raw, curriculumIds) } : {}),
     ...(omitted.length ? { omitted } : {}),
     ...(isContinuation ? { continued: true as const } : {}),
   };

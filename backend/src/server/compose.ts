@@ -14,6 +14,7 @@
  */
 
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import { parkTree } from "./tree-park.js";
 import { z } from "zod";
 import { asJson, guarded } from "./shared.js";
 import { getActiveAdapter } from "../adapters/index.js";
@@ -91,12 +92,17 @@ async function composeResolved(a: ComposeArgs): Promise<Record<string, unknown>>
   if (!result) return { error: `'${resolved.id}' is not a DocumentSection in the ${composedFrom} graph.` };
 
   const filledEverything = result.unfilled.length === 0 && result.problems.length === 0;
+  const document = { blocks: result.blocks, media: result.media };
+  // Kept server-side so the lint and the render that follow name it by ref
+  // (and patch in the unfilled sections) rather than retyping 20 KB of page.
+  const parked = await parkTree(ns, document);
   return {
     namespace: ns,
     composedFrom,
     sectionId: resolved.id,
     templatesFrom: layout.from,
-    document: { blocks: result.blocks, media: result.media },
+    document,
+    ...(parked ?? { treeRef: null }),
     used: result.used,
     unfilled: result.unfilled,
     problems: result.problems,
@@ -104,8 +110,8 @@ async function composeResolved(a: ComposeArgs): Promise<Record<string, unknown>>
     note: layout.templates.length === 0
       ? "No formatter on this section's stack declares `layout` templates, so nothing was composed: the whole section is reported as unfilled. Author templates on the formatter (properties.layout) to compose this document without a model."
       : filledEverything
-        ? "Every section matched a template: `document` is ready for lint_content (document + nodeId) and render_document as it stands."
-        : "`document` holds what the templates filled; compose the `unfilled` sections from their guide and insert them at their place, then lint_content and render_document. `problems` name what a template asked for and the graph lacks — fix the graph (attach_image, edit_nodes), never the page.",
+        ? "Every section matched a template: `document` is ready for lint_content and render_document as it stands — name it by `treeRef` rather than re-sending it."
+        : "`document` holds what the templates filled; compose the `unfilled` sections from their guide and insert them at their place — as a `patch` on `treeRef` (insert-before / insert-after at their block path), so the filled part is not retyped — then lint_content and render_document by ref. `problems` name what a template asked for and the graph lacks — fix the graph (attach_image, edit_nodes), never the page.",
   };
 }
 

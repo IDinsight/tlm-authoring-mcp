@@ -8,7 +8,7 @@
  */
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
-import { asJson, asText, guarded, requireConfirmation } from "./shared.js";
+import { asJson, asText, guarded, requireConfirmation, type ToolResult } from "./shared.js";
 import { denyUnlessMember, type MemberAction } from "./membership.js";
 import { contextField, withContextOverrideResult, type WithContext } from "./context-override.js";
 import { getActiveAdapter } from "../adapters/index.js";
@@ -75,6 +75,50 @@ const NAMESPACE_NOTE =
  * A namespace holding ZERO documents is the strongest available signal that the
  * context is wrong rather than the path.
  */
+/*
+ * ONE CALL, SEVERAL FILES.
+ *
+ * A lesson moves seventeen files — ten bands down, seven ticked bands up — and
+ * each signed URL is ~800 characters the caller copies verbatim into a shell
+ * command; one call per file was seventeen round trips and ~16 KB of URL text
+ * through the model, measured. `relPath` keeps its single-file shape; `relPaths`
+ * signs up to fifty in one call and returns `files[]`, one entry each.
+ */
+const MAX_PATHS = 50;
+const MANY_PATHS_NOTE = `Pass \`relPaths\` (up to ${MAX_PATHS}) instead of \`relPath\` to do several files in ONE call: the response is then { namespace, files: [{relPath, …}] }, one entry per path in the order given, and one confirmation covers them all.`;
+const pathsShape = {
+  relPath: z.string().optional(),
+  relPaths: z.array(z.string().min(1)).min(1).max(MAX_PATHS).optional(),
+};
+type PathsArgs = { relPath?: string; relPaths?: string[] };
+type Paths = { list: string[]; many: boolean };
+
+function pathsOf(a: PathsArgs): Paths | { error: ToolResult } {
+  if (a.relPath !== undefined && a.relPaths !== undefined) {
+    return { error: toolError("VALIDATION_ERROR", "Pass `relPath` (one file) OR `relPaths` (several), not both.") };
+  }
+  if (a.relPaths !== undefined) {
+    const distinct = [...new Set(a.relPaths)];
+    if (distinct.length !== a.relPaths.length) return { error: toolError("VALIDATION_ERROR", "`relPaths` names the same file twice.") };
+    return { list: distinct, many: true };
+  }
+  if (a.relPath !== undefined) return { list: [a.relPath], many: false };
+  return { error: toolError("VALIDATION_ERROR", "Name the file: `relPath`, or `relPaths` for several.") };
+}
+
+/** "an upload URL for 'x'" or "7 upload URLs ('a', 'b', 'c', …)" — what the confirmation names. */
+function describePaths(list: string[], one: string, many: string): string {
+  if (list.length === 1) return `${one} for '${list[0]}'`;
+  const shown = list.slice(0, 3).map((p) => `'${p}'`).join(", ");
+  return `${list.length} ${many} (${shown}${list.length > 3 ? ", …" : ""})`;
+}
+
+/** The single-file response shape when one `relPath` was given; `files[]` for `relPaths`. */
+function perPath<T extends { relPath: string }>(namespace: string, paths: Paths, signed: T[]): Record<string, unknown> {
+  if (!paths.many) { const { relPath, ...rest } = signed[0]; void relPath; return { namespace, ...rest }; }
+  return { namespace, files: signed, count: signed.length };
+}
+
 async function missingObjectNote(relPath: string): Promise<string> {
   const namespace = activeNamespace();
   let paths: string[];
@@ -458,47 +502,65 @@ export function registerDocumentTools(server: McpServer) {
         return asJson({ namespace: activeNamespace(), ...page });
       })));
 
-  server.registerTool("create_upload_url", { title: "Create document upload URL", description: "Get a short-lived signed URL to upload a generated .docx to the bucket. Upload with an HTTP PUT, Content-Type application/vnd.openxmlformats-officedocument.wordprocessingml.document. relPath is like 'chapitre_05/Manuel - Chapitre 5.docx'. After uploading, call log_generation with the same relPath. REQUIRES CONFIRMATION: called without confirm:true it only returns a needsConfirmation notice — ask the user to approve the upload, then call again with confirm:true. Requires a ROLE in the active workspace (any role): this writes to live storage/history, unlike the open curriculum reads. " + NAMESPACE_NOTE + " The role is checked against the namespace this call names, so an upload can never be authorized in one workspace and land in another.", inputSchema: { relPath: z.string(), confirm: z.boolean().optional(), ...contextField } },
-    guarded(async (a: { relPath: string; confirm?: boolean } & WithContext) =>
+  server.registerTool("create_upload_url", { title: "Create document upload URL", description: "Get a short-lived signed URL to upload a generated .docx to the bucket. Upload with an HTTP PUT, Content-Type application/vnd.openxmlformats-officedocument.wordprocessingml.document. relPath is like 'chapitre_05/Manuel - Chapitre 5.docx'. After uploading, call log_generation with the same relPath. " + MANY_PATHS_NOTE + " REQUIRES CONFIRMATION: called without confirm:true it only returns a needsConfirmation notice — ask the user to approve the upload, then call again with confirm:true. Requires a ROLE in the active workspace (any role): this writes to live storage/history, unlike the open curriculum reads. " + NAMESPACE_NOTE + " The role is checked against the namespace this call names, so an upload can never be authorized in one workspace and land in another.", inputSchema: { ...pathsShape, confirm: z.boolean().optional(), ...contextField } },
+    guarded(async (a: PathsArgs & { confirm?: boolean } & WithContext) =>
       withContextOverrideResult(a.context, async () => {
         // Inside the override, so the role is checked against the namespace this
         // will actually write to — see context-override.ts, AUTHORIZATION.
         const denied = await denyNonMember("writeDocuments"); if (denied) return denied;
+        const paths = pathsOf(a); if ("error" in paths) return paths.error;
         const namespace = activeNamespace();
         // The confirmation names the NAMESPACE, not just the path: a path alone
         // cannot tell an approver which subject's bucket is about to be written.
-        const needConfirm = requireConfirmation(a.confirm, `issue an upload URL for '${a.relPath}' in namespace '${namespace}' — this writes NOW to that live documents bucket (no draft, no undo)`);
-        return needConfirm ?? asJson({ namespace, ...(await getStorageAdapter().createUploadUrl(a.relPath)) });
+        const needConfirm = requireConfirmation(a.confirm, `issue ${describePaths(paths.list, "an upload URL", "upload URLs")} in namespace '${namespace}' — this writes NOW to that live documents bucket (no draft, no undo)`);
+        if (needConfirm) return needConfirm;
+        const storage = getStorageAdapter();
+        return asJson(perPath(namespace, paths, await Promise.all(paths.list.map(async (relPath) => ({ relPath, ...(await storage.createUploadUrl(relPath)) })))));
       })));
 
-  server.registerTool("create_media_upload_url", { title: "Create image upload URL", description: "Get a short-lived signed URL to upload an IMAGE (png/jpg/jpeg/webp/gif, or svg) that a render tree will then embed by relPath. An SVG is rasterized to PNG when the page is laid out, so a vector master prints crisp at any size; one that sets text with a font is refused at render (the server has no fonts) — convert the text to outlines first. Upload with an HTTP PUT and the returned Content-Type. relPath is documents-relative, like 'media/lecon-22/photo.png' — the SAME keyspace create_upload_url and render_document's media relPath use, so once uploaded you name it in a render `media` entry as {name, relPath} and the server resolves the bytes (no base64 in the call). The file is invisible to list_documents and reconcile, which see only .docx, so an image never looks like a tracked deliverable. A non-image extension is REFUSED. REQUIRES CONFIRMATION: without confirm:true you get a needsConfirmation notice; ask the user to approve, then call again. Requires a ROLE in the active workspace: this writes to live storage. " + NAMESPACE_NOTE + " The role is checked against the namespace this call names, so an upload can never be authorized in one workspace and land in another.", inputSchema: { relPath: z.string(), confirm: z.boolean().optional(), ...contextField } },
-    guarded(async (a: { relPath: string; confirm?: boolean } & WithContext) =>
+  server.registerTool("create_media_upload_url", { title: "Create image upload URL", description: "Get a short-lived signed URL to upload an IMAGE (png/jpg/jpeg/webp/gif, or svg) that a render tree will then embed by relPath. An SVG is rasterized to PNG when the page is laid out, so a vector master prints crisp at any size; one that sets text with a font is refused at render (the server has no fonts) — convert the text to outlines first. Upload with an HTTP PUT and the returned Content-Type. relPath is documents-relative, like 'media/lecon-22/photo.png' — the SAME keyspace create_upload_url and render_document's media relPath use, so once uploaded you name it in a render `media` entry as {name, relPath} and the server resolves the bytes (no base64 in the call). " + MANY_PATHS_NOTE + " The file is invisible to list_documents and reconcile, which see only .docx, so an image never looks like a tracked deliverable. A non-image extension is REFUSED. REQUIRES CONFIRMATION: without confirm:true you get a needsConfirmation notice; ask the user to approve, then call again. Requires a ROLE in the active workspace: this writes to live storage. " + NAMESPACE_NOTE + " The role is checked against the namespace this call names, so an upload can never be authorized in one workspace and land in another.", inputSchema: { ...pathsShape, confirm: z.boolean().optional(), ...contextField } },
+    guarded(async (a: PathsArgs & { confirm?: boolean } & WithContext) =>
       withContextOverrideResult(a.context, async () => {
         const denied = await denyNonMember("writeDocuments"); if (denied) return denied;
-        const mime = imageMimeFor(a.relPath);
-        if (!mime) {
-          return toolError("VALIDATION_ERROR", `'${a.relPath}' is not a supported image. render_document can embed only ${IMAGE_EXTENSIONS.map((e) => "." + e).join(", ")}.`);
+        const paths = pathsOf(a); if ("error" in paths) return paths.error;
+        // Every path is checked before any is signed: a batch with one .docx in
+        // it is refused whole, so a caller never has to work out which half ran.
+        const unsupported = paths.list.filter((relPath) => !imageMimeFor(relPath));
+        if (unsupported.length > 0) {
+          return toolError("VALIDATION_ERROR", `${unsupported.map((p) => `'${p}'`).join(", ")} ${unsupported.length === 1 ? "is not a supported image" : "are not supported images"}. render_document can embed only ${IMAGE_EXTENSIONS.map((e) => "." + e).join(", ")}.`);
         }
         const storage = getStorageAdapter();
         if (!storage.createMediaUpload) {
           return toolError("VALIDATION_ERROR", "This storage backend does not support image uploads.");
         }
         const namespace = activeNamespace();
-        const needConfirm = requireConfirmation(a.confirm, `issue an image upload URL for '${a.relPath}' in namespace '${namespace}' — this writes NOW to that live documents bucket (no draft, no undo)`);
-        return needConfirm ?? asJson({ namespace, ...(await storage.createMediaUpload(a.relPath, mime)) });
+        const needConfirm = requireConfirmation(a.confirm, `issue ${describePaths(paths.list, "an image upload URL", "image upload URLs")} in namespace '${namespace}' — this writes NOW to that live documents bucket (no draft, no undo)`);
+        if (needConfirm) return needConfirm;
+        return asJson(perPath(namespace, paths, await Promise.all(paths.list.map(async (relPath) => ({ relPath, ...(await storage.createMediaUpload!(relPath, imageMimeFor(relPath)!)) })))));
       })));
 
-  server.registerTool("create_download_url", { title: "Create document download URL", description: "Get a short-lived signed URL to download an EXISTING .docx from the bucket with an HTTP GET (no auth header needed). relPath is documents-relative, like 'chapitre_05/Manuel - Chapitre 5.docx' — the same path used by create_upload_url and get_document_text. Use this to fetch the original binary file (with its images and formatting intact) so you can edit it and re-upload via create_upload_url. Returns { namespace, url, objectKey, expiresAt, exists }; exists is false when there is no such object — and then a `note` says WHY, distinguishing 'no such file here' from 'wrong namespace'. " + NAMESPACE_NOTE + " " + WORKSPACE_ROLE_NOTE + "", inputSchema: { relPath: z.string(), ...contextField } },
-    guarded(async (a: { relPath: string } & WithContext) =>
+  server.registerTool("create_download_url", { title: "Create document download URL", description: "Get a short-lived signed URL to download an EXISTING object from the bucket with an HTTP GET (no auth header needed) — a .docx, or an image under media/. relPath is documents-relative, like 'chapitre_05/Manuel - Chapitre 5.docx' — the same path used by create_upload_url and get_document_text. Use this to fetch the original binary file (with its images and formatting intact) so you can edit it and re-upload via create_upload_url. Returns { namespace, url, objectKey, expiresAt, exists }; exists is false when there is no such object — and then a `note` says WHY, distinguishing 'no such file here' from 'wrong namespace'. " + MANY_PATHS_NOTE + " " + NAMESPACE_NOTE + " " + WORKSPACE_ROLE_NOTE + "", inputSchema: { ...pathsShape, ...contextField } },
+    guarded(async (a: PathsArgs & WithContext) =>
       withContextOverrideResult(a.context, async () => {
         const denied = await denyNonMember("readDocuments"); if (denied) return denied;
-        const signed = await getStorageAdapter().createDownloadUrl(a.relPath);
+        const paths = pathsOf(a); if ("error" in paths) return paths.error;
+        if (paths.many) {
+          const storage = getStorageAdapter();
+          const namespace = activeNamespace();
+          const files = await Promise.all(paths.list.map(async (relPath) => {
+            const signed = await storage.createDownloadUrl(relPath);
+            return { relPath, ...signed, ...(signed.exists ? {} : { note: await missingObjectNote(relPath) }) };
+          }));
+          return asJson({ namespace, files, count: files.length, missing: files.filter((f) => !f.exists).length });
+        }
+        const relPath = paths.list[0];
+        const signed = await getStorageAdapter().createDownloadUrl(relPath);
         return asJson({
           namespace: activeNamespace(),
           ...signed,
           // A miss is explained rather than left as a bare false — the one thing
           // `exists: false` cannot say is which of the two things went wrong.
-          ...(signed.exists ? {} : { note: await missingObjectNote(a.relPath) }),
+          ...(signed.exists ? {} : { note: await missingObjectNote(relPath) }),
         });
       })));
 
