@@ -5,7 +5,13 @@ argument-hint: [le document à mesurer]
 
 Measure: $ARGUMENTS
 
-**Read the budget first, then delegate.** The thresholds belong to the document, not to you and not
+**A file the server rendered is already measured.** If the document came out of `render_document`,
+call it again with `measure:true` (by `treeRef`, nothing retyped) and read `measurement`: pages,
+`freeBelowCm` per page, `reserveKept`, `overlaps`, `gaps`, `fonts` + `fontAsDeclared`, and
+`elapsedMs`. That is the measurement; do not commission a second one of the same file.
+
+**For a file the server did not render** — deposited, corrected by an expert, produced elsewhere —
+read the budget first, then delegate. The thresholds belong to the document, not to you and not
 to the agent: they live in its formatter. Read them with `walk_document_section(sectionId,
 include:['formatters'])` — `render.budget`
 (`maxPages`, `reserveBottomCm`, `linesPerPage`, `maxCharsPerLine`, `maxCharsBesideImage`) and

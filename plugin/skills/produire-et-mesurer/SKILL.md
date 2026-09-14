@@ -33,8 +33,9 @@ règle n'est recopiée ici, parce qu'une copie vieillit sans que rien ne le sign
    légitime avant le premier rendu : ce que la vérification signale, pas ce que vous estimez. Un
    refus de vérifier est un arrêt, pas un feu vert. La réponse porte `checked.treeRef` : c'est lui
    qu'on rend.
-4. **Rendre et compter** — `render_document` avec `treeRef` et `measure:true`, puis `mesureur`,
-   contre le budget lu dans le `render` de la mise en forme et passé dans l'appel.
+4. **Rendre et compter** — `render_document` avec `treeRef` et `measure:true`, et LIRE sa
+   `measurement` contre le budget de la mise en forme : c'est la mesure, il n'y en a pas d'autre
+   pour un fichier rendu ici.
 5. **Si ça déborde ou se chevauche** — corriger par `patch` sur le `treeRef` du dernier rendu (un
    `clear` inséré, une ligne remplacée), jamais en renvoyant l'arbre entier ; en cas de débordement,
    rendre une fois sans aucune image et compter, puis resserrer dans l'ordre fixe de « When a sheet
@@ -144,14 +145,20 @@ déterministe, et une seule fois par changement — là où un rendu coûte un a
 - Ce qu'une règle nomme se corrige dans l'arbre, ou dans le graphe si c'est le graphe qui a tort ;
   une alerte délibérée se tait sur le nœud avec `metadata.lintIgnore` — jamais en retirant l'appel.
 
-## Mesurer, c'est déléguer
+## Mesurer, c'est lire la mesure du serveur
 
-**MESURER, C'EST APPELER `mesureur`.** Le fil principal ne rend pas un PDF lui-même et ne
-regarde pas une page pour compter. Les seuils ne s'écrivent pas dans l'agent : ils se lisent
-dans le `render` du formatter rendu par `walk_document_section` — `budget.maxPages`,
-`budget.reserveBottomCm`, `budget.linesPerPage`, `page.marginsCm`, `type` — et se passent
-dans l'appel. Un agent qui connaîtrait ces valeurs les figerait ; un curateur doit pouvoir
-les changer dans la mise en forme et voir la mesure suivre.
+**UN FICHIER RENDU PAR LE SERVEUR EST DÉJÀ MESURÉ.** `render_document` avec `measure:true` rend
+sur chaque fichier la mesure prise sur le rendu, images comprises : pages, `freeBelowCm` par page,
+`reserveKept`, `overlaps`, `gaps`, `fonts` et `fontAsDeclared`. Le fil principal la LIT ; il ne
+rend pas un PDF lui-même, ne regarde pas une page pour compter, et ne commissionne pas une seconde
+mesure du même fichier — la dernière fois, deux mesures de la même page se contredisaient et il a
+fallu une troisième pour trancher. Un `measurement.available:false` dit pourquoi (moteur absent,
+budget dépassé) : on relance, on ne mesure pas ailleurs.
+
+**`mesureur` ne sert que pour un fichier que le serveur n'a pas rendu** — déposé, corrigé par un
+expert, produit hors du serveur. Les seuils ne s'écrivent pas dans l'agent : ils se lisent dans
+le `render` du formatter — `budget.maxPages`, `budget.reserveBottomCm`, `budget.linesPerPage`,
+`page.marginsCm`, `type` — et se passent dans l'appel.
 
 L'appel type :
 
@@ -171,8 +178,9 @@ qui tenait se mesure alors une page trop long — et on le resserre pour rien. C
 piège que « mesurer le rendu, pas le guide » : le nombre a l'air d'une mesure, mais il décrit
 un document que personne ne recevra.
 
-Donc `type.family` fait partie des seuils qu'on lit dans le `render` et qu'on passe à
-`mesureur`, au même titre que `maxPages`. Et `mesureur` le vérifie **sur le PDF produit** —
+Donc `type.family` fait partie des seuils qu'on lit dans le `render`. Le serveur le vérifie
+lui-même sur le PDF produit (`fontAsDeclared`, `fonts`) ; pour un fichier qu'il n'a pas rendu,
+`mesureur` le vérifie **sur le PDF produit** —
 les polices réellement intégrées au fichier, pas ce que le système croit qu'il utiliserait,
 car les deux divergent — et refuse de rendre un chiffre si la police déclarée n'y est pas.
 Ne pas pouvoir vérifier est aussi un refus : si l'outil qui lit les polices du PDF manque sur

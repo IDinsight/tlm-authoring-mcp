@@ -14,7 +14,7 @@
  */
 import { describe, it, expect } from "vitest";
 import { execFileSync } from "node:child_process";
-import { parsePdfInfo, parseBBox, parseWords, parseImages, measurePages, measureDocx } from "../measure.js";
+import { parsePdfInfo, parseBBox, parseWords, parseImages, measurePages, measureDocx, parsePdfFonts, fontAsDeclared } from "../measure.js";
 import { renderDocx } from "../docx.js";
 import { resolveRenderSpec } from "../resolve-spec.js";
 import { rasterizeSvg } from "../raster.js";
@@ -187,6 +187,33 @@ describe("reading where the pictures landed", () => {
   });
 });
 
+describe("the fonts the PDF really carries", () => {
+  // Real `pdffonts` output: a subset prefix on the name, a type with a space.
+  const PDFFONTS = `name                                 type              encoding         emb sub uni object ID
+------------------------------------ ----------------- ---------------- --- --- --- ---------
+BAAAAA+Andika-Regular                TrueType          WinAnsi          yes yes yes     21  0
+CAAAAA+Andika-Bold                   CID TrueType      Identity-H       yes yes yes     25  0
+Helvetica                            Type 1            WinAnsi          no  no  no      30  0`;
+
+  it("lists each font without its subset prefix, and whether it is embedded", () => {
+    expect(parsePdfFonts(PDFFONTS)).toEqual([
+      { name: "Andika-Regular", embedded: true },
+      { name: "Andika-Bold", embedded: true },
+      { name: "Helvetica", embedded: false },
+    ]);
+    expect(parsePdfFonts("")).toEqual([]);
+  });
+
+  it("says whether the declared family is among them — the silent substitution that falsifies every count", () => {
+    const fonts = parsePdfFonts(PDFFONTS);
+    expect(fontAsDeclared(fonts, "Andika")).toBe(true);
+    expect(fontAsDeclared(fonts, "Liberation Sans")).toBe(false);
+    // Nothing declared, or nothing read: no verdict rather than a false one.
+    expect(fontAsDeclared(fonts, undefined)).toBeNull();
+    expect(fontAsDeclared([], "Andika")).toBeNull();
+  });
+});
+
 describe("white between lines that nothing explains", () => {
   // Four lines at a 14 pt pitch, then a step of 44 pt: one line of white
   // (44 − 14 = 30 pt ≈ 2 lines by the pitch, 1.06 cm from the line's bottom).
@@ -249,6 +276,7 @@ describe.skipIf(!hasEngine)("measuring a page this renderer produced", () => {
     const result = await measureDocx(bytes);
     if (!result.available) throw new Error(result.reason);
     expect(result.picturesMeasured).toBe(true);
+    expect(result.fonts.length).toBeGreaterThan(0);   // whatever this machine substituted, it is named
     expect(result.perPage[0].images).toHaveLength(2);
     expect(result.perPage[0].overlaps).toEqual([expect.objectContaining({ kind: "image-over-image", images: [1, 2] })]);
     expect(result.perPage[0].overlaps[0].overlapCm).toBeGreaterThan(1);

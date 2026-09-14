@@ -26,7 +26,11 @@ leçon, la pile de mises en forme de chaque document, ses grilles. La séquence,
    fraîcheur des fichiers : un fichier `current` est **sauté et déclaré sauté** ; `stale` ou
    `unknown` se produit. L'expert peut demander de tout refaire ; sinon, ce filtre est ce qui rend
    une leçon rapide et une reprise sûre.
-4. **Lire une fois** — par document, la première section en entier (`walk_document_section`,
+4. **Lancer l'illustrateur, puis lire une fois** — d'abord l'`illustrateur` EN ARRIÈRE-PLAN
+   (lancé sans attendre son résultat), avec le nom de la leçon et la liste `pictures` de la première section :
+   il relit la clé sur les bandes et rend les cellules correctes, et rien ici n'attend sur lui
+   avant le point 6. Lancé comme une barrière, il a coûté 6,9 minutes d'attente pour rien.
+   Puis, par document, la première section en entier (`walk_document_section`,
    `nextCursor` jusqu'à ce que la pile de mises en forme soit complète), les suivantes avec
    `include:[]` (les `pictures` sont celles de la leçon : lues une fois avec la première), plus
    `'curriculum'` quand une section couvre autre chose. Noter au passage : les
@@ -48,21 +52,24 @@ leçon, la pile de mises en forme de chaque document, ses grilles. La séquence,
    dérivées, jamais composées une seconde fois ; lire `overlaps` et `reserveKept` sur chaque
    fichier ; en cas de débordement ou de chevauchement, corriger par `patch` sur le dernier
    `treeRef`, puis vérifier et mesurer à nouveau — l'arbre ne se recopie jamais.
-6. **Relire une fois, en parallèle** — tous les fichiers rendus : `mesureur` sur chacun avec le
-   budget lu au point 4, `relecteur` contre les grilles qu'`evaluate_document` remonte pour le
-   document, `terminologue` sur les fichiers dérivés dans une autre langue. Trois sous-agents en
-   même temps, sur des fichiers, jamais sur le graphe. Le fil principal ne compte pas de pages.
-   L'`illustrateur`, lui, tourne EN ARRIÈRE-PLAN depuis le point 4 — il relit la clé sur les
-   bandes et rend les cellules correctes ; il ne dessine plus de crochet, le serveur le trace au
-   rendu (`mark:'answer'`) depuis `answerCells` — et ses constats se lisent ici, avant de livrer.
+6. **Relire une fois, en parallèle** — tous les fichiers rendus : `relecteur` contre les grilles
+   qu'`evaluate_document` remonte pour le document, EN LUI DONNANT ce qu'il ne peut pas aller
+   chercher — le texte de la spécification « Le répertoire des phrases-types » (lu au point 4 dans
+   la pile) et la liste des activités que la page de l'élève porte pour cette leçon (les
+   `covers` de sa section) ; `terminologue` sur les fichiers dérivés dans une autre langue.
+   Deux sous-agents en même temps, sur des fichiers, jamais sur le graphe. **Pas de `mesureur`**
+   : la mesure est celle que `render_document` a rendue au point 5, et le fil principal ne
+   compte pas de pages. Les constats de l'`illustrateur` lancé au point 4 se lisent ici, avant
+   de livrer ; il ne dessine plus de crochet, le serveur le trace au rendu (`mark:'answer'`).
 7. **Déposer et consigner** — `create_upload_url` (tous les fichiers de la leçon en un appel,
    `relPaths`) puis `log_generation` par fichier livrable ; la
    voie aperçu (`create_preview_upload_url`) seulement si l'expert a demandé un aperçu, et jamais les
    deux pour un même fichier. Puis `append_journal` sur chaque section produite : la date, ce qui
    a été resserré, ce que la relecture laisse ouvert.
-8. **La note de remise** — par fichier : pages, marge en pied, police présente, constats ; par
-   leçon : ce qui a été sauté comme à jour, ce qui a été refusé et pourquoi. Rends compte de ce que
-   tu as mesuré, et de comment tu l'as mesuré.
+8. **La note de remise** — par fichier : pages, marge en pied, police présente
+   (`fontAsDeclared`), chevauchements et blancs (`overlaps`, `gaps`), constats ; par leçon : ce
+   qui a été sauté comme à jour, ce qui a été refusé et pourquoi. Chaque nombre vient de la
+   `measurement` du rendu, et la note le dit.
 
 ## Ce qui arrête la production, et vers qui renvoyer
 

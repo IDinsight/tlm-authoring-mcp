@@ -14,7 +14,7 @@ export { markAnswerCells, bandCells, type AnswerMarkStyle, type AnswerMark } fro
 export { detectBandCells, type BandCells } from "./band-cells.js";
 export { resolveRenderSpec, type ResolvedSpec, type SpecCarrier } from "./resolve-spec.js";
 export { splitByVariant, deriveVariant, hasVariant, type Variant, type TranslateLines } from "./variants.js";
-export { measureDocx, warmLayoutEngine, parsePdfInfo, parseBBox, parseWords, parseImages, measurePages, type Measurement, type PageMeasurement, type PageImage, type Overlap, type Gap } from "./measure.js";
+export { measureDocx, warmLayoutEngine, parsePdfFonts, fontAsDeclared, parsePdfInfo, parseBBox, parseWords, parseImages, measurePages, type Measurement, type PageMeasurement, type PageImage, type Overlap, type Gap, type PdfFont } from "./measure.js";
 export { readDocx, type ReadDocument, type ReadBlock } from "./read-docx.js";
 export { readGeometry, type ExtractedGeometry, type UnnamedFill, type UnnamedHeight } from "./read-geometry.js";
 export { proposeEdits, editItems, documentText, normalise, type Proposal, type TextSlot } from "./propose.js";

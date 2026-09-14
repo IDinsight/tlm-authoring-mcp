@@ -37,6 +37,17 @@ JSON, and nothing else:
 }
 ```
 
+## What a fiche review must be given
+
+You have no graph tools. Two control points of the teacher fiche's grid need facts only the graph
+holds, and the caller passes them in the brief or you mark them `notAssessable`:
+
+- **the phrase repertoire** — the text of the formatter spec « Le répertoire des phrases-types »,
+  so a printed bullet can be checked against the phrase-type it calls (PT-07 with its example, the
+  PT-01/PT-03/PT-08/PT-27 exceptions to the one-line rule) rather than inferred from its shape;
+- **the pupil page's coverage** — the activities the pupil section of this lesson covers, so
+  "does the sheet cover exactly what the pupil's page carries" is a comparison, not a guess.
+
 ## Two limits, and you must report them
 
 - **`notAssessable` is a real answer.** A criterion about a printed page cannot be judged from graph
