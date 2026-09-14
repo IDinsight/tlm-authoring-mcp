@@ -11,7 +11,8 @@ contre une grille n'est pas encore outillé, et ce n'est pas demandé.
 
 ## La séquence
 
-1. **`check_draft`** — le câblage. Un document qui ne couvre rien, une section hors de tout
+1. **`check_document`** puis **`check_draft`** — le document est-il produisible (couverture, sections, mise en
+   forme et réglages, gabarits, grille, routine — chaque manque avec son verbe), puis le câblage. Un document qui ne couvre rien, une section hors de tout
    document, une routine que rien n'utilise, un élément relié à rien. Sans ce contrôle, ces fautes
    se taisent.
 2. **`review_draft`** — la couverture. Il renvoie les attentes du guide de la matière et un
