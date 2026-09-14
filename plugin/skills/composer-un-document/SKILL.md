@@ -32,7 +32,10 @@ activité se place. Une nouvelle question, c'est donc une activité dans le prog
    page se pose sur la section, par `edit_nodes` et son sac `properties`.
 5. **Les images** — voir `illustrations` : une image s'attache à la leçon ou à l'activité qu'elle
    illustre, et la section la place.
-6. **`check_draft`** — dès que le document a des sections.
+6. **`check_document`** — dès que le document existe, et à nouveau avant de produire : un seul
+   compte rendu dit s'il couvre quelque chose, s'il a des sections, une mise en forme avec ses
+   réglages, des gabarits de page, une grille, une routine — et pour chaque manque, le verbe qui le
+   comble. Il ne bloque rien. Puis `check_draft` pour le câblage du brouillon.
 
 ## Faire évoluer un document
 
