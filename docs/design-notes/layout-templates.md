@@ -79,8 +79,10 @@ and reports the section under `unfilled` with its guide and **`insertAt`**, the 
 hole was; the caller composes the lines and lands them with an `insert-before` patch on the composed
 tree's `treeRef`, filling from the last hole up so an insertion never shifts a path still to be used.
 The fiche skeleton (`backend/test/fixtures/senegal-fiche-layout.json`, imported by
-`scripts/set-fiche-layout.mjs`) composes the header — week and day from the lesson's ordinal
-(`{{covered.position|ceil-div:5}}`, `{{…|mod-1based:5}}`), the OS banner from the lesson's name,
+`scripts/set-fiche-layout.mjs`) composes the header — week, lesson and day from the lesson's NUMBER,
+read out of its ordinal name with filters chained left to right (`{{covered.ordinalName|match:Leçon
+(\d+)|ceil-div:5}}`, `{{…|mod-1based:5}}`; its `position` is only its rank in the unit, which once
+printed « Leçon 5 » for Leçon 25), the OS banner from the lesson's name,
 the matériel line pulled out of the fiche's own guide (`{{section.guide|match:^Case MATÉRIEL : (.+)$}}`)
 — then the two séance banners (the second carrying the page break) and the nine phase banners with
 their colours and pictograms, each followed by a hole. A picture in a template may ask for the

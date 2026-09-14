@@ -94,7 +94,11 @@ function coveredBy(raw: RawGraphSnapshot, sectionId: string): RawNode | undefine
 
 // ── placeholders ─────────────────────────────────────────────────────────────
 
-const PLACEHOLDER = /\{\{\s*([a-zA-Z.]+)\s*(?:\|\s*(match|upper|ceil-div|mod-1based)\s*(?::\s*([^}]*?))?\s*)?\}\}/g;
+// A placeholder is a value path and a CHAIN of filters, applied left to right:
+// `{{covered.ordinalName|match:Leçon (\d+)|ceil-div:5}}` reads the lesson's
+// number out of its ordinal name, then the week it falls in. A `|` inside a
+// filter's argument is not supported — the chain is split on it.
+const PLACEHOLDER = /\{\{\s*([a-zA-Z.]+)\s*((?:\|[^|}]*)*)\s*\}\}/g;
 
 function valueOf(path: string, facts: SectionFacts, item: string | undefined): string {
   switch (path) {
@@ -131,11 +135,21 @@ function applyFilter(value: string, filter: string | undefined, argument: string
   return value;
 }
 
+/** The filters of a placeholder chain, in order — `|match:…|ceil-div:5` → two steps. Exported for its tests. */
+export function applyFilterChain(value: string, chain: string): string {
+  return chain.split("|").map((step) => step.trim()).filter(Boolean).reduce((current, step) => {
+    const colon = step.indexOf(":");
+    const filter = colon < 0 ? step : step.slice(0, colon).trim();
+    const argument = colon < 0 ? undefined : step.slice(colon + 1).trim();
+    return applyFilter(current, filter, argument);
+  }, value);
+}
+
 function fillText(text: string, facts: SectionFacts, item: string | undefined): { text: string; usedCovered: boolean } {
   let usedCovered = false;
-  const filled = text.replace(PLACEHOLDER, (_all, path: string, filter?: string, argument?: string) => {
+  const filled = text.replace(PLACEHOLDER, (_all, path: string, chain: string) => {
     if (path.startsWith("covered.")) usedCovered = true;
-    return applyFilter(valueOf(path, facts, item), filter, argument?.trim());
+    return applyFilterChain(valueOf(path, facts, item), chain ?? "");
   });
   return { text: filled, usedCovered };
 }

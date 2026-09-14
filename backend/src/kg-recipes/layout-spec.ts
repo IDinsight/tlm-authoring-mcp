@@ -22,8 +22,9 @@
  *   {{section.title}}  {{covered.title}}  {{covered.name}}  {{covered.content}}
  *   {{covered.ordinalName}}  {{covered.grouping.title}}  {{covered.grouping.ordinalName}}
  *   {{item}} (inside forEach)  {{rank}} (1-based, among siblings this template matched)
- *   with an optional filter: {{covered.ordinalName|match:Leçon (\d+)}} keeps group 1,
- *   {{covered.name|upper}} upper-cases.
+ *   with optional filters, chained left to right: {{covered.ordinalName|match:Leçon (\d+)}}
+ *   keeps group 1, {{covered.ordinalName|match:Leçon (\d+)|ceil-div:5}} then divides it,
+ *   {{covered.name|upper}} upper-cases. (A `|` inside a filter's argument is not supported.)
  *
  * A template may also hand a section's own GUIDE to the compiler
  * (`{kind: "guide"}`, curriculum/guide-compile.ts): the guide's lines become

@@ -20,7 +20,7 @@ import { seedStore, seededContexts, fakeStorage, CI_MATHS, CURATOR, withActiveCo
 import { __setKgStoreForTest, kgNamespace, __resetMutationsForTest, __resetDraftTokensForTest } from "../../kg-store/index.js";
 import { __setStorageForTest } from "../../storage/index.js";
 import { getActiveAdapter } from "../../adapters/index.js";
-import { composeSection, type MediaRef } from "../../curriculum/index.js";
+import { composeSection, applyFilterChain, type MediaRef } from "../../curriculum/index.js";
 import { layoutSpecSchema, validateLayoutSpec, resolveLayout } from "../../kg-recipes/index.js";
 import { documentSchema } from "../../render/index.js";
 import { runComposeSection } from "../compose.js";
@@ -185,6 +185,14 @@ describe("the teacher fiche skeleton — banners from the graph, holes for the m
     expect(header.rows[0].map((c: any) => c.style)).toEqual(["bandeau-semaine", "bandeau-lecon", "bandeau-jour"]);
     // Leçon 4 is week ⌈4/5⌉ = 1, day ((4−1) mod 5)+1 = 4 — arithmetic the composer does once.
     expect(header.rows[0].map((c: any) => c.blocks[0].runs[0].text)).toEqual(["Semaine 1", "Leçon 4", "jour 4"]);
+    // The header reads the lesson's NUMBER out of its ordinal name, never its
+    // rank in the unit: Leçon 25 (rank 5 in its unit) once printed « Leçon 5 »,
+    // « Semaine 1 », « jour 5 ». Filters chain left to right.
+    expect(applyFilterChain("V2 — Leçon 25", "|match:Leçon (\\d+)")).toBe("25");
+    expect(applyFilterChain("V2 — Leçon 25", "|match:Leçon (\\d+)|ceil-div:5")).toBe("5");
+    expect(applyFilterChain("V2 — Leçon 25", "|match:Leçon (\\d+)|mod-1based:5")).toBe("5");
+    expect(applyFilterChain("V2 — Leçon 26", "|match:Leçon (\\d+)|ceil-div:5")).toBe("6");
+    expect(applyFilterChain("V2 — Leçon 26", "|match:Leçon (\\d+)|mod-1based:5")).toBe("1");
     expect(textOf(result.blocks[1])).toBe("OS – Je dis si un objet est long ou court.");
     expect(textOf(result.blocks[2])).toBe("  craies – ficelle – bâtons");
     expect(result.media.map((m) => m.name)).toContain("picto-materiel.svg");
