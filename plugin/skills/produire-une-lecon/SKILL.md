@@ -31,9 +31,12 @@ leçon, la pile de mises en forme de chaque document, ses grilles. La séquence,
    `include:[]`, plus `'curriculum'` quand une section couvre autre chose. Noter au passage : les
    valeurs du `render` que la mesure demandera, et les langues que `language.variants` déclare —
    ce sont les fichiers dus par section.
-5. **Composer, vérifier, rendre — page par page** — pour chaque section à produire, la séquence de
-   `produire-et-mesurer` : composer l'arbre de blocs dans la forme de `get_capabilities
-   section:'document'` ; `lint_content` avec `document` et `nodeId` **avant tout rendu**, un refus
+5. **Composer, vérifier, rendre — page par page** — pour chaque section à produire, d'abord
+   `compose_section` : le serveur remplit depuis le graphe les gabarits que la mise en forme
+   déclare, et renvoie l'arbre prêt, la liste `unfilled` de ce qu'aucun gabarit ne couvre (à
+   composer vous-même, à sa place, depuis son guide) et `problems` (une image ou un contenu que le
+   graphe n'a pas : on corrige le graphe, jamais la page). Puis la séquence de `produire-et-mesurer`
+   sur le résultat : compléter l'arbre dans la forme de `get_capabilities section:'document'` ; `lint_content` avec `document` et `nodeId` **avant tout rendu**, un refus
    étant un arrêt ; `render_document` avec `measure:true` et `translateInto` dérivé des variantes
    de la mise en forme — **une seule composition**, les autres langues en sont dérivées, jamais
    composées une seconde fois ; en cas de débordement, resserrer dans l'ordre fixe, puis vérifier et

@@ -15,6 +15,7 @@ import { registerGlossaryTools } from "./glossary.js";
 import { registerGraphTools } from "./graph.js";
 import { registerPreviewTools } from "./preview.js";
 import { registerRenderTools } from "./render.js";
+import { registerComposeTools } from "./compose.js";
 import { registerDocumentTools } from "./documents.js";
 import { registerLifecycleTools } from "./lifecycle.js";
 import { registerStructuralTools } from "./structural.js";
@@ -45,6 +46,7 @@ export function buildServer(): McpServer {
   registerGraphTools(server);        // walk_graph (generic BFS traversal), namespace_stats (orientation snapshot)
   registerPreviewTools(server);      // preview_generation, create_preview_upload_url (draft-resolved, isolated from published)
   registerRenderTools(server);       // render_document — a composed block tree + the node's formatter stack -> a .docx
+  registerComposeTools(server);      // compose_section — the block tree FROM the graph, by the formatter's layout templates (no model)
   registerDocumentTools(server);     // reconcile, upload/download, record/log
   registerLifecycleTools(server);    // diff_draft, publish_draft, discard_draft
   registerUndoTools(server);         // undo_last (take back ONE staged edit — the per-edit counterpart to discard_draft)

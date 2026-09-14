@@ -15,6 +15,7 @@ import { createNode, linkNodes, type GraphMutation, type MutationNode } from "..
 import { RecipeCommon, buildCreatedProps, nextPosition, nodeById } from "./shared.js";
 import { ALIGNMENT_EDGE, containmentEdgeFor, deriveTemplate, isKnownLabel } from "./lc.js";
 import { validateRenderInBag } from "./render-spec.js";
+import { validateLayoutInBag } from "./layout-spec.js";
 
 export type AddNodeArgs = RecipeCommon & {
   parentId?: string;                      // the container to attach under; omitted for a ROOT node (Course/StandardsFramework)
@@ -47,6 +48,7 @@ export const addNode: GraphMutation<AddNodeArgs> = {
     // Same schema check as edit_nodes: a formatter must not be able to be born
     // with a knob a renderer will silently ignore.
     errors.push(...validateRenderInBag(args.properties, "add_nodes"));
+    errors.push(...validateLayoutInBag(args.properties, "add_nodes"));
     return { errors, warnings: [] };
   },
   apply: (base, args) => {
