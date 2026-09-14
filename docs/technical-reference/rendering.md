@@ -126,11 +126,22 @@ formatter's `images.answerMark` colour, size and corner (black, a quarter of the
 default — the formatter's own words), and the page names the attached picture as before, so the two
 picture rules still hold. Note that a clear is never free: when the block already runs past its
 band, the clear still costs a body line (it shows under `gaps`), so it belongs only after a block
-shorter than its band — `page_geometry`'s `linesBeside` says which. **The cell count is recorded with the answer** (`answerCellsOf`, stored as
-`metadata.answerMark.of`): the first version derived it as width over height rounded, assuming square
-vignettes, and the delivered bands refuted that on the first real lesson — 4.6:1 with a reference cell
-and three signed ones is four cells, which rounding calls five. Without `of` the square guess still
-stands and a refusal says it was a guess. A cell the band does not have, a picture that records no
+shorter than its band — `page_geometry`'s `linesBeside` says which. **The cell count is read off the picture** (`render/band-cells.ts`): the columns that are white
+from top to bottom are the gutters, the content between them the cells, believed only when there are
+at least two and they agree in width — a scene or a notion image has no cells to name. Two
+assumptions preceded this and both failed on real bands: square vignettes (width over height
+rounded: a 4.6:1 band with a reference cell and three signed ones is four cells, which rounding
+calls five), then a count recorded by hand (`answerCellsOf`, `metadata.answerMark.of`: fourteen
+records written on the assumption that every band has a reference cell, four of which had none —
+the check landed one cell to the right and nothing could say so). Now `attach_image` reads the
+file when an answer is recorded: a count the picture contradicts is refused, an omitted one is filled
+in and reported, a cell the band lacks is refused; the renderer reads it again and refuses a record
+the picture contradicts, and draws the check in the cell the gutters delimit rather than an equal
+share. The recorded `of` remains for pictures the detector cannot read, and the square guess after
+that, each refusal saying which it used. `scripts/audit-answer-marks.mjs` recomputes every band's
+record from its file and the activity's RÉPONSE sign — X · O · – left to right, after a reference
+cell when the band shows one more cell than signs — into an `edit_nodes` batch, reporting what it
+could not read rather than guessing. A cell the band does not have, a picture that records no
 answer, or bytes that cannot carry a mark are each a refusal naming the entry. `answerMarked` on the
 response lists what was drawn.
 

@@ -18,6 +18,7 @@
  */
 
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import { detectBandCells } from "../render/index.js";
 import { z } from "zod";
 import { asJson, guarded } from "./shared.js";
 import { getActiveAdapter } from "../adapters/index.js";
@@ -264,6 +265,29 @@ export async function runAttachImage(a: AttachImageToolArgs): Promise<Record<str
   const parent = await resolveOne(namespace, a.to, ILLUSTRATABLE_LABELS, THE_ILLUSTRATED);
   if ("answer" in parent) return parent.answer;
 
+  /*
+   * The band's cell count, read off the file the moment the answer is
+   * recorded. Assumed counts are how four of fourteen live records came to
+   * point one cell to the right; a count the picture contradicts is refused
+   * here, and an omitted one is filled in from the picture and said so.
+   */
+  let answerCellsOf = a.answerCellsOf;
+  let cellsNote: string | undefined;
+  if (a.answerCells && !a.commissioned && !a.confirm) {
+    const bytes = await getStorageAdapter().downloadObject?.(a.relPath);
+    const seen = bytes ? detectBandCells(bytes) : null;
+    if (seen && answerCellsOf !== undefined && seen.count !== answerCellsOf) {
+      return { error: `'${a.relPath}' shows ${seen.count} cell(s) (read off the picture: ${seen.count} vignettes between white gutters), but answerCellsOf says ${answerCellsOf}. One of the two is wrong; nothing was attached. Look at the band, then attach with the count it shows.` };
+    }
+    if (seen) {
+      const beyond = a.answerCells.filter((cell) => cell > seen.count);
+      if (beyond.length > 0) return { error: `'${a.relPath}' shows ${seen.count} cell(s), so there is no cell ${beyond.join(", ")} to mark. Nothing was attached.` };
+      if (answerCellsOf === undefined) { answerCellsOf = seen.count; cellsNote = `The band shows ${seen.count} cells (read off the picture); recorded as answerCellsOf.`; }
+    } else if (answerCellsOf === undefined) {
+      cellsNote = "The picture's cells could not be read (no regular white gutters), and no answerCellsOf was given: the count will be guessed from the picture's shape at render time. Give answerCellsOf to fix it.";
+    }
+  }
+
   const newNodeId = a.confirm ? (a.mintedNodeId ?? "") : mintNodeId();
   // The node's identifier is the file's own URI — formed here, once the file is
   // known to exist, so the graph never carries a locator to nothing.
@@ -271,7 +295,7 @@ export async function runAttachImage(a: AttachImageToolArgs): Promise<Record<str
     namespace, newNodeId, parentId: parent.id,
     name: a.name, description: a.description, uri: documentObjectUri(a.relPath), position: a.position,
     ...(a.answerCells ? { answerCells: a.answerCells } : {}),
-    ...(a.answerCellsOf !== undefined ? { answerCellsOf: a.answerCellsOf } : {}),
+    ...(answerCellsOf !== undefined ? { answerCellsOf } : {}),
   };
 
   return runBatchMutation({
@@ -282,6 +306,7 @@ export async function runAttachImage(a: AttachImageToolArgs): Promise<Record<str
     payloadHash: idempotencyPayloadHash(args),
     extra: {
       mintedNodeIds: [newNodeId],
+      ...(cellsNote ? { cells: cellsNote } : {}),
       ...(a.commissioned
         ? { commissioned: true, note: `No file was checked at '${a.relPath}'. The picture is ordered: it renders once a file is uploaded to exactly that path (create_media_upload_url), and until then render_document refuses it by name.` }
         : {}),

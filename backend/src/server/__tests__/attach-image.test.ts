@@ -226,6 +226,30 @@ describe("the answer a band records, and the teacher's copy drawn from it", () =
     expect(String(out.error)).toMatch(/answerCells/);
   });
 
+  it("reads the band's cell count off the file at attach time, and refuses a count the picture contradicts", async () => {
+    const { PNG } = await import("pngjs");
+    // Three painted vignettes with white gutters: a band with no reference cell.
+    const width = 3 * 60 + 2 * 4, height = 60;
+    const png = new PNG({ width, height });
+    for (let y = 0; y < height; y++) for (let x = 0; x < width; x++) {
+      const i = (y * width + x) * 4, inGutter = x % 64 >= 60;
+      png.data[i] = inGutter ? 255 : 40; png.data[i + 1] = inGutter ? 255 : 90; png.data[i + 2] = inGutter ? 255 : 200; png.data[i + 3] = 255;
+    }
+    const threeCells = PNG.sync.write(png);
+    __setStorageForTest({ ...bucketServing(), downloadObject: async (relPath: string) => (relPath === UPLOADED ? threeCells : null) });
+
+    // The count is omitted: read off the picture and recorded.
+    const preview = await withActiveContext(CURATOR, () => runAttachImage({ to: lessonId, name: "bande-7", description: "x", relPath: UPLOADED, answerCells: [2] }));
+    expect(preview.phase).toBe("preview");
+    expect(String(preview.cells)).toMatch(/shows 3 cells/);
+    // A count the picture contradicts is refused — this is the mistake that put four live records one cell to the right.
+    const wrong = await withActiveContext(CURATOR, () => runAttachImage({ to: lessonId, name: "bande-8", description: "x", relPath: UPLOADED, answerCells: [2], answerCellsOf: 4 }));
+    expect(String(wrong.error)).toMatch(/shows 3 cell.*answerCellsOf says 4/);
+    // So is a cell the picture does not have.
+    const beyond = await withActiveContext(CURATOR, () => runAttachImage({ to: lessonId, name: "bande-9", description: "x", relPath: UPLOADED, answerCells: [4] }));
+    expect(String(beyond.error)).toMatch(/no cell 4 to mark/);
+  });
+
   it("refuses a mark on a picture named by path — the answer is the node's to know", async () => {
     const parsed = documentSchema.safeParse({ blocks: [], media: [{ name: "x", relPath: "media/x.png", mark: "answer" }] });
     expect(parsed.success).toBe(false);

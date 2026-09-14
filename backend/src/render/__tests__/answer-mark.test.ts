@@ -4,6 +4,8 @@
  * six to twelve minutes a lesson (download, composite, upload seven files).
  */
 import { describe, it, expect } from "vitest";
+import { createRequire } from "node:module";
+const require = createRequire(import.meta.url);
 import { markAnswerCells, bandCells } from "../answer-mark.js";
 import { rasterizeSvg, isPng } from "../raster.js";
 import { imageSize } from "../image-size.js";
@@ -19,6 +21,35 @@ describe("how many cells a band has", () => {
     expect(bandCells(1230, 300)).toBe(4);     // 4.1:1 — the delivered bands
     expect(bandCells(1830, 300)).toBe(6);     // 6.15:1
     expect(bandCells(300, 300)).toBe(1);
+  });
+});
+
+describe("the cells the picture shows win over the record", () => {
+  const { PNG } = require("pngjs") as typeof import("pngjs");
+  const gutterBand = (cells: number) => {
+    const width = cells * 60 + (cells - 1) * 4, height = 60;
+    const png = new PNG({ width, height });
+    for (let y = 0; y < height; y++) for (let x = 0; x < width; x++) {
+      const i = (y * width + x) * 4, inGutter = x % 64 >= 60;
+      png.data[i] = inGutter ? 255 : 40; png.data[i + 1] = inGutter ? 255 : 90; png.data[i + 2] = inGutter ? 255 : 200; png.data[i + 3] = 255;
+    }
+    return PNG.sync.write(png);
+  };
+
+  it("refuses a record that contradicts the picture, naming both counts", () => {
+    expect(() => markAnswerCells(gutterBand(3), { cells: [1], of: 4 })).toThrow(/records 4 cell.*picture shows 3/);
+  });
+
+  it("places the check in the cell the gutters delimit, not in an equal share", () => {
+    // Four cells of 60 px with 4 px gutters: cell 4 starts at 192, where an
+    // equal share of the 252 px width would start it at 189.
+    const band = gutterBand(4);
+    const byPicture = markAnswerCells(band, { cells: [4], of: 4 });
+    expect(isPng(byPicture)).toBe(true);
+    expect(byPicture.equals(band)).toBe(false);
+    // And the read count fills in for a record with none.
+    expect(() => markAnswerCells(band, { cells: [4] })).not.toThrow();
+    expect(() => markAnswerCells(band, { cells: [5] })).toThrow(/band has 4 cell\(s\) \(read off the picture\)/);
   });
 });
 
