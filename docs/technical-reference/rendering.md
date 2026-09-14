@@ -220,6 +220,13 @@ what a `clear` nothing needed looks like: it ends a wrap that had already ended 
 two-page fiche into three, and two render cycles went to finding the four that were for nothing.
 Place clears from `page_geometry`'s `linesBeside`, and read `gaps` on the first measurement.
 
+And **`fonts`** with **`fontAsDeclared`** on each file: `pdffonts` lists what the PDF really embeds
+(subset prefixes stripped), and the file says whether the formatter's `type.family` is among them.
+LibreOffice substitutes a missing face silently, the glyph advances change, and every count that
+follows describes a document nobody receives — the check a separate measuring agent used to make.
+With pages, reserve, overlaps, gaps and fonts on the render itself, a server-rendered file is
+measured once; the plugin's `mesureur` now measures only files the server did not render.
+
 **The layout engine is warmed once and copied per call.** LibreOffice's first start with a profile
 scans every installed font and builds its registry; every conversion used a fresh profile, so every
 call paid that again — most of the two minutes a measured render was taking on the one-CPU instance,

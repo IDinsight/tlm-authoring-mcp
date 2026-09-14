@@ -134,6 +134,14 @@ export type Gap = {
   lines: number;
 };
 
+/*
+ * A font the PDF carries. The declared face is part of the measurement:
+ * LibreOffice substitutes another SILENTLY when it is not installed, the glyph
+ * advances change, and every line count that follows describes a document
+ * nobody will receive. `pdffonts` reads what was actually embedded.
+ */
+export type PdfFont = { name: string; embedded: boolean };
+
 /** What one page turned out to be, once laid out. */
 export type PageMeasurement = {
   page: number;
@@ -177,6 +185,8 @@ export type Measurement =
       /** Whether the pictures were located: false means `images` is empty and `overlaps` says nothing. */
       picturesMeasured: boolean;
       perPage: PageMeasurement[];
+      /** The fonts the PDF embeds, subset prefixes stripped; empty when `pdffonts` is absent. */
+      fonts: PdfFont[];
       /** Where the time went, so a slow call explains itself: the layout engine, then the readers. */
       elapsedMs: { layout: number; read: number };
       /** Whether the layout engine started from the warmed profile (false = a cold start, the slow case). */
@@ -238,6 +248,34 @@ export function parseImages(xml: string, heightPt: number): Box[][] {
     }));
   }
   return pages;
+}
+
+/*
+ * `pdffonts` output: a header, a rule of dashes, then one font per line. The
+ * type column may hold spaces ("Type 1C", "CID TrueType"), so the fixed
+ * columns are read from the RIGHT: … emb sub uni object gen.
+ */
+export function parsePdfFonts(text: string): PdfFont[] {
+  const lines = text.split("\n");
+  const rule = lines.findIndex((line) => /^-{10,}/.test(line));
+  if (rule < 0) return [];
+  return lines.slice(rule + 1).filter((line) => line.trim()).map((line) => {
+    const tokens = line.trim().split(/\s+/);
+    const name = tokens[0].replace(/^[A-Z]{6}\+/, "");
+    const embedded = tokens.length >= 6 ? tokens[tokens.length - 5] === "yes" : false;
+    return { name, embedded };
+  });
+}
+
+/*
+ * Does a declared family ("Andika") appear among the fonts the PDF carries
+ * ("Andika-Regular", "Andika Bold")? Compared without case, spaces or
+ * hyphens, as a prefix — a face name carries its weight after the family.
+ */
+export function fontAsDeclared(fonts: PdfFont[], family: string | undefined): boolean | null {
+  if (!family || fonts.length === 0) return null;
+  const key = (value: string) => value.toLowerCase().replace(/[\s_-]/g, "");
+  return fonts.some((font) => key(font.name).startsWith(key(family)));
 }
 
 /** The old entry point: words only, kept for callers that have no picture boxes. */
@@ -435,6 +473,11 @@ export async function measureDocx(bytes: Buffer, options: MeasureOptions = {}): 
       const { stdout } = await run("pdftotext", ["-bbox", pdfPath, "-"], { timeout });
       words = parseWords(stdout);
     }
+    let fonts: PdfFont[] = [];
+    if (await which("pdffonts")) {
+      const { stdout } = await run("pdffonts", [pdfPath], { timeout });
+      fonts = parsePdfFonts(stdout);
+    }
     let images: Box[][] = [];
     const picturesMeasured = Boolean(await which("pdftohtml"));
     if (picturesMeasured) {
@@ -452,6 +495,7 @@ export async function measureDocx(bytes: Buffer, options: MeasureOptions = {}): 
       pageSize: info.size,
       picturesMeasured,
       perPage: measurePages(words, images, info.heightPt),
+      fonts,
       elapsedMs: { layout: layoutMs, read: Date.now() - startedRead },
       warmProfile: profile.warm,
     };
