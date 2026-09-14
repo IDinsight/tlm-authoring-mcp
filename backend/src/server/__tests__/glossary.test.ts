@@ -18,7 +18,7 @@ import { __setWorkspaceStoreForTest, createMemoryWorkspaceStore } from "../../wo
 import { activateContext } from "../../activate.js";
 import { glossaryNamespace, readGlossaryEntries } from "../../glossary/index.js";
 import { runAddTerms, runEditTerm, runRemoveTerms } from "../glossary.js";
-import { effectiveTerms, filterByQuery, filterByText } from "../glossary-read.js";
+import { effectiveTerms, filterByQuery, filterByText, lookupTerms } from "../glossary-read.js";
 import type { StorageAdapter, HistoryFile } from "../../types.js";
 
 
@@ -93,6 +93,11 @@ describe("glossary tools", () => {
       await addOneTerm({ renderings: { fr: "compter", wo: "waññ" } });
 
       const byQuery = filterByQuery(await effectiveTerms(), "compter", 20);
+      // Several terms against one read: found ones keyed as sent, absent ones named.
+      const batch = lookupTerms(await effectiveTerms(), ["compter", "calebasse"], 20);
+      expect(batch.results.compter).toEqual(byQuery);
+      expect(batch.results.calebasse).toEqual([]);
+      expect(batch.missing).toEqual(["calebasse"]);
       expect(byQuery).toHaveLength(1);
       expect(byQuery[0]).toMatchObject({ francais: "compter", wolof: "waññ" });
 

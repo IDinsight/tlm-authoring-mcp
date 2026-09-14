@@ -480,6 +480,45 @@ describe("find_node resolves a grouping by « <groupName> <ordinal> »", () => {
   });
 });
 
+describe("find_node resolves a lesson by its ordinal name", () => {
+  // A CI-maths Lesson is titled by what it teaches and numbered in
+  // `ordinalName` (« V2 — Leçon 25 »); « Leçon 25 » found nothing, « 25 »
+  // found ten sections. Read off the fixture: which lessons exist is content.
+  const aNumberedLesson = (): { id: string; ordinalName: string; title: string } => {
+    const raw = JSON.parse(readFileSync(resolve(subjectDir("senegal", "ci", "maths"), KG_FIXTURE), "utf8"));
+    for (const node of raw.nodes as Array<{ id: string; labels?: string[]; properties?: Record<string, unknown> }>) {
+      if (!(node.labels ?? []).includes("Lesson")) continue;
+      const ordinalName = node.properties?.ordinalName;
+      const description = node.properties?.description;
+      if (typeof ordinalName === "string" && /Leçon \d+/.test(ordinalName) && typeof description === "string") {
+        return { id: node.id, ordinalName, title: description.split("\n")[0].trim() };
+      }
+    }
+    throw new Error("Fixture holds no Lesson with an ordinalName — this test needs one.");
+  };
+
+  it("lands on the lesson by « Leçon N », and still reports its title", async () => {
+    const { id, ordinalName, title } = aNumberedLesson();
+    const typed = ordinalName.match(/Leçon \d+/)![0];
+
+    const result = await asCurator(() => findActiveNodes({ query: typed, labels: ["Lesson"], limit: 10 }));
+    const matches = result.matches as Array<{ id: string; title: string }>;
+
+    expect(matches.map((match) => match.id)).toContain(id);
+    expect(matches.find((match) => match.id === id)!.title).toBe(title);
+  });
+
+  it("keeps the stronger of the two matches when both the title and the alias answer", async () => {
+    const { findNodes } = await import("../../curriculum/find.js");
+    const graph = {
+      nodes: [{ id: "l1", labels: ["Lesson"], properties: { description: "Leçon 3 : compter", ordinalName: "V2 — Leçon 3" } }],
+      edges: [],
+    };
+    expect(findNodes(graph, { query: "Leçon 3 : compter" })[0].match).toBe("exact");
+    expect(findNodes(graph, { query: "Leçon 3" })[0].match).toBe("prefix");
+  });
+});
+
 // ── get_standards takes a batch ──────────────────────────────────────────────
 // Same defect find_node's `queries` fixed: a week of reading is 22 sessions, and
 // asking for each one's objectives separately re-read and re-parsed the graph

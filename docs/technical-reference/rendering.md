@@ -111,6 +111,21 @@ batch does them in seconds. A line the translator refuses refuses the whole rend
 Wolof file with one French line left in it reads as finished. Translation spends a metered backend,
 so it needs a role in the workspace.
 
+A run can be pinned: `{text, translate: false}` is kept as written on the derived line and never
+sent to the translator. The CI-maths teacher sheet prints the parenthesis after a speech line in
+French in both files, black and not bold; the four amorce answers once came back translated and in
+the speech colour. The colour half is the formatter's: give the run a `style` the stack defines
+(run styles are honoured, an undefined one is warned about by `lint_content` and falls back to the
+line's), and the pinning half is `translate: false`.
+
+**A float anchored on a per-file line exists once per file.** A floated picture rides the line it
+is declared on. When that line is speech (`variant: "fr"`) rather than a shared line, the Wolof file
+does not contain it — so the picture, and anything else on that line, must be declared on the
+Wolof twin as well, or the Wolof file prints without it. With `translateInto` the server copies the
+runs, pictures included, so a derived twin carries the float; a tree that carries both languages
+itself has to carry the picture twice. Prefer anchoring a float on a shared line (a `[N]` line, a
+banner) where the section has one.
+
 ### The teacher's copy — `mark: "answer"`
 
 The teacher's fiche shows each band with a check on the correct cell; the pupil's file shows it
@@ -211,7 +226,11 @@ the defect a page count never shows — a band anchored to a one-line activity, 
 beside it and drawn 0.36 cm into it, found by opening the PDF because the count and the whitespace
 were both fine. The render response lifts every overlap to the file's own `overlaps`, with its page.
 A pictogram set flush against its neighbours' glyph boxes is not an overlap: two boxes share ink only
-past half a millimetre in both directions.
+past half a millimetre in both directions. And a picture set **in** a line — no taller than one and
+a half word heights — is never listed against the words beside it, only counted (`inlineTouches`):
+fifteen half-millimetre touches by 0.42 cm section markers once buried the single band-over-band
+that mattered, and a reader had to filter the list by picture size to see it was empty. A band is
+several lines tall and stays checked.
 
 And **`gaps`**: white between two consecutive lines that no picture explains — a step of more than
 one and a half line pitches, the pitch read off the page itself, with no picture spanning it. That is
@@ -226,6 +245,14 @@ LibreOffice substitutes a missing face silently, the glyph advances change, and 
 follows describes a document nobody receives — the check a separate measuring agent used to make.
 With pages, reserve, overlaps, gaps and fonts on the render itself, a server-rendered file is
 measured once; the plugin's `mesureur` now measures only files the server did not render.
+
+And **`pagePictures`**: with `measure: true`, `pagePictures: true` rasterises each page of the same
+PDF to a PNG at screen resolution (`pdftoppm`, 72 dpi, tens of KB a page) and drops it beside the
+file under `previews/` — `<file>-p1.png`, `-p2.png` — listed per file as `pagePictures[]` with the
+same ten-minute life. That is the look the numbers cannot give: a band cropping a banner, a check
+drawn in the wrong cell, a bullet whose second line reads badly. Before it, seeing a page meant
+installing Andika and LibreOffice on the laptop, converting, and rasterising — four minutes of a
+36-minute run, after the server had already produced every number. Off by default, like measuring.
 
 **The layout engine is warmed once and copied per call.** LibreOffice's first start with a profile
 scans every installed font and builds its registry; every conversion used a fresh profile, so every

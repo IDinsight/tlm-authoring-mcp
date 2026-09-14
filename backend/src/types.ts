@@ -101,8 +101,11 @@ export interface StorageAdapter {
   // documents/ keyspace, never logged to history. Optional on the interface so
   // storage backends that don't support previews (and test stubs) can omit it;
   // the preview tool checks for its presence. `objectKey` proves segregation
-  // (it lives under previews/, invisible to reconcile/list_documents).
-  createPreviewUpload?(relPath: string): Promise<{ uploadUrl: string; downloadUrl: string; objectKey: string; contentType: string; expiresAt: string }>;
+  // (it lives under previews/, invisible to reconcile/list_documents). The
+  // object is a .docx unless `contentType` says otherwise — a measured render
+  // also drops a PNG of each page there, so a page can be looked at without
+  // laying the file out again locally.
+  createPreviewUpload?(relPath: string, contentType?: string): Promise<{ uploadUrl: string; downloadUrl: string; objectKey: string; contentType: string; expiresAt: string }>;
   readHistory(): Promise<HistoryFile | null>;
   writeHistory(h: HistoryFile): Promise<void>;
 }

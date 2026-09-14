@@ -124,6 +124,21 @@ describe("deriving the language a tree does not carry", () => {
     expect(derived).toMatchObject({ kind: "line", variant: "wo", style: "bullet" });
   });
 
+  it("leaves a run marked translate:false as written, and does not send it to the translator", async () => {
+    // The parenthesis after a speech line prints in French in the Wolof file
+    // too; the four amorce answers once came back translated and coloured.
+    const sent: string[] = [];
+    const recording = async (texts: string[]) => { sent.push(...texts); return texts.map((text) => `WO(${text})`); };
+    const pinned: DocumentTree = { media: [], blocks: [
+      { kind: "line", variant: "fr", runs: [{ text: "Quel signe manque ? " }, { text: "(une croix)", translate: false }] },
+    ] };
+    const out = await deriveVariant(pinned, "fr", "wo", "fr", "wo", recording);
+    const derived = out.blocks[1];
+    if (derived.kind !== "line") throw new Error("expected a line");
+    expect(derived.runs).toEqual([{ text: "WO(Quel signe manque ? )" }, { text: "(une croix)", translate: false }]);
+    expect(sent).toEqual(["Quel signe manque ? "]);
+  });
+
   it("carries pictures across untranslated", async () => {
     const withImage: DocumentTree = { media: [], blocks: [
       { kind: "line", variant: "fr", runs: [

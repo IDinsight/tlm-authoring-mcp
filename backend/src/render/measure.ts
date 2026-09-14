@@ -19,7 +19,7 @@
  * without them keeps working with page counts absent instead of wrong.
  */
 import { execFile } from "node:child_process";
-import { mkdtemp, writeFile, rm, readdir, cp } from "node:fs/promises";
+import { mkdtemp, writeFile, readFile, rm, readdir, cp } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { promisify } from "node:util";
@@ -170,6 +170,8 @@ export type PageMeasurement = {
   images: PageImage[];
   /** Marks that share ink. Empty is the answer wanted; it is only trustworthy with `images` filled. */
   overlaps: Overlap[];
+  /** Pictures set IN a line (no taller than one) whose box touches the words beside them — counted, never listed. */
+  inlineTouches: number;
   /** White between lines that no picture explains — a `clear` nothing needed, usually. Trustworthy only with `images` filled. */
   gaps: Gap[];
 };
@@ -191,6 +193,8 @@ export type Measurement =
       elapsedMs: { layout: number; read: number };
       /** Whether the layout engine started from the warmed profile (false = a cold start, the slow case). */
       warmProfile: boolean;
+      /** A PNG of each page at screen resolution, when asked for (`pagePictures`) and `pdftoppm` is present. */
+      pagePictures?: Buffer[];
     };
 
 /*
@@ -296,24 +300,47 @@ function verticalOverlapPt(a: Box, b: Box): number {
   return across > OVERLAP_TOLERANCE_PT && down > OVERLAP_TOLERANCE_PT ? down : 0;
 }
 
-function overlapsOn(words: Word[], images: Box[]): Overlap[] {
-  const found: Overlap[] = [];
+/*
+ * A picture set IN a line — a pictogram, a section marker — is no taller than
+ * the line, and touching the words beside it is its job. Fifteen half-
+ * millimetre touches by 0.42 cm pictograms once buried the one overlap that
+ * mattered (Leçon 25, third run), so a picture no taller than one and a half
+ * word heights is exempt from the text check and only counted. A band is
+ * several lines tall and stays checked.
+ */
+const INLINE_HEIGHT_FACTOR = 1.5;
+
+function typicalWordHeightPt(words: Word[]): number | null {
+  if (words.length === 0) return null;
+  const heights = words.map((word) => word.bottom - word.top).sort((a, b) => a - b);
+  return heights[Math.floor(heights.length / 2)];
+}
+
+function overlapsOn(words: Word[], images: Box[]): { overlaps: Overlap[]; inlineTouches: number } {
+  const overlaps: Overlap[] = [];
+  let inlineTouches = 0;
+  const wordHeight = typicalWordHeightPt(words);
+  const isInline = (image: Box) => wordHeight !== null && image.bottom - image.top <= wordHeight * INLINE_HEIGHT_FACTOR;
+
   images.forEach((image, i) => {
     images.slice(i + 1).forEach((other, j) => {
       const down = verticalOverlapPt(image, other);
-      if (down > 0) found.push({ kind: "image-over-image", images: [i + 1, i + j + 2], overlapCm: round(ptToCm(down)) });
+      if (down > 0) overlaps.push({ kind: "image-over-image", images: [i + 1, i + j + 2], overlapCm: round(ptToCm(down)) });
     });
     const covered = words.filter((word) => verticalOverlapPt(image, word) > 0);
-    if (covered.length > 0) {
-      const deepest = Math.max(...covered.map((word) => verticalOverlapPt(image, word)));
-      found.push({
-        kind: "image-over-text", image: i + 1, words: covered.length,
-        text: covered.slice(0, 6).map((word) => word.text).join(" ") + (covered.length > 6 ? " …" : ""),
-        overlapCm: round(ptToCm(deepest)),
-      });
+    if (covered.length === 0) return;
+    if (isInline(image)) {
+      inlineTouches += 1;
+      return;
     }
+    const deepest = Math.max(...covered.map((word) => verticalOverlapPt(image, word)));
+    overlaps.push({
+      kind: "image-over-text", image: i + 1, words: covered.length,
+      text: covered.slice(0, 6).map((word) => word.text).join(" ") + (covered.length > 6 ? " …" : ""),
+      overlapCm: round(ptToCm(deepest)),
+    });
   });
-  return found;
+  return { overlaps, inlineTouches };
 }
 
 /*
@@ -393,7 +420,7 @@ export function measurePages(wordPages: Word[][], imagePages: Box[][], heightPt:
         leftCm: round(ptToCm(i.left)), rightCm: round(ptToCm(i.right)),
         widthCm: round(ptToCm(i.right - i.left)), heightCm: round(ptToCm(i.bottom - i.top)),
       })),
-      overlaps: overlapsOn(words, images),
+      ...overlapsOn(words, images),
       gaps: gapsOn(words, images),
     };
   });
@@ -415,7 +442,17 @@ export type MeasureOptions = {
   /** Override the LibreOffice binary; some images ship it as `libreoffice`. */
   soffice?: string;
   timeoutMs?: number;
+  /** Also rasterize each page to a PNG (`pagePictures` on the result) — a look at the page without a local layout engine. */
+  pagePictures?: boolean;
 };
+
+/*
+ * Screen resolution: an A4 page at 72 dpi is 595 × 842 px, enough to see a
+ * band cropping a banner or a check drawn in the wrong cell, and small enough
+ * (tens of KB) that a two-page fiche in two languages stays a handful of
+ * files. Print resolution would be ten times the bytes for no extra judgment.
+ */
+const PAGE_PICTURE_DPI = 72;
 
 /**
  * Lay a .docx out and report what came back.
@@ -486,6 +523,16 @@ export async function measureDocx(bytes: Buffer, options: MeasureOptions = {}): 
       const { stdout } = await run("pdftohtml", ["-xml", "-zoom", "1", "-noroundcoord", "-q", "-stdout", pdfPath], { timeout, maxBuffer: 64 * 1024 * 1024 });
       images = parseImages(stdout, info.heightPt);
     }
+    // The pictures of the pages, from the same PDF the numbers came from: what
+    // the numbers cannot say — a band cropping a banner, a check in the wrong
+    // cell — without installing the font and the office suite locally to see it.
+    let pagePictures: Buffer[] | undefined;
+    if (options.pagePictures && (await which("pdftoppm"))) {
+      await run("pdftoppm", ["-png", "-r", String(PAGE_PICTURE_DPI), pdfPath, join(dir, "page")], { timeout });
+      // pdftoppm pads the page number to one width per run, so the names sort.
+      const names = (await readdir(dir)).filter((name) => /^page-\d+\.png$/.test(name)).sort();
+      pagePictures = await Promise.all(names.map((name) => readFile(join(dir, name))));
+    }
 
     return {
       available: true,
@@ -498,6 +545,7 @@ export async function measureDocx(bytes: Buffer, options: MeasureOptions = {}): 
       fonts,
       elapsedMs: { layout: layoutMs, read: Date.now() - startedRead },
       warmProfile: profile.warm,
+      ...(pagePictures ? { pagePictures } : {}),
     };
   } catch (error) {
     const timedOut = /ETIMEDOUT|timed out|SIGTERM/i.test((error as Error).message);

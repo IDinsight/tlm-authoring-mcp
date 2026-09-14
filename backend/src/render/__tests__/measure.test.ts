@@ -177,6 +177,25 @@ describe("reading where the pictures landed", () => {
     const words = [[{ top: 100, bottom: 114, left: 42, right: 61, text: "Sept" }]];
     const [page] = measurePages(words, images, A4_PT);
     expect(page.overlaps).toEqual([]);
+    expect(page.inlineTouches).toBe(0);
+  });
+
+  it("counts a pictogram set in a line that reaches into its words, and does not list it", () => {
+    // A 12 pt section marker 2 pt into the word beside it: fifteen of these on
+    // one page once buried the single band-over-band that mattered.
+    const images = [[{ top: 100, bottom: 112, left: 42, right: 54 }]];
+    const words = [[{ top: 100, bottom: 114, left: 52, right: 90, text: "Nous" }]];
+    const [page] = measurePages(words, images, A4_PT);
+    expect(page.overlaps).toEqual([]);
+    expect(page.inlineTouches).toBe(1);
+  });
+
+  it("still lists a band — taller than a line — drawn over words", () => {
+    const images = [[{ top: 100, bottom: 146, left: 42, right: 254 }]];
+    const words = [[{ top: 140, bottom: 154, left: 42, right: 90, text: "RÉPONSE" }]];
+    const [page] = measurePages(words, images, A4_PT);
+    expect(page.overlaps).toEqual([{ kind: "image-over-text", image: 1, words: 1, text: "RÉPONSE", overlapCm: 0.21 }]);
+    expect(page.inlineTouches).toBe(0);
   });
 
   it("keeps the words-only entry point working, with the picture fields empty", () => {
@@ -302,6 +321,18 @@ describe.skipIf(!hasEngine)("measuring a page this renderer produced", () => {
     const [page] = result.perPage;
     expect(page.overlaps).toEqual([]);
     expect(page.images[1].topCm - page.images[0].bottomCm).toBeLessThan(0.2);
+  }, 60_000);
+
+  it("returns a PNG of each page when asked, from the same PDF the numbers came from", async () => {
+    const bytes = renderDocx({ media, blocks: [activity("Quel signe manque ?")] }, spec.spec);
+    const result = await measureDocx(bytes, { pagePictures: true });
+    if (!result.available) throw new Error(result.reason);
+    expect(result.pagePictures).toHaveLength(result.pages);
+    // A PNG starts with its signature; anything else is not a picture.
+    expect(result.pagePictures![0].subarray(0, 4)).toEqual(Buffer.from([0x89, 0x50, 0x4e, 0x47]));
+    const unasked = await measureDocx(bytes);
+    if (!unasked.available) throw new Error(unasked.reason);
+    expect(unasked.pagePictures).toBeUndefined();
   }, 60_000);
 });
 

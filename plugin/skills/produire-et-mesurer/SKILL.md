@@ -224,6 +224,13 @@ d'un bandeau, une image flottante qui rogne un titre. Cela revient à **`relecte
 sur le rendu final. Le fil principal n'ouvre pas les images d'une page pour compter : compter, c'est
 `mesureur`, et lui ne remonte que des nombres.
 
+**Les images des pages viennent du serveur.** `render_document` avec `measure:true` et
+`pagePictures:true` rend, à côté de chaque fichier, un PNG de chaque page (`pagePictures[]`, même
+durée de vie que le fichier). C'est cela qu'on regarde, et c'est cela qu'on donne au `relecteur`.
+On n'installe pas la police ni LibreOffice sur le poste pour convertir et voir : la dernière fois,
+quatre minutes d'une production de trente-six y sont passées, après que le serveur avait déjà
+rendu tous les nombres.
+
 Rends compte de ce que tu as mesuré, et de comment tu l'as mesuré.
 
 ## Preview output is segregated — keep it that way
