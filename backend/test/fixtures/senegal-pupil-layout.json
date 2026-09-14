@@ -1,0 +1,96 @@
+{
+  "templates": [
+    {
+      "name": "lecon",
+      "match": { "section": "^V2 — Leçon", "root": true },
+      "blocks": [
+        {
+          "kind": "line",
+          "style": "en-tete",
+          "runs": [
+            { "text": "Unité {{covered.grouping.title}}  ·  {{covered.ordinalName|match:(Leçon \\d+)}}  ·  {{covered.name}}" }
+          ]
+        },
+        { "kind": "children" }
+      ]
+    },
+    {
+      "name": "je-fais",
+      "match": { "section": "^JE FAIS" },
+      "blocks": [
+        {
+          "kind": "table",
+          "style": "encadre",
+          "columnsCm": [9.4, 8.2],
+          "rows": [
+            [
+              {
+                "blocks": [
+                  { "kind": "line", "runs": [ { "image": { "role": "picto-section", "asset": { "relPath": "assets/picto-je-fais.svg" } } } ] },
+                  { "kind": "line", "style": "question-orale", "forEach": { "of": "covered.content.lines", "match": "^\\d+\\." }, "runs": [ { "text": "{{item}}" } ] }
+                ]
+              },
+              {
+                "blocks": [
+                  { "kind": "line", "runs": [ { "image": { "role": "amorce", "picture": "-amorce$" } } ] }
+                ]
+              }
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "name": "nous-faisons",
+      "match": { "section": "^NOUS FAISONS" },
+      "blocks": [
+        { "kind": "line", "when": { "rank": 1 }, "runs": [ { "image": { "role": "picto-section", "asset": { "relPath": "assets/picto-nous-faisons.svg" } } } ] },
+        {
+          "kind": "line",
+          "style": "directive",
+          "runs": [
+            { "image": { "role": "repere", "asset": { "byRank": ["assets/rep-etoile.svg", "assets/rep-triangle.svg", "assets/rep-carre.svg", "assets/rep-cercle.svg"] } } },
+            { "text": "  {{covered.title}}" }
+          ]
+        },
+        { "kind": "line", "runs": [ { "image": { "role": "bande", "picture": "-nf-\\d+$" } } ] }
+      ]
+    },
+    {
+      "name": "je-retiens",
+      "match": { "section": "^JE RETIENS" },
+      "blocks": [
+        {
+          "kind": "table",
+          "style": "encadre",
+          "rows": [
+            [
+              {
+                "blocks": [
+                  { "kind": "line", "runs": [ { "image": { "role": "picto-section", "asset": { "relPath": "assets/picto-je-retiens.svg" } } } ] },
+                  { "kind": "line", "runs": [ { "image": { "role": "je-retiens", "picture": "-je-retiens$" } } ] }
+                ]
+              }
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "name": "tu-fais",
+      "match": { "section": "^TU FAIS" },
+      "blocks": [
+        { "kind": "line", "when": { "rank": 1 }, "pageBreak": "before", "runs": [ { "image": { "role": "picto-section", "asset": { "relPath": "assets/picto-tu-fais.svg" } } } ] },
+        {
+          "kind": "line",
+          "style": "directive",
+          "runs": [
+            { "image": { "role": "repere", "asset": { "byRank": ["assets/rep-etoile.svg", "assets/rep-triangle.svg", "assets/rep-carre.svg", "assets/rep-cercle.svg"] } } },
+            { "text": "  {{covered.title}}" }
+          ]
+        },
+        { "kind": "line", "runs": [ { "image": { "role": "bande", "picture": "-tf-\\d+$" } } ] }
+      ]
+    }
+  ]
+}

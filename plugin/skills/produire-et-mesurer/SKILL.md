@@ -21,7 +21,9 @@ règle n'est recopiée ici, parce qu'une copie vieillit sans que rien ne le sign
 1. **Lire les entrées** — `walk_document_section`, la première section d'un document en entier,
    chaque suivante avec `include:[]`. Les règles sont la pile de mises en forme que la lecture
    renvoie, et rien d'autre. Notez au passage les valeurs du `render` que la mesure demandera.
-2. **Composer l'arbre de blocs** — dans la forme que `get_capabilities section:'document'` décrit.
+2. **Composer l'arbre de blocs** — `compose_section` d'abord : ce que les gabarits de la mise en forme
+   couvrent est rempli depuis le graphe, identique à chaque appel ; vous composez seulement ce qu'il
+   renvoie dans `unfilled`, dans la forme que `get_capabilities section:'document'` décrit.
 3. **Vérifier la page contre le graphe, AVANT tout rendu** — `lint_content` avec `document` et
    `nodeId` (voir « Vérifier la page avant de rendre »). C'est le seul allègement légitime avant le
    premier rendu : ce que la vérification signale, pas ce que vous estimez. Un refus de vérifier est
