@@ -20,8 +20,12 @@
 
 import type { CurriculumModel, RawGraphSnapshot } from "../types.js";
 import type { Block, Cell, Run } from "../render/index.js";
-import type { LayoutTemplate, TemplateBlock, TemplateCell } from "../kg-recipes/index.js";
+import type { GuideGrammar, LayoutTemplate, TemplateBlock, TemplateCell } from "../kg-recipes/index.js";
 import { picturesFor, type SectionPicture } from "./documents.js";
+import { compileGuide, type GuideCompileReport } from "./guide-compile.js";
+import type { MediaRef, RatioOf } from "./compose-types.js";
+
+export type { MediaRef, RatioOf } from "./compose-types.js";
 
 type RawNode = RawGraphSnapshot["nodes"][number];
 
@@ -35,15 +39,18 @@ const titleOf = (node: RawNode | undefined): string => String(props(node).descri
 const stringProp = (node: RawNode | undefined, key: string): string => { const v = props(node)[key]; return typeof v === "string" ? v : ""; };
 const positionOf = (node: RawNode): number => { const p = props(node).position; return typeof p === "number" ? p : Number.MAX_SAFE_INTEGER; };
 
-/** A picture reference the composer resolves to a media entry the renderer takes. */
-export type MediaRef = { name: string; nodeId: string; mark?: "answer" } | { name: string; relPath: string };
-
-/** How the composer learns a picture's shape: the file's width over its height, or null when unreadable. */
-export type RatioOf = (ref: MediaRef) => Promise<number | null>;
+/** What a caller may hand the composer beyond the templates: the guide grammar and the one geometry value a float needs. */
+export type ComposeOptions = {
+  grammar?: GuideGrammar;
+  /** A picture wider than this does not float (the stack's `images.fullWidthAboveAspectRatio`). */
+  floatUnlessRatioAbove?: number;
+};
 
 export type ComposeResult = {
   blocks: Block[];
   media: MediaRef[];
+  /** What the guide compiler did per section a template handed it — lines printed and kept, pictures placed, what it could not resolve. */
+  compiled: GuideCompileReport[];
   /*
    * The model's part: child sections (or the root) that matched no template,
    * and every HOLE a template left (`{kind:"unfilled"}`). `insertAt` is the
@@ -145,6 +152,12 @@ type Filler = {
   ratioOf: RatioOf;
   media: Map<string, MediaRef>;
   problems: string[];
+  /** The grammar a `guide` block compiles by; absent, such a block is a hole with a problem. */
+  grammar?: GuideGrammar;
+  floatUnlessRatioAbove?: number;
+  /** The pictures of the page being composed — a phase may name a picture the lesson, not the phase, carries. */
+  pagePictures: SectionPicture[];
+  compiled: GuideCompileReport[];
 };
 
 type LineTemplate = Extract<TemplateBlock, { kind: "line" }>;
@@ -204,6 +217,31 @@ async function fillBlocks(blocks: TemplateBlock[], facts: SectionFacts, filler: 
   for (const block of blocks) {
     if (block.kind === "children") { out.push(...children); continue; }
     if (block.kind === "unfilled") { out.push({ kind: HOLE, sectionId: facts.section.id } as unknown as Block); continue; }
+    if (block.kind === "guide") {
+      // Without a grammar the block is a hole, and said so: the template asked
+      // for a compilation the stack cannot do, which is a formatter defect.
+      if (!filler.grammar) {
+        filler.problems.push(`« ${titleOf(facts.section)} »: the template compiles the section's guide, but no formatter on the stack declares 'layout.guide' (the grammar); the section is left as a hole.`);
+        out.push({ kind: HOLE, sectionId: facts.section.id } as unknown as Block);
+        continue;
+      }
+      const seen = new Set(facts.pictures.map((p) => p.id));
+      const compiled = await compileGuide({
+        guide: String((props(facts.section).metadata as { assemblyGuide?: unknown } | undefined)?.assemblyGuide ?? ""),
+        grammar: filler.grammar,
+        sectionId: facts.section.id,
+        sectionTitle: titleOf(facts.section),
+        pictures: [...facts.pictures, ...filler.pagePictures.filter((p) => !seen.has(p.id))],
+        vars: block.vars ?? {},
+        ratioOf: filler.ratioOf,
+        media: filler.media,
+        ...(filler.floatUnlessRatioAbove !== undefined ? { floatUnlessRatioAbove: filler.floatUnlessRatioAbove } : {}),
+      });
+      out.push(...compiled.blocks);
+      filler.compiled.push(compiled.report);
+      for (const item of compiled.report.unresolved) filler.problems.push(`« ${titleOf(facts.section)} »: ${item.reason} — « ${item.line} »`);
+      continue;
+    }
     if ((block.kind === "line" || block.kind === "table") && block.when && block.when.rank !== facts.rank) continue;
     if (block.kind === "spacer") { out.push({ kind: "spacer", sizePt: block.sizePt, leadingPt: block.leadingPt }); continue; }
     if (block.kind === "clear") { out.push({ kind: "clear" }); continue; }
@@ -260,14 +298,19 @@ function factsFor(model: CurriculumModel, raw: RawGraphSnapshot, section: RawNod
  * whose pattern matches its title. A section no template matches is reported
  * in `unfilled`, and its place in the page is left for the model.
  */
-export async function composeSection(model: CurriculumModel, sectionId: string, templates: LayoutTemplate[], ratioOf: RatioOf): Promise<ComposeResult | null> {
+export async function composeSection(model: CurriculumModel, sectionId: string, templates: LayoutTemplate[], ratioOf: RatioOf, options: ComposeOptions = {}): Promise<ComposeResult | null> {
   const raw = model.rawGraph;
   if (!raw) return null;
   const section = raw.nodes.find((n) => n.id === sectionId);
   if (!section || !labelsOf(section).includes(SECTION_LABEL)) return null;
 
-  const filler: Filler = { raw, ratioOf, media: new Map(), problems: [] };
-  const result: ComposeResult = { blocks: [], media: [], unfilled: [], used: [], problems: filler.problems };
+  const filler: Filler = {
+    raw, ratioOf, media: new Map(), problems: [], compiled: [],
+    pagePictures: picturesFor(model, sectionId) ?? [],
+    ...(options.grammar ? { grammar: options.grammar } : {}),
+    ...(options.floatUnlessRatioAbove !== undefined ? { floatUnlessRatioAbove: options.floatUnlessRatioAbove } : {}),
+  };
+  const result: ComposeResult = { blocks: [], media: [], compiled: filler.compiled, unfilled: [], used: [], problems: filler.problems };
   const childTemplates = templates.filter((t) => !t.match.root);
   const rootTemplates = templates.filter((t) => t.match.root);
 

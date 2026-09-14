@@ -40,7 +40,9 @@ const byLabel = (label, re) => graph.nodes.find((n) => (n.labels ?? []).includes
 const fmt = byLabel("Formatter", FORMATTER);
 const tlm = byLabel("TeachingLearningMaterial", DOCUMENT);
 if (!fmt || !tlm) { console.error("anchor nodes missing", { fmt: !!fmt, tlm: !!tlm }); process.exit(1); }
-if (fmt.properties.layout) { console.error("the formatter already carries a layout bag — this script writes a first one"); process.exit(1); }
+// A first write only, unless --replace: the bag is a curator's to edit live
+// afterwards (edit_nodes on `layout`), and a silent overwrite would lose that.
+if (fmt.properties.layout && !args.includes("--replace")) { console.error("the formatter already carries a layout bag — pass --replace to overwrite it with the fixture"); process.exit(1); }
 
 const problems = validateLayoutSpec(LAYOUT, "set-fiche-layout");
 if (problems.length) { console.error("layout refused by the schema:\n" + problems.join("\n")); process.exit(1); }

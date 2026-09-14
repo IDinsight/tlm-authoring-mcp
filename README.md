@@ -138,6 +138,14 @@ Drop `--dry-run` to write. The import parses the graph, serialises it to the sto
 
 **6. Deploy the code, then check it live.** The profile is code, so a data-only re-import is not enough: the running server must also carry the new profile module or `set_context` will refuse the namespace ("no subject adapter is registered"). Deploy via the [Deploy to Cloud Run](.github/workflows/deploy.yml) workflow, then `set_context(workspace, grade, subject)` and `namespace_stats` against the live server.
 
+**7. Say what its pages look like — as data on its formatters, never as code.** Once the graph carries a document (`create_document`, `add_section`) and a formatter (`use_formatter`), three bags on that formatter drive production, all validated at `edit_nodes` time and all changed live without a deploy:
+
+- `render` — the geometry: page, type, block styles, image sizes, page budget ([design note](docs/design-notes/formatter-render-spec.md));
+- `layout` — the structure: templates the composer fills from the graph, one per section shape, with placeholders (`{{covered.title}}`, an attached picture by name, a fixed asset by rank) and, where a section's own lines are wanted, `{kind: "guide"}`;
+- `layout.guide` — the **guide grammar**: how a section's assembly guide reads as page lines — which line prefixes print and in which voice, how a phrase of the repertoire is called and what it says, how a picture is named and marked, which inline assets a line may carry ([design note](docs/design-notes/layout-templates.md)).
+
+Plus `lintRules`, the subject's own line checks ([design note](docs/design-notes/data-driven-lint-rules.md)). `compose_section` then produces the page from the graph with no model, `lint_content` checks it, `render_document` lays it out and measures it. The server knows block kinds, placeholders, three grammar motifs and matching; it knows no prefix, phrase or glyph of any subject, so a new subject with line-structured guides declares its own grammar and nothing under `src/` changes. A subject whose guides are prose declares none: its sections come back as holes for a model to compose. The CI-maths teacher sheet's bags are the worked example: `backend/test/fixtures/senegal-fiche-layout.json` (templates + grammar + the 32-phrase repertoire) and `senegal-fiche-lint-rules.json`.
+
 > **Note on where the profile really lives.** The in-repo literal is the *registration check* and the seed source. On a live server, `activateContext` builds the adapter from the namespace's **stored** config cell — the store is the source of truth. Edit a live profile or guide through `edit_profile` (curator-gated, two-phase, publishes with the graph). `scripts/write-profile.mjs` is the repair path for a cell too invalid to activate.
 
 Fuller walkthrough: [technical reference → architecture & extending](docs/technical-reference/architecture-and-extending.md).
@@ -146,7 +154,7 @@ Fuller walkthrough: [technical reference → architecture & extending](docs/tech
 
 1. `set_context(workspace, grade, subject)` — pick what you're working on. `start_here` orients you: where you are, what your role allows, what is unfinished.
 2. Read what you're generating — `walk_document` for a whole document, `walk_document_section` for a single piece — each returns the subtree plus the instructional **routines** and **formatters** that apply. `get_terminology` supplies the glossary.
-3. Generate the `.docx`.
+3. Produce the page: `compose_section` fills the formatter's templates and compiles the section guides from the graph (no model — what it cannot fill it reports as `unfilled` or `problems`), `lint_content` checks the tree against the graph and the formatter's rules, `render_document` lays it out into a `.docx`, measures it and can return a picture of each page.
 4. `create_upload_url(relPath)` → `PUT` the file to the signed URL (no large payloads through MCP).
 5. `log_generation(nodeId, relPath, content)` — records what you produced against the **scope node** the document covers (md5 read from storage).
 6. `evaluate_document` scores it against the evaluation rubrics attached to that document.

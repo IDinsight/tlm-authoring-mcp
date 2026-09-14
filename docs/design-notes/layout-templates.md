@@ -86,16 +86,65 @@ the matériel line pulled out of the fiche's own guide (`{{section.guide|match:^
 their colours and pictograms, each followed by a hole. A picture in a template may ask for the
 teacher's copy (`mark: "answer"`), which the composer names apart from the plain band.
 
-What a hole leaves to the model is exactly the prefixed-line grammar of the guides — `[N]`, `[FR]`,
-`[IMAGE : …]`, `{pt:…}`, `{img:…}` — which is deterministic too and is the next thing a template
-could take over: an order-preserving walk of a section's guide lines, routing each by prefix. That is
-a compiler of the guide grammar rather than a template, and it is not built.
+What a hole left to the model was exactly the prefixed-line grammar of the guides — `[N]`, `[FR]`,
+`[IMAGE : …]`, `{pt:…}`, `{img:…}` — which is deterministic too. It is now compiled (below).
+
+## Guide blocks — the grammar compiled (2026-09-14, evening)
+
+The fourth production of the same fiche, run after the skeleton went live, still spent its largest
+avoidable share composing the nine phases by hand: a hundred and fifteen block operations written by
+script, pasted twice after an index error, and patch paths recomputed by rebuilding the tree locally.
+The phase guides are not prose, though. Every line of a CI-maths phase guide is one of three things
+— a printed line whose prefix names its voice, a marker that opens a picture block, a call to a
+phrase of the repertoire — or specification that never prints; a census of the 465 phase sections
+found nothing else. So a template may now hand a section's guide to the server: `{kind: "guide"}`
+in place of `{kind: "unfilled"}`, and the composer writes the phase (`curriculum/guide-compile.ts`).
+
+**The grammar is data, beside the templates.** The same `layout` bag declares `guide`:
+
+| key | what it declares | CI maths |
+|---|---|---|
+| `line.pattern` | a printed line, with `(?<prefix>)` and `(?<text>)` groups; `line.style` its block style | `^\[(?<prefix>[A-Z]+!?)\]\s*(?<text>.*)$`, style `puce` |
+| `prefixes` | prefix → voice, the render variant the line prints in; a prefix not listed is a reported defect | `N`, `N!` → `N`; `FR`, `FR!` → `FR` |
+| `call.pattern`, `call.phrases` | a phrase call, `(?<id>)` and `(?<args>)`; the repertoire as id → text with `⟨slots⟩`; `markerSlot` names the slot a marker argument fills | `{pt:PT-07 …}`; 32 phrases |
+| `inline.pattern`, `inline.assets` | an asset set in the line, `(?<name>)` → file and role | `{img:picto-je-fais}` → `assets/picto-je-fais.svg`, role `picto-section` |
+| `image.pattern`, `image.roles`, `image.mark` | a picture block, `(?<name>)` and optional `(?<marker>)`; the role by name; the teacher's copy | `▲ [IMAGE : L25-nf-2]`; `-amorce$` → amorce, else bande; `mark: answer` |
+| `markers` | marker glyph → the inline asset its pastille is | ★ ▲ ■ ● → `rep-etoile` … |
+| `trailing` | the end of a speech line printed apart, in its own style, untranslated | `(…)` on `FR` lines → style `parenthese` |
+
+**What the compiler does with a line**, in order: an `image` match opens a block — the attached
+picture of that name floats on the block's first printed line (or a line of its own if none
+follows), its marker becomes that line's pastille unless the phrase the line calls already set it
+(« une seule pastille par activité »); a `line` match prints in its prefix's voice, its calls
+replaced by the repertoire's text with slots filled from the template's `vars` (the phase's
+pictogram), the marker argument and the free argument, its inline tokens set as image runs, its
+trailing parenthesis split off; anything else stays in the guide. A picture wider than the stack's
+`images.fullWidthAboveAspectRatio` does not float, the same threshold the page rule checks. The
+teacher's copy (`mark`) is drawn only on a picture that records its correct cell.
+
+**What it reports and never invents.** Per section, `compiled[]` says how many lines printed, how
+many stayed in the guide, how many pictures were placed, and lists what could not be resolved — a
+picture no attached Material carries, a phrase the repertoire lacks, a slot nothing fills (a
+`{pt:PT-07}` without its example), a prefix the formatter does not know — each also under
+`problems`, so `complete` is false. A line with an unfilled slot does not print half-made. The
+model's part is to read the page, fix the guide where the report says, and re-compose.
+
+**Why it stays generic.** The code knows no prefix, no phrase number and no glyph of any subject;
+its tests run on an invented grammar (« M : », « É : », `<R-12>`, `(photo : …)`) as well as on the
+CI-maths one. A second subject with line-structured guides declares its own grammar on its own
+formatter; a subject whose guides are prose declares none and keeps its holes. The grammar is kept
+to three motifs on purpose: what needs two lines to judge — a response following its question — is
+a lint rule's business, and a richer grammar would be a language a curator could no longer edit.
 
 ## Seams
 
 - Templates match by section title. A subject whose sections are not named by kind needs another
   match key; none has asked yet.
-- A phase's lines still come from the model: the guide grammar is not compiled (see *Holes* above).
+- The grammar reads one line at a time. A constraint across lines is a declared lint rule, not a
+  grammar rule.
+- The marker slot of a phrase is filled with the asset's NAME; a repertoire that wants the pastille
+  set in line wraps the slot in its own inline syntax (`{img:⟨repère⟩}`). That is a convention of
+  the data, stated here because the code cannot check it.
 - A picture's ratio is read from its file, so composing needs the bucket. Where storage cannot be
   read the picture is a `problem`, never a guess.
 - The answer signs under a band's cells (a rule newer than the delivered corpus) are not yet in the

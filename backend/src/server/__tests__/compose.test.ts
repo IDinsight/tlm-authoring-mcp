@@ -179,7 +179,8 @@ describe("the teacher fiche skeleton — banners from the graph, holes for the m
 
   it("writes the header from the lesson's ordinal and name, and the matériel from the fiche's own guide", async () => {
     const result = (await withActiveContext(CURATOR, () => composeSection(getActiveAdapter().model(), ficheId, FICHE.templates, ratioOf)))!;
-    expect(result.problems).toEqual([]);
+    // Composed without the grammar here: the phases are holes and say so; the header is what this test reads.
+    expect(result.problems.filter((p) => !/layout\.guide/.test(p))).toEqual([]);
     const header = result.blocks[0] as any;
     expect(header.rows[0].map((c: any) => c.style)).toEqual(["bandeau-semaine", "bandeau-lecon", "bandeau-jour"]);
     // Leçon 4 is week ⌈4/5⌉ = 1, day ((4−1) mod 5)+1 = 4 — arithmetic the composer does once.
@@ -189,8 +190,36 @@ describe("the teacher fiche skeleton — banners from the graph, holes for the m
     expect(result.media.map((m) => m.name)).toContain("picto-materiel.svg");
   });
 
-  it("lays the nine phase banners in order, the séance 2 banner starting the page, and leaves a hole per phase", async () => {
+  it("compiles every phase from its guide when the stack declares the grammar — no hole, no prefix, no call left on the page", async () => {
+    const result = (await withActiveContext(CURATOR, () => composeSection(getActiveAdapter().model(), ficheId, FICHE.templates, ratioOf, { grammar: FICHE.guide, floatUnlessRatioAbove: 7 })))!;
+    // The nine phases were handed to the compiler, and none is left to the model.
+    expect(result.unfilled).toEqual([]);
+    expect(result.compiled.map((c) => c.title.split(" — ")[0])).toEqual(["PHASE 1", "PHASE 2", "PHASE 3", "PHASE 4", "PHASE 5", "PHASE 6", "PHASE 7", "PHASE 8", "PHASE 9"]);
+    expect(result.compiled.reduce((n, c) => n + c.printed, 0)).toBeGreaterThan(20);
+    // What the grammar routes: a printed line has its voice and its style, and
+    // carries neither the prefix nor a call nor an inline token in clear.
+    const lines = result.blocks.filter((b: any) => b.kind === "line" && b.style === "puce") as any[];
+    expect(lines.length).toBeGreaterThan(20);
+    for (const line of lines) {
+      expect(["N", "FR"]).toContain(line.variant);
+      const text = line.runs.map((r: any) => r.text ?? "").join("");
+      expect(text).not.toMatch(/^\[(N|FR)!?\]/);
+      expect(text).not.toMatch(/\{pt:|\{img:|\[IMAGE :/);
+    }
+    // A phrase call became the repertoire's words, with the phase's pictogram set in line.
+    const phase4 = result.compiled.find((c) => c.title.startsWith("PHASE 4"))!;
+    const phase4Lines = lines.filter((l) => l.anchor === phase4.sectionId);
+    expect(phase4Lines.some((l) => l.runs.some((r: any) => r.image?.media === "picto-nous-faisons.svg"))).toBe(true);
+    // The unprinted lines stayed in the guide, and are counted.
+    expect(result.compiled.every((c) => c.kept > 0)).toBe(true);
+    // What could not be resolved is on the report AND under problems, never on the page.
+    for (const c of result.compiled) for (const u of c.unresolved) expect(result.problems.join("\n")).toContain(u.reason);
+    expect(documentSchema.safeParse({ blocks: result.blocks, media: result.media }).success).toBe(true);
+  });
+
+  it("lays the nine phase banners in order, the séance 2 banner starting the page, and — with no grammar on the stack — leaves a hole per phase and says why", async () => {
     const result = (await withActiveContext(CURATOR, () => composeSection(getActiveAdapter().model(), ficheId, FICHE.templates, ratioOf)))!;
+    expect(result.problems.filter((p) => /layout\.guide/.test(p))).toHaveLength(9);
     const banners = result.blocks.slice(3).filter((b: any) => styleOf(b)?.startsWith("bandeau-phase")).map(textOf);
     expect(banners.map((t) => t.trim().split(" | ")[0])).toEqual([
       "RÉVISION", "JE FAIS, Partie 1 – Mise en situation", "JE FAIS, Partie 2 – Modelage", "NOUS FAISONS", "Je retiens", "RAPPEL", "TU FAIS", "OBJECTIVATION", "ÉVALUATION",

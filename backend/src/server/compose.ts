@@ -22,7 +22,7 @@ import { activeWorkspace } from "../context/index.js";
 import { kgNamespace } from "../kg-store/index.js";
 import { resolveLayout } from "../kg-recipes/index.js";
 import { composeSection, formatterStackFor, resolveRef, type MediaRef, type FoundNode } from "../curriculum/index.js";
-import { imageAspectRatio } from "../render/index.js";
+import { imageAspectRatio, resolveRenderSpec } from "../render/index.js";
 import { getStorageAdapter } from "../storage/index.js";
 import { readActiveGraphWithSlot } from "./catalog.js";
 import { withContextOverride, contextField, type WithContext } from "./context-override.js";
@@ -88,7 +88,14 @@ async function composeResolved(a: ComposeArgs): Promise<Record<string, unknown>>
     return ratioCache.get(relPath) ?? null;
   };
 
-  const result = await composeSection(model, resolved.id, layout.templates, ratioOf);
+  // The one geometry value a compiled guide needs — whether a band floats —
+  // read from the same merged render bag the renderer will lay the page out with.
+  const render = resolveRenderSpec(stack);
+  const floatUnlessRatioAbove = render.ok ? render.spec.images?.fullWidthAboveAspectRatio : undefined;
+  const result = await composeSection(model, resolved.id, layout.templates, ratioOf, {
+    ...(layout.guide ? { grammar: layout.guide } : {}),
+    ...(floatUnlessRatioAbove !== undefined ? { floatUnlessRatioAbove } : {}),
+  });
   if (!result) return { error: `'${resolved.id}' is not a DocumentSection in the ${composedFrom} graph.` };
 
   const filledEverything = result.unfilled.length === 0 && result.problems.length === 0;
@@ -105,12 +112,17 @@ async function composeResolved(a: ComposeArgs): Promise<Record<string, unknown>>
     ...(parked ?? { treeRef: null }),
     used: result.used,
     unfilled: result.unfilled,
+    // Per section the grammar compiled: lines printed and kept in the guide,
+    // pictures placed, and what could not be resolved (also under `problems`).
+    ...(result.compiled.length > 0 ? { compiled: result.compiled } : {}),
     problems: result.problems,
     complete: filledEverything,
     note: layout.templates.length === 0
       ? "No formatter on this section's stack declares `layout` templates, so nothing was composed: the whole section is reported as unfilled. Author templates on the formatter (properties.layout) to compose this document without a model."
       : filledEverything
-        ? "Every section matched a template: `document` is ready for lint_content and render_document as it stands — name it by `treeRef` rather than re-sending it."
+        ? (result.compiled.length > 0
+          ? "Every section matched a template, and the guide compiler wrote the sections the templates handed it (see `compiled`: lines printed, lines kept in the guide, pictures placed). `document` is ready for lint_content and render_document as it stands — name it by `treeRef` rather than re-sending it; read the page, do not recompose it."
+          : "Every section matched a template: `document` is ready for lint_content and render_document as it stands — name it by `treeRef` rather than re-sending it.")
         : "`document` holds what the templates filled; compose the `unfilled` sections from their guide and insert them at their place — as a `patch` on `treeRef` (insert-before / insert-after at their block path), so the filled part is not retyped — then lint_content and render_document by ref. `problems` name what a template asked for and the graph lacks — fix the graph (attach_image, edit_nodes), never the page.",
   };
 }

@@ -24,10 +24,12 @@ règle n'est recopiée ici, parce qu'une copie vieillit sans que rien ne le sign
    forme que la lecture renvoie, et rien d'autre. Notez au passage les valeurs du `render` que la
    mesure demandera.
 2. **Composer l'arbre de blocs** — `compose_section` d'abord : ce que les gabarits de la mise en forme
-   couvrent est rempli depuis le graphe, identique à chaque appel, et **gardé côté serveur sous
-   `treeRef`** ; vous composez seulement ce qu'il renvoie dans `unfilled`, dans la forme que
+   couvrent est rempli depuis le graphe, identique à chaque appel, et les guides que le gabarit
+   lui confie sont compilés par le serveur (lisez `compiled` : lignes imprimées, lignes restées
+   dans le guide, ce qui n'a pas été résolu), le tout **gardé côté serveur sous `treeRef`** ; vous
+   composez seulement ce qu'il renvoie dans `unfilled`, dans la forme que
    `get_capabilities section:'document'` décrit, et vous l'insérez par `patch` sur ce `treeRef`
-   — jamais en recopiant l'arbre.
+   — jamais en recopiant l'arbre, jamais en recomposant une section compilée.
 3. **Vérifier la page contre le graphe, AVANT tout rendu** — `lint_content` avec `treeRef` (ou
    `document`) et `nodeId` (voir « Vérifier la page avant de rendre »). C'est le seul allègement
    légitime avant le premier rendu : ce que la vérification signale, pas ce que vous estimez. Un
