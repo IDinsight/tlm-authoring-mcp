@@ -18,7 +18,7 @@
                     "kind": "line",
                     "runs": [
                       {
-                        "text": "Semaine {{covered.position|ceil-div:5}}"
+                        "text": "Semaine {{covered.ordinalName|match:Leçon (\\d+)|ceil-div:5}}"
                       }
                     ]
                   }
@@ -31,7 +31,7 @@
                     "kind": "line",
                     "runs": [
                       {
-                        "text": "Leçon {{covered.position}}"
+                        "text": "Leçon {{covered.ordinalName|match:Leçon (\\d+)}}"
                       }
                     ]
                   }
@@ -44,7 +44,7 @@
                     "kind": "line",
                     "runs": [
                       {
-                        "text": "jour {{covered.position|mod-1based:5}}"
+                        "text": "jour {{covered.ordinalName|match:Leçon (\\d+)|mod-1based:5}}"
                       }
                     ]
                   }

@@ -290,6 +290,10 @@ const pictureNotAttached: PageRule = {
       .filter((name, index, all) => all.indexOf(name) === index)
       .filter((name) => {
         const entry = entries.find((candidate) => candidate.name === name);
+        // A fixed asset of the namespace — a pictogram, a pastille, named by
+        // its path — is the formatter's, not a picture of the curriculum: it
+        // has nothing to be attached to.
+        if (entry && "relPath" in entry && entry.relPath) return false;
         const attachedByNode = entry?.nodeId !== undefined && byId.has(entry.nodeId);
         return !attachedByNode && !byName.has(name);
       });

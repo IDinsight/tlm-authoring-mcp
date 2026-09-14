@@ -184,6 +184,13 @@ describe("the page and the graph agree on which pictures it carries", () => {
     expect(rulesOf(findings)).toEqual([]);
   });
 
+  it("leaves a fixed asset of the namespace alone — a pictogram named by its path is the formatter's, not a picture of the curriculum", () => {
+    const input = withMedia([picture("rep-etoile.svg")], [], [bande]);
+    input.tree.media = [{ name: "rep-etoile.svg", relPath: "assets/rep-etoile.svg" }] as unknown as typeof input.tree.media;
+    const findings = lintPage(input);
+    expect(rulesOf(findings)).not.toContain("page-picture-not-attached");
+  });
+
   it("flags an attached picture the page leaves out, as a warning with its name", () => {
     const findings = lintPage(withMedia([line("Only words.", "bullet")], [], [bande]));
     expect(rulesOf(findings)).toEqual(["page-picture-unplaced"]);
