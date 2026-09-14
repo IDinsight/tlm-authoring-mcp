@@ -11,6 +11,7 @@ export { renderDocx, usableWidthCm, imageSizeCm, floatGutterCm, PAGE_CM } from "
 export { rasterizeSvgMedia, rasterizeSvg, isSvg, isPng, mediaPartName, RASTER_LONG_SIDE_PX, type MediaBytes, type RasterRefusal } from "./raster.js";
 export { imageSize, imageAspectRatio, type ImageSize } from "./image-size.js";
 export { markAnswerCells, bandCells, type AnswerMarkStyle, type AnswerMark } from "./answer-mark.js";
+export { detectBandCells, type BandCells } from "./band-cells.js";
 export { resolveRenderSpec, type ResolvedSpec, type SpecCarrier } from "./resolve-spec.js";
 export { splitByVariant, deriveVariant, hasVariant, type Variant, type TranslateLines } from "./variants.js";
 export { measureDocx, warmLayoutEngine, parsePdfInfo, parseBBox, parseWords, parseImages, measurePages, type Measurement, type PageMeasurement, type PageImage, type Overlap, type Gap } from "./measure.js";

@@ -29,6 +29,7 @@
 import { Resvg } from "@resvg/resvg-js";
 import { imageSize } from "./image-size.js";
 import { isPng } from "./raster.js";
+import { detectBandCells } from "./band-cells.js";
 
 /** How the mark looks; every field has the formatter's stated default. */
 export type AnswerMarkStyle = {
@@ -61,24 +62,36 @@ export function markAnswerCells(bytes: Buffer, mark: AnswerMark, style: AnswerMa
   const size = imageSize(bytes);
   if (!size) throw new Error("has no readable size");
 
+  /*
+   * Where the cells are, in order of trust: read off the picture (its white
+   * gutters), else the recorded count in equal shares, else the square-vignette
+   * guess. A picture that shows a count the record contradicts is refused:
+   * one of the two is wrong, and a check drawn on either would be a key that
+   * lies with a straight face.
+   */
+  const seen = detectBandCells(bytes);
+  if (seen && mark.of !== undefined && seen.count !== mark.of) {
+    throw new Error(`records ${mark.of} cell(s) but the picture shows ${seen.count} — correct the record (metadata.answerMark.of), or the picture`);
+  }
+  const cellCount = seen?.count ?? mark.of ?? bandCells(size.width, size.height);
   const cells = mark.cells;
-  const cellCount = mark.of ?? bandCells(size.width, size.height);
   const bad = cells.filter((cell) => !Number.isInteger(cell) || cell < 1 || cell > cellCount);
   if (bad.length > 0) {
     throw new Error(
       `names cell ${bad.join(", ")} but the band has ${cellCount} cell(s)` +
-      (mark.of === undefined ? ` (guessed from its ${size.width}×${size.height} shape as square vignettes — record \`of\`, the real count, with the answer)` : ""),
+      (seen ? " (read off the picture)" : mark.of === undefined ? ` (guessed from its ${size.width}×${size.height} shape as square vignettes — record \`of\`, the real count, with the answer)` : ""),
     );
   }
 
   const { colour, sizeFraction, corner } = { ...DEFAULTS, ...style };
-  const cellWidth = size.width / cellCount;
+  const edges = seen?.edges ?? Array.from({ length: cellCount }, (_, i) => ({ left: (i * size.width) / cellCount, right: ((i + 1) * size.width) / cellCount }));
   const markSize = size.height * sizeFraction;
   const margin = size.height * 0.05;
   const strokeWidth = markSize * 0.22;
 
   const checks = cells.map((cell) => {
-    const left = (cell - 1) * cellWidth;
+    const { left, right } = edges[cell - 1];
+    const cellWidth = right - left;
     const x = corner.endsWith("right") ? left + cellWidth - margin - markSize : left + margin;
     const y = corner.startsWith("bottom") ? size.height - margin - markSize : margin;
     // A tick: down-right to the short arm's foot, then up-right to the long arm's tip.
