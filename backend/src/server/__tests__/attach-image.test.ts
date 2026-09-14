@@ -17,6 +17,8 @@ import { __setKgStoreForTest, kgNamespace, __resetMutationsForTest, __resetDraft
 import { __setStorageForTest } from "../../storage/index.js";
 import { getActiveAdapter } from "../../adapters/index.js";
 import { runAttachImage } from "../document-authoring.js";
+import { renderDocument } from "../render.js";
+import { rasterizeSvg, documentSchema } from "../../render/index.js";
 import { walkDocumentSection } from "../graph.js";
 import type { KgNodeStore } from "../../kg-store/index.js";
 import type { Actor } from "../../actor.js";
@@ -176,6 +178,62 @@ describe("attach_image — where a picture may hang", () => {
       runAttachImage({ to: lessonId, name: "bande-1", description: "second", relPath: UPLOADED }));
     expect(again.confirmationToken).toBeUndefined();
     expect(JSON.stringify(again)).toMatch(/already has a picture named 'bande-1'/);
+  });
+});
+
+describe("the answer a band records, and the teacher's copy drawn from it", () => {
+  const BAND = rasterizeSvg(Buffer.from(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 930 300"><rect width="930" height="300" fill="#fff"/></svg>`));
+  const uploads: Buffer[] = [];
+  const realFetch = globalThis.fetch;
+  const bucketServing = () => ({
+    ...bucketWith([UPLOADED]),
+    downloadObject: async (relPath: string) => (relPath === UPLOADED ? BAND : null),
+    createPreviewUpload: async (relPath: string) => ({ uploadUrl: "https://signed/put", downloadUrl: `https://signed/get/${relPath}`, objectKey: relPath, contentType: "docx", expiresAt: "" }),
+  });
+  beforeAll(() => {
+    globalThis.fetch = (async (_url: unknown, init?: { body?: unknown }) => { uploads.push(Buffer.from(init?.body as Uint8Array)); return { ok: true, status: 200, statusText: "OK" }; }) as unknown as typeof fetch;
+  });
+  afterAll(() => { globalThis.fetch = realFetch; });
+
+  const page = (name: string, nodeId: string, mark?: "answer") => ({
+    blocks: [{ kind: "line", runs: [{ image: { media: name, role: "bande", aspectRatio: 3.1, float: true } }, { text: "Quel signe manque ?" }] }],
+    media: [{ name, nodeId, ...(mark ? { mark } : {}) }],
+  });
+
+  it("records the correct cells on the node, and the section read shows them", async () => {
+    const done = await withActiveContext(CURATOR, () => confirmed({ to: lessonId, name: "bande-2", description: "Trois colliers.", relPath: UPLOADED, answerCells: [2] }));
+    const pictureId = (done.mintedNodeIds as string[])[0];
+    const scope = await withActiveContext(CURATOR, () => walkDocumentSection({ sectionId, slot: "draft" }));
+    const picture = (scope.pictures as Array<Record<string, unknown>>).find((p) => p.id === pictureId)!;
+    expect(picture.answerMark).toEqual({ cells: [2] });
+  });
+
+  it("draws the teacher's copy at render time, and says which pictures took a mark", async () => {
+    __setStorageForTest(bucketServing());
+    const done = await withActiveContext(CURATOR, () => confirmed({ to: lessonId, name: "bande-3", description: "Trois colliers.", relPath: UPLOADED, answerCells: [2] }));
+    const pictureId = (done.mintedNodeIds as string[])[0];
+    const out = await withActiveContext(CURATOR, () => renderDocument({ nodeId: sectionId, document: page("bande-3-coche", pictureId, "answer") }));
+    expect(out.error, JSON.stringify(out)).toBeUndefined();
+    expect(out.answerMarked).toEqual(["bande-3-coche"]);
+  });
+
+  it("refuses the marked copy of a picture that records no correct cell, naming the fix", async () => {
+    __setStorageForTest(bucketServing());
+    const done = await withActiveContext(CURATOR, () => confirmed({ to: lessonId, name: "bande-4", description: "Trois colliers.", relPath: UPLOADED }));
+    const pictureId = (done.mintedNodeIds as string[])[0];
+    const out = await withActiveContext(CURATOR, () => renderDocument({ nodeId: sectionId, document: page("bande-4-coche", pictureId, "answer") }));
+    expect(String(out.error)).toMatch(/records no correct cell/);
+    expect(String(out.error)).toMatch(/answerCells/);
+  });
+
+  it("refuses a mark on a picture named by path — the answer is the node's to know", async () => {
+    const parsed = documentSchema.safeParse({ blocks: [], media: [{ name: "x", relPath: "media/x.png", mark: "answer" }] });
+    expect(parsed.success).toBe(false);
+  });
+
+  it("refuses cells that are not positive whole numbers at the dry-run", async () => {
+    const preview = await withActiveContext(CURATOR, () => runAttachImage({ to: lessonId, name: "bande-5", description: "x", relPath: UPLOADED, answerCells: [0] }));
+    expect(JSON.stringify(preview)).toMatch(/answerCells.*positive whole numbers/);
   });
 });
 

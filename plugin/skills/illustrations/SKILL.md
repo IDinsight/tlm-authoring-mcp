@@ -12,7 +12,12 @@ description: Construire et vérifier le dossier d'illustration d'une leçon — 
 2. **One cell, at 1:1** — produce a single image first and look at it. If it is wrong, the prompt is
    wrong, and every image made from it will be wrong the same way.
 3. **Assembled band** — compose the cells into the band the layout expects.
-4. **Answer marker** — added last, once the band is settled, so a change upstream does not orphan it.
+4. **The answer, recorded** — once the band is settled, read it enlarged and record which cell is
+   correct on its node (`answerCells` at `attach_image`, or `edit_nodes` on `metadata.answerMark`
+   for a picture already attached). **Nobody draws the check mark**: the server draws the teacher's
+   copy at render time from that record (a media entry with `mark:'answer'`), so a change upstream
+   cannot orphan it, and the pupil's file stays plain. A band that admits two answers is reported,
+   not decided.
 5. **Attach** — once an image is settled, upload it (`create_media_upload_url` — all of a lesson's
    files in one call with `relPaths`, one confirmation — then the PUTs) and
    record it in the graph with `attach_image`: the lesson or activity it illustrates BY NAME, the
@@ -44,8 +49,10 @@ An illustration that satisfies its prompt exactly can still be wrong on the page
 cropped, unreadable at print scale, or showing something the text contradicts.
 
 **Look at the image.** Dispatch the `illustrateur` subagent to build the dossier and verify it; it
-returns a structure — which images exist, which are missing, which failed a check and why — not a
-description of what it made.
+returns a structure — which images exist, which are missing, which failed a check and why, which cell
+each band's answer is — not a description of what it made. **Run it in the background** while the
+page is composed: its audit is what its minutes buy, and nothing in the composition waits on it
+until the review step, where its findings are read before anything is delivered.
 
 There is one class of error no text-based check will ever catch: a **mismatch between text and
 image**, where the words and the picture each make sense and disagree with each other. Two wrong

@@ -206,6 +206,8 @@ type AttachImageToolArgs = {
   // that path — no graph edit. The only thing it waives is the bucket check.
   commissioned?: boolean;
   position?: number;
+  /** The correct cell(s) of a band, 1-based left to right — what the teacher's check is drawn on. */
+  answerCells?: number[];
   returnMode?: ReturnMode;
   idempotencyKey?: string;
   confirm?: boolean;
@@ -266,6 +268,7 @@ export async function runAttachImage(a: AttachImageToolArgs): Promise<Record<str
   const args = {
     namespace, newNodeId, parentId: parent.id,
     name: a.name, description: a.description, uri: documentObjectUri(a.relPath), position: a.position,
+    ...(a.answerCells ? { answerCells: a.answerCells } : {}),
   };
 
   return runBatchMutation({
@@ -411,7 +414,7 @@ export function registerDocumentAuthoringTools(server: McpServer) {
     {
       title: "Attach a picture to a lesson or activity",
       description:
-        "Record an uploaded IMAGE as a picture of a lesson or activity, in ONE atomic step: a canonical `Material` node under the content it illustrates — its `identifier` the file's own URI, its `content` what the picture SHOWS in words, its `name` what a page places it by. Use it after create_media_upload_url + the upload; it REFUSES when nothing is at `relPath`, so the graph never points at a picture that will not render — UNLESS `commissioned:true`, which ORDERS a picture not drawn yet: the node is created now with the description as its brief, pointing at the path the file must take, and the illustrator delivers by uploading to exactly that path (no graph edit). A commissioned picture placed on a page makes render_document refuse, by name, until the file is there. " +
+        "Record an uploaded IMAGE as a picture of a lesson or activity, in ONE atomic step: a canonical `Material` node under the content it illustrates — its `identifier` the file's own URI, its `content` what the picture SHOWS in words, its `name` what a page places it by, and, for a band with a right answer, `answerCells` — which cell(s) are correct, so the teacher's copy (a media entry with mark:'answer') gets its check drawn by the server rather than by hand. Use it after create_media_upload_url + the upload; it REFUSES when nothing is at `relPath`, so the graph never points at a picture that will not render — UNLESS `commissioned:true`, which ORDERS a picture not drawn yet: the node is created now with the description as its brief, pointing at the path the file must take, and the illustrator delivers by uploading to exactly that path (no graph edit). A commissioned picture placed on a page makes render_document refuse, by name, until the file is there. " +
         "`to` is the lesson or activity, BY NAME in the user's words — the server resolves it and returns `needsChoice` + `candidates` when several match (activities are often called « Activité 1 »): ask the user which, quoting each candidate's `path`, then re-call with that candidate's `id`. `name` is what a page places it by (an image run's `media`; unique among the pictures of that lesson or activity). `description` says what the picture shows — it is the Material's `content`, read beside the activity's own text, which is how a picture that contradicts its words gets caught. " +
         "Once attached, walk_document_section lists it under `pictures` for every section covering that content, render_document's `media` takes {name, nodeId} so the file is resolved from the node, and lint_content's page rules compare what a page places with what is attached. A new version of a picture is a new file, so attach it again and retire the old node (delete_nodes); approval is what publishing the draft means, as for any authored text. " +
         "REQUIRES CONFIRMATION: the dry-run returns a summary + confirmationToken + the picture's id in `mintedNodeIds`; confirm with the token. DRAFT edit — the file is live in the bucket already, the link to it is published with the draft.",
@@ -421,6 +424,7 @@ export function registerDocumentAuthoringTools(server: McpServer) {
         description: z.string().optional(),
         relPath: z.string().optional(),
         commissioned: z.boolean().optional(),
+        answerCells: z.array(z.number().int().positive()).min(1).max(8).optional().describe("For a band with a correct answer: the correct cell(s), 1 = leftmost, every vignette counted (a reference cell included), two when the answer line gives two. render_document draws the teacher's check there for a media entry with mark:'answer'; the pupil's file stays plain. Set it later with edit_nodes (properties: {\"metadata.answerMark\": {cells: [k]}})."),
         position: z.number().optional(),
         returnMode: z.enum(["summary", "full"]).optional(),
         idempotencyKey: z.string().optional(),

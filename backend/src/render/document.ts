@@ -178,6 +178,10 @@ export const documentSchema = z.object({
       // the file off the node's own identifier (its URI), so a composer copies
       // an id from walk_document_section's `pictures` and never a path.
       nodeId: z.string().min(1).optional(),
+      // The TEACHER'S copy: the attached picture with a check drawn on the
+      // cell(s) its node records as correct (`metadata.answerMark`). Only for
+      // a picture named by node, because the answer is the node's to know.
+      mark: z.literal("answer").optional(),
     }).strict().superRefine((entry, ctx) => {
       const given = [entry.data, entry.relPath, entry.nodeId].filter((value) => value !== undefined).length;
       if (given !== 1) {
@@ -185,6 +189,9 @@ export const documentSchema = z.object({
           code: z.ZodIssueCode.custom,
           message: "give exactly one of `data` (base64), `relPath` (a bucket path the server resolves) or `nodeId` (an attached picture, resolved from its node)",
         });
+      }
+      if (entry.mark !== undefined && entry.nodeId === undefined) {
+        ctx.addIssue({ code: z.ZodIssueCode.custom, message: "`mark: 'answer'` needs `nodeId`: the correct cell is recorded on the attached picture's node" });
       }
     }),
   ).optional(),

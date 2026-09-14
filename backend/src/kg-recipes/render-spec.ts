@@ -144,6 +144,15 @@ const imagesSchema = z.object({
   // A floating image is unaffected — it has no line to respect — which is why the
   // defect survived a full production run before anyone saw it.
   paragraphLeadingRule: leadingRule.optional(),
+  // The check the teacher's copy of a band carries on the correct cell: its
+  // colour, its size as a share of the cell's height, and which corner. The
+  // renderer draws it at layout time from the picture's recorded answer
+  // (attach_image's `answerCells`), so the tick never has to be drawn by hand.
+  answerMark: z.object({
+    colour: hexColour.optional(),
+    sizeFraction: z.number().positive().max(1).optional(),
+    corner: z.enum(["top-left", "top-right", "bottom-left", "bottom-right"]).optional(),
+  }).strict().optional(),
 }).strict();
 
 /*

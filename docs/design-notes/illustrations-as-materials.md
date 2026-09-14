@@ -120,9 +120,10 @@ flowchart TB
 1. **Read.** `walk_document_section` already walks from the section across `covers`
    and down `hasPart`/`hasChild`, so an attached Material rides in the curriculum
    slice unchanged. What was added is the projection: a `pictures` list on the
-   first page of every section read, sent whatever `include` says, because it is
-   a few small rows and the one thing a composer must have to name a picture
-   correctly. `preview_generation` inherits it.
+   first page of a section read — a part like the others since 2026-09-14
+   (`include:[]` drops it: ten phase reads carried the lesson's ten descriptions
+   ten times), with each picture's `answerMark` when it records one.
+   `preview_generation` inherits it.
 2. **Compose and render.** A `media` entry may now be `{name, nodeId}`. The server
    reads the path off the node's identifier, from the same graph the render resolves
    from (draft when one is open), so a composer copies an id and never
@@ -133,6 +134,14 @@ flowchart TB
    picture the page leaves out — the image twin of the unused-routine check).
    Both stay silent when the caller did not resolve the attached list, because
    silence must never read as a clean verdict.
+
+4. **The teacher's copy (2026-09-14).** A band's correct cell is the one
+   non-canonical fact a picture carries, in the metadata sidecar like every
+   extension: `attach_image`'s `answerCells` writes `metadata.answerMark.cells`,
+   and a media entry `{name, nodeId, mark: "answer"}` has `render_document` draw
+   the check there (`render/answer-mark.ts`, the formatter's `images.answerMark`
+   for colour, size and corner). The graph knows the teacher's copy without a
+   second file, and the pupil's file stays plain. See the rendering reference.
 
 ## What this does not do
 

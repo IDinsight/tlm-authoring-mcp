@@ -48,12 +48,17 @@ const imageRunSchema = z.object({
     role: z.string().min(1).max(64),
     float: z.boolean().optional(),
     picture: regexSource.optional(),
+    // The teacher's copy of an attached picture: the check drawn on the
+    // cell(s) its node records (render_document's media `mark`).
+    mark: z.literal("answer").optional(),
     asset: z.union([
       z.object({ relPath: z.string().min(1) }).strict(),
       z.object({ byRank: z.array(z.string().min(1)).min(1) }).strict(),
     ]).optional(),
   }).strict().refine((image) => (image.picture ? 1 : 0) + (image.asset ? 1 : 0) === 1, {
     message: "an image names exactly one of `picture` (a name pattern) or `asset` (a fixed file)",
+  }).refine((image) => image.mark === undefined || image.picture !== undefined, {
+    message: "`mark` applies to a `picture` (an attached one records its correct cell), never to an `asset`",
   }),
 }).strict();
 
@@ -74,7 +79,8 @@ export type TemplateBlock =
   | { kind: "table"; style?: string; columnsCm?: number[]; pageBreak?: "before"; when?: { rank: number }; rows: TemplateCell[][] }
   | { kind: "spacer"; sizePt: number; leadingPt: number }
   | { kind: "clear" }
-  | { kind: "children" };
+  | { kind: "children" }
+  | { kind: "unfilled" };
 
 export type TemplateCell = { blocks: TemplateBlock[]; style?: string; span?: number };
 
@@ -107,6 +113,10 @@ export const templateBlockSchema: z.ZodType<TemplateBlock> = z.lazy(() =>
     z.object({ kind: z.literal("clear") }).strict(),
     // The composed child sections, in order — the one block only a root template uses.
     z.object({ kind: z.literal("children") }).strict(),
+    // A HOLE: where this section's own lines go, composed by the model from its
+    // guide. The composer emits nothing here and reports the section under
+    // `unfilled` with `insertAt`, the block path to patch the lines in at.
+    z.object({ kind: z.literal("unfilled") }).strict(),
   ]),
 ) as z.ZodType<TemplateBlock>;
 

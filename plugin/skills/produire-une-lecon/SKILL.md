@@ -34,8 +34,9 @@ leçon, la pile de mises en forme de chaque document, ses grilles. La séquence,
    ce sont les fichiers dus par section.
 5. **Composer, vérifier, rendre — page par page** — pour chaque section à produire, d'abord
    `compose_section` : le serveur remplit depuis le graphe les gabarits que la mise en forme
-   déclare, et renvoie l'arbre prêt, la liste `unfilled` de ce qu'aucun gabarit ne couvre (à
-   composer vous-même, à sa place, depuis son guide) et `problems` (une image ou un contenu que le
+   déclare, et renvoie l'arbre prêt, la liste `unfilled` de ce qu'aucun gabarit ne couvre — ou de
+   chaque TROU qu'un gabarit laisse (`insertAt` : le chemin de bloc où insérer, à remplir du
+   dernier trou au premier) — à composer vous-même, à sa place, depuis son guide, et `problems` (une image ou un contenu que le
    graphe n'a pas : on corrige le graphe, jamais la page). Puis la séquence de `produire-et-mesurer`
    sur le résultat : `page_geometry` une fois par document, avec les images qu'on va placer, pour
    composer par le calcul (`linesBeside`, un `clear` après chaque bloc d'ancrage plus court que sa
@@ -51,6 +52,9 @@ leçon, la pile de mises en forme de chaque document, ses grilles. La séquence,
    budget lu au point 4, `relecteur` contre les grilles qu'`evaluate_document` remonte pour le
    document, `terminologue` sur les fichiers dérivés dans une autre langue. Trois sous-agents en
    même temps, sur des fichiers, jamais sur le graphe. Le fil principal ne compte pas de pages.
+   L'`illustrateur`, lui, tourne EN ARRIÈRE-PLAN depuis le point 4 — il relit la clé sur les
+   bandes et rend les cellules correctes ; il ne dessine plus de crochet, le serveur le trace au
+   rendu (`mark:'answer'`) depuis `answerCells` — et ses constats se lisent ici, avant de livrer.
 7. **Déposer et consigner** — `create_upload_url` (tous les fichiers de la leçon en un appel,
    `relPaths`) puis `log_generation` par fichier livrable ; la
    voie aperçu (`create_preview_upload_url`) seulement si l'expert a demandé un aperçu, et jamais les

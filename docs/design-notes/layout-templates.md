@@ -70,10 +70,32 @@ shape writes its own templates and runs the same composer.
 Proof on the first day: the delivered Leçon 11 composed from the graph alone renders to two pages
 with the same twenty pictures, two tables and one break as the file the experts accepted.
 
+## Holes — the fiche skeleton (2026-09-14)
+
+The teacher fiche is a different shape of page: its banners, order and page break are fixed, but
+each phase's lines are a model's composition from that phase's guide. A template can now leave a
+**hole** — `{kind: "unfilled"}` — where a section's own lines go. The composer emits nothing there
+and reports the section under `unfilled` with its guide and **`insertAt`**, the block path where the
+hole was; the caller composes the lines and lands them with an `insert-before` patch on the composed
+tree's `treeRef`, filling from the last hole up so an insertion never shifts a path still to be used.
+The fiche skeleton (`backend/test/fixtures/senegal-fiche-layout.json`, imported by
+`scripts/set-fiche-layout.mjs`) composes the header — week and day from the lesson's ordinal
+(`{{covered.position|ceil-div:5}}`, `{{…|mod-1based:5}}`), the OS banner from the lesson's name,
+the matériel line pulled out of the fiche's own guide (`{{section.guide|match:^Case MATÉRIEL : (.+)$}}`)
+— then the two séance banners (the second carrying the page break) and the nine phase banners with
+their colours and pictograms, each followed by a hole. A picture in a template may ask for the
+teacher's copy (`mark: "answer"`), which the composer names apart from the plain band.
+
+What a hole leaves to the model is exactly the prefixed-line grammar of the guides — `[N]`, `[FR]`,
+`[IMAGE : …]`, `{pt:…}`, `{img:…}` — which is deterministic too and is the next thing a template
+could take over: an order-preserving walk of a section's guide lines, routing each by prefix. That is
+a compiler of the guide grammar rather than a template, and it is not built.
+
 ## Seams
 
 - Templates match by section title. A subject whose sections are not named by kind needs another
   match key; none has asked yet.
+- A phase's lines still come from the model: the guide grammar is not compiled (see *Holes* above).
 - A picture's ratio is read from its file, so composing needs the bucket. Where storage cannot be
   read the picture is a `problem`, never a guess.
 - The answer signs under a band's cells (a rule newer than the delivered corpus) are not yet in the
