@@ -470,6 +470,23 @@ describe("get_capabilities is a read", () => {
  * collector reads `allowed` and was then never passed to it at all. Nothing
  * failed — the mirror just quietly stopped listing three callable tools.
  */
+describe("the block-tree example is a tree the renderer would take", () => {
+  it("parses against the document schema, and names only the block kinds the schema knows", async () => {
+    // The example exists because the schema was being discovered by refusal;
+    // an example that the schema refuses would teach the wrong shape.
+    const { documentSchema } = await import("../../render/index.js");
+    const report = await withActiveContext(CURATOR, callGetCapabilities);
+    const section = report.document as { available: boolean; example: unknown; blockKinds: string[] };
+    if (!section.available) return;
+    const parsed = documentSchema.safeParse(section.example);
+    expect(parsed.success, JSON.stringify(parsed.success ? null : parsed.error.issues)).toBe(true);
+    for (const kind of ["table", "line", "spacer", "clear"]) {
+      expect(documentSchema.safeParse({ blocks: [kind === "spacer" ? { kind, sizePt: 1, leadingPt: 1 } : kind === "line" ? { kind, runs: [] } : kind === "table" ? { kind, rows: [[{ blocks: [] }]] } : { kind }] }).success).toBe(true);
+      expect(section.blockKinds).toContain(kind);
+    }
+  });
+});
+
 describe("every tool a section advertises is a tool it says you may call", () => {
   it("lists the document tools in verbs, for a caller allowed to preview", async () => {
     // Inside an active context, like every other test here: the report reads

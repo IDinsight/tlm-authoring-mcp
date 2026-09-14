@@ -84,7 +84,7 @@ function stylesUsed(tree: PageInput["tree"]): Map<string, number> {
     if (style) counts.set(style, (counts.get(style) ?? 0) + 1);
   };
   for (const block of everyBlock(tree.blocks)) {
-    bump(block.kind === "spacer" ? undefined : block.style);
+    bump(block.kind === "line" || block.kind === "table" ? block.style : undefined);
     if (block.kind === "line") {
       for (const run of block.runs) {
         if ("text" in run) bump(run.style);

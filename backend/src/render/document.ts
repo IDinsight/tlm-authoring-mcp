@@ -65,7 +65,7 @@ const runSchema = z.union([
  * pictures.
  */
 export const blockSchema: z.ZodType<Block> = z.lazy(() =>
-  z.discriminatedUnion("kind", [tableSchema, lineSchema, spacerSchema]),
+  z.discriminatedUnion("kind", [tableSchema, lineSchema, spacerSchema, clearSchema]),
 ) as z.ZodType<Block>;
 
 const cellSchema: z.ZodType<Cell> = z.lazy(() =>
@@ -129,6 +129,25 @@ const spacerSchema = z.object({
   leadingPt: z.number().positive(),
 }).strict();
 
+/*
+ * The end of a wrap: whatever follows starts BELOW the lowest floated picture.
+ *
+ * A floated band anchors to its paragraph and the text wraps beside it. When
+ * that paragraph is shorter than the band — a one-line directive beside a
+ * 1.6 cm picture — the next block starts beside the band too, and the next
+ * band, anchored there, draws over the first. The formatter prose has always
+ * prescribed the remedy (a two-point paragraph carrying a text-wrapping break
+ * that clears everything), but the tree had no block to say it with: a spacer
+ * adds height, and the height it needs differs per lesson and was found by
+ * rendering, three times a sheet.
+ *
+ * No numbers, on purpose. The tree says "clear here"; how tall the break's
+ * paragraph is belongs to the renderer, and is as small as Word allows.
+ */
+const clearSchema = z.object({
+  kind: z.literal("clear"),
+}).strict();
+
 export type ImageRun = z.infer<typeof imageRunSchema>;
 export type Run = z.infer<typeof runSchema>;
 export type Cell = {
@@ -139,7 +158,8 @@ export type Cell = {
 export type Block =
   | { kind: "table"; rows: Cell[][]; style?: string; columnsCm?: number[]; pageBreak?: "before"; anchor?: string }
   | { kind: "line"; runs: Run[]; variant?: string; style?: string; pageBreak?: "before"; anchor?: string }
-  | { kind: "spacer"; sizePt: number; leadingPt: number };
+  | { kind: "spacer"; sizePt: number; leadingPt: number }
+  | { kind: "clear" };
 
 /** A whole document: its blocks, and the pictures they name. */
 export const documentSchema = z.object({

@@ -47,12 +47,12 @@ reaches it through the `render/index.ts` barrel.
 
 | File | What it owns |
 |---|---|
-| `document.ts` | The block-tree schema (`table` / `line` / `spacer`) and its validation. Unknown keys are **refused**, never ignored. |
+| `document.ts` | The block-tree schema (`table` / `line` / `spacer` / `clear`) and its validation. Unknown keys are **refused**, never ignored. |
 | `docx.ts` | The layout itself: document model + resolved spec → `.docx` bytes. |
 | `zip.ts` | A `.docx` is a zip of XML parts and the repo has no zip library; writing the container directly is ~60 lines of `node:zlib`. |
 | `resolve-spec.ts` | A formatter **stack** → one effective spec. Nearest wins, and the merge is **deep**. |
 | `variants.ts` | One source tree → one file per language, and deriving a language the tree does not carry. |
-| `measure.ts` | Laying a file out and counting its pages. |
+| `measure.ts` | Laying a file out: the page count, where the words and the pictures landed, and marks drawn over marks. |
 | `read-docx.ts` | A produced `.docx` → back into the block model. |
 | `propose.ts` | A corrected document against the graph it came from → proposed edits. |
 | `sources.ts` | What a document was made from, and whether that has moved since. |
@@ -83,9 +83,47 @@ Tables survive the split even when everything inside them is dropped — a banne
 speech, and a file that lost its banners would be missing its scaffolding rather than its translation.
 
 Pass `translateInto` (a variant id, e.g. `wo`) to have the server **derive** a language the tree does
-not carry, translating line by line through the subject's MOHEBS glossary so the wording matches
-materials already in classrooms. Translation spends a metered backend, so it needs a role in the
-workspace.
+not carry, translating through the subject's MOHEBS glossary so the wording matches materials already
+in classrooms. The lines go to the translator **as one batch** (the same `translateBatch` the
+`translate` tool uses, several in flight at once, each line with its own term bank): one call per
+line took a teacher sheet's 22 spoken lines to three minutes and past the client's timeout, and the
+batch does them in seconds. A line the translator refuses refuses the whole render, naming it — a
+Wolof file with one French line left in it reads as finished. Translation spends a metered backend,
+so it needs a role in the workspace.
+
+### The `clear` block — ending a wrap
+
+A floated band anchors to its paragraph and the text wraps beside it. When that paragraph is shorter
+than the band — a one-line directive beside a 1.6 cm picture — the next block starts beside the band
+too, and the next band, anchored there, **draws over the first**. The formatter prose always
+prescribed the remedy (« un paragraphe de deux points portant un saut d'habillage "tout dégager" »)
+but the tree had no block to say it with: a spacer adds height, and the height it needed differed
+per lesson and was found by rendering, three times a sheet.
+
+`{ kind: "clear" }` is that paragraph. It takes no numbers — the tree says *where*, the renderer says
+how tall — and it is written as a text-wrapping break that clears both sides, so whatever follows
+starts below the lowest floated picture, however tall it was. Three details were **measured, not
+read**, and each costs the clear if dropped: the leading is *at least* two points, never exact (an
+exact line cannot grow to reach below the picture, and LibreOffice then ignores the break — the next
+band moved 4 pt, not 46); the paragraph *mark* is two points too, not only the run (at body size it
+adds a whole body line of white under every picture, which across seven bands is more than a page's
+reserve); and the type is the smallest Word accepts. Measured on this renderer's own output: 2.3 pt
+between a band and the one that follows it.
+
+### `page_geometry` — the numbers before the render
+
+Every number a page is laid out with is deterministic — the line pitch, the width left beside a
+floated band, how tall a 4.6:1 band stands — and every one was being discovered by rendering,
+reading the measurement and rendering again: three measured renders a sheet at two and a half minutes
+each. `page_geometry(nodeId, pictures?)` reads the **same merged formatter stack** the renderer uses
+and does the arithmetic once: the page and its usable box, the line pitch and lines per page (under an
+exact leading only — under `atLeast`/`auto` a line grows with its content and a number would be the
+estimate this project has been burnt by), the block styles and their line budgets, the image ceilings,
+and for each picture the caller says it will place (`{role, aspectRatio, float?}`) its printed size,
+the width left for text beside it and **`linesBeside`** — how many body lines it stands beside, which
+is how long its anchor block must run before the next float, or where a `clear` goes. Pictures are
+sized by `imageSizeCm`, the renderer's own function, so the report cannot disagree with the file.
+The first render is then a calculation rather than a guess.
 
 **Isolation.** Output goes to the segregated `previews/` prefix on the same terms
 `preview_generation` has: short-lived URLs, invisible to `reconcile` and `list_documents`, never
@@ -100,8 +138,26 @@ unpublished edits. Curators and approvers only.
 
 That rule was earned. An estimate that counted the lines a guide declares put one document at 2.5
 pages; it rendered at eleven. So `measure: true` lays each file out and **counts** its pages, reporting
-the page size actually produced and the whitespace left below the last line of each page; with
+the page size actually produced and, per page, where the words and the **pictures** landed; with
 `budget.maxPages` declared it also reports `fits`.
+
+Three poppler tools read the PDF: `pdfinfo` for the count and the page size, `pdftotext -bbox` for
+the words, `pdftohtml -xml` for the pictures. The pictures matter because `freeBelowCm` used to be
+the gap below the last *word*: a page ending in a picture band overstated the room left — the
+dangerous direction for a number whose job is to say how close a sheet is to overflowing — and a
+reserve check passed on the server that failed in print, by half a centimetre of band. It is now the
+gap below the last **mark**, picture or word (`inkBottomCm`; `textBottomCm` and `imageBottomCm` stay
+alongside), and each file reports **`reserveKept`** against `budget.reserveBottomCm` on its last
+page. `picturesMeasured: false` says `pdftohtml` was absent — then `images` is empty and `overlaps`
+says nothing, rather than reporting none.
+
+Each page also reports **`overlaps`**: a picture drawn over the picture before it
+(`image-over-image`, with the depth in cm), or over words (`image-over-text`, naming them). That is
+the defect a page count never shows — a band anchored to a one-line activity, the next band anchored
+beside it and drawn 0.36 cm into it, found by opening the PDF because the count and the whitespace
+were both fine. The render response lifts every overlap to the file's own `overlaps`, with its page.
+A pictogram set flush against its neighbours' glyph boxes is not an overlap: two boxes share ink only
+past half a millimetre in both directions.
 
 Measuring is not free: it needs a layout engine in the image, measured at **149 MB** (108 → 257 MB)
 plus several seconds of cold start. It was **opt-in** (`WITH_LAYOUT_ENGINE=0`) for as long as it

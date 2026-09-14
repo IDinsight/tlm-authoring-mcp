@@ -149,6 +149,34 @@ describe("a block tree and a formatter make a .docx", () => {
   });
 });
 
+describe("the end of a wrap", () => {
+  it("writes a clear as a two-point paragraph carrying a text-wrapping break that clears both sides", () => {
+    const tree = documentSchema.parse({ blocks: [
+      { kind: "line", runs: [{ image: { media: "band.png", role: "band", aspectRatio: 6, float: true } }, { text: "Quel signe ?" }] },
+      { kind: "clear" },
+      { kind: "line", runs: [{ text: "Après la bande." }] },
+    ], media: [{ name: "band.png", data: "" }] });
+    const resolved = resolveRenderSpec([DOC_WIDE]);
+    if (!resolved.ok) throw new Error(resolved.errors.join("; "));
+    const xml = unzip(renderDocx({ blocks: tree.blocks, media: MEDIA }, resolved.spec)).get("word/document.xml")!.toString("utf8");
+    const at = xml.indexOf('<w:br w:type="textWrapping" w:clear="all"/>');
+    expect(at).toBeGreaterThan(0);
+    const paragraph = xml.slice(xml.lastIndexOf("<w:p>", at), xml.indexOf("</w:p>", at));
+    // At least two points, never exact: an exact line cannot grow to reach
+    // below the picture and the clear is then ignored (measured, not read).
+    expect(paragraph).toContain('<w:spacing w:line="40" w:lineRule="atLeast"/>');
+    // The paragraph mark is two points as well as the run — at body size it
+    // leaves a whole body line of white under every picture.
+    expect(paragraph).toContain('<w:rPr><w:sz w:val="4"/></w:rPr></w:pPr>');
+    expect(paragraph).toContain('<w:r><w:rPr><w:sz w:val="4"/></w:rPr><w:br');
+  });
+
+  it("is refused any property — the tree says WHERE, the renderer says how tall", () => {
+    expect(documentSchema.safeParse({ blocks: [{ kind: "clear", sizePt: 2 }] }).success).toBe(false);
+    expect(documentSchema.safeParse({ blocks: [{ kind: "clear" }] }).success).toBe(true);
+  });
+});
+
 describe("a vector picture's part", () => {
   it("is stored as .png once rasterized, while the page keeps calling it by its .svg name", () => {
     const resolved = resolveRenderSpec([DOC_WIDE]);

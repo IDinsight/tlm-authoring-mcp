@@ -175,6 +175,7 @@ async function fillBlocks(blocks: TemplateBlock[], facts: SectionFacts, filler: 
     if (block.kind === "children") { out.push(...children); continue; }
     if ((block.kind === "line" || block.kind === "table") && block.when && block.when.rank !== facts.rank) continue;
     if (block.kind === "spacer") { out.push({ kind: "spacer", sizePt: block.sizePt, leadingPt: block.leadingPt }); continue; }
+    if (block.kind === "clear") { out.push({ kind: "clear" }); continue; }
     if (block.kind === "table") {
       const rows: Cell[][] = [];
       for (const row of block.rows) {

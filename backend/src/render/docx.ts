@@ -14,7 +14,7 @@
  * dropped all 42 of the pupil tool's pictures.
  *
  * The rule to keep watching: NOTHING here knows what a maths lesson looks like.
- * It knows tables, lines, runs, pictures and spacers. Which banner is
+ * It knows tables, lines, runs, pictures, spacers and clears. Which banner is
  * turquoise, how tall a band may stand, which colour marks French, where a page
  * break is carried — every one is read out of the RenderSpec. A
  * `if (subject === …)` anywhere below would mean the abstraction failed,
@@ -35,7 +35,7 @@ const cmToTwips = (cm: number) => Math.round(cm * TWIPS_PER_CM);
 const ptToTwentieths = (pt: number) => Math.round(pt * 20);
 const cmToEmu = (cm: number) => Math.round(cm * EMU_PER_CM);
 
-const PAGE_CM: Record<string, { w: number; h: number }> = {
+export const PAGE_CM: Record<string, { w: number; h: number }> = {
   A4: { w: 21.0, h: 29.7 }, A5: { w: 14.8, h: 21.0 }, A3: { w: 29.7, h: 42.0 },
   Letter: { w: 21.59, h: 27.94 }, Legal: { w: 21.59, h: 35.56 },
 };
@@ -61,7 +61,15 @@ const esc = (s: string) =>
 
 // ── Geometry, resolved from the spec ────────────────────────────────────────
 
-function usableWidthCm(spec: RenderSpec): number {
+/*
+ * The space a floated picture keeps between itself and the text beside it.
+ * The formatter may set it (`images.gutterCm`); this is the value the
+ * delivered sheets carry when it does not.
+ */
+export const DEFAULT_FLOAT_GUTTER_CM = 0.15;
+export const floatGutterCm = (spec: RenderSpec): number => spec.images?.gutterCm ?? DEFAULT_FLOAT_GUTTER_CM;
+
+export function usableWidthCm(spec: RenderSpec): number {
   const page = PAGE_CM[spec.page?.size ?? "A4"] ?? PAGE_CM.A4;
   const width = spec.page?.orientation === "landscape" ? page.h : page.w;
   return width - (spec.page?.marginsCm?.left ?? 0) - (spec.page?.marginsCm?.right ?? 0);
@@ -76,7 +84,7 @@ function usableWidthCm(spec: RenderSpec): number {
  * is capped by the page. This is the rule that overflowed four lessons when it
  * was applied without the ceiling.
  */
-function imageSizeCm(img: ImageRun, spec: RenderSpec): { w: number; h: number } {
+export function imageSizeCm(img: ImageRun, spec: RenderSpec): { w: number; h: number } {
   // A picture set in the run of text — a pictogram, an answer marker — is
   // line-sized, from its own table; a floated one keeps the per-role ceiling.
   // The bag carried `inlineHeightCm` from the day the geometry was extracted
@@ -196,7 +204,7 @@ function drawingXml(img: ImageRun, ctx: Context): string {
     const offset = placement === "float-right" ? cmToEmu(usableWidthCm(spec) - w) : 0;
     const wrap = placement === "float-right" ? "left" : "right";
     return (
-      `<w:r><w:drawing><wp:anchor distT="0" distB="0" distL="54000" distR="0"` +
+      `<w:r><w:drawing><wp:anchor distT="0" distB="0" distL="${cmToEmu(floatGutterCm(spec))}" distR="0"` +
       ` simplePos="0" relativeHeight="251657216" behindDoc="0" locked="0"` +
       ` layoutInCell="1" allowOverlap="1">` +
       `<wp:simplePos x="0" y="0"/>` +
@@ -354,21 +362,50 @@ function renderBlocks(blocks: Block[], ctx: Context, inherited?: string): string
     // A break declared on a block is emitted the way the FORMATTER says, not
     // the way this renderer prefers: as its own paragraph, as a section break,
     // or as a property the next paragraph picks up.
-    let prefix = "";
-    if (block.kind !== "spacer" && block.pageBreak === "before") {
-      prefix = standaloneBreak(ctx);
-      ctx.pending = prefix === "";
-    }
-
     if (block.kind === "spacer") {
       return (
-        `${prefix}<w:p><w:pPr>${spacingXml(block.leadingPt, "exact")}</w:pPr>` +
+        `<w:p><w:pPr>${spacingXml(block.leadingPt, "exact")}</w:pPr>` +
         `<w:r><w:rPr><w:sz w:val="${Math.round(block.sizePt * 2)}"/></w:rPr></w:r></w:p>`
       );
+    }
+    if (block.kind === "clear") return clearXml();
+
+    let prefix = "";
+    if (block.pageBreak === "before") {
+      prefix = standaloneBreak(ctx);
+      ctx.pending = prefix === "";
     }
     const body = block.kind === "table" ? tableXml(block, ctx) : lineXml(block, ctx, inherited);
     return prefix + anchored(body, block.anchor, ctx);
   }).join("");
+}
+
+/*
+ * The end of a wrap, the way the delivered sheets write it: a two-point
+ * paragraph whose only content is a text-wrapping break that clears BOTH
+ * sides. Whatever follows starts below the lowest floated picture, however
+ * tall it was — the thing a spacer could only approximate by trial.
+ *
+ * Three details, each found by measuring the layout engine rather than
+ * reading the spec, and each one costs the clear if dropped:
+ *
+ *   • the leading is AT LEAST two points, never exact — an exact line cannot
+ *     grow to reach below the picture, and LibreOffice then ignores the clear
+ *     entirely (the next band moved 4 pt, not 46);
+ *   • the PARAGRAPH MARK is two points too, not only the run — left at the
+ *     body size it adds a whole body line of white under every picture, which
+ *     across seven bands is more than the page's reserve;
+ *   • the type size is the smallest Word accepts, so the paragraph itself is
+ *     invisible.
+ */
+const CLEAR_HALF_POINTS = 4;   // 2 pt, in Word's half-point units
+
+function clearXml(): string {
+  const tiny = `<w:rPr><w:sz w:val="${CLEAR_HALF_POINTS}"/></w:rPr>`;
+  return (
+    `<w:p><w:pPr><w:spacing w:line="${ptToTwentieths(2)}" w:lineRule="atLeast"/>${tiny}</w:pPr>` +
+    `<w:r>${tiny}<w:br w:type="textWrapping" w:clear="all"/></w:r></w:p>`
+  );
 }
 
 function sectPrXml(spec: RenderSpec): string {

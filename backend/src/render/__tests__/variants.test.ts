@@ -93,7 +93,7 @@ describe("splitting one tree into the files the formatter declares", () => {
 describe("deriving the language a tree does not carry", () => {
   // Injected rather than imported: this module must not know Gemini exists, and
   // a test must be able to derive a variant without spending a metered call.
-  const shout = async (text: string) => `WO(${text})`;
+  const shout = async (texts: string[]) => texts.map((text) => `WO(${text})`);
 
   const FRENCH_ONLY: DocumentTree = {
     media: [],
@@ -152,9 +152,34 @@ describe("deriving the language a tree does not carry", () => {
     // Deriving over the top would double every line, and translating what an
     // author wrote by hand is the one thing this must never do.
     let called = 0;
-    const out = await deriveVariant(TREE, "fr", "wo", "fr", "wo", async (t) => { called++; return t; });
+    const out = await deriveVariant(TREE, "fr", "wo", "fr", "wo", async (texts) => { called++; return texts; });
     expect(called).toBe(0);
     expect(out).toBe(TREE);
+  });
+
+  it("sends EVERY line to the translator in ONE call, in reading order", async () => {
+    // One line at a time was three minutes for a teacher sheet — past the
+    // client's timeout. The batch is the contract, so a translator that wants
+    // to run lines in parallel can.
+    const calls: string[][] = [];
+    const nested: DocumentTree = { media: [], blocks: [
+      { kind: "line", variant: "fr", runs: [{ text: "Première." }] },
+      { kind: "table", rows: [[{ blocks: [
+        { kind: "line", variant: "fr", runs: [{ text: "Deuxième." }, { text: "  " }, { text: "Troisième." }] },
+      ] }]] },
+      { kind: "line", variant: "commun", runs: [{ text: "Jamais." }] },
+    ] };
+    const out = await deriveVariant(nested, "fr", "wo", "fr", "wo", async (texts) => { calls.push(texts); return texts.map((t) => `WO(${t})`); });
+    expect(calls).toEqual([["Première.", "Deuxième.", "Troisième."]]);
+    expect(textsOf(out)).toEqual([
+      "Première.", "WO(Première.)", "Deuxième.", "  ", "Troisième.", "WO(Deuxième.)", "  ", "WO(Troisième.)", "Jamais.",
+    ]);
+  });
+
+  it("refuses a translator that returns the wrong number of lines", async () => {
+    // Fewer lines back than sent means every later line would take an earlier
+    // one's translation — the numbering trap, and nothing on the page shows it.
+    await expect(deriveVariant(FRENCH_ONLY, "fr", "wo", "fr", "wo", async () => [])).rejects.toThrow(/returned 0 line/);
   });
 
   it("reaches lines nested inside a table cell", async () => {

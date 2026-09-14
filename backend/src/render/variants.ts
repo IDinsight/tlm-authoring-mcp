@@ -88,8 +88,18 @@ export function splitByVariant(tree: DocumentTree, spec: RenderSpec): Variant[] 
   }));
 }
 
-/** What `deriveVariant` needs of a translator — a string in, a string out. */
-export type TranslateText = (text: string, from: string, to: string) => Promise<string>;
+/*
+ * What `deriveVariant` needs of a translator — EVERY line of the page in one
+ * call, back in the same order.
+ *
+ * It took one line at a time until a real render timed out: a teacher sheet
+ * has ~22 spoken lines, each round trip to the translator is a few seconds,
+ * and in sequence that is three minutes against a client that gives up after
+ * three. The `translate` tool did the same lines in fifteen seconds because it
+ * sends them together. So the contract is the batch, and the caller decides how
+ * many run at once.
+ */
+export type TranslateLines = (texts: string[], from: string, to: string) => Promise<string[]>;
 
 /**
  * Produce a variant's lines from another's, by translating.
@@ -106,32 +116,35 @@ export type TranslateText = (text: string, from: string, to: string) => Promise<
  */
 export async function deriveVariant(
   tree: DocumentTree, from: string, to: string, fromLang: string, toLang: string,
-  translateText: TranslateText,
+  translateLines: TranslateLines,
 ): Promise<DocumentTree> {
   if (anyVariant(tree.blocks, to)) return tree;
 
-  const derive = async (blocks: Block[]): Promise<Block[]> => {
+  // Two passes: gather what needs translating, translate it all at once, then
+  // build the derived lines by handing each run its result in order.
+  const sources = textsToTranslate(tree.blocks, from);
+  if (sources.length === 0) return tree;
+  const translations = await translateLines(sources, fromLang, toLang);
+  if (translations.length !== sources.length) {
+    throw new Error(`the translator returned ${translations.length} line(s) for ${sources.length} sent`);
+  }
+
+  let next = 0;
+  const derive = (blocks: Block[]): Block[] => {
     const out: Block[] = [];
     for (const block of blocks) {
       if (block.kind === "table") {
-        const rows: Cell[][] = [];
-        for (const row of block.rows) {
-          const cells: Cell[] = [];
-          for (const cell of row) cells.push({ ...cell, blocks: await derive(cell.blocks) });
-          rows.push(cells);
-        }
+        const rows: Cell[][] = block.rows.map((row) => row.map((cell) => ({ ...cell, blocks: derive(cell.blocks) })));
         out.push({ ...block, rows });
         continue;
       }
       out.push(block);
       if (block.kind !== "line" || block.variant !== from) continue;
 
-      const runs: Run[] = [];
-      for (const run of block.runs) {
-        if (!("text" in run)) { runs.push(run); continue; }
-        const text = run.text.trim() ? await translateText(run.text, fromLang, toLang) : run.text;
-        runs.push({ ...run, text });
-      }
+      const runs: Run[] = block.runs.map((run) => {
+        if (!("text" in run) || !run.text.trim()) return run;
+        return { ...run, text: translations[next++] };
+      });
       // The page break belongs to the SOURCE line: two lines both starting a
       // page would leave a blank one in whichever file kept both.
       const { pageBreak, ...rest } = block;
@@ -141,7 +154,23 @@ export async function deriveVariant(
     return out;
   };
 
-  return { ...tree, blocks: await derive(tree.blocks) };
+  return { ...tree, blocks: derive(tree.blocks) };
+}
+
+/** The text runs of every `from` line, in reading order — blank runs excluded, they are kept as they are. */
+function textsToTranslate(blocks: Block[], from: string): string[] {
+  const out: string[] = [];
+  for (const block of blocks) {
+    if (block.kind === "table") {
+      for (const row of block.rows) for (const cell of row) out.push(...textsToTranslate(cell.blocks, from));
+      continue;
+    }
+    if (block.kind !== "line" || block.variant !== from) continue;
+    for (const run of block.runs) {
+      if ("text" in run && run.text.trim()) out.push(run.text);
+    }
+  }
+  return out;
 }
 
 /** Does this tree already carry lines in the given variant? */

@@ -36,11 +36,15 @@ leçon, la pile de mises en forme de chaque document, ses grilles. La séquence,
    déclare, et renvoie l'arbre prêt, la liste `unfilled` de ce qu'aucun gabarit ne couvre (à
    composer vous-même, à sa place, depuis son guide) et `problems` (une image ou un contenu que le
    graphe n'a pas : on corrige le graphe, jamais la page). Puis la séquence de `produire-et-mesurer`
-   sur le résultat : compléter l'arbre dans la forme de `get_capabilities section:'document'` ; `lint_content` avec `document` et `nodeId` **avant tout rendu**, un refus
-   étant un arrêt ; `render_document` avec `measure:true` et `translateInto` dérivé des variantes
-   de la mise en forme — **une seule composition**, les autres langues en sont dérivées, jamais
-   composées une seconde fois ; en cas de débordement, resserrer dans l'ordre fixe, puis vérifier et
-   mesurer à nouveau.
+   sur le résultat : `page_geometry` une fois par document, avec les images qu'on va placer, pour
+   composer par le calcul (`linesBeside`, un `clear` après chaque bloc d'ancrage plus court que sa
+   bande) ; compléter l'arbre dans la forme de `get_capabilities section:'document'` (son
+   `example` est un arbre à copier) ; `lint_content` avec `document` et `nodeId` **avant tout
+   rendu**, un refus étant un arrêt ; `render_document` avec `measure:true` et `translateInto`
+   dérivé des variantes de la mise en forme — **une seule composition**, les autres langues en sont
+   dérivées, jamais composées une seconde fois ; lire `overlaps` et `reserveKept` sur chaque
+   fichier ; en cas de débordement ou de chevauchement, corriger, puis vérifier et mesurer à
+   nouveau.
 6. **Relire une fois, en parallèle** — tous les fichiers rendus : `mesureur` sur chacun avec le
    budget lu au point 4, `relecteur` contre les grilles qu'`evaluate_document` remonte pour le
    document, `terminologue` sur les fichiers dérivés dans une autre langue. Trois sous-agents en
