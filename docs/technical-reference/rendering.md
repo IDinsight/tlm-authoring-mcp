@@ -124,7 +124,9 @@ attached. A media entry `{name, nodeId, mark: "answer"}` then gets the marked co
 (`render/answer-mark.ts`): the picture rasterized if it was vector, the check drawn in the
 formatter's `images.answerMark` colour, size and corner (black, a quarter of the cell, top-left by
 default — the formatter's own words), and the page names the attached picture as before, so the two
-picture rules still hold. **The cell count is recorded with the answer** (`answerCellsOf`, stored as
+picture rules still hold. Note that a clear is never free: when the block already runs past its
+band, the clear still costs a body line (it shows under `gaps`), so it belongs only after a block
+shorter than its band — `page_geometry`'s `linesBeside` says which. **The cell count is recorded with the answer** (`answerCellsOf`, stored as
 `metadata.answerMark.of`): the first version derived it as width over height rounded, assuming square
 vignettes, and the delivered bands refuted that on the first real lesson — 4.6:1 with a reference cell
 and three signed ones is four cells, which rounding calls five. Without `of` the square guess still
@@ -199,6 +201,13 @@ beside it and drawn 0.36 cm into it, found by opening the PDF because the count 
 were both fine. The render response lifts every overlap to the file's own `overlaps`, with its page.
 A pictogram set flush against its neighbours' glyph boxes is not an overlap: two boxes share ink only
 past half a millimetre in both directions.
+
+And **`gaps`**: white between two consecutive lines that no picture explains — a step of more than
+one and a half line pitches, the pitch read off the page itself, with no picture spanning it. That is
+what a `clear` nothing needed looks like: it ends a wrap that had already ended and costs a body line
+(16 pt measured locally; more on a page whose text ran further). Seven defensive clears turned a
+two-page fiche into three, and two render cycles went to finding the four that were for nothing.
+Place clears from `page_geometry`'s `linesBeside`, and read `gaps` on the first measurement.
 
 **The layout engine is warmed once and copied per call.** LibreOffice's first start with a profile
 scans every installed font and builds its registry; every conversion used a fresh profile, so every

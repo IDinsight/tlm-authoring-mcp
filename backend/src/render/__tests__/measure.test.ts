@@ -187,6 +187,42 @@ describe("reading where the pictures landed", () => {
   });
 });
 
+describe("white between lines that nothing explains", () => {
+  // Four lines at a 14 pt pitch, then a step of 44 pt: one line of white
+  // (44 − 14 = 30 pt ≈ 2 lines by the pitch, 1.06 cm from the line's bottom).
+  const LINES = (extra: string) => `<html><body><page width="595" height="841.89">
+    <word xMin="42" yMin="42" xMax="90" yMax="55.7">un</word>
+    <word xMin="42" yMin="56" xMax="90" yMax="69.7">deux</word>
+    <word xMin="42" yMin="70" xMax="90" yMax="83.7">trois</word>
+    <word xMin="42" yMin="84" xMax="90" yMax="97.7">quatre</word>
+    <word xMin="42" yMin="128" xMax="90" yMax="141.7">cinq</word>
+    ${extra}
+  </page></body></html>`;
+
+  it("reports a step between lines of more than one and a half pitches, sized in body lines", () => {
+    const [page] = measurePages(parseWords(LINES("")), [[]], A4_PT);
+    expect(page.gaps).toEqual([{ afterCm: 3.45, heightCm: 1.07, lines: 2.1 }]);
+  });
+
+  it("does not call the white beside a floated picture a gap", () => {
+    // A band beside a short block: the next line starts below the band, and
+    // that white is the band's.
+    const [page] = measurePages(parseWords(LINES("")), [[{ top: 84, bottom: 125, left: 340, right: 552 }]], A4_PT);
+    expect(page.gaps).toEqual([]);
+  });
+
+  it("reads the pitch off the page, so a page set at another leading measures itself", () => {
+    const loose = `<html><body><page width="595" height="841.89">
+      <word xMin="42" yMin="42" xMax="90" yMax="58">a</word>
+      <word xMin="42" yMin="60" xMax="90" yMax="76">b</word>
+      <word xMin="42" yMin="78" xMax="90" yMax="94">c</word>
+      <word xMin="42" yMin="96" xMax="90" yMax="112">d</word>
+    </page></body></html>`;
+    const [page] = measurePages(parseWords(loose), [[]], A4_PT);
+    expect(page.gaps).toEqual([]);
+  });
+});
+
 /*
  * The whole chain, where this machine can run it: a page rendered by this
  * renderer, laid out by LibreOffice, read back by poppler. CI has neither and
@@ -216,6 +252,19 @@ describe.skipIf(!hasEngine)("measuring a page this renderer produced", () => {
     expect(result.perPage[0].images).toHaveLength(2);
     expect(result.perPage[0].overlaps).toEqual([expect.objectContaining({ kind: "image-over-image", images: [1, 2] })]);
     expect(result.perPage[0].overlaps[0].overlapCm).toBeGreaterThan(1);
+  }, 60_000);
+
+  it("shows a clear that nothing needed as a gap of one body line, and a needed one as none", async () => {
+    // Enough text to run past the band on its own: the clear then ends a wrap
+    // that had already ended, and costs a line.
+    const long = "Ceci est une directive assez longue pour occuper plusieurs lignes à côté de la bande, et encore une phrase pour dépasser la hauteur de l'image, puis une troisième, puis une quatrième qui continue encore.";
+    const wasted = renderDocx({ media, blocks: [{ kind: "line", runs: [band, { text: long }] }, { kind: "clear" }, { kind: "line", runs: [{ text: "Ligne suivante." }] }] }, spec.spec);
+    const needed = renderDocx({ media, blocks: [activity("Quel signe manque ?"), { kind: "clear" }, { kind: "line", runs: [{ text: "Ligne suivante." }] }] }, spec.spec);
+    const [a, b] = await Promise.all([measureDocx(wasted), measureDocx(needed)]);
+    if (!a.available || !b.available) throw new Error("no layout");
+    expect(a.perPage[0].gaps).toHaveLength(1);
+    expect(a.perPage[0].gaps[0].lines).toBeGreaterThanOrEqual(1);
+    expect(b.perPage[0].gaps).toEqual([]);
   }, 60_000);
 
   it("sees no overlap once a clear block ends the wrap, and only a hair of white below the band", async () => {

@@ -52,6 +52,7 @@ gcloud run deploy senegal-mohebs-tlm \
   --region europe-west1 \
   --service-account tlm-server@senegal-ci-maths.iam.gserviceaccount.com \
   --max-instances 1 \
+  --cpu 2 --memory 1Gi --cpu-boost \
   --allow-unauthenticated \
   --set-env-vars "FIREBASE_STORAGE_BUCKET=senegal-ci-maths.firebasestorage.app,SUPABASE_URL=https://<ref>.supabase.co,SUPABASE_ANON_KEY=<public anon key>,PUBLIC_URL=https://<service-url>"
 ```
@@ -63,6 +64,11 @@ Notes:
   `ALLOW_UNAUTHENTICATED=1`, which must never be set in production).
 - `--max-instances 1` is required for now: MCP session state is held in memory, so requests
   must land on one instance. Fine at this scale; revisit with sticky sessions if usage grows.
+- `--cpu 2 --memory 1Gi --cpu-boost` is what the layout engine needs: a page count is measured
+  by laying the file out in LibreOffice inside the request, and on the default one CPU and
+  512 MB that took about two minutes a file — a two-language render overran the client's
+  three-minute limit (Leçon 25, 2026-09-14). The boost covers the profile warm-up at boot.
+  `elapsedMs.layout` on any measured render is the number that says whether this is enough.
 - **First deploy chicken-and-egg:** `PUBLIC_URL` must equal the service URL, which you only
   know after the first deploy. Deploy once, read the URL, then update the env var
   (`gcloud run services update senegal-mohebs-tlm --update-env-vars PUBLIC_URL=...`).
