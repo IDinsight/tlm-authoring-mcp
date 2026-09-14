@@ -14,6 +14,8 @@ use):
 - **`kg_audit`** — the append-only audit log (see [Audit log](#audit-log-append-only-atomic-with-the-change)).
 - **`kg_pending`** — parked confirm payloads for token-only confirm (see [The curator loop](#the-curator-loop--end-to-end)).
 
+**One shape Firestore refuses that our data has: an array inside an array.** A page template (`properties.layout`) writes a table's rows as a list of lists of cells, the exact shape `render_document` takes, and Firestore rejects such a document outright (« Property properties contains an invalid nested entity »). The store wraps every array that sits directly inside another array in a one-key map (`{"$array": […]}`) on the way in and unwraps it on the way out (`kg-store/firestore-shape.ts`) — for nodes, edges, audit records and parked payloads alike, so a template staged live, its audit diff and its undo all round-trip. Nothing above the store sees the wrapper. The memory store the tests run on accepts any shape, which is why the first template import, not a test, found the refusal.
+
 ### Import / export
 
 A graph is added on demand and backed up on demand:
