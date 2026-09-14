@@ -157,6 +157,74 @@ describe("composeSection — a pupil lesson from the graph", () => {
   });
 });
 
+describe("the teacher fiche skeleton — banners from the graph, holes for the model", () => {
+  const FICHE = layoutSpecSchema.parse(JSON.parse(readFileSync(join(process.cwd(), "test", "fixtures", "senegal-fiche-layout.json"), "utf8")));
+  let ficheId: string;
+  beforeEach(async () => {
+    await withActiveContext(CURATOR, async () => {
+      const raw = getActiveAdapter().model().rawGraph!;
+      const section = raw.nodes.find((n) => (n.labels ?? []).includes("DocumentSection") && /^Fiche — Leçon 4 /.test(String(n.properties?.description ?? "")));
+      if (!section) throw new Error("fixture has no fiche section for Leçon 4");
+      ficheId = section.id;
+    });
+  });
+  const textOf = (block: any): string => block.kind === "table" ? block.rows.flat().flatMap((c: any) => c.blocks.map(textOf)).join(" ") : block.kind === "line" ? block.runs.map((r: any) => r.text ?? "").join("") : "";
+  const styleOf = (block: any): string => block.kind === "table" ? block.rows[0][0].style : block.style;
+
+  it("is valid, and refuses a mark on a fixed asset", () => {
+    expect(validateLayoutSpec(FICHE, "test")).toEqual([]);
+    const marked = { templates: [{ name: "x", match: {}, blocks: [{ kind: "line", runs: [{ image: { role: "r", asset: { relPath: "a.png" }, mark: "answer" } }] }] }] };
+    expect(validateLayoutSpec(marked, "edit_nodes").join("\n")).toMatch(/`mark` applies to a `picture`/);
+  });
+
+  it("writes the header from the lesson's ordinal and name, and the matériel from the fiche's own guide", async () => {
+    const result = (await withActiveContext(CURATOR, () => composeSection(getActiveAdapter().model(), ficheId, FICHE.templates, ratioOf)))!;
+    expect(result.problems).toEqual([]);
+    const header = result.blocks[0] as any;
+    expect(header.rows[0].map((c: any) => c.style)).toEqual(["bandeau-semaine", "bandeau-lecon", "bandeau-jour"]);
+    // Leçon 4 is week ⌈4/5⌉ = 1, day ((4−1) mod 5)+1 = 4 — arithmetic the composer does once.
+    expect(header.rows[0].map((c: any) => c.blocks[0].runs[0].text)).toEqual(["Semaine 1", "Leçon 4", "jour 4"]);
+    expect(textOf(result.blocks[1])).toBe("OS – Je dis si un objet est long ou court.");
+    expect(textOf(result.blocks[2])).toBe("  craies – ficelle – bâtons");
+    expect(result.media.map((m) => m.name)).toContain("picto-materiel.svg");
+  });
+
+  it("lays the nine phase banners in order, the séance 2 banner starting the page, and leaves a hole per phase", async () => {
+    const result = (await withActiveContext(CURATOR, () => composeSection(getActiveAdapter().model(), ficheId, FICHE.templates, ratioOf)))!;
+    const banners = result.blocks.slice(3).filter((b: any) => styleOf(b)?.startsWith("bandeau-phase")).map(textOf);
+    expect(banners.map((t) => t.trim().split(" | ")[0])).toEqual([
+      "RÉVISION", "JE FAIS, Partie 1 – Mise en situation", "JE FAIS, Partie 2 – Modelage", "NOUS FAISONS", "Je retiens", "RAPPEL", "TU FAIS", "OBJECTIVATION", "ÉVALUATION",
+    ]);
+    const styles = result.blocks.slice(3).map(styleOf).filter((s) => s?.startsWith("bandeau-phase"));
+    expect(styles).toEqual(["bandeau-phase-bleu", "bandeau-phase-bleu", "bandeau-phase-bleu", "bandeau-phase-bleu", "bandeau-phase-vert", "bandeau-phase-bleu", "bandeau-phase-bleu", "bandeau-phase-orange", "bandeau-phase-grisbleu"]);
+    const seances = result.blocks.filter((b: any) => styleOf(b) === "bandeau-seance");
+    expect(seances.map(textOf)).toEqual(["Séance 1 | 30 min", "SÉANCE 2 - CONSOLIDATION ET ÉVALUATION | 30 min"]);
+    expect((seances[1] as any).pageBreak).toBe("before");
+
+    // Every phase is a hole: its guide and the path its lines go in at.
+    expect(result.unfilled).toHaveLength(9);
+    expect(result.unfilled.map((u) => u.title.split(" — ")[0])).toEqual(["PHASE 1", "PHASE 2", "PHASE 3", "PHASE 4", "PHASE 5", "PHASE 6", "PHASE 7", "PHASE 8", "PHASE 9"]);
+    expect(result.unfilled[0].insertAt).toBe("blocks[5]");   // after the header, the séance banner and the phase banner
+    expect(result.unfilled[0].guide).toMatch(/ACQUIS RÉACTIVÉ/);
+    // No sentinel is left in the tree: it is a valid page as it stands.
+    expect(documentSchema.safeParse({ blocks: result.blocks, media: [] }).success).toBe(true);
+    // The hole paths are the tree's: filling from the last hole up keeps every earlier path valid.
+    const { applyTreePatch } = await import("../tree-park.js");
+    const filled = applyTreePatch({ blocks: result.blocks, media: [] }, [...result.unfilled].reverse().map((u) => ({ op: "insert-before" as const, path: u.insertAt!, block: { kind: "line", runs: [{ text: u.title }] } })));
+    if ("error" in filled) throw new Error(filled.error);
+    const lines = (filled.tree as any).blocks.filter((b: any) => b.kind === "line" && /^PHASE/.test(b.runs[0].text)).map((b: any) => b.runs[0].text.split(" — ")[0]);
+    expect(lines).toEqual(["PHASE 1", "PHASE 2", "PHASE 3", "PHASE 4", "PHASE 5", "PHASE 6", "PHASE 7", "PHASE 8", "PHASE 9"]);
+  });
+
+  it("names the teacher's copy of a band apart from the plain one", async () => {
+    const withMark = [{ name: "x", match: { section: "^PHASE 4 ", }, blocks: [{ kind: "line" as const, runs: [{ image: { role: "bande", picture: "-nf-1$", mark: "answer" as const } }] }] }];
+    const result = (await withActiveContext(CURATOR, () => composeSection(getActiveAdapter().model(), ficheId, withMark as any, ratioOf)))!;
+    const marked = result.media.find((m) => "mark" in m);
+    if (!marked) { expect(result.problems.join("; ")).toMatch(/no attached picture/); return; }   // the fixture may carry no nf-1 for L4
+    expect(marked.name).toMatch(/-nf-1-answer$/);
+  });
+});
+
 describe("compose_section — the tool", () => {
   it("composes nothing and says so when no formatter on the stack declares layout templates", async () => {
     const out = await withActiveContext(CURATOR, () => runComposeSection({ section: lessonSectionId }));

@@ -33,7 +33,7 @@ import { getKgStore, kgNamespace, toAuditActor, nextAuditSeq } from "../kg-store
 import { currentActor } from "../actor.js";
 import { getStorageAdapter } from "../storage/index.js";
 import { formatterStackFor } from "../curriculum/index.js";
-import { documentSchema, renderDocx, resolveRenderSpec, missingMediaNames, splitByVariant, deriveVariant, hasVariant, measureDocx, readDocx, proposeEdits, editItems, documentText, normalise, rasterizeSvgMedia, usableWidthCm, imageSizeCm, floatGutterCm, PAGE_CM, type DocumentTree, type TextSlot, type TranslateLines } from "../render/index.js";
+import { documentSchema, renderDocx, resolveRenderSpec, missingMediaNames, splitByVariant, deriveVariant, hasVariant, measureDocx, readDocx, proposeEdits, editItems, documentText, normalise, rasterizeSvgMedia, markAnswerCells, usableWidthCm, imageSizeCm, floatGutterCm, PAGE_CM, type DocumentTree, type TextSlot, type TranslateLines } from "../render/index.js";
 import { displayName, descriptionBody, imageMimeFor } from "../utils/index.js";
 import { translateBatch } from "../translation/index.js";
 import { effectiveTerms, filterByText } from "./glossary-read.js";
@@ -65,13 +65,27 @@ const defaultRelPath = (nodeId: string) => `previews/render-${nodeId}.docx`;
  * bucket and the namespace, so a graph moved to another deployment — or a
  * picture from another subject — refuses rather than reads the wrong object.
  */
-function attachedPicturePath(nodes: Array<{ id: string; labels?: string[]; properties?: Record<string, unknown> }>, nodeId: string): { relPath: string } | { refused: string } {
+type GraphNode = { id: string; labels?: string[]; properties?: Record<string, unknown> };
+
+function attachedPicturePath(nodes: GraphNode[], nodeId: string): { relPath: string } | { refused: string } {
   const node = nodes.find((n) => n.id === nodeId);
   if (!node) return { refused: `no node '${nodeId}' in this graph` };
   if (!(node.labels ?? []).includes("Material")) return { refused: `'${nodeId}' is not a Material` };
   const identifier = (node.properties ?? {}).identifier;
   if (typeof identifier !== "string" || !imageMimeFor(identifier)) return { refused: `'${nodeId}' is a Material but not a picture (its identifier names no image file)` };
   return relPathOfDocumentObjectUri(identifier);
+}
+
+/*
+ * The correct cell(s) a picture records — `metadata.answerMark.cells`, set by
+ * attach_image's `answerCells` or edit_nodes. Absent is a refusal at the
+ * media entry that asked for the mark: a teacher's copy with no check on it
+ * is the plain band wearing the key's name.
+ */
+function answerCellsOf(nodes: GraphNode[], nodeId: string): number[] | null {
+  const metadata = (nodes.find((n) => n.id === nodeId)?.properties ?? {}).metadata as { answerMark?: { cells?: unknown } } | undefined;
+  const cells = metadata?.answerMark?.cells;
+  return Array.isArray(cells) && cells.length > 0 && cells.every((c) => typeof c === "number") ? (cells as number[]) : null;
 }
 
 function suffixed(relPath: string, suffix: string): string {
@@ -374,6 +388,8 @@ export async function renderDocument(a: RenderArgs): Promise<Record<string, unkn
   const media: { name: string; data: Buffer }[] = [];
   const unresolved: string[] = [];
   const unattached: string[] = [];
+  // Entries asking for the teacher's copy: drawn once every picture is raster.
+  const toMark: { name: string; cells: number[] }[] = [];
   for (const m of tree.data.media ?? []) {
     if (m.data !== undefined) {
       media.push({ name: m.name, data: Buffer.from(m.data, "base64") });
@@ -394,6 +410,14 @@ export async function renderDocument(a: RenderArgs): Promise<Record<string, unkn
         continue;
       }
       relPath = attached.relPath;
+      if (m.mark === "answer") {
+        const cells = answerCellsOf(model.rawGraph?.nodes ?? [], m.nodeId);
+        if (!cells) {
+          unattached.push(`'${m.name}': asks for the answer mark, but '${m.nodeId}' records no correct cell — set it with attach_image's \`answerCells\` or edit_nodes (metadata.answerMark: {cells: [k]})`);
+          continue;
+        }
+        toMark.push({ name: m.name, cells });
+      }
     }
     if (!storage.downloadObject) {
       return { preview: true, error: "This storage backend cannot resolve a media `relPath`. Inline the image as base64 `data` instead." };
@@ -441,6 +465,30 @@ export async function renderDocument(a: RenderArgs): Promise<Record<string, unkn
         ". Nothing was rendered. An SVG is converted to PNG when the page is laid out; fix the file or upload a PNG of it.",
     };
   }
+  /*
+   * The teacher's copies: a check drawn on the cell the graph records, in the
+   * formatter's colour and corner. Drawn AFTER rasterizing, so a vector band
+   * takes the mark too; refused by name when the bytes cannot carry one.
+   */
+  const marked: string[] = [];
+  const markFailed: string[] = [];
+  for (const entry of raster.media) {
+    const ask = toMark.find((m) => m.name === entry.name);
+    if (!ask) continue;
+    try {
+      entry.data = markAnswerCells(entry.data, ask.cells, spec.spec.images?.answerMark ?? {});
+      marked.push(entry.name);
+    } catch (error) {
+      markFailed.push(`'${entry.name}' ${(error as Error).message}`);
+    }
+  }
+  if (markFailed.length > 0) {
+    return {
+      preview: true, namespace: ns,
+      error: `${markFailed.length} picture(s) could not take the answer mark: ${markFailed.join("; ")}. Nothing was rendered.`,
+    };
+  }
+
   let composed: DocumentTree = { blocks: tree.data.blocks, media: raster.media };
 
   // Fill in a language the tree does not carry, before splitting — a variant
@@ -571,6 +619,7 @@ export async function renderDocument(a: RenderArgs): Promise<Record<string, unkn
     blocks: tree.data.blocks.length,
     images: media.length,
     ...(raster.rasterized.length > 0 ? { rasterizedSvg: raster.rasterized } : {}),
+    ...(marked.length > 0 ? { answerMarked: marked } : {}),
     formatters: spec.from,
     translatedInto: a.translateInto ?? null,
     // Which graph this was laid out from, so a sheet is never mistaken for one
@@ -591,7 +640,7 @@ export function registerRenderTools(server: McpServer) {
         "Turn a page YOU composed into a Word file. `nodeId` is the DocumentSection (or TeachingLearningMaterial) being rendered; `document` is the block tree — or `treeRef`, the ref a previous compose_section / lint_content / render_document call handed back, so the tree is never retyped: every response carries a fresh `treeRef` for the tree it used. A correction goes as `patch` (a few ops on block paths — replace / insert-before / insert-after / remove, plus media / remove-media) on top of `treeRef`, not as the whole page again. The server merges that node's formatter stack into one render spec, validates the tree against it, lays out the .docx and returns a short-lived `downloadUrl`. " +
         "YOU decide what is on the page — which banner, in what order, where it turns; the FORMATTER decides what it looks like. So the tree carries NO geometry: no colour, no point size, no centimetre. A block names a `style` and a picture names a `role`, both defined by the formatter; a page break says only `pageBreak:'before'` and the formatter's `pagination.pageBreakCarrier` decides how it is written. The tree shape is in get_capabilities section:'document'; call preview_generation first for the section's curriculum, routine and formatter prose. " +
         "Unknown keys are REFUSED rather than ignored, and nothing is rendered when the tree or the stack is invalid — the response names the path. " +
-        "PICTURES go in the tree's `media`, each as {name, nodeId} — a picture ATTACHED to the covered curriculum (attach_image; walk_document_section lists them under `pictures` with the id), which the server resolves to its file — OR {name, relPath}, a path to an object already in THIS namespace's documents/ area, OR {name, data} with data base64 (an illustrated document is megabytes the tool call cannot carry, so prefer the first two). Prefer nodeId: the graph then knows which picture the page carries, and lint_content can check the page against what is attached. Exactly one of nodeId/relPath/data per entry; an entry that resolves to nothing is refused, naming it, not rendered with the wrong image. A VECTOR picture (SVG, by any of the three) is rasterized to PNG when the page is laid out, so the pictograms' SVG masters can be named directly; an SVG that sets text with a font is refused (the server has no fonts) — convert the text to outlines first. " +
+        "PICTURES go in the tree's `media`, each as {name, nodeId} — a picture ATTACHED to the covered curriculum (attach_image; walk_document_section lists them under `pictures` with the id), which the server resolves to its file; add `mark:'answer'` to get the TEACHER'S COPY, the same picture with a check drawn on the cell(s) its node records as correct (`answerMark` in `pictures`; set with attach_image's `answerCells` or edit_nodes), so the key is never drawn by hand and the page still names the attached picture — OR {name, relPath}, a path to an object already in THIS namespace's documents/ area, OR {name, data} with data base64 (an illustrated document is megabytes the tool call cannot carry, so prefer the first two). Prefer nodeId: the graph then knows which picture the page carries, and lint_content can check the page against what is attached. Exactly one of nodeId/relPath/data per entry; an entry that resolves to nothing is refused, naming it, not rendered with the wrong image. A VECTOR picture (SVG, by any of the three) is rasterized to PNG when the page is laid out, so the pictograms' SVG masters can be named directly; an SVG that sets text with a font is refused (the server has no fonts) — convert the text to outlines first. " +
         "ONE SOURCE, ONE FILE PER LANGUAGE. When the formatter's `language.strategy` is 'per-file', each declared variant gets its own document: lines marked `inAllFiles` print in every one, a line tagged with a variant prints only in that variant's file, and `files[]` comes back with one entry each. Pass `translateInto` (a variant id, e.g. 'wo') to have the server DERIVE that language from the one the tree already carries, translating line by line through the subject's MOHEBS glossary so the wording matches materials already in classrooms — a tree that already has those lines is left alone. Translation spends a metered backend, so it needs a ROLE in the workspace. " +
         "Pass `measure:true` to lay each file out and COUNT ITS PAGES — page counts are measured on the render, never estimated from the source (an estimate once put a document at 2.5 pages that rendered at eleven). Each file then carries `measurement` with the page count, the page size actually produced, where every PICTURE landed (`perPage[].images`), and the whitespace left below the last MARK of each page — picture or word; with `budget.maxPages` declared it also carries `fits`, with `budget.reserveBottomCm` declared `reserveKept` for the last page, and `overlaps` names a band drawn over the band before it or over words (the defect a page count never shows). Measuring starts a whole office suite, so it is off by default, and where the deployment has no layout engine it reports `available:false` rather than a guess. " +
         "A tree block {kind:'clear'} ends a wrap: what follows starts below the lowest floated picture, so a short activity beside a tall band no longer lets the next band draw over it. page_geometry gives the numbers to compose against BEFORE rendering — the first render should be a calculation, not a guess. " +

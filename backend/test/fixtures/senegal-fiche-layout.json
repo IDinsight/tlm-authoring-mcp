@@ -1,0 +1,105 @@
+{
+  "templates": [
+    {
+      "name": "fiche",
+      "match": { "section": "^Fiche — Leçon", "root": true },
+      "blocks": [
+        { "kind": "table", "rows": [[
+          { "style": "bandeau-semaine", "blocks": [{ "kind": "line", "runs": [{ "text": "Semaine {{covered.position|ceil-div:5}}" }] }] },
+          { "style": "bandeau-lecon", "blocks": [{ "kind": "line", "runs": [{ "text": "Leçon {{covered.position}}" }] }] },
+          { "style": "bandeau-jour", "blocks": [{ "kind": "line", "runs": [{ "text": "jour {{covered.position|mod-1based:5}}" }] }] }
+        ]] },
+        { "kind": "table", "rows": [[ { "style": "bandeau-os", "blocks": [{ "kind": "line", "runs": [{ "text": "OS – {{covered.name}}." }] }] } ]] },
+        { "kind": "table", "rows": [[ { "style": "bandeau-materiel", "blocks": [{ "kind": "line", "runs": [
+          { "image": { "role": "picto-materiel", "asset": { "relPath": "assets/picto-materiel.svg" } } },
+          { "text": "  {{section.guide|match:^Case MATÉRIEL : (.+)$}}" }
+        ] }] } ]] },
+        { "kind": "children" }
+      ]
+    },
+    {
+      "name": "phase-1",
+      "match": { "section": "^PHASE 1 " },
+      "blocks": [
+        { "kind": "table", "rows": [[ { "style": "bandeau-seance", "blocks": [{ "kind": "line", "runs": [{ "text": "Séance 1 | 30 min" }] }] } ]] },
+        { "kind": "table", "rows": [[ { "style": "bandeau-phase-bleu", "blocks": [{ "kind": "line", "runs": [{ "text": "{{section.title|match:^PHASE \\d+ — (.+)$}}" }] }] } ]] },
+        { "kind": "unfilled" }
+      ]
+    },
+    {
+      "name": "phase-je-fais",
+      "match": { "section": "^PHASE [23] " },
+      "blocks": [
+        { "kind": "table", "rows": [[ { "style": "bandeau-phase-bleu", "blocks": [{ "kind": "line", "runs": [
+          { "image": { "role": "picto-section", "asset": { "relPath": "assets/picto-je-fais.svg" } } },
+          { "text": "  {{section.title|match:^PHASE \\d+ — (.+)$}}" }
+        ] }] } ]] },
+        { "kind": "unfilled" }
+      ]
+    },
+    {
+      "name": "phase-nous-faisons",
+      "match": { "section": "^PHASE 4 " },
+      "blocks": [
+        { "kind": "table", "rows": [[ { "style": "bandeau-phase-bleu", "blocks": [{ "kind": "line", "runs": [
+          { "image": { "role": "picto-section", "asset": { "relPath": "assets/picto-nous-faisons.svg" } } },
+          { "text": "  {{section.title|match:^PHASE \\d+ — (.+)$}}" }
+        ] }] } ]] },
+        { "kind": "unfilled" }
+      ]
+    },
+    {
+      "name": "phase-je-retiens",
+      "match": { "section": "^PHASE 5 " },
+      "blocks": [
+        { "kind": "table", "rows": [[ { "style": "bandeau-phase-vert", "blocks": [{ "kind": "line", "runs": [
+          { "image": { "role": "picto-section", "asset": { "relPath": "assets/picto-je-retiens.svg" } } },
+          { "text": "  {{section.title|match:^PHASE \\d+ — (.+)$}}" }
+        ] }] } ]] },
+        { "kind": "unfilled" }
+      ]
+    },
+    {
+      "name": "phase-rappel",
+      "match": { "section": "^PHASE 6 " },
+      "blocks": [
+        { "kind": "table", "pageBreak": "before", "rows": [[ { "style": "bandeau-seance", "blocks": [{ "kind": "line", "runs": [{ "text": "SÉANCE 2 - CONSOLIDATION ET ÉVALUATION | 30 min" }] }] } ]] },
+        { "kind": "table", "rows": [[ { "style": "bandeau-phase-bleu", "blocks": [{ "kind": "line", "runs": [
+          { "image": { "role": "picto-section", "asset": { "relPath": "assets/picto-je-retiens.svg" } } },
+          { "text": "  {{section.title|match:^PHASE \\d+ — (.+)$}}" }
+        ] }] } ]] },
+        { "kind": "unfilled" }
+      ]
+    },
+    {
+      "name": "phase-tu-fais",
+      "match": { "section": "^PHASE 7 " },
+      "blocks": [
+        { "kind": "table", "rows": [[ { "style": "bandeau-phase-bleu", "blocks": [{ "kind": "line", "runs": [
+          { "image": { "role": "picto-section", "asset": { "relPath": "assets/picto-tu-fais.svg" } } },
+          { "text": "  {{section.title|match:^PHASE \\d+ — (.+)$}}" }
+        ] }] } ]] },
+        { "kind": "unfilled" }
+      ]
+    },
+    {
+      "name": "phase-objectivation",
+      "match": { "section": "^PHASE 8 " },
+      "blocks": [
+        { "kind": "table", "rows": [[ { "style": "bandeau-phase-orange", "blocks": [{ "kind": "line", "runs": [{ "text": "{{section.title|match:^PHASE \\d+ — (.+)$}}" }] }] } ]] },
+        { "kind": "unfilled" }
+      ]
+    },
+    {
+      "name": "phase-evaluation",
+      "match": { "section": "^PHASE 9 " },
+      "blocks": [
+        { "kind": "table", "rows": [[ { "style": "bandeau-phase-grisbleu", "blocks": [{ "kind": "line", "runs": [
+          { "image": { "role": "picto-section", "asset": { "relPath": "assets/picto-tu-fais.svg" } } },
+          { "text": "  {{section.title|match:^PHASE \\d+ — (.+)$}}" }
+        ] }] } ]] },
+        { "kind": "unfilled" }
+      ]
+    }
+  ]
+}

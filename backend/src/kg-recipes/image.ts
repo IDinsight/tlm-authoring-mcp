@@ -73,6 +73,11 @@ export type AttachImageArgs = RecipeCommon & {
   description: string;                    // what the picture shows — the Material's `content`
   uri: string;                            // the file's object URI, formed by the tool layer once the file is known to exist
   position?: number;
+  // The correct cell(s) of a band, 1-based, left to right, every vignette
+  // counted (a reference cell included). What render_document draws the
+  // teacher's check from — the one non-canonical fact a picture carries,
+  // kept in the metadata sidecar like every other extension.
+  answerCells?: number[];
 };
 
 export const attachImage: GraphMutation<AttachImageArgs> = {
@@ -90,6 +95,12 @@ export const attachImage: GraphMutation<AttachImageArgs> = {
       const value = args[key];
       if (typeof value !== "string" || value.trim().length === 0) {
         errors.push(`attach_image: '${key}' is required — ${why}.`);
+      }
+    }
+    if (args.answerCells !== undefined) {
+      const cells = args.answerCells;
+      if (!Array.isArray(cells) || cells.length === 0 || cells.some((c) => !Number.isInteger(c) || c < 1)) {
+        errors.push("attach_image: 'answerCells' must list the correct cell(s) as positive whole numbers, 1 = leftmost.");
       }
     }
 
@@ -131,6 +142,7 @@ export const attachImage: GraphMutation<AttachImageArgs> = {
         name: args.name,
         content: args.description,
         materialType: "Supporting",
+        ...(args.answerCells ? { metadata: { answerMark: { cells: [...args.answerCells] } } } : {}),
       },
     });
   },

@@ -111,6 +111,23 @@ batch does them in seconds. A line the translator refuses refuses the whole rend
 Wolof file with one French line left in it reads as finished. Translation spends a metered backend,
 so it needs a role in the workspace.
 
+### The teacher's copy — `mark: "answer"`
+
+The teacher's fiche shows each band with a check on the correct cell; the pupil's file shows it
+plain. Every lesson used to make those copies by hand — download the bands, composite the tick,
+upload seven new files under new names, place those by path — six to twelve minutes of a model's
+time per lesson for an operation identical on every band seen. Now the graph records the answer and
+the server draws it. `attach_image` takes `answerCells` (1-based, left to right, every vignette
+counted, two when the answer line gives two), stored as `metadata.answerMark.cells` on the picture's
+Material and shown under `pictures` in the section read; `edit_nodes` sets it on a picture already
+attached. A media entry `{name, nodeId, mark: "answer"}` then gets the marked copy at render time
+(`render/answer-mark.ts`): the picture rasterized if it was vector, the check drawn in the
+formatter's `images.answerMark` colour, size and corner (black, a quarter of the cell, top-left by
+default — the formatter's own words), and the page names the attached picture as before, so the two
+picture rules still hold. A band's cells are its width over its height rounded, since the vignettes
+are square; a cell the band does not have, a picture that records no answer, or bytes that cannot
+carry a mark are each a refusal naming the entry. `answerMarked` on the response lists what was drawn.
+
 ### The `clear` block — ending a wrap
 
 A floated band anchors to its paragraph and the text wraps beside it. When that paragraph is shorter

@@ -147,6 +147,8 @@ export type SectionPicture = {
   relPath: string;          // the same file, documents-relative — what an upload named it
   contentType: string;
   illustrates: string;      // the Lesson or Activity it hangs under
+  /** The correct cell(s) the picture records — what a `mark:'answer'` media entry draws the check on. */
+  answerMark?: { cells: number[] };
 };
 
 function pictureOf(raw: RawGraphSnapshot, node: RawNode): SectionPicture | null {
@@ -165,7 +167,13 @@ function pictureOf(raw: RawGraphSnapshot, node: RawNode): SectionPicture | null 
     relPath: parsed.relPath,
     contentType,
     illustrates: parent,
+    ...(answerMarkOf(p) ? { answerMark: answerMarkOf(p)! } : {}),
   };
+}
+
+function answerMarkOf(p: Record<string, unknown>): { cells: number[] } | null {
+  const cells = (p.metadata as { answerMark?: { cells?: unknown } } | undefined)?.answerMark?.cells;
+  return Array.isArray(cells) && cells.length > 0 && cells.every((c) => typeof c === "number") ? { cells: cells as number[] } : null;
 }
 
 /** The pictures attached anywhere under `ids`, in stored order. */

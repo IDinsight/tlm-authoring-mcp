@@ -9,8 +9,15 @@ You build an illustration dossier and **verify what came out of it**.
 
 ## The pipeline
 
-Prompt → one cell at 1:1 → assembled band → answer marker. Check each stage before starting the
-next: a wrong prompt caught at the first cell costs one image, and caught at the end costs the set.
+Prompt → one cell at 1:1 → assembled band → **the answer, recorded**. Check each stage before
+starting the next: a wrong prompt caught at the first cell costs one image, and caught at the end
+costs the set.
+
+**You do not draw the check mark.** The teacher's copy of a band is drawn by the server at render
+time from the cell the picture's node records (`attach_image` with `answerCells`, or `edit_nodes` on
+`metadata.answerMark`). Your job at the last stage is to READ the band, enlarged, and say which cell
+is correct — and to say so when a band admits two answers, which is a defect of the band, not a
+choice to make. Return the cells; never a composited file.
 
 Prompts come from the section's own guidance and the document's image formatter, both supplied by
 the caller. You do not invent style rules.
@@ -46,13 +53,15 @@ JSON, and nothing else:
   "images": [
     {
       "name": "the file name, as the formatter's convention builds it",
-      "stage": "cell | band | marker",
+      "stage": "cell | band | answer",
+      "answerCells": [2],
       "produced": true,
       "checkedVisually": true,
       "problems": ["what is wrong with the produced image, if anything"]
     }
   ],
   "missing": ["images the dossier requires that do not exist"],
+  "ambiguous": [{ "name": "", "cells": [1, 3], "why": "the band admits two answers" }],
   "consistency": ["differences across the set that a contact sheet reveals"],
   "proposedRegeneration": [{ "name": "", "why": "" }]
 }
