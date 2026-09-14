@@ -1,0 +1,52 @@
+{
+ "lintRules": [
+  {
+   "id": "pt-07-sans-exemple",
+   "where": "guide",
+   "match": "\\{pt:PT-07\\s*\\}",
+   "message": "PT-07 s'appelle avec son exemple : « E. reprend l'explication avec des objets de la classe » ne se rend jamais sans objets nommés (contrôle 26)",
+   "fix": "Écrire l'exemple dans l'appel : {pt:PT-07 avec deux crayons et une craie}."
+  },
+  {
+   "id": "annonce-objectif-imprimee",
+   "where": "guide",
+   "match": "^\\[(FR|N)\\].*Aujourd.hui, nous allons apprendre",
+   "message": "La puce « Aujourd'hui, nous allons apprendre à… » ne s'imprime pas : le bandeau OS annonce déjà l'objectif",
+   "fix": "Retirer le préfixe [FR] de la ligne (elle reste dans le guide comme spécification)."
+  },
+  {
+   "id": "reponse-avec-justification",
+   "where": "guide",
+   "match": "^\\[N\\]\\s*RÉPONSES?\\s*:",
+   "maxChars": 70,
+   "message": "Une ligne RÉPONSE dit la réponse, pas sa justification : au-delà, elle prend deux lignes ou perd la réponse (contrôle 15)",
+   "fix": "Garder « RÉPONSE : le signe X. » ; la justification perd son préfixe et reste dans le guide."
+  },
+  {
+   "id": "question-amorce-sans-reponse",
+   "where": "guide",
+   "sections": "^PHASE 2 ",
+   "match": "^\\[FR\\].*\\?\\s*$",
+   "require": "\\([^()]+\\)\\s*$",
+   "unless": "Aujourd.hui",
+   "message": "Une question orale de l'amorce porte sa réponse attendue entre parenthèses à la fin de la ligne [FR] : « Qui est près du chef ? (la rangée) »",
+   "fix": "Ajouter la réponse entre parenthèses à la fin de la ligne, en noir ; la ligne RÉPONSES : à part ne s'écrit pas ici."
+  },
+  {
+   "id": "puce-sur-deux-lignes",
+   "where": "guide",
+   "match": "^\\[(N|FR)\\]",
+   "maxChars": 92,
+   "unless": "\\{pt:PT-(01|03|08|27)\\b|Écris le signe",
+   "message": "Une puce tient sur une ligne (88 caractères imprimés, le préfixe en plus) ; les exceptions sont les consignes citées mot pour mot et PT-01, PT-03, PT-08, PT-27 (contrôle 4)",
+   "fix": "Resserrer la ligne ; si c'est une consigne de la page citée mot pour mot, elle est exemptée par sa forme « … Écris le signe. »"
+  },
+  {
+   "id": "lettre-abc-imprimee",
+   "where": "page",
+   "match": "^\\s*[ABC]\\s*[.)–-]\\s",
+   "message": "Aucune lettre A / B / C ne figure sur une fiche : l'élève répond par le signe, les trois choix de l'objectivation s'impriment en trois puces sans lettre (contrôle 22)",
+   "fix": "Retirer la lettre ; garder le repère ou la puce."
+  }
+ ]
+}

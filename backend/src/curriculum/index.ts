@@ -21,3 +21,4 @@ export { lintContent, lintableRules, CONTENT_RULES, citedIds, resolvableIds, ign
 export { lintPage, PAGE_RULES, type PageRule, type PageInput } from "./lint-page.js";
 export { composeSection, type ComposeResult, type MediaRef, type RatioOf } from "./compose.js";
 export { documentReadiness, type DocumentReadiness, type ReadinessCheck, type ReadinessStatus } from "./readiness.js";
+export { lintDeclared, declaredPageRules, lintDeclaredPage, DECLARED_PREFIX } from "./lint-declared.js";

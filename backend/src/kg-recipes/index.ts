@@ -37,4 +37,5 @@ export {
 // The formatter's declarative half — its schema, and the authoring-time check.
 export { renderSpecSchema, validateRenderSpec, validateRenderInBag, type RenderSpec } from "./render-spec.js";
 // The formatter's structural half — templates the composer fills from the graph.
+export { lintRuleSchema, lintRulesSchema, validateLintRules, validateLintRulesInBag, lintRulesOf, lineBreaks, type LintRule } from "./lint-rules.js";
 export { layoutSpecSchema, templateSchema, validateLayoutSpec, validateLayoutInBag, layoutBagOf, resolveLayout, type LayoutSpec, type LayoutTemplate, type TemplateBlock, type TemplateCell } from "./layout-spec.js";

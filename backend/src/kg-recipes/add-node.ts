@@ -16,6 +16,7 @@ import { RecipeCommon, buildCreatedProps, nextPosition, nodeById } from "./share
 import { ALIGNMENT_EDGE, containmentEdgeFor, deriveTemplate, isKnownLabel } from "./lc.js";
 import { validateRenderInBag } from "./render-spec.js";
 import { validateLayoutInBag } from "./layout-spec.js";
+import { validateLintRulesInBag } from "./lint-rules.js";
 
 export type AddNodeArgs = RecipeCommon & {
   parentId?: string;                      // the container to attach under; omitted for a ROOT node (Course/StandardsFramework)
@@ -49,6 +50,7 @@ export const addNode: GraphMutation<AddNodeArgs> = {
     // with a knob a renderer will silently ignore.
     errors.push(...validateRenderInBag(args.properties, "add_nodes"));
     errors.push(...validateLayoutInBag(args.properties, "add_nodes"));
+    errors.push(...validateLintRulesInBag(args.properties, "add_nodes"));
     return { errors, warnings: [] };
   },
   apply: (base, args) => {

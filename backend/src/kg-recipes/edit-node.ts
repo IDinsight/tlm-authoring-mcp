@@ -29,6 +29,7 @@ import { displayName, descriptionBody } from "../utils/index.js";
 import { RecipeCommon, nodeById } from "./shared.js";
 import { validateRenderInBag } from "./render-spec.js";
 import { validateLayoutInBag } from "./layout-spec.js";
+import { validateLintRulesInBag } from "./lint-rules.js";
 import { reposition } from "./reposition.js";
 import { setContent } from "./set-content.js";
 
@@ -161,6 +162,7 @@ export const editNode: GraphMutation<EditNodeArgs> = {
         // page comes out wrong with nothing to point at.
         errors.push(...validateRenderInBag(args.properties, "edit_nodes"));
         errors.push(...validateLayoutInBag(args.properties, "edit_nodes"));
+        errors.push(...validateLintRulesInBag(args.properties, "edit_nodes"));
       }
     }
     if (args.content !== undefined && (typeof args.content !== "string" || args.content.length === 0)) {
