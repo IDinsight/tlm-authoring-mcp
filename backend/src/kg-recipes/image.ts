@@ -78,6 +78,10 @@ export type AttachImageArgs = RecipeCommon & {
   // teacher's check from — the one non-canonical fact a picture carries,
   // kept in the metadata sidecar like every other extension.
   answerCells?: number[];
+  // How many cells the band has in all — recorded, because it cannot be read
+  // off the file: a 4.6:1 band is four cells (a reference and three signed),
+  // which square-vignette arithmetic would call five.
+  answerCellsOf?: number;
 };
 
 export const attachImage: GraphMutation<AttachImageArgs> = {
@@ -102,6 +106,13 @@ export const attachImage: GraphMutation<AttachImageArgs> = {
       if (!Array.isArray(cells) || cells.length === 0 || cells.some((c) => !Number.isInteger(c) || c < 1)) {
         errors.push("attach_image: 'answerCells' must list the correct cell(s) as positive whole numbers, 1 = leftmost.");
       }
+      const of = args.answerCellsOf;
+      if (of !== undefined && (!Number.isInteger(of) || of < 1 || (Array.isArray(cells) && cells.some((c) => c > of)))) {
+        errors.push("attach_image: 'answerCellsOf' must be a positive whole number no smaller than every cell named.");
+      }
+    }
+    if (args.answerCellsOf !== undefined && args.answerCells === undefined) {
+      errors.push("attach_image: 'answerCellsOf' needs 'answerCells' — a cell count with no correct cell records nothing.");
     }
 
     const parent = nodeById(base, args.parentId);
@@ -142,7 +153,7 @@ export const attachImage: GraphMutation<AttachImageArgs> = {
         name: args.name,
         content: args.description,
         materialType: "Supporting",
-        ...(args.answerCells ? { metadata: { answerMark: { cells: [...args.answerCells] } } } : {}),
+        ...(args.answerCells ? { metadata: { answerMark: { cells: [...args.answerCells], ...(args.answerCellsOf !== undefined ? { of: args.answerCellsOf } : {}) } } } : {}),
       },
     });
   },

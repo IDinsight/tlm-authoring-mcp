@@ -124,9 +124,13 @@ attached. A media entry `{name, nodeId, mark: "answer"}` then gets the marked co
 (`render/answer-mark.ts`): the picture rasterized if it was vector, the check drawn in the
 formatter's `images.answerMark` colour, size and corner (black, a quarter of the cell, top-left by
 default — the formatter's own words), and the page names the attached picture as before, so the two
-picture rules still hold. A band's cells are its width over its height rounded, since the vignettes
-are square; a cell the band does not have, a picture that records no answer, or bytes that cannot
-carry a mark are each a refusal naming the entry. `answerMarked` on the response lists what was drawn.
+picture rules still hold. **The cell count is recorded with the answer** (`answerCellsOf`, stored as
+`metadata.answerMark.of`): the first version derived it as width over height rounded, assuming square
+vignettes, and the delivered bands refuted that on the first real lesson — 4.6:1 with a reference cell
+and three signed ones is four cells, which rounding calls five. Without `of` the square guess still
+stands and a refusal says it was a guess. A cell the band does not have, a picture that records no
+answer, or bytes that cannot carry a mark are each a refusal naming the entry. `answerMarked` on the
+response lists what was drawn.
 
 ### The `clear` block — ending a wrap
 

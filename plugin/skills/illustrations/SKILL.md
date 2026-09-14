@@ -13,8 +13,9 @@ description: Construire et vérifier le dossier d'illustration d'une leçon — 
    wrong, and every image made from it will be wrong the same way.
 3. **Assembled band** — compose the cells into the band the layout expects.
 4. **The answer, recorded** — once the band is settled, read it enlarged and record which cell is
-   correct on its node (`answerCells` at `attach_image`, or `edit_nodes` on `metadata.answerMark`
-   for a picture already attached). **Nobody draws the check mark**: the server draws the teacher's
+   correct AND how many cells the band has in all, reference included (`answerCells` and
+   `answerCellsOf` at `attach_image`, or `edit_nodes` on `metadata.answerMark: {cells, of}` for a
+   picture already attached; the count cannot be read off the file). **Nobody draws the check mark**: the server draws the teacher's
    copy at render time from that record (a media entry with `mark:'answer'`), so a change upstream
    cannot orphan it, and the pupil's file stays plain. A band that admits two answers is reported,
    not decided.

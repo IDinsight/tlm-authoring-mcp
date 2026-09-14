@@ -201,11 +201,11 @@ describe("the answer a band records, and the teacher's copy drawn from it", () =
   });
 
   it("records the correct cells on the node, and the section read shows them", async () => {
-    const done = await withActiveContext(CURATOR, () => confirmed({ to: lessonId, name: "bande-2", description: "Trois colliers.", relPath: UPLOADED, answerCells: [2] }));
+    const done = await withActiveContext(CURATOR, () => confirmed({ to: lessonId, name: "bande-2", description: "Trois colliers.", relPath: UPLOADED, answerCells: [2], answerCellsOf: 4 }));
     const pictureId = (done.mintedNodeIds as string[])[0];
     const scope = await withActiveContext(CURATOR, () => walkDocumentSection({ sectionId, slot: "draft" }));
     const picture = (scope.pictures as Array<Record<string, unknown>>).find((p) => p.id === pictureId)!;
-    expect(picture.answerMark).toEqual({ cells: [2] });
+    expect(picture.answerMark).toEqual({ cells: [2], of: 4 });
   });
 
   it("draws the teacher's copy at render time, and says which pictures took a mark", async () => {
@@ -231,9 +231,11 @@ describe("the answer a band records, and the teacher's copy drawn from it", () =
     expect(parsed.success).toBe(false);
   });
 
-  it("refuses cells that are not positive whole numbers at the dry-run", async () => {
+  it("refuses cells that are not positive whole numbers, or a count smaller than a cell named, at the dry-run", async () => {
     const preview = await withActiveContext(CURATOR, () => runAttachImage({ to: lessonId, name: "bande-5", description: "x", relPath: UPLOADED, answerCells: [0] }));
     expect(JSON.stringify(preview)).toMatch(/answerCells.*positive whole numbers/);
+    const short = await withActiveContext(CURATOR, () => runAttachImage({ to: lessonId, name: "bande-6", description: "x", relPath: UPLOADED, answerCells: [4], answerCellsOf: 3 }));
+    expect(JSON.stringify(short)).toMatch(/answerCellsOf.*no smaller than every cell named/);
   });
 });
 
