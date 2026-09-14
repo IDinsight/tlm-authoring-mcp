@@ -19,12 +19,72 @@
  * without them keeps working with page counts absent instead of wrong.
  */
 import { execFile } from "node:child_process";
-import { mkdtemp, writeFile, rm, readdir } from "node:fs/promises";
+import { mkdtemp, writeFile, rm, readdir, cp } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { promisify } from "node:util";
+import { renderDocx } from "./docx.js";
 
 const run = promisify(execFile);
+
+// ── The layout engine's profile ─────────────────────────────────────────────
+//
+// LibreOffice's FIRST start with a profile does its expensive work — scanning
+// every installed font, building its registry — and every conversion here used
+// a fresh profile, so every call paid that again. Locally that is a second;
+// on the one-CPU container it is most of the two minutes a measured render was
+// taking, right up against the client's three-minute limit. So one profile is
+// warmed ONCE per process by converting a trivial document (an init-only start
+// leaves the font cache cold — measured), and each conversion gets a COPY of
+// it: the isolation two concurrent conversions need, at the cost of copying
+// half a megabyte.
+
+let warmProfile: Promise<string | null> | null = null;
+
+async function sofficeBinary(override?: string): Promise<string | null> {
+  return override ?? (await which("soffice")) ?? (await which("libreoffice"));
+}
+
+/**
+ * Warm the layout engine's profile, once. Safe to call at startup and to
+ * forget: a conversion that finds no warm profile makes a fresh one. Returns
+ * the profile's path, or null where there is no engine or warming failed.
+ */
+export async function warmLayoutEngine(options: MeasureOptions = {}): Promise<string | null> {
+  if (!warmProfile) {
+    warmProfile = (async () => {
+      const soffice = await sofficeBinary(options.soffice);
+      if (!soffice) return null;
+      const dir = await mkdtemp(join(tmpdir(), "tlm-soffice-profile-"));
+      const scratch = await mkdtemp(join(tmpdir(), "tlm-soffice-warm-"));
+      try {
+        const docx = join(scratch, "warm.docx");
+        await writeFile(docx, renderDocx({ blocks: [{ kind: "line", runs: [{ text: "warm" }] }], media: [] }, {}));
+        await run(soffice, [`-env:UserInstallation=file://${dir}`, "--headless", "--norestore", "--convert-to", "pdf", "--outdir", scratch, docx], { timeout: options.timeoutMs ?? 120_000 });
+        return dir;
+      } catch {
+        await rm(dir, { recursive: true, force: true });
+        return null;
+      } finally {
+        await rm(scratch, { recursive: true, force: true });
+      }
+    })();
+  }
+  return warmProfile;
+}
+
+/** A profile for one conversion: a copy of the warm one, or a fresh directory when there is none. */
+async function profileFor(dir: string, options: MeasureOptions): Promise<{ path: string; warm: boolean }> {
+  const path = join(dir, "profile");
+  const warm = await warmLayoutEngine(options);
+  if (!warm) return { path, warm: false };
+  try {
+    await cp(warm, path, { recursive: true });
+    return { path, warm: true };
+  } catch {
+    return { path, warm: false };
+  }
+}
 
 const PT_PER_CM = 72 / 2.54;
 const ptToCm = (pt: number) => pt / PT_PER_CM;
@@ -99,6 +159,10 @@ export type Measurement =
       /** Whether the pictures were located: false means `images` is empty and `overlaps` says nothing. */
       picturesMeasured: boolean;
       perPage: PageMeasurement[];
+      /** Where the time went, so a slow call explains itself: the layout engine, then the readers. */
+      elapsedMs: { layout: number; read: number };
+      /** Whether the layout engine started from the warmed profile (false = a cold start, the slow case). */
+      warmProfile: boolean;
     };
 
 /*
@@ -254,7 +318,7 @@ export type MeasureOptions = {
  * so this is opt-in at every call site rather than something every render pays.
  */
 export async function measureDocx(bytes: Buffer, options: MeasureOptions = {}): Promise<Measurement> {
-  const soffice = options.soffice ?? (await which("soffice")) ?? (await which("libreoffice"));
+  const soffice = await sofficeBinary(options.soffice);
   if (!soffice) {
     return {
       available: false,
@@ -273,11 +337,15 @@ export async function measureDocx(bytes: Buffer, options: MeasureOptions = {}): 
     const timeout = options.timeoutMs ?? 120_000;
     // `-env:UserInstallation` gives this conversion its own profile: without it
     // two concurrent conversions fight over one and the second silently does
-    // nothing at all.
+    // nothing at all. The profile is a copy of the warmed one where there is one.
+    const profile = await profileFor(dir, options);
+    const startedLayout = Date.now();
     await run(soffice, [
-      `-env:UserInstallation=file://${join(dir, "profile")}`,
+      `-env:UserInstallation=file://${profile.path}`,
       "--headless", "--norestore", "--convert-to", "pdf", "--outdir", dir, docx,
     ], { timeout });
+    const layoutMs = Date.now() - startedLayout;
+    const startedRead = Date.now();
 
     const pdf = (await readdir(dir)).find((name) => name.endsWith(".pdf"));
     if (!pdf) {
@@ -316,9 +384,17 @@ export async function measureDocx(bytes: Buffer, options: MeasureOptions = {}): 
       pageSize: info.size,
       picturesMeasured,
       perPage: measurePages(words, images, info.heightPt),
+      elapsedMs: { layout: layoutMs, read: Date.now() - startedRead },
+      warmProfile: profile.warm,
     };
   } catch (error) {
-    return { available: false, reason: `Laying the document out failed: ${(error as Error).message}` };
+    const timedOut = /ETIMEDOUT|timed out|SIGTERM/i.test((error as Error).message);
+    return {
+      available: false,
+      reason: timedOut
+        ? `Laying the document out took longer than ${Math.round((options.timeoutMs ?? 120_000) / 1000)} s and was stopped, so there is no page count — the file itself is unaffected. A cold layout engine on a small instance is the usual cause; try once more.`
+        : `Laying the document out failed: ${(error as Error).message}`,
+    };
   } finally {
     await rm(dir, { recursive: true, force: true });
   }

@@ -200,6 +200,17 @@ were both fine. The render response lifts every overlap to the file's own `overl
 A pictogram set flush against its neighbours' glyph boxes is not an overlap: two boxes share ink only
 past half a millimetre in both directions.
 
+**The layout engine is warmed once and copied per call.** LibreOffice's first start with a profile
+scans every installed font and builds its registry; every conversion used a fresh profile, so every
+call paid that again — most of the two minutes a measured render was taking on the one-CPU instance,
+and with two files measured in sequence the client's three-minute limit was overrun and the whole
+response lost (Leçon 25, 2026-09-14). The server now warms one profile at startup by converting a
+trivial document (an init-only start leaves the font cache cold — measured) and gives each conversion
+a copy of it; the files of a render are measured side by side under a **100 s budget per file**, and
+a measurement that overruns comes back `available:false` with the reason while the file still ships.
+Each measurement reports `elapsedMs` (layout vs read) and `warmProfile`, so a slow call explains
+itself without server logs.
+
 Measuring is not free: it needs a layout engine in the image, measured at **149 MB** (108 → 257 MB)
 plus several seconds of cold start. It was **opt-in** (`WITH_LAYOUT_ENGINE=0`) for as long as it
 bought nothing — with no formatter carrying a `render` bag, `render_document` could not lay a page

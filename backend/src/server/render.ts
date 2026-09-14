@@ -55,6 +55,13 @@ type RenderArgs = {
   measure?: boolean;
 };
 
+/*
+ * How long one file's layout may take before the render gives up counting it.
+ * Under the client's three-minute tool limit with room for the upload and
+ * the readers; the file is delivered either way.
+ */
+const MEASURE_BUDGET_MS = 100_000;
+
 /** A default name for the output, so a caller need not invent one. */
 const defaultRelPath = (nodeId: string) => `previews/render-${nodeId}.docx`;
 
@@ -541,17 +548,26 @@ export async function renderDocument(a: RenderArgs): Promise<Record<string, unkn
 
   const maxPages = spec.spec.budget?.maxPages;
 
-  for (const variant of variants) {
-    const bytes = renderDocx(variant.tree, spec.spec);
+  /*
+   * Counting happens on the RENDER, which is the project's own rule and was
+   * paid for: a count derived from the source once put a document at 2.5
+   * pages that rendered at eleven. It is opt-in because laying a file out
+   * starts a whole office suite, and it reports `available: false` rather
+   * than a guess when the environment has no layout engine.
+   *
+   * The files are measured SIDE BY SIDE, under a budget. A measured render was
+   * taking two minutes a file live — two files in sequence overran the
+   * client's three-minute limit and the whole response, file included, was
+   * lost. A measurement that overruns the budget now comes back as
+   * `available:false` with the reason, and the file still ships.
+   */
+  const rendered = variants.map((variant) => ({ variant, bytes: renderDocx(variant.tree, spec.spec) }));
+  const measurements = a.measure
+    ? await Promise.all(rendered.map(({ bytes }) => measureDocx(bytes, { timeoutMs: MEASURE_BUDGET_MS })))
+    : rendered.map(() => null);
 
-    /*
-     * Counting happens on the RENDER, which is the project's own rule and was
-     * paid for: a count derived from the source once put a document at 2.5
-     * pages that rendered at eleven. It is opt-in because laying a file out
-     * starts a whole office suite, and it reports `available: false` rather
-     * than a guess when the environment has no layout engine.
-     */
-    const measurement = a.measure ? await measureDocx(bytes) : null;
+  for (const [index, { variant, bytes }] of rendered.entries()) {
+    const measurement = measurements[index];
     const fits = measurement?.available && maxPages !== undefined
       ? measurement.pages <= maxPages
       : null;
