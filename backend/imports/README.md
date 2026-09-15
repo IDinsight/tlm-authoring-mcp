@@ -33,8 +33,9 @@ graph. A routine that is catalogued but attached to nothing would have been lost
 
 | Namespace | Entries | Nodes / Edges |
 |-----------|---------|---------------|
-| `senegal/_catalog/routines` | 21 | 131 / 130 |
-| `_shared/_catalog/routines` | 5  | 58 / 57 |
+| `senegal/_catalog/routines` | 28 | 168 / 166 |
+| `_shared/_catalog/routines` | 5  | 47 / 46 |
+| `senegal/_glossary/terms` | 1468 terms | 1468 / 0 |
 
 Refresh a snapshot after authoring catalog entries:
 
@@ -51,4 +52,8 @@ envelope's nodes and edges verbatim (`fromRawEnvelope`, the exact inverse of the
 npm run import:kg-store -- senegal _catalog routines imports/senegal/_catalog/routines/knowledge_graph.json --raw --replace-published
 ```
 
-The same applies to the `_glossary` partition, for the same reason.
+The same applies to the `_glossary` partition, for the same reason — the workspace's
+FR/Wolof lexicon is authored live too (`add_terms`), so `imports/senegal/_glossary/terms/`
+holds its snapshot, refreshed and restored the same way (`senegal _glossary terms`).
+
+Snapshots last refreshed from live on 2026-09-15.
