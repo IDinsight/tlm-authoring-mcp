@@ -22,6 +22,20 @@ Layout mirrors the namespace: `imports/<workspace>/<grade>/<subject>/knowledge_g
 Nigeria's corrected maths graph lives under `test/fixtures/nigeria/…` instead — it
 is a pre-existing test context whose data was replaced.
 
+## Subject-graph backup (`senegal/ci/maths/`)
+
+`imports/senegal/ci/maths/knowledge_graph.json` is a **dated backup point, not a live mirror**:
+the ci/maths content layer (sections, assembly guides, activities, pictures) is authored live
+through the curator loop and exists nowhere else in the repo — the fixture copy under
+`test/fixtures/` is ignored by git. Taken 2026-09-15 (2682 nodes / 4213 edges, published state after
+the group K guide rewrites). It goes stale with every publish; refresh it on purpose, and restore
+it with a normal import (it is a curriculum graph, so no `--raw`, and pass `--profile` because the
+live profile cell differs from the repo literal):
+
+```bash
+npm run export:kg-store -- senegal ci maths imports/senegal/ci/maths/knowledge_graph.json
+```
+
 ## Catalog backups (`<ws>/_catalog/routines/`)
 
 `_catalog` namespaces are **backups**, not new imports. They hold the reusable-spec
