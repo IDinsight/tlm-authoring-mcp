@@ -1,5 +1,8 @@
 site_name: Guide utilisateur — TLM
 site_description: Comment utiliser l'outil TLM pour construire un programme d'enseignement, composer et produire les documents qui l'enseignent, et explorer le graphe.
+# The published address. Without it the language switcher links to "/en/" from the
+# domain root, which on a GitHub project page drops the repo path and 404s.
+site_url: https://idinsight.github.io/tlm-authoring-mcp/
 docs_dir: docs
 
 theme:
