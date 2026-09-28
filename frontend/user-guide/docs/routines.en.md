@@ -1,69 +1,65 @@
-# Create instructional routines
+# Instructional routines
 
-An **instructional routine** is a reusable teaching template: the fixed structure of a lesson, written once and applied to as many lessons as you like. Instead of re-describing every time "a lesson starts with a hook, then modelling, then…", you store that structure in a routine and reuse it.
+An **instructional routine** is how a session unfolds, written down once and reused as often as you need. Rather than repeating in every lesson "we start with this, then do that", you store that sequence in a routine and apply it.
 
-!!! example "A concrete example: the 'Lesson sheet'"
-    The *'Lesson sheet'* routine describes a 30-minute lesson in **five ordered steps**, each with its duration:
-
-    1. **Hook** (4 min)
-    2. **Modelling** (8 min)
-    3. **We do it** (8 min)
-    4. **You do it** (10 min)
-    5. **Wrap-up** (5 min)
-
-    Applied to a lesson, this routine tells generation *how* to run the lesson. Change the routine, and every lesson that uses it afterwards follows the new structure.
-
-## The catalog: a library of templates
-
-Routines live in a **catalog** — a library of templates you browse and reuse. The catalog has **two shelves**:
-
-- **Shared** — templates common to all programmes. Reserved for the **super administrator**.
-- **Workspace** — templates specific to your programme (for example *Senegal*). Editable by that workspace's **curators**.
-
-The catalog holds two kinds of entry: **routines** (the teaching structure, this page) and **formatters** (the layout, see [Create formatters](formatters.md)). They work the same way; only their use differs.
-
-## Browse and read the catalog
-
-> "What's in the catalog?"
-
-Claude lists the available entries, showing for each its **shelf** (shared or workspace) and its **kind** (routine or formatter).
-
-> "Show me the detail of the 'Lesson sheet' routine."
-
-Claude gives you its full content — the steps, their instructions, the cross-cutting rules — so you know exactly what you are applying.
-
-## Apply a routine to a lesson
-
-You apply a routine **to a lesson**:
-
-> "Apply the 'Lesson sheet' routine to this lesson."
-
-An important point: applying a routine makes an **independent copy** attached to your lesson. The copy stands alone — if someone later edits the catalog routine, your lesson does not move. This is deliberate: your published lessons never change behind your back.
-
-## Create or edit a routine
-
-A routine is built like the rest of the curriculum: **by chatting**, through successive tweaks that go into a **draft**.
-
-> "Create a routine 'Mental maths routine' with four steps: …"
->
-> "In the 'Lesson sheet' routine, lengthen the 'You do it' step to 12 minutes."
->
-> "Add a cross-cutting rule to this routine: 'French only'."
-
-If a close-enough routine already exists, **start from it** rather than from a blank page:
-
-> "Duplicate the 'Lesson sheet' routine as 'Lesson sheet — revision'."
-
-!!! tip "Write it straight into the library"
-    Say "in the library" (or "in the catalog") in your first sentence. The detour of building the entry inside a subject and then copying it across is no longer needed — and it left a half-finished routine sitting in the curriculum whenever a session stopped part-way.
+!!! example "An example"
+    A *"Problem-solving session"* routine might come down to four ordered steps, each with its own duration and instruction: *warm-up*, *demonstration*, *guided practice*, *independent practice*.
+    How many steps there are, what they are called and how long they last is whatever **your curriculum** has written. The tool imposes none of it.
 
 A routine is made of:
 
-- **ordered steps** (the flow), each carrying its instruction;
-- and, at the routine level, **cross-cutting rules** that apply to every step.
+- **ordered steps**, each with its instruction (and often a duration);
+- **cross-cutting rules** that hold for every step.
 
-!!! info "Who can edit what"
-    An entry on the **workspace** shelf is edited by a **curator** of that workspace. A **shared** entry (common to all programmes) is reserved for the **super administrator** — to avoid a change touching others by accident.
+## The catalog
 
-!!! note "A routine does not change existing lessons"
-    Editing a catalog routine **does not alter** the lessons that already received a copy of it (see above). For a lesson to adopt the new version, you apply it again. This is what guarantees nothing changes without your knowledge.
+Routines live in the **catalog**, a library of reusable entries. It has two shelves:
+
+- **Workspace**: entries specific to your curriculum, which its **approvers** can edit;
+- **Shared**: entries common to every curriculum, reserved for the **super administrator**.
+
+The catalog holds three kinds of entry: **routines** (the sequence of a session, this page), **formatters** ([Formatters](formatters.md)) and **evaluation grids** ([Evaluate a document](evaluate.md)). You browse and apply all three the same way.
+
+> "Which routines are in the catalog?"
+>
+> "Show me the details of the 'Problem-solving session' routine."
+
+## Apply a routine
+
+You apply a routine **to a course**, **to a lesson** or **to an activity**:
+
+> "Apply this routine to the course."
+>
+> "For this lesson only, apply the 'Review session' routine instead."
+
+The **closest** routine wins. Applied to the course, a routine covers all of its lessons; a lesson that carries its own routine keeps it.
+
+Applying a routine changes the **draft**, like any other change to the curriculum, so a curator can do it.
+
+!!! note "Applying means copying"
+    When you apply a routine, you put down an **independent copy** of it. If someone later edits the routine in the catalog, whatever already received its copy stays as it was: nothing shifts behind your back. To adopt the new version, apply it again.
+
+## Create or edit a routine
+
+Start from a similar routine if there is one:
+
+> "Duplicate the 'Problem-solving session' routine under the name 'Review session'."
+>
+> "In my copy, cut guided practice down to 6 minutes and add a wrap-up step."
+
+Otherwise, describe it:
+
+> "Create a 'Mental arithmetic session' routine in the workspace library, with three steps: …"
+
+!!! tip "Say 'in the library' in your very first sentence"
+    A routine is created straight in the catalog. A write to the catalog **is applied and published in one go**: there is no draft and no undoing the last change, because other people start using a library right away. Read the preview carefully before you confirm.
+
+## Check a routine
+
+The tool spots routines that contradict themselves (say, a stated total duration that is not the sum of the steps) and routines nobody uses. These checks are part of the review (see [Evaluate a document](evaluate.md)).
+
+!!! info "Who can change what"
+    - **Applying** a routine to your curriculum: a **curator** (it is a change to the draft).
+    - **Creating, duplicating or editing** an entry in the workspace library: an **approver**, because the write is published at once.
+    - **Deleting** an entry: an **admin**, because it cannot be undone.
+    - Touching a **shared** entry: the **super administrator** only. To adapt a shared entry, duplicate it into your workspace library.

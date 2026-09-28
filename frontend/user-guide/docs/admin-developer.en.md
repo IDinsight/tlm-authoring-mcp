@@ -1,116 +1,100 @@
-# Add a workspace or a subject
+# Administration
 
-This page covers two setup tasks:
+This page covers two tasks, for two different audiences:
 
-- **Create a workspace and manage its members** — done **by chatting with Claude**, by an administrator.
-- **Add a new subject** (with its starter graph) — requires writing **code** and running **commands**: this is a **developer** task, needing repository and deployment access.
-
-The two target different audiences: the first needs no technical skill; the second does.
+- **Managing a workspace and its members**: done **by chatting with Claude**, with no technical skills needed. For administrators.
+- **Adding a new subject**: needs access to the code repository and to deployment. For developers.
 
 ---
 
-## Part 1 — Workspaces and members (by chatting)
+## Part 1 — Workspaces and members
 
-### What is a workspace?
+### What a workspace is
 
-A **workspace** is the container for a programme (for example *Senegal* or *Kenya*). It owns all the curriculums for that programme, and it is at this level that **roles** are granted. Its identifier becomes the first segment of every internal address: `senegal/ci/maths`, `kenya/ci/maths`, and so on.
+A **workspace** is the container for a curriculum, whether it belongs to a country, an organisation or a project. It owns the curricula for its grades and subjects, its library (the catalog), its lexicon and the documents it has produced. **Roles** are granted at this level: you can be an approver in one workspace and have no role at all in another.
 
-### Roles, from broadest to narrowest
+### Roles
 
-| Role | Reach | May… |
+| Role | Scope | Can… |
 |---|---|---|
-| **super admin** | all workspaces | everything, including creating/deleting workspaces and granting any role |
-| **admin** | one workspace | manage that workspace's members, plus everything an approver does |
-| **approver** | one workspace | publish, plus everything a curator does |
-| **curator** | one workspace | prepare, apply, discard drafts |
-| *(no role)* | — | cannot enter the workspace |
+| **super-admin** | every workspace | do everything, including create workspaces, open a workspace to a domain and write to the shared library |
+| **admin** | one workspace | manage members and delete a catalog entry, plus everything an approver can do |
+| **approver** | one workspace | publish, write to the catalog and the lexicon and view the history, plus everything a curator can do |
+| **curator** | one workspace | edit the curriculum and documents in the draft, and produce documents |
+| *(no role)* | — | read published curricula |
 
-The **super admin** role is **not grantable** from the tool: it is set by a server environment variable (`TLM_SUPER_ADMINS`), by a developer.
+The **super-admin** role cannot be granted through chat. A developer sets it in the server configuration.
 
-### Create a workspace
+### Bring someone in
 
-Reserved for the **super admin**:
+There are three ways, from the simplest to the most hands-on.
 
-> "Create a workspace 'kenya', display name 'Kenya'."
+**Open the workspace to a domain** (super-admin). Anyone who signs in **with Google** using an address at that domain gets the chosen role the first time they sign in.
 
-The identifier must be a short slug (`kenya`). Creating the workspace **does not create** its curriculums: importing them is a separate step (see Part 2).
+> "In our curriculum's workspace, give the curator role to anyone at notre-organisation.org."
+
+Only Google sign-in counts, because Google is what vouches that the address really belongs to that person. Someone from the same domain who creates an account with a password still needs an invitation.
+
+**Invite by email** (admin). The invitation is recognised the first time the person signs in with that address.
+
+> "Invite ana.diallo@exemple.org as a curator of this workspace."
+
+If the person already has a known account, they get the role straight away; otherwise the invitation waits for them. You can also withdraw an invitation: "Withdraw the invitation for ana.diallo@exemple.org."
+
+**See who is waiting** (super-admin): "Which accounts don't have a workspace yet?" Claude lists the people who have signed in but have no role, the invitations nobody has claimed, and the accounts that have not been confirmed.
 
 ### Manage members
 
-Reserved for the workspace's **admins** (or the super admin):
-
-> "Add this user as a curator of the Senegal workspace."
+> "List the members of this workspace, with the pending invitations."
 >
-> "List the members of the Senegal workspace."
+> "Make Ana Diallo an approver."
 >
-> "Remove this user from the Senegal workspace."
+> "Remove Ana Diallo from this workspace."
 
-A user's identifier is their identity subject (the `sub` on their token). A few guardrails:
+A few safeguards:
 
-- re-granting a role **updates** the existing role;
-- you **cannot remove the last admin** of a workspace — appoint another one first;
-- an admin **cannot** grant the super admin rank.
+- giving a member a role again **replaces** the role they have now;
+- you **cannot remove the last admin** of a workspace, so appoint another one first;
+- an admin cannot grant the super-admin role.
 
-Every workspace or member change is **immediate** (no draft) and **logged**.
+Every change takes effect **immediately** (there is no draft) and is **recorded** in the workspace's history, which approvers can look through.
+
+### Create a workspace
+
+Only the **super-admin** can do this:
+
+> "Create a workspace 'kenya', displayed as 'Kenya'."
+
+The identifier is a short word with no spaces. Creating the workspace creates **no curriculum**: curricula are imported separately (Part 2).
 
 ---
 
-## Part 2 — Add a new subject (code + commands)
+## Part 2 — Adding a new subject
 
-!!! warning "Developer task"
-    This part assumes access to the code repository and to deployment (Cloud Run). All commands are run from the `backend/` folder (`cd backend` first). When in doubt, lean on the internal **rollout** skill, which walks through the procedure step by step.
+!!! warning "A developer task"
+    This part assumes you have access to the repository and to the storage credentials. Run the commands from the `backend/` folder. The full procedure, with its checks, is in the repository's technical documentation (`docs/technical-reference/`) and in the internal **rollout** skill.
 
-Adding a subject is **code, then data**.
+Adding a subject comes down to **a small description file, then data**. No subject-specific behaviour goes into the code: everything that sets the subject apart lives in its graph and its guide.
 
-### Step 1 — Describe the subject (code)
+1. **Describe the subject.** A **profile** (a configuration object) tells the tool how to read the subject's graph: where the order of its items comes from, and what its groupings are called. Add it under `backend/src/adapters/profiles/`, modelled on an existing profile of the same shape, then register it in `backend/src/adapters/index.ts`. Several subjects can share one profile when their graphs have the same shape.
+2. **Deploy the server**, so that it knows about the new subject. The import refuses a subject that has no profile.
+3. **Import the starting graph**, a *Learning Commons* `{ nodes, relationships }` envelope:
 
-Each subject is described by a **profile** (`SubjectProfile`), a configuration object — no behaviour code to write. Add a file under `backend/src/adapters/profiles/`, modelled on `ci-maths.ts`. The profile tells the tool how to read this subject's graph (where unit ordering comes from, which containment links to follow…) and can carry a markdown **guide** that generation will read.
+    ```bash
+    npm run import:kg-store -- <espace> <classe> <matière> <graphe.json>
+    ```
 
-### Step 2 — Register the profile (code)
+    Add `--dry-run` for a trial run. In a **new** workspace, the import creates the published curriculum. For a curriculum that is **already in place**, you need `--replace-published`, which writes straight to the published version; it is refused while a draft is open. The subject guide that is already live is kept, unless you supply one with `--profile`.
 
-In `backend/src/adapters/index.ts`, add the `"<grade>/<subject>"` key to the profiles table (and to the guides table if the subject has one). Several grade/subject pairs can point at the same profile when their graphs share a shape.
+4. **Check**: enter the subject through chat, ask for a status overview, and reread the guide.
 
-### Step 3 — Build and deploy
-
-Since the profile is code, a **server redeploy** (Cloud Run) is required for the new subject to be recognised.
-
-```bash
-npm run build
-```
-
-### Step 4 — Import the graph (data)
-
-Once the subject is known to the server, import its starter graph:
+**Back up before you change anything**:
 
 ```bash
-npm run import:kg-store -- <workspace> <grade> <subject> <graph.json>
+npm run export:kg-store -- <espace> <classe> <matière> [sortie.json]
 ```
 
-Add `--dry-run` for a trial run (nothing is written). The import **refuses** to run if no profile is registered for the subject — hence the order: code first, data second.
+The resulting file can be imported again as it is, to restore or to clone.
 
-!!! danger "The trap of importing over an existing workspace"
-    The import **always** writes to slot `a` and **never repoints** an already-existing namespace. On a fresh namespace, this is perfect. On an already-published namespace, your graph lands in a copy **nobody reads**: to publish it you must go through the curator loop (which does flip the pointer). Import is meant for a **new** namespace, a restore, or a clone.
-
-### What the graph file looks like
-
-It is a **Learning Commons** envelope: `{ nodes, relationships }`. The `nodes` are labelled nodes (framework, objective, lesson…) with their properties; the `relationships` are the typed links between them (containment, alignment…). Stored as canonical LC.
-
-### Back up (the inverse of import)
-
-Before any manipulation, make a **backup** by exporting the published graph:
-
-```bash
-npm run export:kg-store -- <workspace> <grade> <subject> [out.json]
-```
-
-The produced file re-imports as-is to restore or clone. Both scripts need Firebase access (variables `SERVICE_ACCOUNT_KEY_PATH`, `FIREBASE_STORAGE_BUCKET`, `TLM_BUCKET_PREFIX`).
-
-### Verify after import
-
-- `set_context` must **activate** the subject (an invalid profile is refused at activation);
-- an overview ("give me a snapshot of this subject") must return the expected counts;
-- the subject's guide must be the one you intended.
-
-### Editing an existing subject ≠ adding one
-
-Tweaking the **profile** or the **guide** of a subject **already in place** needs **no code and no redeploy**: it is done by chatting, like a curriculum edit (preview → confirm → draft → publish). Only adding a *new* subject goes through code.
+!!! tip "Changing an existing subject does not need a developer"
+    A subject's **guide**, its **documents**, its **formatters**, its **routines** and its **evaluation grids** are all changed through chat, in the draft, like the rest of the curriculum. Only adding a *new* subject goes through the code.

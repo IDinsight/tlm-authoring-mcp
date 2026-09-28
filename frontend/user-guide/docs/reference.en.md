@@ -2,60 +2,73 @@
 
 ## Who can do what
 
-Roles are granted **per workspace**: you can be a curator here and a plain reader elsewhere.
+Roles are granted **per workspace**: you can be a curator in one workspace and have no role in another.
 
-| Action | No role | Curator | Approver | Admin | Super admin |
+| Action | No role | Curator | Approver | Admin | Super-admin |
 |---|:---:|:---:|:---:|:---:|:---:|
-| Read the curriculum, generate materials | ✅ | ✅ | ✅ | ✅ | ✅ |
-| Explore the graph (read-only) | ✅ | ✅ | ✅ | ✅ | ✅ |
-| Prepare changes (draft) | — | ✅ | ✅ | ✅ | ✅ |
+| Read and explore published curricula | ✅ | ✅ | ✅ | ✅ | ✅ |
+| Edit the curriculum and documents (draft) | — | ✅ | ✅ | ✅ | ✅ |
+| Apply a routine, a formatter or an evaluation grid | — | ✅ | ✅ | ✅ | ✅ |
+| Preview, produce and upload documents | — | ✅ | ✅ | ✅ | ✅ |
+| See the draft in the explorer | — | ✅ | ✅ | ✅ | ✅ |
 | Discard a draft | — | ✅ | ✅ | ✅ | ✅ |
 | **Publish** a draft | — | — | ✅ | ✅ | ✅ |
-| Manage the workspace's members | — | — | — | ✅ | ✅ |
-| Create / delete a workspace | — | — | — | — | ✅ |
-| Edit a **shared** catalog entry | — | — | — | — | ✅ |
+| Write to the workspace's catalog and lexicon | — | — | ✅ | ✅ | ✅ |
+| View the history | — | — | ✅ | ✅ | ✅ |
+| Delete a catalog entry | — | — | — | ✅ | ✅ |
+| Manage members, send invitations | — | — | — | ✅ | ✅ |
+| Create a workspace, open it to a domain, write to the shared library | — | — | — | — | ✅ |
 
-A catalog entry specific to a workspace (routine, formatter, evaluation rubric) is edited by a **curator** of that workspace; a **shared** entry (common to all programmes) is reserved for the **super admin**.
+To find out your role, ask: "**What can I do?**"
 
-To find your role: ask Claude "**What can I do?**".
+## Three ways a write takes effect
 
-## The two kinds of confirmation
+Nothing is written without your confirmation. What happens after that, though, depends on what you are changing:
 
-| You do… | Effect | Safety net |
+| You are changing… | Effect | Safety net |
 |---|---|---|
-| **Save a document** | Written **immediately**, no undo | The confirmation states what will be written |
-| **Edit the curriculum** | Goes into a **draft** first | Nothing is official before an approver **publishes** it |
-
-Either way, nothing happens without your confirmation.
+| **The curriculum or a document** (lessons, sections, images, the subject guide…) | Goes into the **draft** | Nothing is official until it is **published**. The last change can be undone. |
+| **The catalog or the lexicon** | **Published immediately** | The preview you see before confirming. No undo. |
+| **A delivered file, a member** | **Written immediately** | The confirmation names the file or the person, and the workspace. No undo. |
 
 ## Short glossary
 
 | Term | Meaning |
 |---|---|
-| **Workspace** | The container for a programme (e.g. *Senegal*). It owns the curriculums and determines roles. |
-| **Grade / subject** | The working scope inside a workspace (e.g. *CI / mathematics*). You work on one at a time. |
-| **Knowledge graph** | The structure of the curriculum: the standards, the content, and their links. |
-| **Standard** | What a pupil must learn. The stable layer of the graph (domains and objectives). |
-| **Domain** | A broad theme grouping objectives (e.g. Arithmetic, Geometry). |
-| **Objective** | A precise learning goal, inside a domain. It is the target of an alignment. |
-| **Learning component** | A single, fine-grained skill attached to an objective; used to detail it. |
-| **Alignment** | The link declaring that a lesson **teaches** (or **assesses**) an objective. Runs from content to standard. |
-| **Course** | The root of a document (e.g. the pupil manual, the teacher's guide). |
-| **Chapter** | A grouping of lessons; depending on the subject: chapter, unit, or week. |
-| **Lesson** | The unit of work: you align it to an objective and apply a routine to it. |
-| **Instructional routine** | A reusable lesson-structure template, stored in the catalog. Applies to a lesson. |
-| **Formatter** | A formatting instruction (palette, type, layout, illustrations). Applies to a course. |
-| **Evaluation rubric** | A list of criteria used to judge a produced document. Applies to a document. See [Evaluate a produced document](evaluate.md). |
-| **Catalog** | The library of routines, formatters and evaluation rubrics, with a shared shelf and one per workspace. |
-| **Pupil manual** | The document for the pupil. |
-| **Lesson sheets** | The teacher's guide. |
-| **Draft** | A set of pending changes, not yet official. |
-| **Publish** | Make the draft official — generation then uses it. |
-| **Assessment (bilan)** | The end-of-chapter test. |
-| **Explorer** | The read-only web page for viewing the published curriculum. |
+| **Workspace** | The container for a curriculum. It owns the curricula, the catalog, the lexicon and the produced documents, and it is where roles are granted. |
+| **Grade / subject** | The scope you work in within a workspace. You work on one at a time. |
+| **Knowledge graph** | The curriculum as a network: standards, content, documents, and the links between them. |
+| **Standard** | What the pupil has to learn. Its levels carry whatever names your curriculum gives them. |
+| **Objective** | A specific learning goal. It is what a lesson aligns to. |
+| **Learning component** | A fine-grained skill that spells out part of an objective. |
+| **Alignment** | The link saying that a lesson **teaches** an objective (or that an assessment **assesses** it). |
+| **Course** | The root of a subject's content. |
+| **Grouping** | A set of lessons: a chapter, unit, week, day… depending on your curriculum. |
+| **Lesson** | The unit of teaching, aligned to an objective. |
+| **Activity** | What the pupil does: an exercise, with its instructions and the expected answer. |
+| **Document** | What gets produced: a book, a guide, a lesson sheet. It **covers** part of the curriculum. |
+| **Section** | A page or part of a document, with what it covers and how it is put together. |
+| **Assembly guide** | What a section says about how its page should be composed. |
+| **Journal** | The dated record of the decisions made about a document or a section. It is never printed. |
+| **Instructional routine** | A reusable plan for how a session unfolds. Applies to a course, a lesson or an activity. |
+| **Formatter** | How a document looks: instructions, page settings, templates, languages. Applies to a document. |
+| **Page template** | A page structure written once, which the server fills in from the curriculum. |
+| **Evaluation grid** | The criteria used to judge a produced document. Applies to a document. |
+| **Catalog** | The library of routines, formatters and evaluation grids: one shelf per workspace, plus a shared one. |
+| **Lexicon** | The workspace's terms in each of its languages. It guides translation. |
+| **Subject guide** | The subject's conventions and what the curriculum should cover, written as prose. Claude reads it before writing. |
+| **Draft** | Changes that are waiting and not yet official. There is one per subject. |
+| **Publish** | To make the draft official. Production then uses it. |
+| **Preview** | A file produced on the side so you can look at it, without delivering anything. |
+| **Deliverable** | A file placed in the official documents area. |
+| **Stale** | Describes a file produced before a change to the part of the curriculum it covers. |
+| **Authoring plugin** | The *tlm-autorat* plugin: the procedures Claude follows, and its commands. |
+| **Explorer** | The read-only web page that shows the curriculum, its draft, the catalog and the lexicon. |
 
 ## Need help?
 
-- For an access or account problem → the **administrator** of your workspace.
-- To add a subject or a workspace → see [Administration & development](admin-developer.md).
-- To find out what you can do → ask Claude "What can I do?".
+- An access or account problem → your workspace's **administrator**.
+- To find out what you can do → "What can I do?"
+- To see where things stand → "Where do things stand?"
+- To learn your subject's conventions → "Read me this subject's guide."
+- To add a subject or a workspace → [Administration](admin-developer.md).

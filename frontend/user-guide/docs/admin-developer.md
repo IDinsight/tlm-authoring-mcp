@@ -1,116 +1,100 @@
-# Ajouter un espace de travail ou une matière
+# Administration
 
-Cette page couvre deux tâches d'installation :
+Cette page couvre deux tâches, pour deux publics différents :
 
-- **Créer un espace de travail et gérer ses membres** — se fait **en discutant avec Claude**, par un administrateur.
-- **Ajouter une nouvelle matière** (avec son graphe de départ) — demande d'écrire du **code** et d'exécuter des **commandes** : c'est une tâche de **développeur** ayant accès au dépôt et au déploiement.
-
-Les deux ne s'adressent pas au même public : la première partie ne demande aucune compétence technique ; la seconde, si.
+- **Gérer un espace de travail et ses membres** — se fait **en discutant avec Claude**, sans aucune compétence technique. Pour les administrateurs.
+- **Ajouter une nouvelle matière** — demande l'accès au dépôt de code et au déploiement. Pour les développeurs.
 
 ---
 
-## Partie 1 — Espaces de travail et membres (par la discussion)
+## Partie 1 — Espaces de travail et membres
 
-### Qu'est-ce qu'un espace de travail ?
+### Ce qu'est un espace de travail
 
-Un **espace de travail** est le conteneur d'un programme (par exemple *Sénégal* ou *Kenya*). Il possède l'ensemble des curriculums de ce programme, et c'est à ce niveau que sont attribués les **rôles**. Son identifiant devient le premier segment de chaque adresse interne : `senegal/ci/maths`, `kenya/ci/maths`, etc.
+Un **espace de travail** est le conteneur d'un programme — celui d'un pays, d'une organisation, d'un projet. Il possède les programmes de ses classes et matières, sa bibliothèque (catalogue), son lexique et ses documents produits. C'est à ce niveau que sont donnés les **rôles** : on peut être approbateur dans un espace et sans rôle dans un autre.
 
-### Les rôles, du plus large au plus restreint
+### Les rôles
 
 | Rôle | Portée | Peut… |
 |---|---|---|
-| **super-admin** | tous les espaces | tout, y compris créer/supprimer des espaces et accorder n'importe quel rôle |
-| **admin** | un espace | gérer les membres de cet espace, plus tout ce que fait l'approbateur |
-| **approbateur** | un espace | publier, plus tout ce que fait le curateur |
-| **curateur** | un espace | préparer, appliquer, abandonner des brouillons |
-| *(aucun rôle)* | — | ne peut pas entrer dans l'espace |
+| **super-admin** | tous les espaces | tout, y compris créer des espaces, ouvrir un espace à un domaine, écrire dans la bibliothèque partagée |
+| **admin** | un espace | gérer les membres, supprimer une entrée du catalogue, plus tout ce que fait l'approbateur |
+| **approbateur** | un espace | publier, écrire dans le catalogue et le lexique, consulter l'historique, plus tout ce que fait le curateur |
+| **curateur** | un espace | modifier le programme et les documents en brouillon, produire des documents |
+| *(aucun rôle)* | — | lire les programmes publiés |
 
-Le rôle de **super-admin ne s'accorde pas** depuis l'outil : il est fixé par une variable d'environnement du serveur (`TLM_SUPER_ADMINS`), par un développeur.
+Le rôle de **super-admin** ne s'accorde pas par la discussion : il est fixé dans la configuration du serveur, par un développeur.
+
+### Faire entrer quelqu'un
+
+Trois façons, de la plus simple à la plus manuelle.
+
+**Ouvrir l'espace à un domaine** (super-admin). Toute personne qui se connecte **avec Google** avec une adresse de ce domaine reçoit le rôle choisi à sa première connexion.
+
+> « Dans l'espace de travail de notre programme, donne le rôle de curateur à toute personne de notre-organisation.org. »
+
+Seule la connexion Google compte : c'est Google qui garantit que l'adresse appartient bien à la personne. Quelqu'un du même domaine qui crée un compte avec un mot de passe a besoin d'une invitation.
+
+**Inviter par e-mail** (admin). L'invitation est reconnue à la première connexion de la personne avec cette adresse.
+
+> « Invite ana.diallo@exemple.org comme curatrice de cet espace. »
+
+Si la personne a déjà un compte connu, le rôle lui est donné tout de suite ; sinon l'invitation attend. Une invitation se retire : « Retire l'invitation de ana.diallo@exemple.org. »
+
+**Voir qui attend** (super-admin) : « Quels comptes n'ont encore aucun espace de travail ? » Claude liste les personnes connectées sans rôle, les invitations non réclamées et les comptes non confirmés.
+
+### Gérer les membres
+
+> « Liste les membres de cet espace, avec les invitations en attente. »
+>
+> « Passe Ana Diallo approbatrice. »
+>
+> « Retire Ana Diallo de cet espace. »
+
+Quelques garde-fous :
+
+- redonner un rôle à un membre **remplace** son rôle actuel ;
+- on **ne peut pas retirer le dernier admin** d'un espace : nommez-en un autre d'abord ;
+- un admin ne peut pas accorder le rôle de super-admin.
+
+Chaque changement est **immédiat** (pas de brouillon) et **enregistré** dans l'historique de l'espace, que les approbateurs peuvent consulter.
 
 ### Créer un espace de travail
 
 Réservé au **super-admin** :
 
-> « Crée un espace de travail “kenya”, nom affiché “Kenya”. »
+> « Crée un espace de travail “kenya”, affiché “Kenya”. »
 
-L'identifiant doit être un slug court (`kenya`). Créer l'espace **ne crée pas** ses curriculums : les importer est une étape à part (voir la partie 2).
-
-### Gérer les membres
-
-Réservé aux **admins** de l'espace (ou au super-admin) :
-
-> « Ajoute cet utilisateur comme curateur de l'espace Sénégal. »
->
-> « Liste les membres de l'espace Sénégal. »
->
-> « Retire cet utilisateur de l'espace Sénégal. »
-
-L'identifiant d'un utilisateur est son sujet d'identité (le `sub` de son jeton). Quelques garde-fous :
-
-- réaccorder un rôle **met à jour** le rôle existant ;
-- on **ne peut pas retirer le dernier admin** d'un espace — nommez-en un autre d'abord ;
-- un admin **ne peut pas** accorder le rang de super-admin.
-
-Chaque changement d'espace ou de membre est **immédiat** (pas de brouillon) et **journalisé**.
+L'identifiant est un mot court sans espace. Créer l'espace ne crée **aucun programme** : les programmes s'importent à part (partie 2).
 
 ---
 
-## Partie 2 — Ajouter une nouvelle matière (code + commandes)
+## Partie 2 — Ajouter une nouvelle matière
 
 !!! warning "Tâche de développeur"
-    Cette partie suppose l'accès au dépôt de code et au déploiement (Cloud Run). Toutes les commandes se lancent depuis le dossier `backend/` (`cd backend` d'abord). En cas de doute, appuyez-vous sur la compétence interne **rollout**, qui décrit la procédure pas à pas.
+    Cette partie suppose l'accès au dépôt et aux identifiants du stockage. Les commandes se lancent depuis le dossier `backend/`. La procédure complète, avec ses vérifications, est dans la documentation technique du dépôt (`docs/technical-reference/`) et dans la compétence interne **rollout**.
 
-Ajouter une matière, c'est **du code puis des données**.
+Ajouter une matière, c'est **un petit fichier de description, puis des données**. Aucun comportement propre à la matière ne s'écrit dans le code : tout ce qui la distingue vit dans son graphe et dans son guide.
 
-### Étape 1 — Décrire la matière (code)
+1. **Décrire la matière.** Un **profil** (un objet de configuration) dit à l'outil comment lire son graphe : d'où vient l'ordre des éléments, comment se nomment ses regroupements. Il s'ajoute sous `backend/src/adapters/profiles/`, sur le modèle d'un profil existant de même forme, puis s'enregistre dans `backend/src/adapters/index.ts`. Plusieurs matières peuvent partager un profil quand leurs graphes ont la même forme.
+2. **Déployer le serveur**, pour qu'il connaisse la nouvelle matière. L'import refuse une matière sans profil.
+3. **Importer le graphe de départ** — une enveloppe *Learning Commons* `{ nodes, relationships }` :
 
-Chaque matière est décrite par un **profil** (`SubjectProfile`), un objet de configuration — pas de code de comportement à écrire. Ajoutez un fichier sous `backend/src/adapters/profiles/`, sur le modèle de `ci-maths.ts`. Le profil dit à l'outil comment lire le graphe de cette matière (d'où vient l'ordre des unités, quels liens de contenance suivre…) et peut embarquer un **guide** en markdown que la génération lira.
+    ```bash
+    npm run import:kg-store -- <espace> <classe> <matière> <graphe.json>
+    ```
 
-### Étape 2 — Enregistrer le profil (code)
+    Ajoutez `--dry-run` pour un essai à blanc. Sur un espace **neuf**, l'import crée le programme publié. Sur un programme **déjà en place**, il faut `--replace-published`, qui écrit directement la version publiée ; il est refusé tant qu'un brouillon est ouvert. Le guide de la matière déjà en ligne est conservé, sauf si vous en fournissez un avec `--profile`.
 
-Dans `backend/src/adapters/index.ts`, ajoutez la clé `"<classe>/<matière>"` à la table des profils (et à celle des guides si la matière en a un). Plusieurs classes/matières peuvent pointer vers le même profil quand leurs graphes ont la même forme.
+4. **Vérifier** : entrer dans la matière par la discussion, demander un état des lieux, relire le guide.
 
-### Étape 3 — Construire et déployer
-
-Le profil étant du code, un **redéploiement du serveur** (Cloud Run) est nécessaire pour que la nouvelle matière soit reconnue.
-
-```bash
-npm run build
-```
-
-### Étape 4 — Importer le graphe (données)
-
-Une fois la matière connue du serveur, importez son graphe de départ :
-
-```bash
-npm run import:kg-store -- <espace> <classe> <matière> <graphe.json>
-```
-
-Ajoutez `--dry-run` pour un essai à blanc (rien n'est écrit). L'import **refuse** de tourner si aucun profil n'est enregistré pour cette matière — d'où l'ordre : code d'abord, données ensuite.
-
-!!! danger "Le piège de l'import sur un espace existant"
-    L'import écrit **toujours** dans l'emplacement `a` et **ne repointe jamais** un espace déjà existant. Sur un espace neuf, c'est parfait. Sur un espace déjà publié, votre graphe atterrit dans une copie que **personne ne lit** : pour le publier, il faut passer par la boucle du curateur (qui, elle, bascule le pointeur). L'import est fait pour un **nouvel** espace, une restauration ou un clone.
-
-### À quoi ressemble le fichier de graphe
-
-C'est une enveloppe **Learning Commons** : `{ nodes, relationships }`. Les `nodes` sont des nœuds étiquetés (cadre de référence, objectif, leçon…) avec leurs propriétés ; les `relationships` sont les liens typés entre eux (contenance, alignement…). Le stock est en LC canonique.
-
-### Sauvegarder (l'inverse de l'import)
-
-Avant toute manipulation, faites une **sauvegarde** en exportant le graphe publié :
+**Sauvegarder avant toute manipulation** :
 
 ```bash
 npm run export:kg-store -- <espace> <classe> <matière> [sortie.json]
 ```
 
-Le fichier produit se réimporte tel quel pour restaurer ou cloner. Les deux scripts ont besoin des accès Firebase (variables `SERVICE_ACCOUNT_KEY_PATH`, `FIREBASE_STORAGE_BUCKET`, `TLM_BUCKET_PREFIX`).
+Le fichier produit se réimporte tel quel, pour restaurer ou cloner.
 
-### Vérifier après import
-
-- `set_context` doit **activer** la matière (un profil invalide est refusé à l'activation) ;
-- un état des lieux (« fais-moi un panorama de cette matière ») doit rendre les comptes attendus ;
-- le guide de la matière doit être celui que vous vouliez.
-
-### Modifier une matière existante ≠ en ajouter une
-
-Retoucher le **profil** ou le **guide** d'une matière **déjà en place** ne demande **ni code ni redéploiement** : cela se fait par la discussion, comme une modification de curriculum (aperçu → confirmation → brouillon → publication). Seul l'ajout d'une matière *nouvelle* passe par le code.
+!!! tip "Faire évoluer une matière existante ne demande pas de développeur"
+    Le **guide** d'une matière, ses **documents**, ses **mises en forme**, ses **routines** et ses **grilles** se modifient par la discussion, en brouillon, comme le reste du programme. Seul l'ajout d'une matière *nouvelle* passe par le code.

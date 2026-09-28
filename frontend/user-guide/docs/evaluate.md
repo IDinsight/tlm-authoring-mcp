@@ -1,57 +1,68 @@
-# Évaluer un document produit
+# Évaluer un document
 
-Une fois un document généré, comment savoir s'il est **bon** ? On le confronte à une **grille d'évaluation** — une liste de critères écrite à l'avance, rangée dans le catalogue et rattachée au document.
+Un document produit, comment savoir s'il est **bon** ? On le confronte à une **grille d'évaluation** : une liste de critères écrite à l'avance par votre programme, rangée dans le catalogue et rattachée au document.
 
-C'est le troisième type d'entrée du catalogue, à côté des [routines pédagogiques](routines.md) et des [formatters](formatters.md) :
+C'est la troisième sorte d'entrée du catalogue :
 
-| Type d'entrée | Ce qu'il décrit | S'applique à |
+| Entrée | Ce qu'elle décrit | S'applique à |
 |---|---|---|
-| **Routine** | La structure pédagogique d'une séance | Une leçon |
-| **Formatter** | L'apparence du document | Un document |
-| **Grille d'évaluation** | Les critères de jugement du résultat | Un document |
+| **Routine** | Le déroulé d'une séance | Un cours, une leçon, une activité |
+| **Mise en forme** | L'apparence d'un document | Un document |
+| **Grille d'évaluation** | Les critères qui jugent le résultat | Un document |
 
 ## Deux formes de grille
 
-Une grille porte une **échelle**, et c'est elle qui décide de ce que l'évaluation produit. Deux formes reviennent :
+Une grille porte une **échelle**, et c'est elle qui décide de ce que l'évaluation produit.
 
-| Forme | Échelle | Ce qu'elle décide |
+| Forme | Échelle | Résultat |
 |---|---|---|
-| **Grille notée** | Une échelle numérique (par exemple 0 à 4) | Une **note**, moyenne pondérée de ses sections |
-| **Grille d'approbation** | Oui / Non | Un **feu vert**. Un seul « Non » bloque — il n'y a pas de moyenne |
+| **Grille notée** | Numérique (par exemple 0 à 4) | Une **note**, moyenne pondérée de ses sections |
+| **Grille d'approbation** | Oui / Non | Un **feu vert** : un seul « Non » bloque, il n'y a pas de moyenne |
 
-Les deux ne se remplacent pas : l'une mesure *à quel point* le document est bon, l'autre dit s'il *peut partir à l'impression*. Un même document peut obtenir une très bonne note et rester bloqué par un « Non » unique — c'est précisément pourquoi on lui rattache souvent les deux.
+L'une mesure *à quel point* le document est bon, l'autre dit s'il *peut partir à l'impression*. Un document peut avoir une excellente note et rester bloqué par un seul « Non » : c'est pourquoi on lui rattache souvent les deux.
 
-L'échelle, les sections, leurs poids et les critères viennent tous de la grille **telle qu'elle est écrite dans le catalogue**. L'outil ne connaît aucune grille d'avance : votre programme y range les siennes (souvent reprises d'une annexe officielle), et c'est ce texte qui fait foi.
+L'échelle, les sections, les poids et les critères viennent de la grille **telle qu'elle est écrite dans le catalogue**. L'outil n'en connaît aucune d'avance.
 
-!!! info "Une grille gagne à être partielle"
-    Une grille n'a pas à reprendre l'intégralité du document d'origine dont elle est tirée. Ce qu'un **formatter garantit déjà à la génération** — marges, taille de police, pagination, style des illustrations — n'a pas à être revérifié après coup : on ne veut pas produire un document en corps 9 pt pour ensuite cocher « Non ». Gardez les critères qui **exigent la lecture du document produit**.
+> « Quelles grilles propose le catalogue ? »
 
-## Rattacher une grille à un document
+## Rattacher une grille
 
-Une grille du catalogue ne s'applique pas toute seule : il faut la **rattacher** au document qu'elle juge.
+> « Rattache la grille d'approbation à ce document. »
 
-> « Applique la grille d'approbation à ce document. »
-
-Comme pour une routine ou un formatter, le rattachement crée une **copie indépendante** posée sous le document. Une modification ultérieure de la grille du catalogue ne rejaillit pas sur les documents déjà servis.
-
-Un même document peut porter **plusieurs grilles** — c'est même le cas normal : l'une pour la note, l'autre pour l'approbation. L'évaluation les rapporte toutes.
+Comme une routine ou une mise en forme, la grille est **copiée** sous le document ; une modification ultérieure du catalogue ne l'atteint pas. Un document peut porter plusieurs grilles, et l'évaluation les rapporte toutes.
 
 !!! warning "Une grille rattachée deux fois compte deux fois"
-    Rien n'empêche de rattacher la même grille deux fois à un document — l'évaluation la rapporterait alors en double. Si vous avez un doute, demandez « Quelles grilles sont rattachées à ce document ? » avant de rattacher.
+    Avant de rattacher, en cas de doute : « Quelles grilles sont rattachées à ce document ? »
 
 ## Lancer l'évaluation
 
 > « Évalue ce document. »
 
-L'outil rassemble les grilles rattachées au document et le fichier produit, puis **c'est Claude qui lit le document et attribue les notes** — l'outil ne juge jamais lui-même. Vous obtenez, critère par critère : la note (ou le Oui / Non), et la justification qui la motive.
+L'outil rassemble les grilles du document et le fichier produit ; **c'est Claude qui lit et note**, critère par critère, avec la justification de chaque note. L'outil ne juge jamais lui-même.
 
-!!! tip "Demandez les localisations"
-    Une note sans preuve ne sert à rien. Un critère d'exactitude bien écrit demande de **citer chaque erreur avec l'endroit où elle se trouve** — et une note ou un « Non » qui arrive sans passage cité se redemande.
+Avec le module, `/evaluer` fait l'évaluation **en une seule relecture**, dans cet ordre :
+
+1. le document est-il **prêt** (couverture, sections, mise en forme, grilles) ;
+2. le **branchement** du brouillon ;
+3. la **couverture** au regard du guide de la matière ;
+4. la **cohérence** entre ce qui est écrit, et la **page composée contre le graphe** ;
+5. les **grilles**, sur le fichier rendu ;
+6. la **terminologie**, si le document est traduit : les termes employés sont-ils ceux du lexique de l'espace ?
+
+!!! tip "Demandez où est chaque faute"
+    Une note sans preuve ne sert à rien. Un bon critère d'exactitude demande de **citer chaque erreur avec l'endroit où elle se trouve**. Une note ou un « Non » qui arrive sans passage cité se redemande.
+
+## Ce qu'une grille n'a pas à vérifier
+
+Tout ce que l'outil **garantit déjà** n'a pas à être recoché à la main : les marges et les tailles (la mise en forme les applique), le nombre de pages (le rendu le mesure), une consigne recopiée de travers (la vérification de page la compare au programme). Claude trie la grille avant de la lire : ce qui est déjà garanti est signalé comme tel, le reste est jugé sur le document.
+
+Une grille gagne donc à garder les critères qui **exigent de lire** le document produit.
 
 ## Ce que l'évaluation ne peut pas faire
 
-Certains critères supposent un **test sur le terrain** : le taux de compréhension des consignes par les élèves, le temps de résolution d'un exercice. Ils ne se déduisent pas de la lecture d'un document.
+Certains critères supposent un **test sur le terrain** : le taux de compréhension des consignes par les élèves, le temps de résolution d'un exercice. Ils ne se déduisent pas de la lecture. La règle est de **le déclarer** plutôt que d'inventer une note : une note fabriquée donne une fausse assurance, pire qu'une case vide.
 
-Dans ce cas, la règle est de **le déclarer** plutôt que d'inventer une note. Une note fabriquée sur un critère non observable est pire qu'une case vide : elle donne une fausse assurance.
+D'autres critères ne s'apprécient qu'à l'échelle du **document entier** — tout ce qui parle d'équilibre ou de répartition, entre types d'exercices, contextes ou personnages. Ceux-là se jugent après lecture complète, jamais page par page.
 
-De la même façon, un critère peut ne s'apprécier qu'à l'échelle du **document entier** : tout ce qui parle de répartition ou d'équilibre — entre des types d'exercices, entre des contextes, entre des personnages — n'a aucun sens page par page. Ces critères-là se jugent après lecture complète.
+!!! note "Pas encore d'évaluation de programme"
+    Une grille se rattache à un **document**. Évaluer le programme lui-même contre une grille n'est pas prévu aujourd'hui.

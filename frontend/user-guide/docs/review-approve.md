@@ -1,88 +1,94 @@
 # Relire, publier ou abandonner un brouillon
 
-Quand un curateur a préparé des modifications, elles attendent dans un **brouillon**. Le rôle de l'**approbateur** est de les **relire** puis de les **publier** — c'est la publication qui les rend officielles et visibles par la génération de documents. S'il ne faut pas les garder, on **abandonne** le brouillon.
+Toute modification du programme — une leçon, un document, une section, une image rattachée, le guide de la matière — s'accumule dans un **brouillon**. Tant qu'il n'est pas publié, rien de ce qu'il contient n'atteint la production de documents. Le **curateur** prépare et signale que c'est prêt ; l'**approbateur** relit et **publie**.
 
-!!! info "Réservé aux approbateurs"
-    Seuls les **approbateurs** peuvent publier. Les curateurs préparent ; les approbateurs valident.
+!!! info "Un brouillon par matière"
+    Il n'y a qu'**un** brouillon ouvert par matière, partagé par tous ceux qui y travaillent. S'il existe déjà quand vous arrivez, c'est sans doute le travail d'un collègue : parlez-lui avant de le publier ou de l'abandonner.
 
-## 1. Relire le brouillon
+## 1. Voir ce qui a changé
 
-> « Montre-moi les modifications en attente pour cette matière. »
+> « Montre-moi les modifications en attente. »
 
-Claude affiche la liste complète des changements — tout ce qui deviendra officiel à la publication : intitulés modifiés, leçons ajoutées ou déplacées, chapitres créés, etc.
+Claude liste tout ce qui deviendra officiel à la publication : éléments ajoutés, modifiés, supprimés, et un changement du guide de la matière s'il y en a un. Pour le voir dans l'arborescence, ouvrez la vue **Brouillon** de l'[explorateur](explorer.md#voir-le-brouillon).
 
-Demandez ensuite les deux vérifications, qui répondent à deux questions différentes :
+## 2. Faire les vérifications
 
 > « Vérifie le brouillon avant publication. »
 
-- **Le branchement** — ce qui n'est relié à rien : un document rattaché à aucun contenu (il serait produit **vide**), une section qui n'appartient à aucun document, une routine que personne n'utilise, un élément isolé. C'est mécanique et vrai pour toutes les matières ; chaque point est accompagné de ce qu'il faut faire.
-- **La couverture** — est-ce que ce qui a été écrit couvre bien ce que le programme attend ? C'est un jugement, appuyé sur les attentes rédigées dans le guide de la matière.
+Trois vérifications, qui répondent à trois questions différentes :
 
-Les deux sont des **avertissements**, jamais des blocages : c'est à vous de décider. Mais un document « rattaché à rien » mérite presque toujours une correction avant publication — c'est la panne la plus discrète du système, puisque la génération produirait simplement un document vide sans aucune erreur.
+| Vérification | La question | Exemple de constat |
+|---|---|---|
+| **Le branchement** | Quelque chose n'est-il relié à rien ? | Un document qui ne couvre rien (il serait produit vide), une section hors de tout document, une routine que personne n'utilise |
+| **La couverture** | Ce qui est écrit couvre-t-il ce que le programme attend ? | Un objectif qu'aucune leçon n'enseigne. Claude en juge à partir des attentes écrites dans le **guide de la matière** |
+| **La cohérence** | Deux choses écrites se contredisent-elles ? | Une routine dont la durée totale n'est pas la somme de ses étapes, une grille dont les poids ne font pas 100 %, un élément cité qui n'existe pas |
 
-<!-- SCREENSHOT : vue du brouillon complet (diff) -->
+Ce sont des **constats**, jamais des blocages : la décision vous revient. Mais un document « relié à rien » mérite presque toujours une correction avant publication.
 
-## 2. Publier
+Avec le module, `/evaluer` fait toutes ces vérifications en une passe (et celles d'un document, voir [Évaluer un document](evaluate.md)).
+
+!!! tip "Faire taire une alerte voulue"
+    Si une alerte est délibérée — une règle qui ne s'applique pas à un élément précis —, demandez à Claude de **la faire taire sur cet élément**. Elle ne reviendra plus là, et continuera de s'appliquer partout ailleurs.
+
+## 3. Signaler que c'est prêt
+
+Quand vous avez fini, dites-le, avec une note :
+
+> « Marque le brouillon comme prêt à relire. Note : leçons 1 à 6 faites, la 7 attend encore ses images. »
+
+La note est le message que vous auriez écrit à la main. L'approbateur la verra en demandant « où en est-on ? ».
+
+!!! warning "Personne n'est prévenu automatiquement"
+    Aucun e-mail, aucune notification. **Prévenez l'approbateur** vous-même.
+
+Pour reprendre le travail : « Finalement j'ai encore des corrections, retire la demande de relecture. » Le brouillon n'est pas touché, seule la demande disparaît. Elle disparaît aussi d'elle-même à la publication ou à l'abandon du brouillon.
+
+## 4. Publier
 
 > « Publie le brouillon. »
 
-La publication se fait en **deux temps**, comme les autres actions importantes :
+1. Claude montre un dernier récapitulatif de ce qui va devenir officiel, avec les constats des vérifications.
+2. Vous **confirmez** : tout est publié **d'un seul coup**. La production de documents utilise aussitôt la nouvelle version.
 
-1. Claude vous montre un dernier récapitulatif de ce qui va devenir officiel.
-2. Vous **confirmez** → tout est publié **d'un seul coup** (de façon atomique). À partir de là, la génération de documents utilise la nouvelle version.
+Par défaut, un approbateur peut publier un brouillon qu'il a lui-même modifié ; l'historique le signale alors comme tel. Le serveur peut aussi être réglé pour l'interdire, auquel cas un second approbateur doit publier.
 
-!!! warning "La publication rend les changements officiels"
-    Une fois publié, le curriculum mis à jour alimente la production de matériel. Relisez avant de confirmer.
+!!! warning "Publier rend les changements officiels"
+    Une fois publié, le programme mis à jour alimente toutes les productions. Les fichiers déjà produits à partir de l'ancienne version apparaîtront comme **périmés** (voir [Produire un document](create-materials.md#ne-refaire-que-ce-qui-a-change)).
 
-## Approuver ses propres modifications
-
-Par défaut, un approbateur **peut** publier un brouillon qu'il a lui-même édité. Selon la configuration du projet, une **seconde relecture** peut être exigée. Dans tous les cas, la trace de publication indique si l'auteur des changements est aussi celui qui a publié — pour la transparence.
-
-## Signaler que le brouillon est prêt
-
-Quand vous avez fini une série de modifications, dites-le :
-
-> « Marque le brouillon comme prêt à relire. Note : chapitres 1 à 3 faits, le 4 attend encore son bilan. »
-
-La note est le message que vous auriez envoyé à la main : ce qui a changé, ce qui reste. La personne qui publie la verra en arrivant.
-
-!!! warning "Personne n'est prévenu automatiquement"
-    Aucun e-mail, aucune notification. La demande apparaît quand l'approbateur demande « où en est-on ? » ou consulte le brouillon. **Prévenez-le** s'il ne regarde pas déjà.
-
-Si vous voulez continuer à travailler, reprenez votre demande :
-
-> « Finalement j'ai encore des corrections — annule la demande de relecture. »
-
-Le brouillon lui-même n'est pas touché : seule la demande est retirée. Et une fois le brouillon publié (ou abandonné), la demande disparaît d'elle-même — elle ne peut pas rester affichée sur un travail déjà en ligne.
-
-## Revenir sur une seule modification
-
-Une erreur sur la **dernière** modification n'oblige pas à tout jeter :
+## Revenir sur la dernière modification
 
 > « Annule la dernière modification. »
 
-Claude vous dit d'abord **laquelle** il s'apprête à annuler (quoi, quand, par qui), vous confirmez, et cette modification-là disparaît du brouillon — **les autres restent**. Redemandez, et c'est la modification d'avant qui part : on remonte le fil une modification à la fois.
+Claude dit d'abord **laquelle** il va annuler (quoi, quand, par qui). Vous confirmez, et seule celle-là disparaît du brouillon ; les autres restent. Redemandez, et c'est la précédente qui part.
 
-Deux limites, volontaires :
+Deux limites, voulues :
 
-- On ne remonte que dans le **brouillon en cours**. Ce qui est déjà publié ne se défait pas ainsi : il faut faire une nouvelle modification, qui sera elle aussi relue et publiée.
-- Si une modification plus récente a touché le **même élément**, Claude **refuse** et vous dit lequel, plutôt que de bricoler un mélange des deux. Annulez d'abord la plus récente.
+- on ne remonte que dans le **brouillon en cours** : ce qui est publié se corrige par une nouvelle modification ;
+- si une modification plus récente a touché **le même élément**, Claude refuse et vous dit lequel, plutôt que de mélanger les deux.
 
-## Rejeter un brouillon
+!!! danger "Le catalogue ne passe pas par le brouillon"
+    Une écriture dans le **catalogue** (routines, mises en forme, grilles de la bibliothèque) se publie aussitôt, sans brouillon, et ne s'annule pas ainsi. La suppression d'une entrée du catalogue est définitive ; elle demande le rôle d'admin, et l'historique en garde une copie complète.
 
-Si un brouillon ne doit pas partir :
+## Abandonner un brouillon
 
 > « Abandonne le brouillon. »
 
-La version officielle reste **inchangée**. (Curateurs comme approbateurs peuvent rejeter.)
+Tout le travail en cours est jeté ; la version officielle ne change pas. Curateurs et approbateurs peuvent le faire, après confirmation.
+
+## Modifier le guide de la matière
+
+Le **guide de la matière** — les conventions et les attentes que Claude lit avant d'écrire — se modifie comme le reste, dans le brouillon :
+
+> « Dans le guide de la matière, ajoute que les consignes s'écrivent toujours à l'impératif. »
+
+La modification apparaît dans le récapitulatif du brouillon et se publie avec lui.
 
 ## Consulter l'historique
 
-Chaque action (modification, publication, rejet, refus) est enregistrée dans un **journal**. Pour le consulter :
+Chaque action — modification, publication, abandon, refus, attribution de rôle — est enregistrée dans un **historique** qu'on ne peut ni modifier ni effacer.
 
-> « Montre-moi l'historique des modifications récentes. »
->
 > « Qui a publié en dernier, et quand ? »
+>
+> « Qu'est-ce qui a changé sur cette leçon ce mois-ci ? »
 
-!!! note "Journal en lecture seule"
-    Le journal est consultable par les approbateurs. On ne peut ni le modifier ni l'effacer — c'est la garantie d'une trace fiable.
+L'historique est consultable par les **approbateurs**.

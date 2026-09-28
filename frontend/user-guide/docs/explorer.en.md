@@ -1,70 +1,61 @@
 # Explore the graph
 
-The **explorer** is a web page that lets you **view** the curriculum — domains, chapters, lessons and their links — without changing anything. It is a **read-only** view of the **published** (official) version.
+The **explorer** is a web page that shows the curriculum as a tree: the standards, the content, the documents and the links between them. It is a place to **look**; nothing gets changed there. Changes are always made by talking with Claude.
 
-Open the address your administrator gave you, then sign in (same credentials as the tool).
+Open the address your administrator gives you.
 
-<!-- SCREENSHOT: explorer home page -->
+## Do you need to sign in?
 
-## Pick a graph
+- **To see the published curriculum**: depending on how your installation is set up, either with no sign-in at all, or with the same credentials you use for the tool.
+- **To see a draft**: you have to sign in (the button at the top of the page) and be a **curator** or higher in the workspace concerned.
 
-At the top, a selector lists the available curricula (for example *Mathematics — CI*, *Reading — CE1*). Choose the one you want to explore. A curriculum appears automatically once it has been published.
+## Pick a curriculum
 
-## The two views
+At the top, a selector lists the available curricula by workspace, grade and subject. A curriculum shows up there as soon as it exists in the tool.
 
-The explorer follows the **Learning Commons ontology**: it shows no subject-specific vocabulary, just the graph's structure as it is.
+## Two ways to look
+
+The explorer uses no vocabulary specific to any subject. It shows the graph as it really is, organised by the item types of the **Learning Commons** standard that the tool is built on.
 
 | View | What it shows |
 |---|---|
-| **Hierarchy (containment)** | The containment tree: from the standards framework down to its items, following the containment links |
-| **By type (LC)** | All nodes grouped by their Learning Commons type, each with its links — the most complete view |
+| **Hierarchy** | The tree, from the reference framework down to its items, following what each item contains. Lessons and learning components are also placed under the objective they serve, so that you can find them. |
+| **By type** | Every item grouped by type (standard, grouping, lesson, activity, document…), each one with its links. This is the most complete view. |
 
-Click a node to open its **detail panel**; the small triangle **expands / collapses** its items.
+Click an item to open its **detail panel**, which lists all of its properties exactly as they are stored. The small triangle expands or collapses what the item contains. Each type has its own **colour**, shown in the **legend**. The **search bar** finds an item by its title.
 
-## Colours and legend
+## See the draft
 
-Each node has a **colour** by its **Learning Commons type** (standards framework, framework item, lesson grouping, lesson, learning component, curriculum…). The **legend** shows the colour key.
+When a draft is open, two buttons appear above the tree: **Published** and **Draft**.
 
-## Search
+- **Published**: the official version, the one production uses. This is the default view.
+- **Draft**: the work in progress. Every item that has been **added** or **changed** carries a badge. **Deleted** items are listed above the tree, since they are no longer in it. Counters show how many items were added, changed and deleted; click one of them to display only those changes.
 
-Use the search bar to find a node by its title.
-
-## Look at your draft before publishing
-
-When a **draft** is open on a curriculum, two buttons appear above the tree: **Published** and **Draft**.
-
-- **Published** — the official version, the one generation reads. This is the default view.
-- **Draft** — the work in progress, **not published**. Every **added** or **changed** element carries a tag in the tree, and **removed** elements are listed above it (they are no longer in the tree, so that is the only place they can show). A counter recalls how many elements were added, changed and removed.
-
-This is the answer to "what exactly am I about to publish?": you look at your own work in the same tree as always, instead of reading a summary.
-
-!!! info "Curators only"
-    Viewing the draft requires a **curator** role (or higher) in that workspace: a draft is work in progress, not a publication. If your role doesn't allow it, the explorer says so and stays on the published version.
+It is the visual answer to "what am I about to publish?"
 
 !!! warning "A draft is still a draft"
-    What you see here does **not** feed document generation until it is published (see [Review, publish or discard a draft](review-approve.md)). The explorer stays read-only: you look, you don't edit — edits happen by chatting with Claude.
+    What the Draft view shows does **not** reach production until it is published (see [Review, publish or discard a draft](review-approve.md)).
 
 ## The catalog
 
-The **Catalog** tab opens the libraries of reusable templates — your **workspace's** own and the **shared** one, common to every programme. Each entry appears as a card: its title, its kind, its summary, and what it is made of.
+The **Catalog** tab opens the libraries of reusable entries: your **workspace**'s own library and the **shared** one. Each entry appears as a card showing its title, its kind, its summary and what it is made of.
 
-Three kinds of entry, told apart by their badge:
-
-| Kind | What it describes | What the card counts |
+| Kind | What it describes | What the card shows |
 |---|---|---|
-| **Routine** | The teaching structure of a session | Its steps and materials |
-| **Formatter** | How a document looks | Its formatting rules |
-| **Rubric** | The criteria a document is judged by | Its scale (for example 0-4 or Yes/No), sections and criteria |
+| **Routine** | How a session unfolds | Its steps |
+| **Formatter** | What a document looks like | Its rules |
+| **Rubric** (evaluation grid) | The criteria for evaluating a document | Its scale, sections and criteria |
 
-To find your way once a library grows:
+To find your way around:
 
-- the **tabs** (All · Routines · Formatters · Rubrics) keep one kind at a time, each with its count;
-- the **search box** filters on title and summary. Accents are ignored: typing `recitation` finds "poésie-récitation";
-- the **library selector** narrows the view to the workspace or the shared shelf.
+- the **tabs** (All · Routines · Formatters · Rubrics) filter by kind;
+- the **search** filters on title and summary, and ignores accents;
+- the **library selector** narrows the display to the workspace or to the shared library.
 
-All three combine, and a counter shows how many entries remain out of the total. **Reset** clears them at once.
+Click a card to read the entry **in full**: the exact text Claude reads when it produces a document.
 
-Click a card to read the entry's **full specification** — the instruction text generation actually reads.
+## Terminology
 
-!!! note "What the explorer shows"
-    The explorer shows the **published** version only. A draft being edited does **not** appear here until it's published — by design, so it only ever shows the official version. To preview the effect of a draft, use the preview feature on the tool side.
+The **Terminology** tab shows the workspace's **lexicon**: each term in every one of the workspace's languages, with an example where there is one. Document translation and the terminology check both rely on this lexicon. It is shared by every grade and subject in the workspace, and the search box filters the terms.
+
+To add or correct a term, ask Claude ("Add to the lexicon: …"). Like the catalog, the lexicon is published immediately, so you need to be an **approver**.

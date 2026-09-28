@@ -1,55 +1,53 @@
-# Créer un graphe de connaissances
+# Comprendre le graphe
 
-Le **graphe de connaissances** est la structure du curriculum : ce que les élèves doivent apprendre, et le matériel qui l'enseigne, reliés entre eux. C'est cette structure qui alimente la génération des manuels et des fiches de leçons. Cette page explique **de quoi un graphe est fait** et **comment il voit le jour**. Pour le remplir ensuite, voir [Construire les standards et les composants](build-standards.md).
+Le **graphe de connaissances** est le programme mis en forme de réseau : ce que les élèves doivent apprendre, ce qui l'enseigne, et les liens entre les deux. Tout ce que l'outil produit en sort. Cette page explique de quoi il est fait et comment il voit le jour ; les pages suivantes montrent comment le remplir.
 
-!!! info "Réservé aux curateurs"
-    Créer et modifier le curriculum demande le rôle de **curateur** (ou plus). Tout le monde peut le lire et le visualiser. Si vous n'êtes pas sûr : « Que puis-je faire ? »
+## Deux couches, cousues ensemble
 
-## Le graphe a deux couches
+- **Les standards** disent *ce que l'élève doit maîtriser*. C'est l'ossature : de grands ensembles, puis des objectifs précis à l'intérieur, puis des **composantes d'apprentissage** qui détaillent chaque objectif. Cette couche change rarement.
+- **Le contenu** dit *ce qui enseigne ces standards* : un cours, ses regroupements (chapitres, unités, semaines…), ses leçons, et les activités de chaque leçon. C'est la couche que vous écrivez et faites évoluer.
 
-Une bonne image pour tout comprendre : le graphe superpose **deux couches**, reliées l'une à l'autre.
+Chaque leçon est **alignée** sur le standard qu'elle enseigne. C'est ce fil qui permet de répondre à « quel objectif cette leçon enseigne-t-elle ? » et à « quels objectifs ne sont enseignés nulle part ? ».
 
-- **Les standards** — *ce que l'élève doit maîtriser*. C'est l'ossature stable : les grands domaines (ex. *Arithmétique*), puis les objectifs précis à l'intérieur (ex. *Compter jusqu'à 20*). Cette couche change rarement.
-- **Le contenu** — *ce qui enseigne ces standards*. Les cours, les chapitres et les leçons que vous rédigez. Cette couche vit et évolue.
+!!! example "Un exemple"
+    Un standard dit : « L'élève sait comparer deux nombres jusqu'à 20. »
+    Une leçon intitulée *« Plus grand, plus petit »* est alignée sur ce standard : c'est elle qui l'enseigne. Ses activités sont les exercices que l'élève fera.
 
-Les deux couches sont **cousues ensemble** : chaque leçon est **alignée** sur le standard qu'elle enseigne. C'est ce lien qui permet à l'outil de vérifier que le curriculum couvre bien tous les objectifs, et de fournir le bon contexte au moment de générer un document.
+## Une troisième couche : les documents
 
-!!! example "Un exemple concret"
-    Le standard dit : « L'élève sait comparer deux nombres jusqu'à 20. »
-    La leçon *« Plus grand, plus petit »* du chapitre 3 est **alignée** sur ce standard : c'est elle qui l'enseigne. Si un jour ce standard n'est enseigné par aucune leçon, l'outil peut vous le signaler.
+Le programme n'est pas un livre. Un **document** — un livre de l'élève, un guide de l'enseignant, une fiche — est un élément à part du graphe, qui **couvre** une partie du programme et dit **comment la présenter**. Un même programme peut alimenter plusieurs documents : le livre de l'élève et le guide de l'enseignant couvrent les mêmes leçons, chacun à sa manière.
+
+La règle qui tient l'ensemble : **le programme porte les mots, le document porte la page.** Le texte d'un exercice vit sur l'activité, dans le programme. Le document dit seulement où et comment cet exercice se place. Corriger une consigne se fait donc une seule fois, dans le programme, et tous les documents qui la couvrent en profitent.
+
+Les documents sont décrits dans [Composer un document](compose-document.md).
+
+## Les mots de votre programme
+
+L'outil ne fixe aucun vocabulaire. Un programme appelle ses regroupements « chapitres », un autre « unités » ou « semaines » ; l'un nomme ses standards « domaine » et « objectif spécifique », l'autre « thème » et « compétence ». Ces noms sont écrits **dans les éléments du graphe**, et c'est eux que Claude reprend quand il vous parle.
+
+Le **guide de la matière** complète le tableau : il décrit, en prose, les conventions de la matière et ce que le programme doit couvrir. Il est rédigé par les experts et se modifie comme le reste (voir [Relire et publier](review-approve.md)).
+
+> « Lis-moi le guide de cette matière. »
 
 ## Comment un graphe voit le jour
 
-Il y a deux moments à distinguer.
+**Au départ, un import.** Quand une nouvelle matière arrive, son ossature de départ — au minimum le cadre des standards — est **importée** d'un fichier par un développeur. Cette étape ne se fait pas par la discussion ; elle est décrite dans [Administration](admin-developer.md).
 
-### Au tout début : l'import d'un graphe de départ
+**Ensuite, tout se construit en discutant.** Standards, composantes, cours, regroupements, leçons, activités : vous les créez et les corrigez avec Claude. Un **nouveau cours** peut même partir de zéro par la discussion ; seule la racine des standards dépend de l'import.
 
-Quand une **nouvelle matière** arrive dans le système (par exemple les mathématiques d'une nouvelle classe), l'ossature de départ — le cadre des standards et sa première arborescence — est **importée** à partir d'un fichier par un administrateur ou un développeur. Ce n'est pas une opération qui se fait par la discussion ; elle est décrite dans [Ajouter un espace de travail ou une matière](admin-developer.md).
+Vous pouvez aussi partir **d'un document existant** — une planification, un ancien guide, le programme d'un autre pays. Claude le lit et vous propose une structure à créer, que vous validez avant toute écriture.
 
-À retenir : **le cadre de référence des standards** (la racine de la couche « standards ») entre dans le système par cet import. Vous n'avez pas à le créer vous-même.
-
-### Ensuite : vous bâtissez la structure par la discussion
-
-Une fois la matière en place, **tout le reste se construit en discutant avec Claude** — c'est là votre travail d'expert curriculum :
-
-- ajouter des **objectifs** et des **composants d'apprentissage** sous les standards → [Construire les standards et les composants](build-standards.md) ;
-- créer des **cours, chapitres et leçons**, et les aligner sur les standards → [Ajouter et modifier un cours et ses leçons](courses-lessons.md).
-
-Vous pouvez même démarrer un **nouveau cours** de zéro par la discussion (un cours est une « racine » de la couche contenu) ; seule la racine des *standards* dépend de l'import initial.
+> « Voici notre planification annuelle en PDF : propose-moi les leçons à créer. »
 
 ## Se repérer avant de construire
 
-Avant de créer quoi que ce soit, prenez la mesure de ce qui existe déjà. Deux réflexes :
-
 > « Fais-moi un état des lieux de cette matière. »
 
-Claude vous donne un **panorama** : combien de standards, de cours, de leçons, quels sont les points de départ (les « racines ») et si un brouillon est déjà ouvert. C'est le meilleur point de départ.
+Claude donne un panorama : combien de standards, de cours, de leçons, de documents, et si un brouillon est ouvert.
 
-> « Montre-moi la structure à partir de ce cours. »
+> « Montre-moi la structure du cours, sans le détail des textes. »
 
-Claude **parcourt** le graphe depuis un point que vous indiquez et vous en liste le contenu, page par page.
-
-Vous pouvez aussi ouvrir l'**[explorateur](explorer.md)** pour *voir* l'arborescence publiée sous forme visuelle — pratique pour se faire une idée d'ensemble avant de toucher à quoi que ce soit.
+Claude parcourt le graphe depuis ce point et vous en liste le squelette. Pour une vue d'ensemble visuelle, ouvrez l'[explorateur](explorer.md).
 
 !!! note "Rien n'est officiel tant que ce n'est pas publié"
-    Comme toute modification du curriculum, ce que vous créez ici part d'abord dans un **brouillon** — un espace de travail à part, invisible pour la génération de documents, jusqu'à ce qu'un approbateur le publie. Vous construisez donc tranquillement. Voir [Relire, publier ou abandonner un brouillon](review-approve.md).
+    Tout ce que vous créez part d'abord dans un **brouillon**, invisible pour la production de documents jusqu'à ce qu'un approbateur le publie. Vous construisez donc sans risque. Voir [Relire, publier ou abandonner un brouillon](review-approve.md).

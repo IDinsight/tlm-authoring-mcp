@@ -1,80 +1,85 @@
-# Générer du matériel pédagogique
+# Produire un document
 
-Vous pouvez générer **n'importe quel document défini dans le graphe** — un **cours** entier, ou seulement une partie (un chapitre, une leçon). Ce que vous produisez n'est pas une liste figée de modèles : tout dépend de ce qui a été construit dans le curriculum, formatters compris.
+Produire, c'est transformer un document du graphe en **fichier Word**, section par section. Tout ce qui décide du résultat est déjà dans le graphe : le programme donne les mots, la section dit comment les placer, la mise en forme dit à quoi ils ressemblent. Mieux le graphe est préparé, meilleur et plus régulier est le fichier.
 
-## Ce qu'on peut produire dépend du graphe
+!!! info "Qui peut produire"
+    Produire demande d'être **curateur** (ou plus) dans l'espace de travail : on lit les images de l'espace et, le cas échéant, on traduit. Avant de produire un document pour la première fois, demandez « **Ce document est-il prêt à être produit ?** » (voir [Composer un document](compose-document.md#7-verifier-quil-est-pret)).
 
-Un **cours** est la racine d'un document. Plusieurs cours peuvent coexister dans une même matière, et d'autres peuvent être créés par un concepteur (voir [Ajouter et modifier un cours et ses leçons](courses-lessons.md)).
+## Demander
 
-!!! example "Exemple : les mathématiques de CI"
-    En mathématiques CI, deux cours coexistent aujourd'hui : le **manuel de l'élève** et le **guide de l'enseignant** (les fiches de leçons). Ce ne sont pas des types de documents « en dur » dans l'outil — ce sont deux cours *du graphe*. Créez-en un troisième, et il devient générable au même titre.
+> « Produis la section de la leçon 12 du cahier d'exercices. »
+>
+> « Produis tous les fichiers de la leçon 12. »
+>
+> « Produis le guide de l'enseignant, regroupement “Nombres décimaux”. »
 
-Vous pouvez générer un cours **en entier** ou seulement **une partie** : un chapitre, une leçon, une plage de leçons.
+La deuxième demande est la plus courante. Une leçon doit **un fichier par document qui la couvre**, multiplié par **les langues** que la mise en forme de chaque document déclare. Claude les fait tous, et **saute ceux qui sont déjà à jour** (voir plus bas). Avec le module, la commande `/lecon` lance cette procédure.
 
-## Ce que la génération utilise
+## Ce qui se passe, étape par étape
 
-Quand vous demandez un document, Claude ne part pas d'une page blanche : il s'appuie sur ce qui a été construit dans le graphe.
+1. **Claude lit la section** : ce qu'elle couvre dans le programme, la routine qui s'applique, la mise en forme et ses réglages, les images rattachées.
+2. **La page se compose.** Si la mise en forme porte des **gabarits**, le serveur remplit directement ce qu'ils couvrent depuis le programme. Claude compose le reste, à partir de la consigne d'assemblage de la section.
+3. **La page est vérifiée contre le graphe, avant tout rendu.** Par exemple :
+    - une consigne imprimée qui ne reprend pas **mot pour mot** celle de l'activité ;
+    - une réponse imprimée qui ne correspond pas à la réponse enregistrée sur l'activité ;
+    - une ligne plus longue que ce que son style autorise ;
+    - plus d'images que la mise en forme n'en permet, ou une image placée qui n'est rattachée à rien.
 
-- La **structure des leçons** vient des [routines pédagogiques](routines.md) appliquées à chaque leçon.
-- La **mise en forme** vient du [formatter](formatters.md) appliqué au cours — palette, typographie, mise en page, style des illustrations.
-- Le **contenu** et les **objectifs à couvrir** viennent des [standards](build-standards.md) et de leurs alignements.
+    Chacune de ces fautes donnerait un fichier **qui se produit sans erreur et qui est faux**. C'est pourquoi on vérifie d'abord.
+4. **Le serveur fabrique le fichier et le mesure.** Il compte les pages sur le fichier réellement mis en page — jamais sur une estimation — et signale une image qui chevauche du texte. Si la page déborde, Claude resserre et recommence les étapes 3 et 4.
+5. **Une version par langue.** Si la mise en forme déclare plusieurs langues, le serveur produit la traduction en s'appuyant sur le **lexique** de l'espace de travail. Un texte déjà écrit dans la langue cible par un expert est gardé tel quel : on ne retraduit jamais ce qu'un auteur a écrit à la main.
+6. **Vous validez le dépôt.** Voir ci-dessous.
 
-Autrement dit : ce qui sort — le fond *et* la forme — est décidé par le graphe. Mieux le curriculum est préparé, meilleur et plus régulier est le document produit.
+!!! tip "Si Claude s'arrête"
+    Une consigne manquante, une image absente, une vérification impossible : Claude **s'arrête et vous le dit**, plutôt que d'inventer. La bonne réponse est presque toujours de compléter le graphe (la consigne sur l'activité, l'image rattachée), pas de corriger la page.
 
-L'outil veille aussi à ce que les documents restent **cohérents** (mêmes personnages, même terminologie, couverture des notions) et **variés** au bon endroit (les domaines d'exemples — fruits, légumes… — tournent d'un chapitre à l'autre).
+## Déposer : aperçu ou livrable
 
-## Comment ça se passe
+Deux destinations, qui ne se mélangent jamais :
 
-1. **Choisissez l'espace, la classe et la matière** (voir [Prise en main](getting-started.md)).
-2. **Demandez ce que vous voulez générer** — un cours entier, ou une partie précise :
+| | **Aperçu** | **Livrable** |
+|---|---|---|
+| Où | Un espace à part, avec un lien de courte durée | L'espace officiel des documents de l'espace de travail |
+| Visible dans la liste des documents | Non | Oui, avec son historique |
+| Annulable | Rien à annuler | **Non** : l'écriture est immédiate |
 
-    > « Génère le manuel de l'élève. »
-    >
-    > « Génère le chapitre 5 du manuel de l'élève. »
-    >
-    > « Prépare les fiches de la leçon “Comparer deux nombres”. »
+!!! warning "Un livrable s'écrit tout de suite"
+    Déposer un livrable n'a **pas de brouillon et pas d'annulation**. La demande de confirmation dit exactement quel fichier va être écrit, et **dans quel espace de travail**. Lisez-la avant d'accepter. Plusieurs fichiers se confirment en une seule fois.
 
-3. **Claude prépare le contexte** automatiquement : la partie du graphe concernée, les routines et le formatter attachés, les personnages déjà utilisés, la terminologie, les notions à couvrir, et une suggestion de domaine d'exemples qui ne répète pas les chapitres voisins.
-4. **Claude rédige le document.**
-5. **Vous validez l'enregistrement.** Avant que le document soit enregistré, une **demande de confirmation** apparaît. Rien n'est enregistré tant que vous n'avez pas accepté.
+Pour tester l'effet d'un brouillon non publié, demandez un **aperçu** : il est produit à partir du brouillon et n'atteint jamais l'espace officiel.
 
-<!-- SCREENSHOT : boîte de dialogue de confirmation d'enregistrement -->
+## Ne refaire que ce qui a changé
 
-## La confirmation d'enregistrement
+Chaque fichier produit par l'outil garde la trace des textes du programme qu'il contient. L'outil peut donc dire, pour chaque fichier, s'il est **à jour**, **périmé** (le programme a changé depuis) ou **inconnu** (produit autrement, il ne garde pas cette trace).
 
-!!! warning "Écriture immédiate — pas de brouillon"
-    Enregistrer un document écrit **directement** dans l'espace partagé : c'est **immédiat, sans annulation**. La demande de confirmation indique exactement ce qui va être écrit. Lisez-la, puis acceptez ou refusez.
+> « Quels fichiers de la leçon 12 sont périmés ? »
 
-    (C'est différent des modifications du curriculum, qui passent d'abord par un brouillon — voir [Relire, publier ou abandonner un brouillon](review-approve.md).)
+Une leçon se reproduit alors en ne refaisant que les fichiers périmés ou inconnus. Vous pouvez toujours demander de tout refaire.
 
-## Conseils
+## Retrouver un document produit
 
-- **Précisez ce que vous voulez générer** : le cours entier, un chapitre, une leçon. Si vous ne savez pas ce qui existe, demandez « quels cours et quels chapitres existent ? ».
-- **Certains documents s'appuient sur d'autres.** Par exemple, les fiches de leçons s'appuient sur le manuel : si vous préparez les deux, faites le manuel d'abord.
-- **Vérifiez la variété des exemples.** Pour voir quels domaines d'exemples ont déjà été utilisés :
+> « Liste les documents produits pour ce cours. »
+>
+> « Donne-moi le lien de téléchargement de la fiche de la leçon 12. »
 
-    > « Quels domaines d'exemples ont été utilisés dans les chapitres récents ? »
+## Mesurer un fichier produit ailleurs
 
-- **Prévisualisez un brouillon avant de publier.** Si vous testez une modification du curriculum, vous pouvez voir le document qui en sortirait **sans rien publier** — voir [Prévisualiser avant de publier](courses-lessons.md).
+Un fichier produit par l'outil porte déjà sa mesure. Pour un fichier Word venu d'ailleurs — corrigé à la main, produit par un autre outil :
 
-## Les illustrations
+> « Combien de pages fait ce fichier, et est-ce qu'il déborde ? »
 
-Une image fait partie du matériel au même titre qu'un texte : elle est **rattachée à la leçon ou à l'activité qu'elle illustre**, avec une phrase disant **ce qu'elle montre**. C'est cette phrase, lue à côté du texte de l'activité, qui permet de repérer une image qui contredit ses mots — deux corrigés faux sont partis à l'impression comme ça.
+Avec le module, c'est la commande `/mesurer`.
 
-> « Rattache l'image “bande-1” à l'activité “Compare les colliers” : elle montre trois colliers de coquillages, celui de Binta au milieu. »
+## Reprendre les corrections d'un expert
 
-Ce qui se passe alors :
+Un expert a ouvert un fichier, corrigé des formulations et vous l'a renvoyé. Ces corrections doivent aller **dans le programme**, sinon la prochaine production les effacera.
 
-- Claude vérifie que le fichier a bien été **déposé** avant de le rattacher — une image que le graphe pointe sans qu'elle existe ne s'imprimerait jamais.
-- Le rattachement est une **modification du brouillon** : visible dans la relecture, annulable, publiée avec le reste.
-- Toute section qui couvre cette activité **voit l'image** et peut la placer sur la page.
-- Une image **pas encore dessinée** se commande de la même façon : « Commande l'image “bande-2” pour l'activité … : elle montrera … ». Le graphe la connaît, l'illustrateur la livre en déposant le fichier au chemin annoncé, et rien d'autre ne change.
-- L'image est **approuvée en même temps que le brouillon** qui la rattache, par l'approbateur — comme un texte. Une nouvelle version est un nouveau fichier : on la rattache à son tour et on supprime l'ancienne (« Supprime l'image “bande-1”. »).
+> « Voici la fiche corrigée par l'inspectrice : reporte ses corrections dans le programme. »
 
-La relecture d'une page composée signale une image placée qui n'est rattachée à rien, et une image rattachée que la page n'utilise pas.
+Claude compare le fichier au graphe et vous **propose** les modifications ; il n'écrit rien lui-même. Trois cas :
 
-## Retrouver un document déjà produit
+- **une formulation modifiée** — la correction est claire, elle peut s'appliquer ;
+- **un passage disparu** — il est signalé, **pas supprimé** : dans un fichier Word, une coupe volontaire et une erreur de manipulation se ressemblent ;
+- **un passage ajouté** — il est signalé sans être rangé nulle part : deviner sa place à partir de sa position est la meilleure façon de mettre une phrase sous la mauvaise leçon.
 
-> « Liste les documents de ce cours. »
-
-Claude vous indique ce qui existe déjà et peut vous fournir un lien de téléchargement.
+Vous validez les propositions ; elles partent dans le brouillon comme toute modification. Avec le module : `/reprendre-corrections`. La comparaison fonctionne au mieux sur un fichier produit par l'outil ; un fichier produit autrement est lu, mais sans correspondance précise avec le graphe.

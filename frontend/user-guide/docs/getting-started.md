@@ -1,90 +1,111 @@
 # Prise en main
 
-Cinq étapes avant de travailler : **demander votre accès**, **installer le connecteur** dans Claude, **vous connecter**, comprendre comment **parler à l'outil**, puis **choisir où vous travaillez** (l'espace de travail, la classe et la matière).
+Quatre étapes avant de travailler : **obtenir un accès**, **brancher l'outil dans Claude**, **vous connecter**, puis **choisir où vous travaillez**. Comptez une dizaine de minutes la première fois, aucune ensuite.
 
-## 1. Demander votre accès (compte Supabase)
+## 1. Obtenir un accès
 
-L'authentification passe par **Supabase**. Il n'y a pas encore d'auto-inscription : c'est l'administrateur du projet qui **crée votre compte**. Demandez-lui votre accès ; vous recevez un **e-mail** et un **mot de passe** de connexion.
+Il y a trois façons d'entrer, selon votre situation.
 
-!!! info "Pas encore de compte ?"
-    Écrivez à l'administrateur du projet pour qu'il crée votre accès Supabase. Il vous transmettra aussi l'adresse du connecteur (étape 2) si elle n'apparaît pas déjà dans Claude.
+- **Votre organisation a ouvert l'accès à son domaine.** Si votre adresse professionnelle appartient à un domaine autorisé et que vous vous connectez **avec Google**, vous recevez votre rôle automatiquement à la première connexion. Rien à demander.
+- **Vous avez été invité.** Un administrateur a inscrit votre **adresse e-mail** avec un rôle. Créez votre compte avec cette adresse exacte (ou connectez-vous avec Google si c'est une adresse Google) : l'invitation est reconnue à la première connexion.
+- **Ni l'un ni l'autre.** Écrivez à l'administrateur de l'espace de travail et donnez-lui votre adresse e-mail. Il vous enverra une invitation.
 
-## 2. Installer le connecteur dans Claude
+!!! info "Sans rôle, vous pouvez déjà lire"
+    Tout utilisateur connecté peut consulter les programmes publiés. Un rôle est nécessaire pour les **documents** de l'espace (les télécharger, les produire), la **traduction**, et toute **modification** du programme.
 
-L'outil se branche à Claude comme un **connecteur** nommé **« Teaching & Learning Materials authoring »**.
+## 2. Brancher l'outil dans Claude
 
-1. Dans Claude, ouvrez les paramètres des connecteurs.
-2. Si le connecteur **« Teaching & Learning Materials authoring »** est déjà proposé par votre organisation, activez-le.
-3. Sinon, ajoutez un **connecteur personnalisé** et collez l'**adresse fournie par votre administrateur** (une URL se terminant par `/mcp`), puis validez.
+Deux possibilités. La première est conseillée.
 
-<!-- SCREENSHOT : écran d'ajout du connecteur dans Claude -->
+### Installer le module d'autorat (conseillé)
+
+Le module *tlm-autorat* apporte **le connecteur et les procédures** en une seule installation : Claude sait alors dans quel ordre travailler, quoi vérifier avant d'écrire, et quand s'arrêter pour vous demander.
+
+- **Dans Cowork** : *Personnaliser → Modules (Plugins)*, ajoutez le dépôt `IDinsight/tlm-authoring-mcp`, puis installez **tlm-autorat**. Sur les offres Team et Enterprise, un administrateur peut l'installer pour tout le monde.
+- **Dans Claude Code** (y compris l'onglet Code de l'application de bureau), tapez ces deux lignes l'une après l'autre :
+
+```text
+/plugin marketplace add IDinsight/tlm-authoring-mcp
+```
+
+```text
+/plugin install tlm-autorat@tlm-authoring-mcp
+```
+
+Le module installe aussi un second connecteur, destiné à la **génération d'images**, utilisé seulement quand vous travaillez les illustrations.
+
+!!! tip "Cowork, c'est mieux"
+    Le module s'appuie sur des assistants spécialisés (un lecteur, un relecteur, un mesureur…) qui font les lectures longues à part et ne remontent que la conclusion. Ils fonctionnent dans **Cowork** et **Claude Code**, pas dans la discussion simple sur le web. Le module y marche quand même, mais plus lentement.
+
+### Ou : le connecteur seul
+
+Si vous n'installez pas le module, ajoutez le connecteur **« Teaching & Learning Materials authoring »** dans les paramètres des connecteurs de Claude. S'il n'est pas proposé par votre organisation, ajoutez un **connecteur personnalisé** avec l'adresse que vous donne votre administrateur (elle se termine par `/mcp`). Tout fonctionne, mais Claude connaîtra moins bien les procédures.
 
 ## 3. Se connecter
 
-À la première utilisation, Claude ouvre une page de connexion Supabase. Saisissez l'**e-mail** et le **mot de passe** de l'étape 1. Vous ne le referez pas à chaque fois.
+À la première utilisation, une page de connexion s'ouvre. Choisissez **Continuer avec Google**, ou saisissez l'e-mail et le mot de passe de votre compte. Vous ne le referez pas à chaque fois.
 
-<!-- SCREENSHOT : page de connexion -->
+Dans Claude Code, la connexion se lance avec la commande `/mcp`.
 
-## 4. Parler à l'outil
+## 4. Vérifier que tout est branché
 
-Une fois le connecteur installé et la connexion faite, vous utilisez l'outil **en écrivant à Claude en langage courant** — pas de commande à retenir, pas de syntaxe particulière. Vous décrivez ce que vous voulez, Claude appelle les bons outils du connecteur.
-
-Deux points qui ne sautent pas aux yeux :
-
-- **Le connecteur doit être actif dans la conversation.** Dans Claude, les connecteurs s'activent par conversation. Si vous ne voyez pas Claude utiliser l'outil, vérifiez que **« Teaching & Learning Materials authoring »** est bien activé pour ce fil de discussion (dans le menu des outils/connecteurs, sous la zone de saisie).
-- **La première utilisation demande une autorisation.** La toute première fois que Claude appelle un outil, il vous demande la permission de l'exécuter. Acceptez — c'est normal, et c'est aussi le garde-fou qui fait que rien ne s'exécute sans votre accord.
-
-Pour vérifier que tout est branché, envoyez un message simple :
+Envoyez un message simple :
 
 > « Que puis-je faire ? »
 
-Si Claude répond en s'appuyant sur l'outil (par exemple en listant vos rôles ou vos espaces de travail), tout fonctionne. S'il répond « de tête », sans utiliser l'outil, demandez-le explicitement :
+Si Claude répond en s'appuyant sur l'outil (en citant vos rôles, vos espaces de travail), tout fonctionne. S'il répond « de tête », vérifiez que le connecteur est **activé pour cette conversation** (menu des outils sous la zone de saisie), puis demandez-le explicitement :
 
-> « Utilise le connecteur Teaching & Learning Materials pour me dire ce que je peux faire. »
+> « Utilise l'outil TLM pour me dire ce que je peux faire. »
+
+La première fois que Claude appelle un outil, il vous demande la permission. Acceptez : c'est normal.
 
 ## 5. Choisir où vous travaillez
 
-Le travail est toujours cadré par trois choses : un **espace de travail**, une **classe** et une **matière**.
+Le travail est toujours cadré par trois choses :
 
-- L'**espace de travail** est le grand conteneur d'un programme — par exemple *Sénégal*. Il regroupe tous les curriculums de ce programme, et c'est lui qui détermine votre rôle. Vous ne voyez que les espaces auxquels vous avez accès.
-- À l'intérieur, vous travaillez sur **une classe + une matière à la fois** (par exemple *CI / mathématiques*).
+- un **espace de travail** — le programme d'une organisation ou d'un pays. C'est lui qui détermine votre rôle ;
+- une **classe** et une **matière** à l'intérieur de cet espace. On travaille sur une seule à la fois.
 
-Pour voir ce à quoi vous avez accès :
+> « Quels espaces de travail et quelles matières sont disponibles ? »
 
-> « Quels espaces de travail puis-je ouvrir ? »
->
-> « Quelles classes et matières sont disponibles ? »
+Puis dites à Claude où aller, en nommant l'espace, la classe et la matière telles qu'il vous les a listées :
 
-Puis dites à Claude où aller :
+> « Travaillons sur les mathématiques de première année. »
 
-> « Travaillons sur les mathématiques de CI dans l'espace Sénégal. »
+À partir de là, tout ce que vous demandez s'applique à ce périmètre. Pour changer, dites-le simplement : Claude repart proprement sur le nouveau périmètre, sans mélanger les deux.
 
-Claude fixe le contexte. À partir de là, tout ce que vous demandez s'applique à ce périmètre.
+## 6. Demander où vous en êtes
 
-!!! tip "Bon à savoir"
-    Votre choix reste actif pendant votre session. Si vous changez de matière ou d'espace en cours de route, dites-le à Claude — il repart proprement sur le nouveau contexte, sans mélanger les deux.
+C'est la question à poser à chaque reprise de travail :
 
-!!! info "On vous refuse l'entrée d'un espace ?"
-    On ne peut **entrer** que dans un espace de travail où l'on a un rôle. Si Claude vous répond que l'accès est refusé, demandez à l'administrateur de l'espace de vous ajouter (voir [Administration](admin-developer.md)).
+> « Où en suis-je ? »
 
-## 6. Demander par où commencer
+Claude répond par un point de situation : où vous êtes, ce que votre rôle permet, s'il existe un **brouillon** ouvert, ce qui attend une relecture, ce qui est **inachevé** (un document qui ne couvre rien, une section orpheline, une routine que personne n'utilise), et deux ou trois choses à faire maintenant.
 
-Une fois le contexte fixé, la question la plus utile est aussi la plus simple :
+!!! warning "Un brouillon ouvert est souvent le travail de quelqu'un d'autre"
+    Si Claude signale un brouillon en cours que vous n'avez pas ouvert, c'est probablement un collègue qui y travaille. Ne le publiez pas et ne l'abandonnez pas sans lui en parler.
 
-> « Par où je commence ? »
->
-> « Où j'en suis ? »
+## Les commandes du module
 
-Claude répond par un point de situation : sur quoi vous travaillez, ce que votre rôle vous permet de faire, s'il reste un **brouillon** en cours, ce qui est **inachevé** dans le graphe (un document rattaché à rien, une section orpheline, une routine que personne n'utilise), et deux ou trois choses à faire maintenant. Posez la question à chaque reprise de travail : c'est la façon la plus rapide de retrouver le fil.
+Avec le module installé, quelques raccourcis ouvrent directement la bonne procédure. Ils sont facultatifs : tout ce qu'ils font, vous pouvez le demander en écrivant.
 
-!!! tip "Vous n'avez jamais besoin d'un identifiant"
-    Ne cherchez pas les codes ou les identifiants des éléments : **donnez leur nom**. « le chapitre 5 », « le guide de l'enseignant », « la semaine 3 ». Claude retrouve l'élément lui-même. Si plusieurs éléments portent le même nom — un chapitre et la leçon qu'il contient s'appellent souvent pareil —, il vous demandera lequel, avec l'endroit où chacun se trouve. Répondez en désignant celui que vous voulez ; il ne choisira pas à votre place.
+| Commande | Pour… |
+|---|---|
+| `/ou-en-suis-je` | Faire le point : où vous êtes, ce que vous pouvez faire, ce qui reste ouvert |
+| `/construire` | Construire ou faire évoluer le programme (standards, cours, leçons, regroupements) |
+| `/composer` | Créer ou faire évoluer un document (ce qu'il couvre, sa mise en forme, ses sections) |
+| `/produire` | Produire un document, puis vérifier qu'il tient |
+| `/lecon` | Produire tous les fichiers d'une leçon, en ne refaisant que ce qui est périmé |
+| `/mesurer` | Mesurer un document déjà produit (pages, débordement) |
+| `/evaluer` | Relire un document ou le brouillon en une seule passe |
+| `/reprendre-corrections` | Reporter dans le programme les corrections d'un expert sur un fichier Word |
+| `/publier` | Publier le brouillon, vérifications d'abord |
+| `/decisions` | Lister ce qui attend une décision humaine |
 
-!!! info "Un menu de démarrages tout prêts"
-    Selon votre client, le connecteur peut proposer une petite liste de **démarrages** — *Créer un nouveau document*, *Appliquer un style à un document*, *Créer une routine pédagogique*, *Préparer une relecture*. En choisir un ouvre la conversation avec les bonnes questions déjà posées. C'est facultatif : tout ce qu'ils font, vous pouvez le demander en écrivant.
+Sans le module, le connecteur propose parfois quelques **démarrages tout prêts** (*Créer un nouveau document*, *Appliquer un style*, *Créer une routine*, *Préparer une relecture*) qui ouvrent la conversation avec les bonnes questions.
 
 ## Et ensuite ?
 
-- Pour construire ou corriger le curriculum → [Créer un graphe de connaissances](create-graph.md), [Construire les standards et les composants](build-standards.md), [Ajouter et modifier un cours et ses leçons](courses-lessons.md).
-- Pour produire un document → [Générer du matériel pédagogique](create-materials.md).
-- Pour visualiser le curriculum → [Explorer le graphe](explorer.md).
+- Construire ou corriger le programme → [Comprendre le graphe](create-graph.md).
+- Créer ou produire un document → [Composer un document](compose-document.md).
+- Regarder le programme → [Explorer le graphe](explorer.md).

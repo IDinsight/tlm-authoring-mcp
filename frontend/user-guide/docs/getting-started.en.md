@@ -1,94 +1,111 @@
 # Getting started
 
-Five steps before you can work: **request your access**, **install the connector** in Claude, **sign in**, learn how to **talk to the tool**, then **choose where you work** (the workspace, grade and subject).
+Four steps before you can work: **get access**, **connect the tool to Claude**, **sign in**, then **choose where you work**. Allow about ten minutes the first time, and none after that.
 
-## 1. Request your access (Supabase account)
+## 1. Get access
 
-Authentication goes through **Supabase**. There is no self-registration yet: the project administrator **creates your account**. Ask them for your access; you receive a sign-in **email** and **password**.
+There are three ways in, depending on your situation.
 
-!!! info "No account yet?"
-    Email the project administrator to have your Supabase access created. They will also pass you the connector address (step 2) if it isn't already listed in Claude.
+- **Your organisation has opened access to its domain.** If your work address belongs to an authorised domain and you sign in **with Google**, you get your role automatically the first time you sign in. There is nothing to request.
+- **You have been invited.** An administrator has registered your **email address** with a role. Create your account with that exact address (or sign in with Google if it is a Google address). The invitation is recognised the first time you sign in.
+- **Neither.** Write to the workspace administrator and give them your email address. They will send you an invitation.
 
-## 2. Install the connector in Claude
+!!! info "Without a role, you can already read"
+    Any signed-in user can look at the published curricula. You need a role for the workspace's **documents** (downloading them, producing them), for **translation**, and for any **change** to the curriculum.
 
-The tool plugs into Claude as a **connector** named **"Teaching & Learning Materials authoring"**.
+## 2. Connect the tool to Claude
 
-1. In Claude, open the connector settings.
-2. If the **"Teaching & Learning Materials authoring"** connector is already offered by your organisation, enable it.
-3. Otherwise, add a **custom connector** and paste the **address your administrator gives you** (a URL ending in `/mcp`), then confirm.
+You have two options. The first is recommended.
 
-<!-- SCREENSHOT: adding the connector in Claude -->
+### Install the authoring plugin (recommended)
+
+The *tlm-autorat* plugin brings **the connector and the procedures** in a single install. Claude then knows in what order to work, what to check before writing, and when to stop and ask you.
+
+- **In Cowork**: go to *Customize → Plugins*, add the repository `IDinsight/tlm-authoring-mcp`, then install **tlm-autorat**. On Team and Enterprise plans, an administrator can install it for everyone.
+- **In Claude Code** (including the Code tab of the desktop app), type these two lines, one after the other:
+
+```text
+/plugin marketplace add IDinsight/tlm-authoring-mcp
+```
+
+```text
+/plugin install tlm-autorat@tlm-authoring-mcp
+```
+
+The plugin also installs a second connector for **image generation**. It is only used when you work on illustrations.
+
+!!! tip "Cowork works best"
+    The plugin relies on specialised assistants (a reader, a reviewer, a measurer…) that do the long reads on their own and report back only the conclusion. They run in **Cowork** and **Claude Code**, but not in the plain web chat. The plugin still works there, just more slowly.
+
+### Or: the connector on its own
+
+If you don't install the plugin, add the **"Teaching & Learning Materials authoring"** connector in Claude's connector settings. If your organisation doesn't offer it, add a **custom connector** with the address your administrator gives you (it ends in `/mcp`). Everything works, but Claude will know the procedures less well.
 
 ## 3. Sign in
 
-The first time, Claude opens a Supabase sign-in page. Enter the **email** and **password** from step 1. You won't have to do this every time.
+The first time you use the tool, a sign-in page opens. Choose **Continue with Google**, or enter your account's email and password. You won't have to do this every time.
 
-<!-- SCREENSHOT: sign-in page -->
+In Claude Code, you start the sign-in with the `/mcp` command.
 
-## 4. Talk to the tool
+## 4. Check that everything is connected
 
-Once the connector is installed and you're signed in, you use the tool **by writing to Claude in plain language** — no commands to remember, no special syntax. You describe what you want, and Claude calls the right tools on the connector.
-
-Two things that aren't obvious:
-
-- **The connector must be active in the conversation.** In Claude, connectors are enabled per conversation. If you don't see Claude using the tool, check that **"Teaching & Learning Materials authoring"** is switched on for this chat (in the tools/connectors menu below the message box).
-- **The first use asks for permission.** The very first time Claude calls a tool, it asks your permission to run it. Accept — this is normal, and it's also the safeguard that means nothing runs without your approval.
-
-To check everything is wired up, send a simple message:
+Send a simple message:
 
 > "What can I do?"
 
-If Claude answers using the tool (for example by listing your roles or workspaces), it's working. If it answers "from memory" without using the tool, ask explicitly:
+If Claude's answer draws on the tool (naming your roles and your workspaces), everything works. If it answers "from memory", check that the connector is **turned on for this conversation** (the tools menu under the message box), then ask for it explicitly:
 
-> "Use the Teaching & Learning Materials connector to tell me what I can do."
+> "Use the TLM tool to tell me what I can do."
+
+The first time Claude calls a tool, it asks for your permission. Accept: this is normal.
 
 ## 5. Choose where you work
 
-Work is always framed by three things: a **workspace**, a **grade** and a **subject**.
+Your work is always framed by three things:
 
-- The **workspace** is the big container for a programme — for example *Senegal*. It holds all the curriculums for that programme, and it is what determines your role. You only see the workspaces you have access to.
-- Inside it, you work on **one grade + subject at a time** (for example *CI / mathematics*).
+- a **workspace** — the curriculum of one organisation or country. This is what determines your role;
+- a **grade** and a **subject** inside that workspace. You work on one at a time.
 
-To see what you have access to:
+> "Which workspaces and subjects are available?"
 
-> "Which workspaces can I open?"
->
-> "Which grades and subjects are available?"
+Then tell Claude where to go, naming the workspace, grade and subject exactly as it listed them:
 
-Then tell Claude where to go:
+> "Let's work on first-year mathematics."
 
-> "Let's work on CI mathematics in the Senegal workspace."
+From then on, everything you ask applies to that scope. To switch, just say so. Claude starts afresh on the new scope, without mixing the two.
 
-Claude sets the context. From then on, everything you ask applies to that scope.
+## 6. Ask where you are
 
-!!! tip "Good to know"
-    Your choice stays active for your session. If you switch subject or workspace midway, tell Claude — it starts cleanly on the new context, without mixing the two.
+This is the question to ask every time you pick the work back up:
 
-!!! info "Denied entry to a workspace?"
-    You can only **enter** a workspace where you hold a role. If Claude tells you access is denied, ask the workspace administrator to add you (see [Administration](admin-developer.md)).
+> "Where am I?"
 
-## 6. Ask where to start
+Claude replies with a status report: where you are, what your role allows, whether a **draft** is open, what is waiting for review, what is **unfinished** (a document that covers nothing, an orphaned section, a routine nobody uses), and two or three things to do now.
 
-Once the context is set, the most useful question is also the simplest:
+!!! warning "An open draft is often someone else's work"
+    If Claude reports a draft in progress that you did not open, a colleague is probably working on it. Don't publish it or discard it without talking to them first.
 
-> "Where do I start?"
->
-> "Where did I leave off?"
+## The plugin's commands
 
-Claude answers with a situation report: what you are working on, what your role
-lets you do, whether a **draft** is still open, what is **unfinished** in the
-graph (a document attached to nothing, an orphaned section, a routine nobody
-uses), and two or three things worth doing now. Ask it every time you pick the
-work back up — it is the fastest way to find the thread again.
+Once the plugin is installed, a few shortcuts take you straight to the right procedure. They are optional: anything they do, you can also ask for in writing.
 
-!!! tip "You never need an identifier"
-    Don't go looking for codes or ids: **give the name**. "chapter 5", "the teacher's guide", "week 3". Claude finds the element itself. When several elements share a name — a chapter and the lesson inside it are often called the same thing — it will ask you which, showing where each one sits. Answer by pointing at the one you mean; it will not pick for you.
+| Command | To… |
+|---|---|
+| `/ou-en-suis-je` | Take stock: where you are, what you can do, what is still open |
+| `/construire` | Build or develop the curriculum (standards, courses, lessons, groupings) |
+| `/composer` | Create or develop a document (what it covers, its formatter, its sections) |
+| `/produire` | Produce a document, then check that it fits |
+| `/lecon` | Produce all of a lesson's files, redoing only what is stale |
+| `/mesurer` | Measure a document that has already been produced (pages, overflow) |
+| `/evaluer` | Review a document or the draft in a single pass |
+| `/reprendre-corrections` | Carry an expert's corrections on a Word file back into the curriculum |
+| `/publier` | Publish the draft, with the checks first |
+| `/decisions` | List what is waiting for a human decision |
 
-!!! info "A menu of ready-made starts"
-    Depending on your client, the connector may offer a short list of **starting points** — *Create a new document*, *Apply a style to a document*, *Create an instructional routine*, *Prepare a review*. Picking one opens the conversation with the right questions already asked. It is optional: anything they do, you can also just ask for in writing.
+Without the plugin, the connector sometimes offers a few **ready-made starts** (*Créer un nouveau document*, *Appliquer un style*, *Créer une routine*, *Préparer une relecture* — create a new document, apply a style, create a routine, prepare a review). Each one opens the conversation with the right questions.
 
 ## What next?
 
-- To build or fix the curriculum → [Create a knowledge graph](create-graph.md), [Build standards and components](build-standards.md), [Add and edit a course and its lessons](courses-lessons.md).
-- To produce a document → [Generate teaching materials](create-materials.md).
-- To view the curriculum → [Explore the graph](explorer.md).
+- To build or correct the curriculum → [Understand the graph](create-graph.md).
+- To create or produce a document → [Compose a document](compose-document.md).
+- To look at the curriculum → [Explore the graph](explorer.md).

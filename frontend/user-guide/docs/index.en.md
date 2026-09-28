@@ -1,43 +1,58 @@
 # TLM user guide
 
-Welcome. This tool helps you **maintain the curriculum** (the "knowledge graph") and **produce teaching materials** — pupil manuals and lesson sheets — for mathematics and reading, keeping everything consistent from one chapter to the next.
+This tool does two things: it **maintains a curriculum** (the "knowledge graph") and it **produces the documents that teach it** — pupil books, teacher's guides, lesson sheets, workbooks — as Word files ready to print.
 
-## Your two working surfaces
+It works the same way for every subject, every grade and every country. What sets two curricula apart is not in the tool. It is in their graph.
 
-You work with **two surfaces**, and nothing else to install:
+## What is specific to your curriculum lives in the graph
 
-- **Chatting with Claude.** This is where everything happens: you ask for what you want in plain language, and Claude handles the details. Creating a lesson, generating a manual, publishing a change — you ask for all of it in writing. There are no complicated buttons to learn; this guide shows you what to ask and what to expect.
-- **The explorer.** A **read-only** web page that displays the published curriculum — the standards, chapters, lessons and how they link together. You use it to *look*, never to edit. See [Explore the graph](explorer.md).
+The tool knows nothing in advance about your subjects, your documents or your habits. Everything specific to a curriculum is **written into its graph** by its experts, which means you can read it back and correct it just by talking:
+
+| What changes from one curriculum to another | Where it is written |
+|---|---|
+| The names of the levels (domain, theme, specific objective…) and of the groupings (chapter, unit, week…) | In the elements of the graph themselves |
+| The documents you produce, and what each one covers | In the graph's **documents** |
+| How a session unfolds | In the **instructional routines** |
+| What a page looks like, which languages it comes out in | In the **formatters** |
+| What makes a document good | In the **evaluation grids** |
+| The subject's conventions, what the curriculum must cover | In the **subject guide** |
+| How terms are expected to be translated | In the workspace **lexicon** |
+
+So the examples in this guide are just that, **examples**: your curriculum may say "unit" where this guide says "chapter". To learn the conventions of the subject you are working on, ask Claude:
+
+> "Read me the guide for this subject."
+
+## Your working tools
+
+- **The conversation with Claude.** Everything happens here, in everyday language. You say what you want — "add a lesson", "produce lesson 12", "is this document ready?" — and Claude calls the right tools. There are no commands to learn.
+- **The authoring plugin** (the *tlm-autorat* plugin). It teaches Claude the right procedures: in what order to create a document, how to check a page before rendering it, when to stop and ask you. It is optional, but strongly recommended. See [Getting started](getting-started.md).
+- **The explorer.** A **read-only** web page showing the published curriculum, its current draft and the catalog. You look at things there; you change nothing. See [Explore the graph](explorer.md).
 
 ## Who does what
 
-What you can do depends on your **role**. In the system a single word — *curator* — covers several jobs; the table below starts from what you do day to day.
+What you can do depends on your **role in the workspace**.
 
-| You are… | You want to… | System role |
+| You are… | You want to… | Role |
 |---|---|---|
-| **Author** | Generate manuals and lesson sheets | anyone can generate |
-| **Curriculum expert** | Create and enrich the curriculum: standards, learning components | curator |
-| **Designer (TLM)** | Build the courses, lessons, routines and formatting templates | curator |
-| **Approver** | Review and **publish** drafts to make them official | approver |
-| **Administrator / developer** | Add a workspace, a new subject | admin / super admin |
+| **Reader** | Look at a curriculum | no role needed |
+| **Curriculum expert** | Write the standards, lessons and activities | curator |
+| **Document designer** | Create documents, their sections and their formatters, and produce them | curator |
+| **Approver** | Review the curators' work and **publish** it | approver |
+| **Administrator** | Manage the members of a workspace | admin |
 
-Anyone can **explore** the graph and **generate** materials. Editing the curriculum needs the **curator** role; publishing those edits needs the **approver** role.
-
-Not sure of your role? Just ask Claude: "**What can I do?**"
+Not sure what your role is? Ask: "**What can I do?**"
 
 ## Where to start
 
-1. [**Getting started**](getting-started.md) — connect Claude to the tool, sign in, pick the workspace, grade and subject.
-2. **Build the curriculum** — [create a knowledge graph](create-graph.md), then [build the standards and components](build-standards.md).
-3. **Design the courses** — [add and edit a course and its lessons](courses-lessons.md), [create instructional routines](routines.md), [create formatters](formatters.md).
-4. [**Generate teaching materials**](create-materials.md) — produce a manual or lesson sheets.
-5. [**Review, publish or discard a draft**](review-approve.md) — check changes and make them official.
-6. [**Explore the graph**](explorer.md) — view the curriculum in the explorer.
-7. [**Administration & development**](admin-developer.md) — add a workspace or a subject.
+1. [**Getting started**](getting-started.md) — get access, install the plugin, choose where you work.
+2. **Build the curriculum** — [understand the graph](create-graph.md), [the standards](build-standards.md), [courses and lessons](courses-lessons.md), [routines](routines.md).
+3. **Compose and produce** — [compose a document](compose-document.md), [its formatter](formatters.md), [produce it](create-materials.md).
+4. **Evaluate and publish** — [evaluate a document](evaluate.md), [review and publish the draft](review-approve.md).
+5. [**Explore the graph**](explorer.md), and the [**Reference**](reference.md) for vocabulary.
 
-Need a vocabulary refresher? The [Reference](reference.md) summarises who can do what and defines each term.
+!!! note "Three safety rules"
+    **Nothing is written without your agreement.** Before any change, Claude shows you what will change and waits for your "yes".
 
-!!! note "Two safety rules to remember"
-    **Nothing important happens without your confirmation.** Saving a document, publishing a change: Claude first shows you what is about to happen, and waits for your approval.
+    **The curriculum goes through a draft.** Your changes pile up separately. They only reach document production once an approver **publishes** them.
 
-    **Curriculum edits go through a draft.** Your changes pile up separately and only reach document generation once an approver has **published** them. That is your safety net.
+    **You give names, never identifiers.** "Lesson 12", "the teacher's guide": Claude finds the element. If several share the same name, it asks you which one you mean.
