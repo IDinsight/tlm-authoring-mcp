@@ -1,69 +1,65 @@
-# Créer des routines pédagogiques
+# Routines pédagogiques
 
-Une **routine pédagogique** est un gabarit d'enseignement réutilisable : la structure fixe d'une leçon, écrite une fois et appliquée à autant de leçons que vous voulez. Au lieu de re-décrire à chaque fois « une leçon commence par un déclencheur, puis un modelage, puis… », vous rangez cette structure dans une routine et vous la réutilisez.
+Une **routine pédagogique** est le déroulé d'une séance, écrit une fois et réutilisé autant de fois qu'il le faut. Au lieu de redire à chaque leçon « on commence par ceci, puis cela », on range ce déroulé dans une routine et on l'applique.
 
-!!! example "Un exemple concret : la « Fiche de leçon »"
-    La routine *« Fiche de leçon »* décrit une leçon de 30 minutes en **cinq étapes ordonnées**, chacune avec sa durée :
+!!! example "Un exemple"
+    Une routine *« Séance de résolution de problèmes »* pourrait tenir en quatre étapes ordonnées, chacune avec sa durée et sa consigne : *mise en route*, *démonstration*, *pratique guidée*, *pratique autonome*.
+    Le nombre d'étapes, leurs noms et leurs durées sont ceux que **votre programme** a écrits. L'outil n'en impose aucun.
 
-    1. **Déclencheur** (4 min)
-    2. **Modelage** (8 min)
-    3. **Nous faisons** (8 min)
-    4. **Tu fais** (10 min)
-    5. **Objectivation** (5 min)
+Une routine se compose :
 
-    Appliquée à une leçon, cette routine dit à la génération *comment* dérouler la leçon. Changez la routine, et toutes les leçons qui l'utiliseront ensuite suivront la nouvelle structure.
+- d'**étapes ordonnées**, chacune avec sa consigne (et souvent sa durée) ;
+- de **règles transversales** qui valent pour toutes les étapes.
 
-## Le catalogue : une bibliothèque de gabarits
+## Le catalogue
 
-Les routines vivent dans un **catalogue** — une bibliothèque de gabarits que l'on parcourt et que l'on réutilise. Le catalogue a **deux étagères** :
+Les routines vivent dans le **catalogue**, une bibliothèque d'entrées réutilisables. Il a deux étagères :
 
-- **Partagée** — des gabarits communs à tous les programmes. Réservés au **super-administrateur**.
-- **Espace de travail** — des gabarits propres à votre programme (par exemple *Sénégal*). Modifiables par les **curateurs** de cet espace.
+- **Espace de travail** — les entrées propres à votre programme, modifiables par ses **approbateurs** ;
+- **Partagée** — les entrées communes à tous les programmes, réservées au **super-administrateur**.
 
-Le catalogue contient deux sortes d'entrées : les **routines** (la structure pédagogique, cette page) et les **formatters** (la mise en forme, voir [Créer des formatters](formatters.md)). Elles fonctionnent de la même façon ; seul leur usage diffère.
+Le catalogue range trois sortes d'entrées : les **routines** (le déroulé, cette page), les **mises en forme** ([Mises en forme](formatters.md)) et les **grilles d'évaluation** ([Évaluer un document](evaluate.md)). Elles se parcourent et s'appliquent de la même façon.
 
-## Parcourir et lire le catalogue
+> « Quelles routines y a-t-il dans le catalogue ? »
+>
+> « Montre-moi le détail de la routine “Séance de résolution de problèmes”. »
 
-> « Qu'y a-t-il dans le catalogue ? »
+## Appliquer une routine
 
-Claude liste les entrées disponibles, en indiquant pour chacune son **étagère** (partagée ou espace de travail) et sa **sorte** (routine ou formatter).
+On applique une routine **à un cours**, **à une leçon** ou **à une activité** :
 
-> « Montre-moi le détail de la routine “Fiche de leçon”. »
+> « Applique cette routine au cours. »
+>
+> « Pour cette leçon seulement, applique plutôt la routine “Séance de révision”. »
 
-Claude vous en donne le contenu complet — les étapes, leurs consignes, les règles transversales — pour que vous sachiez exactement ce que vous appliquez.
+C'est la routine **la plus proche** qui l'emporte. Appliquée au cours, une routine vaut pour toutes ses leçons ; une leçon qui porte sa propre routine garde la sienne.
 
-## Appliquer une routine à une leçon
+Appliquer une routine est une modification du **brouillon**, comme le reste du programme : un curateur peut le faire.
 
-On applique une routine **à une leçon** :
-
-> « Applique la routine “Fiche de leçon” à cette leçon. »
-
-Point important : appliquer une routine en fait une **copie indépendante** rattachée à votre leçon. La copie est autonome — si quelqu'un modifie plus tard la routine du catalogue, votre leçon ne bouge pas. C'est un choix délibéré : vos leçons publiées ne changent jamais dans votre dos.
+!!! note "Appliquer, c'est copier"
+    Appliquer une routine en pose une **copie indépendante**. Si quelqu'un modifie plus tard la routine du catalogue, ce qui a déjà reçu sa copie ne bouge pas : rien ne change dans votre dos. Pour adopter la nouvelle version, on la réapplique.
 
 ## Créer ou modifier une routine
 
-Une routine se construit comme le reste du curriculum : **en discutant**, et par retouches successives qui partent dans un **brouillon**.
+Partez d'une routine proche si elle existe :
 
-> « Crée une routine “Routine de calcul mental” avec quatre étapes : … »
+> « Duplique la routine “Séance de résolution de problèmes” sous le nom “Séance de révision”. »
 >
-> « Dans la routine “Fiche de leçon”, allonge l'étape “Tu fais” à 12 minutes. »
->
-> « Ajoute une règle transversale à cette routine : “en français uniquement”. »
+> « Dans ma copie, raccourcis la pratique guidée à 6 minutes et ajoute une étape de bilan. »
 
-Si une routine proche existe déjà, **partez d'elle** plutôt que d'une page blanche :
+Sinon, décrivez-la :
 
-> « Duplique la routine “Fiche de leçon” sous le nom “Fiche de leçon — révision”. »
+> « Crée dans la bibliothèque de l'espace une routine “Séance de calcul mental” en trois étapes : … »
 
-!!! tip "Écrivez-la directement dans la bibliothèque"
-    Précisez « dans la bibliothèque » (ou « dans le catalogue ») dès la première phrase. Le détour qui consistait à construire l'entrée dans une matière puis à la recopier vers la bibliothèque n'est plus nécessaire — et il laissait une routine à moitié finie au milieu du curriculum si la conversation s'interrompait.
+!!! tip "Dites « dans la bibliothèque » dès la première phrase"
+    Une routine se crée directement dans le catalogue. Une écriture au catalogue **s'applique et se publie d'un coup** : il n'y a pas de brouillon ni d'annulation de la dernière modification, parce qu'une bibliothèque sert immédiatement à d'autres. Relisez bien l'aperçu avant de confirmer.
 
-Une routine se compose de :
+## Vérifier une routine
 
-- des **étapes ordonnées** (le déroulé), chacune portant sa consigne ;
-- et, au niveau de la routine, des **règles transversales** qui valent pour toutes les étapes.
+L'outil repère les routines qui se contredisent elles-mêmes — par exemple une durée totale annoncée qui n'est pas la somme de ses étapes — et celles que personne n'utilise. Ces vérifications font partie de la relecture (voir [Évaluer un document](evaluate.md)).
 
 !!! info "Qui peut modifier quoi"
-    Une entrée de l'étagère **espace de travail** se modifie par un **curateur** de cet espace. Une entrée **partagée** (commune à tous les programmes) est réservée au **super-administrateur** — pour éviter qu'un changement en touche d'autres sans le vouloir.
-
-!!! note "Une routine ne modifie pas les leçons existantes"
-    Modifier une routine du catalogue **n'altère pas** les leçons qui en ont déjà reçu une copie (voir plus haut). Pour qu'une leçon adopte la nouvelle version, on la lui applique de nouveau. C'est ce qui garantit que rien ne change à votre insu.
+    - **Appliquer** une routine à votre programme : un **curateur** (c'est une modification du brouillon).
+    - **Créer, dupliquer ou modifier** une entrée de la bibliothèque de l'espace : un **approbateur**, parce que l'écriture se publie aussitôt.
+    - **Supprimer** une entrée : un **admin**, parce que c'est définitif.
+    - Toucher une entrée **partagée** : le **super-administrateur** seulement. Pour adapter une entrée partagée, dupliquez-la dans la bibliothèque de votre espace.

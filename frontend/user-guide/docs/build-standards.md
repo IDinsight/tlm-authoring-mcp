@@ -1,73 +1,78 @@
-# Construire les standards et les composants
+# Construire les standards et les composantes
 
-Les **standards** sont l'ossature du curriculum : ce que les élèves doivent apprendre. Cette page montre comment les enrichir en discutant avec Claude — ajouter des objectifs, préciser les **composants d'apprentissage**, et organiser le tout. Pour relier ensuite des leçons à ces standards, voir [Ajouter et modifier un cours et ses leçons](courses-lessons.md).
+Les **standards** sont l'ossature du programme : ce que les élèves doivent apprendre. Cette page montre comment les enrichir par la discussion. Pour y rattacher des leçons, voir [Cours, regroupements et leçons](courses-lessons.md).
 
 !!! info "Réservé aux curateurs"
-    L'ajout et la modification passent par le rôle de **curateur**, et restent en **brouillon** jusqu'à publication.
+    Ajouter et modifier demande le rôle de **curateur**. Tout reste en **brouillon** jusqu'à publication.
 
-## Le vocabulaire, en trois mots
+## Comment les standards s'emboîtent
 
-| Terme | Ce que c'est | Exemple |
+Les standards se rangent comme des dossiers et des sous-dossiers : un cadre de référence, de grands ensembles, puis des objectifs précis. Chaque niveau porte le nom que **votre programme** lui donne — domaine, thème, compétence, objectif spécifique… Sous un objectif, on trouve les briques les plus fines :
+
+| Élément | Ce que c'est | Exemple |
 |---|---|---|
-| **Domaine** | Un grand thème qui regroupe des objectifs | *Arithmétique* |
-| **Objectif** | Un but d'apprentissage précis, à l'intérieur d'un domaine | *Comparer deux nombres jusqu'à 20* |
-| **Composant d'apprentissage** | Une compétence ou une notion unique et bien délimitée, rattachée à un objectif | *Reconnaître le symbole «&nbsp;>&nbsp;»* |
+| **Un ensemble** (domaine, thème…) | Un regroupement d'objectifs | *Nombres et calcul* |
+| **Un objectif** | Un but d'apprentissage précis | *Comparer deux nombres jusqu'à 20* |
+| **Une composante d'apprentissage** | Un savoir-faire unique et bien délimité, qui détaille un objectif | *Reconnaître le symbole « > »* |
 
-Les domaines et les objectifs s'emboîtent comme des dossiers et sous-dossiers. Les composants sont les briques les plus fines : ils **précisent** un objectif en le découpant en savoir-faire concrets.
+Pour savoir comment votre programme nomme ses niveaux :
+
+> « Comment sont organisés les standards de cette matière ? »
 
 ## Ajouter un objectif
 
-Dites à Claude ce que vous voulez ajouter et **où** :
+Dites ce que vous voulez ajouter, et **où** :
 
-> « Ajoute un objectif “Comparer deux nombres jusqu'à 20” dans le domaine Arithmétique. »
+> « Ajoute un objectif “Comparer deux nombres jusqu'à 20” dans l'ensemble Nombres et calcul. »
 
-Comme toujours, Claude vous montre d'abord **un aperçu** de ce qu'il va créer ; vous **confirmez**, et l'objectif rejoint le brouillon.
+Claude retrouve l'ensemble par son nom, vous montre **ce qu'il va créer**, et attend votre accord. Une fois confirmé, l'objectif rejoint le brouillon. Le nouvel élément reprend automatiquement la forme de ses voisins : vous n'avez pas à préciser son type.
 
-## Ajouter des composants d'apprentissage
+## Ajouter des composantes
 
-Un composant se rattache **à un objectif** — il décrit une compétence précise que cet objectif recouvre :
+Une composante se rattache à un objectif :
 
-> « Sous cet objectif, ajoute les composants : “reconnaître le symbole >”, “comparer deux collections”, “ranger trois nombres dans l'ordre”. »
-
-Vous pouvez en ajouter **plusieurs d'un coup** : c'est plus rapide et tout part dans le même brouillon, en une seule étape à confirmer.
+> « Sous cet objectif, ajoute les composantes : “reconnaître le symbole >”, “comparer deux collections”, “ranger trois nombres dans l'ordre”. »
 
 !!! tip "Créer par lots"
-    Pour bâtir une section entière, décrivez-la en une fois : « Crée le domaine Géométrie avec trois objectifs, et sous chacun deux composants. » Claude prépare l'ensemble, vous montre l'aperçu complet, et n'écrit qu'après votre accord.
+    Décrivez tout un ensemble en une fois : « Crée l'ensemble Géométrie avec trois objectifs, et sous chacun deux composantes. » Claude prépare tout, vous montre l'aperçu complet, et écrit en une seule étape après votre accord.
 
-## Relier une leçon à un objectif : l'alignement
+## Partir d'un document
 
-C'est le lien le plus important du graphe. **Aligner** une leçon sur un objectif, c'est déclarer : « cette leçon enseigne cet objectif ». C'est ce qui permet à l'outil de savoir quel objectif est couvert, et par quoi.
+Si les standards existent déjà ailleurs — un programme officiel en PDF, un tableau —, donnez-le à Claude :
+
+> « Voici le programme officiel : propose-moi les objectifs et les composantes qui manquent dans le graphe. »
+
+Claude lit le document et vous renvoie une **proposition**, élément par élément. Rien n'est créé avant que vous l'ayez validée.
+
+## L'alignement : relier une leçon à son objectif
+
+**Aligner** une leçon sur un objectif, c'est dire : « cette leçon enseigne cet objectif ».
 
 > « Aligne la leçon “Plus grand, plus petit” sur l'objectif “Comparer deux nombres jusqu'à 20”. »
 
-L'alignement se pose depuis le **contenu vers le standard** (de la leçon vers l'objectif), jamais l'inverse — c'est toujours la leçon qui « pointe vers » l'objectif qu'elle enseigne. On peut aussi préciser si une leçon **enseigne** un objectif ou l'**évalue** (un bilan).
+Le lien part toujours **du contenu vers le standard**. Une évaluation peut aussi s'aligner sur les objectifs qu'elle **évalue**.
 
-!!! warning "Composant ou objectif ?"
-    Une leçon s'aligne sur un **objectif**, pas sur un composant. Les composants servent à *détailler* un objectif et nourrissent la génération du matériel ; ils ne sont pas des cibles d'alignement. Si vous demandez d'aligner une leçon sur un composant, Claude vous orientera vers l'objectif parent.
+!!! warning "Une leçon s'aligne sur un objectif, pas sur une composante"
+    Les composantes détaillent un objectif ; elles ne sont pas des cibles d'alignement. Si vous demandez d'aligner une leçon sur une composante, Claude vous proposera son objectif.
 
 ## Vérifier votre travail
 
-À tout moment, prenez du recul :
-
-> « Fais-moi un état des lieux : combien d'objectifs, combien de composants ? »
+> « Combien d'objectifs et de composantes compte cette matière ? »
 >
 > « Quels objectifs ne sont enseignés par aucune leçon ? »
 >
-> « À quel(s) objectif(s) cette leçon est-elle reliée ? »
+> « Quel objectif cette leçon enseigne-t-elle, et quelles composantes le détaillent ? »
 
-Cette dernière question est utile car un simple parcours de l'arborescence **ne montre pas** les alignements : ils traversent le graphe d'un bord à l'autre et se consultent leçon par leçon.
-
-L'**[explorateur](explorer.md)** vous donne la même information sous forme visuelle : la couche des standards et la couche du contenu, avec leurs liens.
+L'[explorateur](explorer.md) montre la même chose visuellement, brouillon compris.
 
 ## Corriger et réorganiser
 
-Vous n'ajoutez pas seulement ; vous corrigez aussi.
-
-| Vous voulez… | Dites quelque chose comme… |
+| Vous voulez… | Dites par exemple… |
 |---|---|
 | Corriger un intitulé | « Renomme cet objectif en “Comparer des nombres jusqu'à 50”. » |
-| Reformuler le texte d'un objectif | « Remplace le texte de cet objectif par : … » |
-| Déplacer un objectif dans un autre domaine | « Déplace cet objectif vers le domaine Mesures. » |
-| Réordonner | « Place cet objectif en deuxième position dans son domaine. » |
+| Reformuler un texte | « Remplace la description de cet objectif par : … » |
+| Déplacer | « Déplace cet objectif dans l'ensemble Mesures. » |
+| Réordonner | « Mets cet objectif en deuxième position. » |
+| Supprimer | « Supprime cette composante. » |
 
-Chaque correction suit la même règle : **aperçu → confirmation → brouillon**. Rien n'est officiel avant [publication](review-approve.md).
+Chaque correction suit la même règle : **aperçu, confirmation, brouillon**. Pour une suppression, l'aperçu montre **tout ce qui partirait avec** l'élément (ce qu'il contient, ses liens) : lisez-le avant de dire oui.

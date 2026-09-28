@@ -1,73 +1,78 @@
-# Build standards and components
+# Standards & components
 
-The **standards** are the backbone of the curriculum: what pupils must learn. This page shows how to enrich them by chatting with Claude — adding objectives, spelling out the **learning components**, and organising it all. To then link lessons to those standards, see [Add and edit a course and its lessons](courses-lessons.md).
+The **standards** are the backbone of the curriculum: what pupils must learn. This page shows how to enrich them through conversation. To attach lessons to them, see [Courses, groupings & lessons](courses-lessons.md).
 
 !!! info "Curators only"
-    Adding and editing go through the **curator** role, and stay in a **draft** until published.
+    Adding and editing requires the **curator** role. Everything stays in **draft** until it is published.
 
-## The vocabulary, in three words
+## How standards fit together
 
-| Term | What it is | Example |
+Standards are arranged like folders and subfolders: a reference framework, broad sets, then precise objectives. Each level carries the name that **your curriculum** gives it — domain, theme, competency, specific objective… Under an objective sit the smallest building blocks:
+
+| Element | What it is | Example |
 |---|---|---|
-| **Domain** | A broad theme that groups objectives | *Arithmetic* |
-| **Objective** | A precise learning goal, inside a domain | *Compare two numbers up to 20* |
-| **Learning component** | A single, well-defined skill or concept, attached to an objective | *Recognise the "&gt;" symbol* |
+| **A set** (domain, theme…) | A collection of objectives | *Numbers and calculation* |
+| **An objective** | A precise learning goal | *Compare two numbers up to 20* |
+| **A learning component** | A single, clearly bounded skill that breaks an objective down | *Recognise the ">" symbol* |
 
-Domains and objectives nest like folders and sub-folders. Components are the finest bricks: they **sharpen** an objective by breaking it into concrete know-how.
+To find out what your curriculum calls its levels:
+
+> "How are the standards for this subject organised?"
 
 ## Add an objective
 
-Tell Claude what you want to add and **where**:
+Say what you want to add, and **where**:
 
-> "Add an objective 'Compare two numbers up to 20' in the Arithmetic domain."
+> "Add an objective 'Compare two numbers up to 20' to the Numbers and calculation set."
 
-As always, Claude first shows you **a preview** of what it will create; you **confirm**, and the objective joins the draft.
+Claude finds the set by its name, shows you **what it is going to create**, and waits for your agreement. Once you confirm, the objective joins the draft. The new element automatically takes the same shape as its neighbours, so you don't need to say what type it is.
 
-## Add learning components
+## Add components
 
-A component attaches **to an objective** — it describes a precise skill that objective covers:
+A component hangs under an objective:
 
-> "Under this objective, add the components: 'recognise the &gt; symbol', 'compare two collections', 'order three numbers'."
+> "Under this objective, add the components: 'recognise the > symbol', 'compare two collections', 'put three numbers in order'."
 
-You can add **several at once**: it's faster and everything lands in the same draft, in a single step to confirm.
+!!! tip "Create in batches"
+    Describe a whole set in one go: "Create the Geometry set with three objectives, and two components under each one." Claude prepares everything, shows you the full preview, and writes it all in a single step once you agree.
 
-!!! tip "Build in batches"
-    To build a whole section, describe it in one go: "Create the Geometry domain with three objectives, and two components under each." Claude prepares the lot, shows you the full preview, and only writes after your approval.
+## Start from a document
 
-## Link a lesson to an objective: alignment
+If the standards already exist somewhere else — an official curriculum as a PDF, a spreadsheet — give it to Claude:
 
-This is the most important link in the graph. To **align** a lesson to an objective is to declare: "this lesson teaches this objective." That is what lets the tool know which objective is covered, and by what.
+> "Here is the official curriculum: suggest the objectives and components that are missing from the graph."
+
+Claude reads the document and sends back a **proposal**, element by element. Nothing is created until you have approved it.
+
+## Alignment: linking a lesson to its objective
+
+To **align** a lesson to an objective is to say: "this lesson teaches this objective".
 
 > "Align the lesson 'Bigger, smaller' to the objective 'Compare two numbers up to 20'."
 
-Alignment runs from the **content to the standard** (from the lesson to the objective), never the other way — it is always the lesson that "points to" the objective it teaches. You can also say whether a lesson **teaches** an objective or **assesses** it (an end-of-chapter test).
+The link always runs **from the content to the standard**. An assessment can also be aligned to the objectives it **assesses**.
 
-!!! warning "Component or objective?"
-    A lesson aligns to an **objective**, not to a component. Components exist to *detail* an objective and feed material generation; they are not alignment targets. If you ask to align a lesson to a component, Claude will point you to the parent objective.
+!!! warning "A lesson aligns to an objective, not to a component"
+    Components break an objective down; they are not alignment targets. If you ask Claude to align a lesson to a component, it will suggest that component's objective instead.
 
 ## Check your work
 
-Step back at any time:
-
-> "Give me an overview: how many objectives, how many components?"
+> "How many objectives and components does this subject have?"
 >
-> "Which objectives are taught by no lesson?"
+> "Which objectives are not taught by any lesson?"
 >
-> "Which objective(s) is this lesson linked to?"
+> "Which objective does this lesson teach, and which components break it down?"
 
-That last question matters, because simply walking the tree **does not show** alignments: they cut across the graph from edge to edge and are read one lesson at a time.
+The [explorer](explorer.md) shows the same thing visually, draft included.
 
-The **[explorer](explorer.md)** gives you the same information visually: the standards layer and the content layer, with their links.
+## Correct and reorganise
 
-## Fix and reorganise
-
-You don't only add; you also fix.
-
-| You want to… | Say something like… |
+| You want to… | Say, for example… |
 |---|---|
-| Fix a title | "Rename this objective to 'Compare numbers up to 50'." |
-| Reword an objective's text | "Replace the text of this objective with: …" |
-| Move an objective to another domain | "Move this objective to the Measurement domain." |
-| Reorder | "Put this objective second in its domain." |
+| Correct a title | "Rename this objective to 'Compare numbers up to 50'." |
+| Reword a text | "Replace this objective's description with: …" |
+| Move something | "Move this objective to the Measurement set." |
+| Reorder | "Put this objective in second position." |
+| Delete | "Delete this component." |
 
-Every fix follows the same rule: **preview → confirm → draft**. Nothing is official before [publishing](review-approve.md).
+Every correction follows the same rule: **preview, confirmation, draft**. For a deletion, the preview shows **everything that would go with** the element (what it contains, its links). Read it before you say yes.

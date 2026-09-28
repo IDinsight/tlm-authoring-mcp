@@ -1,103 +1,72 @@
-# Add and edit a course and its lessons
+# Courses, groupings & lessons
 
-This is where the teaching **content** gets built: the courses, their chapters, and the lessons. You write them, organise them, and **link** them to three things: the standards they teach, the **instructional routines** that give lessons their structure, and the **formatters** that decide the layout. Once this content is in place, it feeds [document generation](create-materials.md).
+This is where the curriculum's **content** gets written: a course, its groupings, its lessons and their activities. You create them, put them in order, and link them to the standards they teach. The documents that present them come afterwards (see [Compose a document](compose-document.md)).
 
 !!! info "Curators only"
-    These edits go through the **curator** role and stay in a **draft** until published. Nothing reaches generation before it is published.
+    These changes require the **curator** role and stay in **draft** until they are published.
 
-## The "content" layer at a glance
+## The content layer at a glance
 
+```text
+Course  →  Grouping(s)  →  Lesson  →  Activities
 ```
-Course  →  Chapter (grouping)  →  Lesson  →  Activities, materials
-```
 
-- A **course** is the root of a document — for example *the pupil manual* or *the teacher's guide*.
-- A **chapter** (a grouping) gathers lessons; depending on the subject it may be called a chapter, a unit, or a week.
-- A **lesson** is the unit of work: it is what you align to an objective and apply a routine to.
+- The **course** is the root of a subject's content.
+- A **grouping** gathers lessons together. Your curriculum calls it a chapter, unit, module, week or day, and it can nest several levels of them (a week that contains days, for example).
+- The **lesson** is the unit of teaching. It is the lesson that you align to an objective.
+- The **activities** are what the pupil does: each exercise, with its instruction, and its expected answer when it has one. An **assessment** (an end-of-unit review, a test) sits at the same level as a lesson.
 
-## Create a course, a chapter, a lesson
+!!! tip "The curriculum carries the words"
+    The text of an exercise is written **on the activity**, not in a document. That is what lets every document reuse the same instruction word for word, and lets the tool spot a page that strays from it. A new question means a new activity here.
 
-Just describe what you want, and where:
+## Create
 
-> "Create a chapter 26 'Decimal numbers' at the end of the pupil manual."
+Describe what you want and where:
+
+> "Add a grouping 'Decimals' at the end of the course."
 >
-> "Add a lesson 'Add two decimals' to chapter 26."
+> "Add a lesson 'Adding two decimals' to this grouping, aligned to the objective 'Add decimal numbers'."
+>
+> "In this lesson, add three activities: …"
 
-You can describe it all at once — Claude prepares the lot, shows the **preview**, and only writes after your **confirmation**:
-
-> "Create chapter 26 with three lessons: …, …, …"
-
-!!! tip "Chapter numbers"
-    To add or renumber, aim at a **free** number (add at the end, or fill a gap). To insert a chapter in the middle and shift the others, do it explicitly, step by step.
+You can describe everything at once. Claude prepares the whole set, shows the **preview**, and only writes after you agree. A new element takes the shape of similar elements already in the graph: a new lesson looks like the existing lessons, without you having to say so.
 
 ## Edit and reorganise
 
-| You want to… | Say something like… |
+| You want to… | Say, for example… |
 |---|---|
-| Fix a title | "Rename chapter 3 to 'Decimal numbers'." |
-| Edit a lesson's text | "Replace the content of this lesson with: …" |
-| Move a lesson | "Move this lesson to chapter 6." |
-| Reorder | "Put this lesson first in the chapter." |
-| Delete | "Delete this lesson." (whatever depends on it is removed with it) |
+| Correct a title | "Rename this grouping to 'Decimal numbers'." |
+| Rewrite an instruction | "Replace the instruction of the second activity with: …" |
+| Move a lesson | "Move this lesson to the next grouping." |
+| Reorder | "Put this lesson in first position." |
+| Delete | "Delete this activity." |
 
-Moving a lesson does not renumber everything in cascade: belonging to a chapter is a link, not a fixed number.
+Moving a lesson does not set off a chain of renumbering: belonging to a grouping is a link, not a fixed number. For a deletion, the preview shows everything that would go with the element.
 
-!!! note "A lesson can have two homes"
-    In mathematics, one lesson may belong **both** to a chapter (the content axis) and to a week (the schedule axis). This is intentional. Moving the lesson along one axis leaves the other intact — say which one you mean if there is any doubt.
+For a series of corrections, give them all at once: "In lessons 3 to 8, replace 'work out' with 'calculate' in the instructions." Claude prepares a single grouped change, which you confirm in one go.
 
-## Link a lesson to the standards
-
-A lesson only makes full sense when **linked to the objective it teaches**. That is **alignment**, described in detail in [Build standards and components](build-standards.md):
+## Link a lesson to its objective
 
 > "Align this lesson to the objective 'Compare two numbers up to 20'."
-
-To check what a lesson teaches:
-
-> "Which objective is this lesson linked to, and which components does it cover?"
-
-## Apply an instructional routine to a lesson
-
-A **routine** is a reusable teaching template — for example the five steps of a 30-minute lesson sheet. You **apply it to a lesson** to give it structure:
-
-> "Apply the 'Lesson sheet' routine to this lesson."
-
-Applying a routine makes an **independent copy** attached to your lesson: later tweaks to the original routine do not change it. To create or edit the routines themselves, see [Create instructional routines](routines.md).
-
-## Create a document (manual, guide, revision sheet)
-
-A **document** is what will actually be produced: a pupil's manual, a teacher's guide, a revision sheet. It is not the curriculum — it **binds** a piece of curriculum to a form.
-
-You create one in a sentence, by saying **what it must cover**:
-
-> "Create a revision sheet for chapter 5."
 >
-> "Create a pupil's manual for this course."
+> "Which objective does this lesson teach?"
 
-!!! warning "A document must always be attached to some content"
-    This is the quietest failure in the system: a document that covers nothing raises **no error** — generation simply produces an **empty** document, and you find out at the end. That is why creating a document and attaching it to the curriculum happen **in a single step**: neither can exist without the other.
+The details are in [Standards & components](build-standards.md#alignment-linking-a-lesson-to-its-objective).
 
-A document can then be **split into sections**, each attached to what it presents:
+## Give a lesson its flow: routines
 
-> "Add a 'Chapter 1' section to this document, for chapter 1."
->
-> "Add a cover page at the start." *(a section that covers nothing — normal for a cover or a table of contents)*
+An **instructional routine** is a reusable session plan. You apply it to a lesson, to an activity, or to the whole course so that it holds for every lesson in it:
 
-Sections are the real unit of work: generation produces a document **section by section**. A long document is therefore worth splitting up.
+> "Apply the 'Mental maths session' routine to this course."
 
-## Apply a formatter to a course
+Everything is explained in [Instructional routines](routines.md).
 
-A **formatter** describes the **layout** of the produced document — palette, typography, page setup, illustration style. You **apply it to the course** (the root of the document), and generation follows it:
+## See the result before publishing
 
-> "Apply the 'House style' formatter to this course."
+> "Show me the pending changes."
 
-As with a routine, applying it creates an independent copy attached to the course. To create or edit formatters, see [Create formatters](formatters.md).
+Claude lists what will change when the draft is published. To see what your changes would produce in a document, without publishing anything:
 
-## Preview before publishing
+> "Preview the section for lesson 12 from the draft."
 
-Before handing over to the approver, you can **see the result** of your draft without publishing anything:
-
-> "Show me the pending changes." *(the draft in detail)*
->
-> "Preview the manual for this course from the draft." *(the document it would produce)*
-
-The preview stays **isolated**: it writes nothing to the official space and does not appear in the list of produced documents. When you are happy with everything, move to [Review, publish or discard a draft](review-approve.md).
+The preview is **isolated**: it never appears in the official documents. Preview the smallest piece you changed — a section rather than a whole document. When everything looks right, see [Review, publish or discard a draft](review-approve.md).

@@ -1,88 +1,94 @@
 # Review, publish or discard a draft
 
-Once a curator has prepared changes, they wait in a **draft**. The **approver's** job is to **review** them and then **publish** them — publishing is what makes them official and visible to document generation. If they should not be kept, you **discard** the draft.
+Every change to the curriculum (a lesson, a document, a section, an attached image, the subject guide) builds up in a **draft**. Until the draft is published, nothing in it reaches document production. The **curator** prepares the changes and flags when they are ready; the **approver** reviews them and **publishes**.
 
-!!! info "Approvers only"
-    Only **approvers** can publish. Curators prepare; approvers approve.
+!!! info "One draft per subject"
+    Each subject has only **one** open draft, shared by everyone working on it. If there is already one when you arrive, it is most likely a colleague's work: talk to them before you publish or discard it.
 
-## 1. Review the draft
+## 1. See what has changed
 
-> "Show me the pending changes for this subject."
+> "Show me the pending changes."
 
-Claude shows the full list of changes — everything that will become official on publish: edited titles, added or moved lessons, new chapters, and so on.
+Claude lists everything that will become official when the draft is published: items added, changed and deleted, plus a change to the subject guide if there is one. To see it in the tree, open the **Draft** view in the [explorer](explorer.md#see-the-draft).
 
-Then ask for the two checks, which answer two different questions:
+## 2. Run the checks
 
-> "Check the draft before I publish."
+> "Check the draft before publishing."
 
-- **The wiring** — what is connected to nothing: a document attached to no content (it would be produced **empty**), a section belonging to no document, a routine nobody uses, an isolated element. This is mechanical and the same for every subject; each point comes with what to do about it.
-- **The coverage** — does what has been written actually cover what the curriculum expects? That is a judgement, made against the expectations written in the subject's guide.
+There are three checks, and each one answers a different question:
 
-Both are **warnings**, never blocks: the decision is yours. But a document "attached to nothing" almost always deserves a fix before publishing — it is the quietest failure in the system, since generation would simply produce an empty document with no error at all.
+| Check | The question | Example finding |
+|---|---|---|
+| **Wiring** | Is anything connected to nothing? | A document that covers nothing (it would come out empty), a section that sits outside any document, a routine nobody uses |
+| **Coverage** | Does what has been written cover what the curriculum expects? | An objective that no lesson teaches. Claude judges this from the expectations written in the **subject guide** |
+| **Consistency** | Do two things that are written contradict each other? | A routine whose total duration is not the sum of its steps, a grid whose weights do not add up to 100%, a cited item that does not exist |
 
-<!-- SCREENSHOT: full draft view (diff) -->
+These are **findings**, never blocks: the decision is yours. Still, a document "connected to nothing" almost always needs fixing before you publish.
 
-## 2. Publish
+With the authoring plugin, `/evaluer` runs all of these checks in one pass (along with a document's own checks; see [Evaluate a document](evaluate.md)).
+
+!!! tip "Silence a warning you meant to trigger"
+    If a warning is deliberate, because a rule does not apply to one particular item, ask Claude to **silence it on that item**. It will not come back there, and it still applies everywhere else.
+
+## 3. Flag that it is ready
+
+When you have finished, say so, and add a note:
+
+> "Mark the draft as ready for review. Note: lessons 1 to 6 are done, lesson 7 is still waiting for its images."
+
+The note is the message you would otherwise have written by hand. The approver sees it when they ask "where do things stand?".
+
+!!! warning "Nobody is notified automatically"
+    No email, no notification. **Tell the approver** yourself.
+
+To go back to work: "Actually, I still have corrections to make. Withdraw the review request." The draft itself is left alone; only the request goes. It also disappears on its own once the draft is published or discarded.
+
+## 4. Publish
 
 > "Publish the draft."
 
-Publishing happens in **two steps**, like the other important actions:
+1. Claude shows one last summary of what is about to become official, together with the findings from the checks.
+2. You **confirm**, and everything is published **in one go**. Document production switches to the new version straight away.
 
-1. Claude shows you a final summary of what will become official.
-2. You **confirm** → everything is published **at once** (atomically). From then on, document generation uses the new version.
+By default, an approver can publish a draft they edited themselves; the history then records it as such. The server can also be set up to forbid this, in which case a second approver has to publish.
 
-!!! warning "Publishing makes changes official"
-    Once published, the updated curriculum feeds material production. Review before you confirm.
+!!! warning "Publishing makes the changes official"
+    Once published, the updated curriculum feeds everything that gets produced. Files already produced from the old version will show up as **stale** (see [Produce a document](create-materials.md#only-redo-what-has-changed)).
 
-## Approving your own changes
-
-By default an approver **may** publish a draft they edited themselves. Depending on the project's configuration, a **second review** may be required. Either way, the publish record shows whether the person who made the changes is also the one who published — for transparency.
-
-## Say the draft is ready
-
-When you have finished a batch of changes, say so:
-
-> "Mark the draft ready for review. Note: chapters 1 to 3 are done, 4 still needs its assessment."
-
-The note is the message you would have sent by hand: what changed, what is left. Whoever publishes sees it when they arrive.
-
-!!! warning "Nobody is notified automatically"
-    No email, no notification. The request shows up when the approver asks "where are we?" or looks at the draft. **Tell them** if they are not already looking.
-
-If you want to keep working, take the request back:
-
-> "Actually I still have corrections — cancel the review request."
-
-The draft itself is untouched; only the request is withdrawn. And once the draft is published (or discarded) the request disappears on its own — it cannot be left standing on work that is already live.
-
-## Take back a single change
-
-A mistake in the **last** change does not mean throwing everything away:
+## Undo the last change
 
 > "Undo the last change."
 
-Claude first tells you **which** change it is about to take back (what, when, by whom), you confirm, and that one change leaves the draft — **the others stay**. Ask again and the change before it goes: you walk back up the thread one change at a time.
+Claude first tells you **which** change it is about to undo: what it was, when, and who made it. You confirm, and only that one leaves the draft; the others stay. Ask again and the one before it goes.
 
-Two deliberate limits:
+There are two limits, both deliberate:
 
-- You can only walk back within the **current draft**. Anything already published cannot be undone this way: it takes a new change, itself reviewed and published.
-- If a more recent change touched the **same element**, Claude **refuses** and says which one, rather than patching together a mixture of the two. Take back the more recent one first.
+- you can only go back within the **current draft**. Anything already published is corrected with a new change;
+- if a more recent change touched **the same item**, Claude refuses and tells you which item, rather than mixing the two changes together.
+
+!!! danger "The catalog does not go through the draft"
+    A write to the **catalog** (the library's routines, formatters and evaluation grids) is published immediately, with no draft, and cannot be undone this way. Deleting a catalog entry is permanent: it requires the admin role, and the history keeps a full copy of what was deleted.
 
 ## Discard a draft
 
-If a draft should not go out:
-
 > "Discard the draft."
 
-The official version stays **unchanged**. (Both curators and approvers can discard.)
+All the work in progress is thrown away, and the official version stays as it was. Both curators and approvers can do this, once they have confirmed.
 
-## Check the history
+## Edit the subject guide
 
-Every action (edit, publish, discard, refusal) is recorded in a **log**. To review it:
+The **subject guide** holds the conventions and expectations Claude reads before it writes anything. You edit it like everything else, in the draft:
 
-> "Show me the history of recent changes."
->
+> "In the subject guide, add that instructions are always written in the imperative."
+
+The change appears in the draft's summary and is published along with it.
+
+## View the history
+
+Every action (an edit, a publish, a discard, a refusal, a role being granted) is recorded in a **history** that nobody can change or erase.
+
 > "Who published last, and when?"
+>
+> "What changed on this lesson this month?"
 
-!!! note "Read-only log"
-    The log is viewable by approvers. It cannot be edited or erased — that's what guarantees a reliable trail.
+**Approvers** can look through the history.

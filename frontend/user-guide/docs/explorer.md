@@ -1,70 +1,61 @@
 # Explorer le graphe
 
-L'**explorateur** est une page web qui vous permet de **visualiser** le curriculum — les domaines, chapitres, leçons et leurs liens — sans rien modifier. C'est une vue **en lecture seule** de la version **publiée** (officielle).
+L'**explorateur** est une page web qui montre le programme sous forme d'arborescence : les standards, le contenu, les documents et leurs liens. On y **regarde** ; on n'y modifie rien. Les modifications se font toujours en discutant avec Claude.
 
-Ouvrez l'adresse fournie par votre administrateur, puis connectez-vous (mêmes identifiants que l'outil).
+Ouvrez l'adresse que vous donne votre administrateur.
 
-<!-- SCREENSHOT : page d'accueil de l'explorateur -->
+## Faut-il se connecter ?
 
-## Choisir un graphe
+- **Pour voir le programme publié** : selon la configuration de votre installation, sans connexion, ou avec les mêmes identifiants que l'outil.
+- **Pour voir un brouillon** : il faut se connecter (bouton en haut de la page) et être **curateur** ou plus dans l'espace de travail concerné.
 
-En haut, un sélecteur liste les curriculums disponibles (par exemple *Mathématiques — CI*, *Lecture — CE1*). Choisissez celui que vous voulez explorer. Un curriculum apparaît automatiquement dès qu'il a été publié.
+## Choisir un programme
 
-## Les deux vues
+En haut, un sélecteur liste les programmes disponibles, par espace de travail, classe et matière. Un programme y apparaît dès qu'il existe dans l'outil.
 
-L'explorateur suit l'**ontologie Learning Commons** : il ne montre pas de vocabulaire propre à une matière, mais la structure du graphe telle qu'elle est.
+## Deux façons de regarder
+
+L'explorateur n'utilise aucun vocabulaire propre à une matière. Il montre le graphe tel qu'il est, selon les types d'éléments du standard **Learning Commons** sur lequel l'outil s'appuie.
 
 | Vue | Ce qu'elle montre |
 |---|---|
-| **Hiérarchie (contenance)** | L'arborescence de contenance : du cadre de référence vers ses éléments, en suivant les liens de contenance |
-| **Par type (LC)** | Tous les nœuds regroupés par leur type Learning Commons, chacun avec ses liens — la vue la plus complète |
+| **Hiérarchie** | L'arborescence, du cadre de référence vers ses éléments, en suivant ce que chaque élément contient. Les leçons et les composantes sont aussi rangées sous l'objectif qu'elles servent, pour qu'on les retrouve. |
+| **Par type** | Tous les éléments regroupés par type (standard, regroupement, leçon, activité, document…), chacun avec ses liens. C'est la vue la plus complète. |
 
-Cliquez sur un nœud pour ouvrir son **panneau de détail** ; le petit triangle **déplie / replie** ses éléments.
+Cliquez sur un élément pour ouvrir son **panneau de détail** : toutes ses propriétés, telles qu'elles sont enregistrées. Le petit triangle déplie ou replie ce qu'il contient. Chaque type a sa **couleur**, rappelée dans la **légende**. La **barre de recherche** retrouve un élément par son intitulé.
 
-## Couleurs et légende
+## Voir le brouillon
 
-Chaque nœud a une **couleur** selon son **type Learning Commons** (cadre de référence, élément du cadre, regroupement, leçon, composant, curriculum…). La **légende** rappelle le code couleur.
+Quand un brouillon est ouvert, deux boutons apparaissent au-dessus de l'arbre : **Publié** et **Brouillon**.
 
-## Rechercher
+- **Publié** — la version officielle, celle qu'utilise la production. C'est la vue par défaut.
+- **Brouillon** — le travail en cours. Chaque élément **ajouté** ou **modifié** porte une pastille ; les éléments **supprimés** sont listés au-dessus de l'arbre, puisqu'ils n'y sont plus. Des compteurs résument combien d'éléments ont été ajoutés, modifiés et supprimés ; cliquez sur l'un d'eux pour n'afficher que ces modifications.
 
-Utilisez la barre de recherche pour retrouver un nœud par son intitulé.
-
-## Voir son brouillon avant de publier
-
-Quand un **brouillon** est ouvert sur un curriculum, deux boutons apparaissent au-dessus de l'arbre : **Publié** et **Brouillon**.
-
-- **Publié** — la version officielle, celle que lit la génération. C'est la vue par défaut.
-- **Brouillon** — le travail en cours, **non publié**. Chaque élément **ajouté** ou **modifié** porte une pastille dans l'arbre, et les éléments **supprimés** sont listés au-dessus (ils ne sont plus dans l'arbre : c'est le seul endroit où ils peuvent apparaître). Un compteur rappelle combien d'éléments ont été ajoutés, modifiés et supprimés.
-
-C'est la réponse à « qu'est-ce que je m'apprête à publier, exactement ? » : on regarde son propre travail dans la même arborescence que d'habitude, au lieu de lire un résumé.
-
-!!! info "Réservé aux curateurs"
-    Voir le brouillon demande un rôle de **curateur** (ou plus) dans l'espace de travail concerné : un brouillon est un travail en cours, pas une publication. Si votre rôle ne le permet pas, l'explorateur vous le dit et reste sur la version publiée.
+C'est la réponse visuelle à « qu'est-ce que je m'apprête à publier ? ».
 
 !!! warning "Un brouillon reste un brouillon"
-    Ce que vous voyez ici n'alimente **pas** la génération de documents tant qu'il n'est pas publié (voir [Relire, publier ou abandonner un brouillon](review-approve.md)). L'explorateur reste en lecture seule : on y regarde, on n'y modifie rien — les modifications se font en discutant avec Claude.
+    Ce que montre la vue Brouillon n'atteint **pas** la production tant qu'il n'est pas publié (voir [Relire, publier ou abandonner un brouillon](review-approve.md)).
 
 ## Le catalogue
 
-L'onglet **Catalogue** ouvre les bibliothèques de gabarits réutilisables — celle de votre **espace de travail** et la bibliothèque **partagée** entre tous les programmes. Chaque entrée s'affiche en fiche : son titre, son type, son résumé, et de quoi elle est faite.
+L'onglet **Catalogue** ouvre les bibliothèques d'entrées réutilisables : celle de votre **espace de travail** et la bibliothèque **partagée**. Chaque entrée s'affiche en fiche, avec son titre, sa sorte, son résumé et de quoi elle est faite.
 
-Trois types d'entrées, reconnaissables à leur pastille :
-
-| Type | Ce qu'il décrit | Ce que compte la fiche |
+| Sorte | Ce qu'elle décrit | Ce que montre la fiche |
 |---|---|---|
-| **Routine** | La structure pédagogique d'une séance | Ses étapes et ses matériaux |
-| **Formatter** | L'apparence d'un document | Ses règles de mise en forme |
-| **Grille** | Les critères d'évaluation d'un document | Son échelle (par exemple 0-4 ou Oui/Non), ses sections et ses critères |
+| **Routine** | Le déroulé d'une séance | Ses étapes |
+| **Mise en forme** | L'apparence d'un document | Ses règles |
+| **Grille** | Les critères d'évaluation d'un document | Son échelle, ses sections, ses critères |
 
-Pour s'y retrouver quand la bibliothèque grossit :
+Pour s'y retrouver :
 
-- les **onglets** (Tout · Routines · Formatters · Grilles) ne gardent qu'un type à la fois, avec son nombre entre parenthèses ;
-- la **recherche** filtre sur le titre et le résumé. Les accents sont ignorés : taper `recitation` trouve « poésie-récitation » ;
+- les **onglets** (Tout · Routines · Formateurs · Grilles) filtrent par sorte ;
+- la **recherche** filtre sur le titre et le résumé, sans tenir compte des accents ;
 - le **sélecteur de bibliothèque** limite l'affichage à l'espace de travail ou au partagé.
 
-Les trois se combinent, et un compteur rappelle combien d'entrées restent affichées sur le total. **Réinitialiser** les efface d'un coup.
+Cliquez sur une fiche pour lire l'entrée **en entier** : le texte exact que Claude lit au moment de produire.
 
-Cliquez sur une fiche pour lire la **spécification complète** de l'entrée — le texte de consignes que la génération lit réellement.
+## La terminologie
 
-!!! note "Ce que montre l'explorateur"
-    L'explorateur affiche la **version publiée** uniquement. Un brouillon en cours d'édition n'y apparaît **pas** tant qu'il n'est pas publié — c'est voulu, pour ne montrer que l'officiel. Pour prévisualiser l'effet d'un brouillon, voir la prévisualisation côté outil.
+L'onglet **Terminologie** affiche le **lexique** de l'espace de travail : pour chaque terme, sa forme dans chacune des langues de l'espace, avec un exemple quand il y en a un. C'est sur ce lexique que s'appuient la traduction des documents et la vérification de la terminologie. Il est commun à toutes les classes et matières de l'espace ; la recherche filtre les termes.
+
+Pour ajouter ou corriger un terme, demandez-le à Claude (« Ajoute au lexique : … »). Comme le catalogue, le lexique se publie aussitôt : il faut être **approbateur**.

@@ -1,80 +1,85 @@
-# Generate teaching materials
+# Produce a document
 
-You can generate **any document the graph defines** — a whole **course**, or just a part of one (a chapter, a lesson). What you produce is not a fixed list of templates: it all depends on what has been built in the curriculum, formatters included.
+Producing means turning a document in the graph into a **Word file**, section by section. Everything that decides the result is already in the graph: the curriculum supplies the words, the section says where to put them, and the formatter says what they look like. The better prepared the graph, the better and more consistent the file.
 
-## What you can produce depends on the graph
+!!! info "Who can produce"
+    Producing requires the **curator** role (or higher) in the workspace, because it reads the workspace's pictures and, where needed, translates. Before producing a document for the first time, ask "**Is this document ready to be produced?**" (see [Compose a document](compose-document.md#7-check-that-it-is-ready)).
 
-A **course** is the root of a document. Several courses can coexist in one subject, and more can be created by a designer (see [Add and edit a course and its lessons](courses-lessons.md)).
+## Ask for it
 
-!!! example "Example: CI mathematics"
-    In CI mathematics, two courses coexist today: the **pupil manual** and the **teacher's guide** (the lesson sheets). These are not document types hard-wired into the tool — they are two courses *in the graph*. Create a third, and it becomes generatable just the same.
+> "Produce the lesson 12 section of the workbook."
+>
+> "Produce all the files for lesson 12."
+>
+> "Produce the teacher's guide for the 'Decimal numbers' grouping."
 
-You can generate a course **in full** or only **a part**: a chapter, a lesson, a range of lessons.
+The second request is the most common. A lesson owes **one file for each document that covers it**, multiplied by **the languages** each document's formatter declares. Claude makes them all and **skips the ones that are already up to date** (see below). With the authoring plugin, the `/lecon` command runs this procedure.
 
-## What generation draws on
+## What happens, step by step
 
-When you ask for a document, Claude does not start from a blank page: it builds on what has been prepared in the graph.
+1. **Claude reads the section**: what it covers in the curriculum, the routine that applies, the formatter and its settings, the attached pictures.
+2. **The page is composed.** If the formatter carries **templates**, the server fills in what they cover straight from the curriculum. Claude composes the rest, working from the section's assembly guide.
+3. **The page is checked against the graph, before anything is rendered.** For example:
+    - a printed instruction that does not repeat the activity's instruction **word for word**;
+    - a printed answer that does not match the answer recorded on the activity;
+    - a line longer than its style allows;
+    - more pictures than the formatter permits, or a placed picture that is attached to nothing.
 
-- The **lesson structure** comes from the [instructional routines](routines.md) applied to each lesson.
-- The **layout** comes from the [formatter](formatters.md) applied to the course — palette, typography, page setup, illustration style.
-- The **content** and the **objectives to cover** come from the [standards](build-standards.md) and their alignments.
+    Each of these mistakes would give you a file **that is produced without an error and is still wrong**. That is why the check comes first.
+4. **The server builds the file and measures it.** It counts pages on the file as actually laid out, never on an estimate, and flags any picture that overlaps text. If the page runs over, Claude tightens it and repeats steps 3 and 4.
+5. **One version per language.** If the formatter declares several languages, the server produces the translation using the workspace's **lexicon**. Text an expert has already written in the target language is kept as it is: nothing an author wrote by hand is ever translated again.
+6. **You approve the upload.** See below.
 
-In other words: what comes out — both substance *and* form — is decided by the graph. The better the curriculum is prepared, the better and more consistent the produced document.
+!!! tip "If Claude stops"
+    A missing instruction, an absent picture, a check that cannot be run: Claude **stops and tells you** rather than making something up. The right fix is almost always to complete the graph (the instruction on the activity, the attached picture), not to correct the page.
 
-The tool also keeps documents **consistent** (same characters, same terminology, notion coverage) and **varied** where it matters (the example domains — fruits, vegetables… — rotate from one chapter to the next).
+## Upload: preview or deliverable
 
-## How it works
+There are two destinations, and they never mix:
 
-1. **Pick the workspace, grade and subject** (see [Getting started](getting-started.md)).
-2. **Ask for what you want to generate** — a whole course, or a specific part:
+| | **Preview** | **Deliverable** |
+|---|---|---|
+| Where | A separate area, with a short-lived link | The workspace's official document store |
+| Shown in the list of documents | No | Yes, with its history |
+| Can be undone | Nothing to undo | **No**: the write happens at once |
 
-    > "Generate the pupil manual."
-    >
-    > "Generate chapter 5 of the pupil manual."
-    >
-    > "Prepare the sheets for the lesson 'Compare two numbers'."
+!!! warning "A deliverable is written straight away"
+    Uploading a deliverable has **no draft and no undo**. The confirmation request states exactly which file will be written, and **in which workspace**. Read it before you accept. Several files are confirmed in one go.
 
-3. **Claude prepares the context** automatically: the relevant part of the graph, the routines and formatter attached, the characters already used, terminology, the notions to cover, and a suggested example domain that doesn't repeat neighbouring chapters.
-4. **Claude drafts the document.**
-5. **You approve saving it.** Before the document is saved, a **confirmation request** appears. Nothing is saved until you accept.
+To try out the effect of an unpublished draft, ask for a **preview**: it is produced from the draft and never reaches the official store.
 
-<!-- SCREENSHOT: save-confirmation dialog -->
+## Only redo what has changed
 
-## The save confirmation
+Every file the tool produces keeps a record of the curriculum text it contains. So for each file, the tool can tell you whether it is **up to date**, **stale** (the curriculum has changed since) or **unknown** (produced some other way, so it keeps no such record).
 
-!!! warning "Immediate write — no draft"
-    Saving a document writes **directly** to the shared space: it is **immediate, with no undo**. The confirmation request states exactly what will be written. Read it, then accept or decline.
+> "Which files for lesson 12 are stale?"
 
-    (This is different from curriculum edits, which go through a draft first — see [Review, publish or discard a draft](review-approve.md).)
+A lesson can then be produced again by redoing only the stale or unknown files. You can always ask for everything to be redone.
 
-## Tips
+## Find a produced document
 
-- **Say what you want to generate**: the whole course, a chapter, a lesson. If you don't know what exists, ask "which courses and chapters exist?".
-- **Some documents build on others.** For example, lesson sheets build on the manual: if you're preparing both, do the manual first.
-- **Check example variety.** To see which example domains have already been used:
+> "List the documents produced for this course."
+>
+> "Give me the download link for the lesson 12 sheet."
 
-    > "Which example domains were used in recent chapters?"
+## Measure a file produced elsewhere
 
-- **Preview a draft before publishing.** If you are testing a curriculum change, you can see the document it would produce **without publishing anything** — see [Preview before publishing](courses-lessons.md).
+A file the tool produces already carries its measurement. For a Word file that came from somewhere else (corrected by hand, or made with another tool):
 
-## Pictures
+> "How many pages is this file, and does it run over?"
 
-A picture is part of the material the way a text is: it is **attached to the lesson or activity it illustrates**, with one sentence saying **what it shows**. That sentence, read beside the activity's text, is what catches a picture that contradicts its words — two wrong answer keys went to print that way.
+With the plugin, that is the `/mesurer` command.
 
-> "Attach the picture “band-1” to the activity “Compare the necklaces”: it shows three shell necklaces, Binta's in the middle."
+## Bring back an expert's corrections
 
-What happens then:
+An expert opened a file, corrected some wording and sent it back to you. Those corrections have to go **into the curriculum**, or the next production will wipe them out.
 
-- Claude checks the file was really **uploaded** before attaching it — a picture the graph points at without the file existing would never print.
-- Attaching is a **draft edit**: visible in review, undoable, published with everything else.
-- Every section covering that activity **sees the picture** and can place it on the page.
-- A picture **not drawn yet** is ordered the same way: "Commission the picture “band-2” for the activity …: it will show …". The graph knows it, the illustrator delivers by uploading the file to the announced path, and nothing else changes.
-- The picture is **approved together with the draft** that attaches it, by the approver — like a text. A new version is a new file: attach it in turn and delete the old one ("Delete the picture “band-1”.").
+> "Here is the sheet the inspector corrected: carry her corrections over into the curriculum."
 
-Reviewing a composed page flags a placed picture attached to nothing, and an attached picture the page leaves out.
+Claude compares the file with the graph and **proposes** the changes; it writes nothing itself. There are three cases:
 
-## Finding a document you already produced
+- **changed wording**: the correction is clear and can be applied;
+- **a passage that has disappeared**: it is flagged, **not deleted**, because in a Word file a deliberate cut and a slip of the hand look the same;
+- **an added passage**: it is flagged without being filed anywhere, because guessing where it belongs from its position is the surest way to put a sentence under the wrong lesson.
 
-> "List the documents for this course."
-
-Claude tells you what already exists and can give you a download link.
+You approve the proposals, and they go into the draft like any other change. With the plugin: `/reprendre-corrections`. The comparison works best on a file the tool produced; a file made any other way is still read, but without a precise match to the graph.

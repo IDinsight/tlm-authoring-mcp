@@ -1,67 +1,67 @@
-# Create formatters
+# Formatters
 
-A **formatter** describes the **appearance** of a document: its colour palette, its typography, its page layout, the style of its illustrations. It is a formatting instruction, written once and applied to a whole course, so every produced document looks alike.
+A **formatter** decides **how a document looks**: page size, margins, fonts, colours, picture style, output languages. You write it once and apply it to as many documents as you like, so that they all look alike.
 
-!!! info "An instruction, not an engine"
-    The tool never builds a `.docx` itself: generation, driven by Claude, writes the document. A formatter is therefore not a layout program — it is **a set of instructions that generation reads and follows**. Exactly like a routine, but on the *form* side rather than the *pedagogy* side.
+## Who decides what on a page
 
-## Three concrete formatters
+Producing a page is split into two halves, and the formatter only handles one of them.
 
-| Formatter | What it fixes | Reach |
+| Who | Decides | Example |
 |---|---|---|
-| **House style (docx)** | Palette, typography (e.g. Calibri, body 11–12 pt), page setup, image compression | Shared — any `.docx` |
-| **Art style (images)** | The look of illustrations: flat 2-D vector, Senegalese textbook style, character consistency | Shared — illustrated subjects |
-| **Illustration layout — CI maths** | Image formats, activity-panel layouts, answer-badge colours (A red / B blue / C green), display sizes | Workspace — subject-specific |
+| **Claude**, working from the curriculum and the section's assembly guide | **What goes on the page**, and in what order | "first the lesson title, then the picture band, then the three exercises" |
+| **The formatter** | **What it looks like** | "a title is 16 pt bold, a picture band spans the full width" |
 
-!!! tip "Formatters stack"
-    A specific formatter (the maths illustration layout) **sits on top of** the shared ones (the house style, the art style). The general sets the common tone; the specific adds the rules proper to the subject.
+The server puts the two together and builds the Word file. So Claude never picks a colour or a size. It names a **style** ("lesson title", "instruction"), and the formatter says what that style means.
 
-## The catalog: the same library as routines
+## The three parts of a formatter
 
-Formatters and [instructional routines](routines.md) share the **same catalog** and the **same two shelves**:
+1. **Written guidance.** Text Claude reads before composing: the tone, what gets printed for the pupil and for the teacher, the illustration style, what to avoid.
+2. **Page settings.** Exact values the server applies itself: page size and margins, text styles and characters per line, maximum picture size, target page count, and the **languages** to produce. Without these settings a document **cannot be produced**: the tool refuses rather than put out an unstyled file.
+3. **Page templates** (optional). When every page of a document follows the same structure, you can write that structure once as a template: "at the top, the lesson number and title; then the picture for activity 1; then its instruction…". The server then fills each page **straight from the curriculum**, identically every time, with no need for Claude to recompose it. Anything no template covers goes back to Claude, who composes it by hand.
 
-- **Shared** — common to all programmes, reserved for the **super administrator**;
-- **Workspace** — specific to your programme, editable by its **curators**.
+!!! example "Why templates matter"
+    Without a template, Claude recomposes each page from the guidance, so two productions of the same lesson may come out slightly different. With a template, an instruction or a picture cannot be copied out wrong: it is **copied** from the curriculum, not rewritten.
 
-To browse and read the catalog:
+## Formatters stack
 
-> "What's in the catalog?"
+A document can carry several formatters. A general one sets the common tone (the house style); a more specific one adds the rules for this particular document; a section can carry one of its own on top. When two of them disagree, **the one closest** to the page wins.
+
+> "Which formatters apply to this section, and which one sets the size of the titles?"
+
+## Browse the catalog
+
+Formatters live in the same [catalog](routines.md#the-catalog) as routines and grids.
+
+> "Which formatters does the catalog offer?"
 >
-> "Show me the detail of the 'House style' formatter."
+> "Show me the details of the 'House style' formatter."
 
-## Apply a formatter to a course
+## Apply a formatter to a document
 
-Unlike a routine (which applies to a *lesson*), a formatter applies to a **course** — the root of the document to produce:
+A formatter is applied **to a document**, not to the curriculum: how something looks belongs to what you print, not to what you teach.
 
-> "Apply the 'House style' formatter to this course."
+> "Apply the 'House style' formatter to this document."
 
-Generation of that course will then follow the formatting instruction. As with a routine, applying it creates an **independent copy** attached to the course: a later edit to the catalog formatter does not flow back to courses already served.
+As with a routine, this puts an **independent copy** under the document. Editing that copy changes only this document, and a later edit to the catalog entry does not reach it.
 
 ## Create or edit a formatter
 
-### Start from an existing one (the usual case)
+**Starting from an existing formatter** is almost always the easiest route:
 
-Nobody writes a formatter from a blank page. Start from the one that is nearly right, **duplicate** it, and change what differs:
-
-> "Duplicate the 'House style' formatter as 'Revision-sheet style'."
+> "Duplicate the 'House style' formatter under the name 'Revision sheet style'."
 >
-> "In my copy, set the body font to 12 pt."
+> "In my copy, set the body text to 12 pt."
 
-The copy lands on **your** shelf (the workspace library), with its own rules. It is also the only way to adapt a **shared** formatter: you don't edit the version every programme uses — you take a copy of it.
+**To fix the formatter of a single document**, edit its copy, in the draft.
 
-### Create one from scratch
+> "In this document's formatter, reduce the margins to 1.5 cm."
 
-When nothing fits, you write it **by chatting**, and everything goes into a **draft**:
+**To fix it for everyone**, write to the catalog. That write **is published at once**, with no draft and no undo, because other people rely on a library. Read the preview before you confirm.
 
-> "Create a formatter 'Poster style' in my workspace's library: …"
+!!! tip "The guidance and the settings must say the same thing"
+    If the prose says "12 pt text" and the settings say 11, the tool flags it during review. Keep the two in agreement: the prose explains, the settings are what gets applied.
 
-A formatter's content is **instruction text**: describe precisely what generation must respect (colours, fonts, sizes, margins, image style…). The clearer the instruction, the more consistent the result.
-
-!!! tip "Write it straight into the library"
-    Say "in the library" (or "in the catalog") from the start. Entries used to be built inside a subject and then copied across to the library: that detour is no longer needed, and it left a half-finished formatter sitting in the curriculum whenever a session stopped part-way.
-
-!!! info "Who can edit what"
-    A formatter on the **workspace** shelf is edited by a **curator** of that workspace. A **shared** formatter is reserved for the **super administrator**, since it serves all programmes.
-
-!!! note "A useful detail if you inspect the graph"
-    A routine and a formatter do not attach in the same place. A routine sits on a **lesson** (`usesRoutine` link); a formatter sits under the **document** itself, with its rules as parts (`hasPart` link). That is deliberate: formatting is a property of the produced document, not of the curriculum being taught. [Evaluation rubrics](evaluate.md) attach exactly like formatters.
+!!! info "Who can change what"
+    - **Applying** a formatter, or **editing a document's copy**: a **curator** (draft).
+    - **Creating, duplicating or editing** an entry in the workspace catalog: an **approver** (published at once).
+    - A **shared** entry: the **super administrator** only. To adapt one, duplicate it.

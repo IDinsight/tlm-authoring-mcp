@@ -1,67 +1,67 @@
-# Créer des formatters
+# Mises en forme (formatters)
 
-Un **formatter** décrit **l'apparence** d'un document : sa palette de couleurs, sa typographie, sa mise en page, le style de ses illustrations. C'est une consigne de mise en forme, écrite une fois et appliquée à un cours entier, pour que tous les documents produits se ressemblent.
+Une **mise en forme** — un *formatter* dans le vocabulaire de l'outil — décide de **l'apparence** d'un document : format de page, marges, polices, couleurs, style des images, langues de sortie. On l'écrit une fois et on l'applique à autant de documents qu'on veut, pour qu'ils se ressemblent.
 
-!!! info "Une consigne, pas un moteur"
-    L'outil ne fabrique jamais un `.docx` lui-même : c'est la génération, pilotée par Claude, qui rédige le document. Un formatter n'est donc pas un programme de mise en page — c'est **un texte de consignes que la génération lit et applique**. Exactement comme une routine, mais côté *forme* plutôt que côté *pédagogie*.
+## Qui décide quoi sur une page
 
-## Trois formatters concrets
+La production d'une page se partage en deux, et la mise en forme n'en fait qu'une moitié.
 
-| Formatter | Ce qu'il fixe | Portée |
+| Qui | Décide | Exemple |
 |---|---|---|
-| **Style maison (docx)** | Palette, typographie (ex. Calibri, corps 11–12 pt), mise en page, compression des images | Partagé — tout document `.docx` |
-| **Style graphique (images)** | Le look des illustrations : dessin vectoriel 2-D façon manuel scolaire sénégalais, cohérence des personnages | Partagé — matières illustrées |
-| **Mise en page des illustrations — maths CI** | Formats d'images, disposition des panneaux d'activité, couleurs des pastilles de réponse (A rouge / B bleu / C vert), tailles d'affichage | Espace de travail — spécifique à une matière |
+| **Claude**, à partir du programme et de la consigne de la section | **Ce qui est sur la page**, et dans quel ordre | « d'abord le titre de la leçon, puis la bande d'images, puis les trois exercices » |
+| **La mise en forme** | **À quoi cela ressemble** | « un titre est en 16 pt gras, une bande d'images occupe toute la largeur » |
 
-!!! tip "Les formatters se superposent"
-    Un formatter spécifique (la mise en page des illustrations de maths) **se pose par-dessus** les formatters partagés (le style maison, le style graphique). Le général donne le ton commun ; le spécifique ajoute les règles propres à la matière.
+Le serveur assemble les deux et fabrique le fichier Word. Claude ne choisit donc jamais une couleur ou une taille : il nomme un **style** (« titre de leçon », « consigne »), et c'est la mise en forme qui dit ce que ce style veut dire.
 
-## Le catalogue : la même bibliothèque que les routines
+## Les trois parties d'une mise en forme
 
-Les formatters et les [routines pédagogiques](routines.md) partagent le **même catalogue** et les **mêmes deux étagères** :
+1. **Des consignes écrites.** Du texte que Claude lit avant de composer : le ton, ce qu'on imprime pour l'élève et pour l'enseignant, le style des illustrations, ce qu'il faut éviter.
+2. **Des réglages de page.** Des valeurs précises que le serveur applique lui-même : taille de page et marges, styles de texte et nombre de caractères par ligne, taille maximale des images, nombre de pages visé, **langues** à produire. Sans ces réglages, un document **ne peut pas être produit** — l'outil refuse plutôt que de sortir un fichier sans style.
+3. **Des gabarits de page** (facultatifs). Quand toutes les pages d'un document suivent la même structure, on peut l'écrire une fois sous forme de gabarit : « en tête, le numéro et le titre de la leçon ; puis l'image de l'activité 1 ; puis sa consigne… ». Le serveur remplit alors chaque page **directement depuis le programme**, à l'identique à chaque fois, sans que Claude ait à recomposer. Ce qu'aucun gabarit ne couvre revient à Claude, qui le compose à la main.
 
-- **Partagée** — commune à tous les programmes, réservée au **super-administrateur** ;
-- **Espace de travail** — propre à votre programme, modifiable par ses **curateurs**.
+!!! example "Pourquoi les gabarits comptent"
+    Sans gabarit, Claude recompose chaque page à partir des consignes. Deux productions de la même leçon peuvent alors différer légèrement. Avec un gabarit, une consigne ou une image ne peut pas être mal recopiée : elle est **copiée** du programme, pas réécrite.
 
-Pour parcourir et lire le catalogue :
+## Les mises en forme se superposent
 
-> « Qu'y a-t-il dans le catalogue ? »
+Un document peut porter plusieurs mises en forme. Une mise en forme générale donne le ton commun (la charte de la maison) ; une plus spécifique ajoute les règles propres à ce document ; une section peut encore en porter une à elle. Quand deux disent des choses différentes, c'est **la plus proche** de la page qui l'emporte.
+
+> « Quelles mises en forme s'appliquent à cette section, et laquelle fixe la taille des titres ? »
+
+## Parcourir le catalogue
+
+Les mises en forme vivent dans le même [catalogue](routines.md#le-catalogue) que les routines et les grilles.
+
+> « Quelles mises en forme propose le catalogue ? »
 >
-> « Montre-moi le détail du formatter “Style maison”. »
+> « Montre-moi le détail de la mise en forme “Charte maison”. »
 
-## Appliquer un formatter à un cours
+## Appliquer une mise en forme à un document
 
-À la différence d'une routine (qui s'applique à une *leçon*), un formatter s'applique à un **cours** — la racine du document à produire :
+Une mise en forme s'applique **à un document**, pas au programme : l'apparence est une propriété de ce qu'on imprime, pas de ce qu'on enseigne.
 
-> « Applique le formatter “Style maison” à ce cours. »
+> « Applique la mise en forme “Charte maison” à ce document. »
 
-La génération de ce cours suivra alors la consigne de mise en forme. Comme pour une routine, l'application crée une **copie indépendante** rattachée au cours : une modification ultérieure du formatter du catalogue ne rejaillit pas sur les cours déjà servis.
+Comme pour une routine, cela pose une **copie indépendante** sous le document. Modifier cette copie ne change que ce document ; une modification ultérieure de l'entrée du catalogue ne l'atteint pas.
 
-## Créer ou modifier un formatter
+## Créer ou modifier une mise en forme
 
-### Partir d'un formatter existant (le cas le plus fréquent)
+**Partir d'une mise en forme existante** est presque toujours le plus simple :
 
-Personne n'écrit un formatter sur une page blanche. On part de celui qui convient presque, on le **duplique**, et on change ce qui diffère :
-
-> « Duplique le formatter “Style maison” sous le nom “Style des fiches de révision”. »
+> « Duplique la mise en forme “Charte maison” sous le nom “Charte des fiches de révision”. »
 >
-> « Dans ma copie, passe la police du corps de texte à 12 pt. »
+> « Dans ma copie, passe le corps de texte à 12 pt. »
 
-La copie arrive dans **votre** étagère (celle de l'espace de travail), avec ses propres règles. C'est d'ailleurs la seule façon d'adapter un formatter **partagé** : on ne modifie pas la version commune à tous les programmes, on s'en fait une copie.
+**Corriger la mise en forme d'un seul document** : modifiez sa copie, en brouillon.
 
-### Créer un formatter de zéro
+> « Dans la mise en forme de ce document, réduis les marges à 1,5 cm. »
 
-Quand rien ne convient, on l'écrit **en discutant**, et tout part dans un **brouillon** :
+**Corriger pour tout le monde** : écrivez dans le catalogue. Cette écriture **se publie aussitôt**, sans brouillon ni annulation, parce qu'une bibliothèque sert à d'autres. Relisez l'aperçu avant de confirmer.
 
-> « Crée un formatter “Style des affiches” dans la bibliothèque de mon espace de travail : … »
-
-Le contenu d'un formatter est du **texte de consignes** : décrivez précisément ce que la génération doit respecter (couleurs, polices, tailles, marges, style des images…). Plus la consigne est claire, plus le résultat est régulier.
-
-!!! tip "Écrivez-le directement dans la bibliothèque"
-    Dites « dans la bibliothèque » (ou « dans le catalogue ») dès le départ. On construisait autrefois l'entrée à l'intérieur d'une matière avant de la recopier vers la bibliothèque : ce détour n'est plus nécessaire, et il laissait un formatter à moitié fini au milieu du curriculum si la conversation s'arrêtait en route.
+!!! tip "Les consignes et les réglages doivent dire la même chose"
+    Si la prose dit « texte en 12 pt » et que les réglages disent 11, l'outil le signale à la relecture. Gardez les deux d'accord : la prose explique, les réglages s'appliquent.
 
 !!! info "Qui peut modifier quoi"
-    Un formatter de l'étagère **espace de travail** se modifie par un **curateur** de cet espace. Un formatter **partagé** est réservé au **super-administrateur**, car il sert à tous les programmes.
-
-!!! note "Un détail utile si vous inspectez le graphe"
-    Une routine et un formatter ne se rattachent pas au même endroit. Une routine se pose sur une **leçon** (lien `usesRoutine`) ; un formatter se pose sous le **document** lui-même, avec ses règles en éléments (lien `hasPart`). C'est voulu : la mise en forme est une propriété du document produit, pas du curriculum enseigné. Les [grilles d'évaluation](evaluate.md) se rattachent exactement comme les formatters.
+    - **Appliquer** une mise en forme, ou **modifier la copie** d'un document : un **curateur** (brouillon).
+    - **Créer, dupliquer ou modifier** une entrée du catalogue de l'espace : un **approbateur** (publié aussitôt).
+    - Une entrée **partagée** : le **super-administrateur** seulement. Pour l'adapter, dupliquez-la.

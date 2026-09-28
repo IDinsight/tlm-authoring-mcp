@@ -1,43 +1,58 @@
 # Guide utilisateur TLM
 
-Bienvenue. Cet outil vous aide à **entretenir le curriculum** (le « graphe de connaissances ») et à **produire du matériel pédagogique** — manuels de l'élève et fiches de leçons — pour les mathématiques et la lecture, en gardant tout cohérent d'un chapitre à l'autre.
+Cet outil sert à deux choses : **entretenir un programme d'enseignement** (le « graphe de connaissances ») et **produire les documents qui l'enseignent** — livres de l'élève, guides de l'enseignant, fiches, cahiers — en fichiers Word prêts à imprimer.
 
-## Vos deux outils de travail
+Il fonctionne de la même façon pour toutes les matières, toutes les classes et tous les pays. Ce qui fait la différence entre deux programmes n'est pas dans l'outil : c'est dans leur graphe.
 
-Vous travaillez avec **deux surfaces**, et rien d'autre à installer :
+## Ce qui est propre à votre programme vit dans le graphe
 
-- **La discussion avec Claude.** C'est là que tout se fait : vous demandez ce que vous voulez en langage naturel, et Claude s'occupe des détails. Créer une leçon, générer un manuel, publier une modification — tout se demande par écrit. Il n'y a pas de boutons compliqués à apprendre ; ce guide vous montre quoi demander et à quoi vous attendre.
-- **L'explorateur.** Une page web **en lecture seule** qui affiche le curriculum publié — les standards, les chapitres, les leçons et leurs liens. On l'utilise pour *regarder*, jamais pour modifier. Voir [Explorer le graphe](explorer.md).
+L'outil ne connaît d'avance ni vos matières, ni vos documents, ni vos habitudes. Tout ce qui est propre à un programme est **écrit dans son graphe**, par ses experts, et peut donc être relu et corrigé par la discussion :
 
-## À qui s'adresse chaque tâche
+| Ce qui change d'un programme à l'autre | Où c'est écrit |
+|---|---|
+| Le nom des niveaux (domaine, thème, objectif spécifique…) et des regroupements (chapitre, unité, semaine…) | Dans les éléments du graphe eux-mêmes |
+| Les documents que l'on produit, et ce que chacun couvre | Dans les **documents** du graphe |
+| Le déroulé d'une séance | Dans les **routines pédagogiques** |
+| L'apparence d'une page, les langues de sortie | Dans les **mises en forme** (formatters) |
+| Ce qui fait qu'un document est bon | Dans les **grilles d'évaluation** |
+| Les conventions de la matière, ce que le programme doit couvrir | Dans le **guide de la matière** |
+| La traduction attendue des termes | Dans le **lexique** de l'espace de travail |
 
-Ce que vous pouvez faire dépend de votre **rôle**. Dans le système, un même mot — *curateur* — recouvre plusieurs métiers ; le tableau ci-dessous part de ce que vous faites au quotidien.
+Les exemples de ce guide sont donc des **exemples** : votre programme dira peut-être « unité » là où ce guide dit « chapitre ». Pour connaître les conventions de la matière sur laquelle vous travaillez, demandez à Claude :
 
-| Vous êtes… | Vous voulez… | Rôle technique |
+> « Lis-moi le guide de cette matière. »
+
+## Vos outils de travail
+
+- **La discussion avec Claude.** Tout se fait là, en langage courant. Vous dites ce que vous voulez — « ajoute une leçon », « produis la leçon 12 », « est-ce que ce document est prêt ? » — et Claude appelle les bons outils. Aucune commande à apprendre.
+- **Le module d'autorat** (plugin *tlm-autorat*). Il apprend à Claude les bonnes procédures : dans quel ordre créer un document, comment vérifier une page avant de la rendre, quand s'arrêter pour vous demander. Il est facultatif mais fortement conseillé. Voir [Prise en main](getting-started.md).
+- **L'explorateur.** Une page web en **lecture seule** qui montre le programme publié, son brouillon en cours et le catalogue. On y regarde, on n'y modifie rien. Voir [Explorer le graphe](explorer.md).
+
+## Qui fait quoi
+
+Ce que vous pouvez faire dépend de votre **rôle dans l'espace de travail**.
+
+| Vous êtes… | Vous voulez… | Rôle |
 |---|---|---|
-| **Auteur** | Générer des manuels et des fiches de leçons | tout le monde peut générer |
-| **Expert curriculum** | Créer et enrichir le curriculum : standards, composants d'apprentissage | curateur |
-| **Concepteur (TLM)** | Bâtir les cours, les leçons, les routines et les gabarits de mise en forme | curateur |
-| **Approbateur** | Relire et **publier** les brouillons pour les rendre officiels | approbateur |
-| **Administrateur / développeur** | Ajouter un espace de travail, une nouvelle matière | admin / super-admin |
+| **Lecteur** | Consulter un programme | aucun rôle nécessaire |
+| **Expert programme** | Écrire les standards, les leçons, les activités | curateur |
+| **Concepteur de documents** | Créer les documents, leurs sections, leur mise en forme, et les produire | curateur |
+| **Approbateur** | Relire et **publier** le travail des curateurs | approbateur |
+| **Administrateur** | Gérer les membres d'un espace de travail | admin |
 
-Tout le monde peut **explorer** le graphe et **générer** du matériel. Les modifications du curriculum demandent le rôle de **curateur** ; les publier demande celui d'**approbateur**.
-
-Vous n'êtes pas sûr de votre rôle ? Demandez simplement à Claude : « **Que puis-je faire ?** »
+Vous ne savez pas quel est votre rôle ? Demandez : « **Que puis-je faire ?** »
 
 ## Par où commencer
 
-1. [**Prise en main**](getting-started.md) — connecter Claude à l'outil, se connecter, choisir l'espace de travail, la classe et la matière.
-2. **Construire le curriculum** — [créer un graphe de connaissances](create-graph.md), puis [construire les standards et les composants](build-standards.md).
-3. **Concevoir les cours** — [ajouter et modifier un cours et ses leçons](courses-lessons.md), [créer des routines pédagogiques](routines.md), [créer des formatters](formatters.md).
-4. [**Générer du matériel pédagogique**](create-materials.md) — produire un manuel ou des fiches de leçons.
-5. [**Relire, publier ou abandonner un brouillon**](review-approve.md) — vérifier et rendre officielles les modifications.
-6. [**Explorer le graphe**](explorer.md) — visualiser le curriculum dans l'explorateur.
-7. [**Administration et développement**](admin-developer.md) — ajouter un espace de travail ou une matière.
+1. [**Prise en main**](getting-started.md) — obtenir un accès, installer le module, choisir où vous travaillez.
+2. **Construire le programme** — [comprendre le graphe](create-graph.md), [les standards](build-standards.md), [les cours et les leçons](courses-lessons.md), [les routines](routines.md).
+3. **Composer et produire** — [composer un document](compose-document.md), [sa mise en forme](formatters.md), [le produire](create-materials.md).
+4. **Évaluer et publier** — [évaluer un document](evaluate.md), [relire et publier le brouillon](review-approve.md).
+5. [**Explorer le graphe**](explorer.md) et la [**Référence**](reference.md) pour le vocabulaire.
 
-Besoin d'un rappel de vocabulaire ? La [Référence](reference.md) résume qui peut faire quoi et définit chaque terme.
+!!! note "Trois règles de sécurité"
+    **Rien ne s'écrit sans votre accord.** Avant toute modification, Claude vous montre ce qui va changer et attend votre « oui ».
 
-!!! note "Deux règles de sécurité à retenir"
-    **Rien d'important ne se produit sans votre confirmation.** Enregistrer un document, publier une modification : Claude vous montre d'abord ce qui va se passer, et attend votre accord.
+    **Le programme passe par un brouillon.** Vos modifications s'accumulent à part. Elles n'atteignent la production de documents qu'une fois **publiées** par un approbateur.
 
-    **Les modifications du curriculum passent par un brouillon.** Vos changements s'accumulent à part et n'atteignent la génération de documents qu'une fois **publiés** par un approbateur. C'est votre filet de sécurité.
+    **Vous donnez des noms, jamais des identifiants.** « La leçon 12 », « le guide de l'enseignant » : Claude retrouve l'élément. S'il y en a plusieurs du même nom, il vous demande lequel.
