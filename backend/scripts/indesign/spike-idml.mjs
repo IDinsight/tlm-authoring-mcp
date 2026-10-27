@@ -176,11 +176,10 @@ function tableXml(table) {
     ? table.columnsCm.map((cm) => cm * 10 * PT_PER_MM)
     : Array(columnCount).fill((CORPS_WIDTH_MM * PT_PER_MM) / columnCount);
   const self = newId("t");
-  const cellStyle = styleRef("CellStyle", table.style ?? "encadre");
   const rows = table.rows.map((_, r) => `<Row Self="${self}Row${r}" Name="${r}" AutoGrow="true" MinimumHeight="3"/>`).join("");
   const columns = widthsPt.map((w, c) => `<Column Self="${self}Column${c}" Name="${c}" SingleColumnWidth="${w}"/>`).join("");
   const cells = table.rows.flatMap((row, r) => row.map((cell, c) =>
-    `<Cell Self="${self}i${c}i${r}" Name="${c}:${r}" RowSpan="1" ColumnSpan="${cell.span ?? 1}" AppliedCellStyle="${cellStyle}" AppliedCellStylePriority="0">\n${blocksXml(cell.blocks, widthsPt[c] - CELL_INSETS_PT)}</Cell>`)).join("\n");
+    `<Cell Self="${self}i${c}i${r}" Name="${c}:${r}" RowSpan="1" ColumnSpan="${cell.span ?? 1}" AppliedCellStyle="${styleRef("CellStyle", cell.style ?? table.style ?? "encadre")}" AppliedCellStylePriority="0">\n${blocksXml(cell.blocks, widthsPt[c] - CELL_INSETS_PT)}</Cell>`)).join("\n");
   return `<Table Self="${self}" HeaderRowCount="0" FooterRowCount="0" BodyRowCount="${table.rows.length}" ColumnCount="${columnCount}" AppliedTableStyle="${styleRef("TableStyle", table.style ?? "encadre")}" TableDirection="LeftToRightDirection">${rows}${columns}\n${cells}</Table>`;
 }
 
@@ -196,7 +195,9 @@ const [lessonNumber, ...titleParts] = headerText.split(/\s+·\s+/);
  * the real thing is graph data, not code.
  *   • no page break before « Tu fais » — one page per lesson (decision 1);
  *   • the opening questions beside their scene with no box round them, as in the pilot;
- *   • each directive beside its picture row, in an invisible two-column grid (`item`).
+ *   • each directive beside its picture row, in an invisible two-column grid (`item`);
+ *   • the last « Tu fais » question printed as the evaluation box: white on the domain colour,
+ *     no marker, the evaluation pictogram in the margin (user's decision, 2026-10-27).
  */
 const ITEM_COLUMNS_CM = [7, 10];
 const isPictureRow = (block) => block?.kind === "line" && block.runs.length === 1 && block.runs[0].image?.role === "bande";
@@ -212,7 +213,49 @@ function asInDesignBook(blocks) {
     }
     out.push(block);
   }
-  return out;
+  return lastItemAsEvaluation(out);
+}
+
+const isDirective = (block) => block.kind === "line" && block.style === "directive";
+const isItemGrid = (block) => block.kind === "table" && block.style === "item" && isDirective(block.rows[0][0].blocks[0]);
+
+// The evaluation pictogram is the pilot's own (evalaution.ai, rendered to PNG). The graph's bucket
+// has none yet: assets/picto-evaluation.svg is to add before this is more than a spike.
+tree.media["picto-evaluation"] = "picto-evaluation.png";
+
+/*
+ * A question whose picture row compose_section could not place, because the shared template only
+ * looks for pictures named « -tf-N » and this one reuses « L01-nf-2 » on purpose (its section guide
+ * says so). The picture IS attached to the question's activity; the fix is the template's name
+ * pattern, in the graph. Until then the spike takes it from what is attached.
+ */
+function attachedPictureRow(anchor) {
+  const attached = tree.attached?.[anchor];
+  if (!attached) return [{ kind: "line", runs: [] }];
+  return [{ kind: "line", runs: [{ image: { media: attached.media, role: "bande", aspectRatio: attached.aspectRatio } }] }];
+}
+
+function lastItemAsEvaluation(blocks) {
+  let last = -1;
+  blocks.forEach((block, i) => { if (isDirective(block) || isItemGrid(block)) last = i; });
+  if (last < 0) return blocks;
+  const item = blocks[last];
+  const directive = isItemGrid(item) ? item.rows[0][0].blocks[0] : item;
+  const pictureRow = isItemGrid(item) ? item.rows[0][1].blocks : attachedPictureRow(directive.anchor);
+  const words = directive.runs.filter((run) => run.text !== undefined).map((run) => ({ ...run, text: run.text.trim() }));
+  const evaluationLine = {
+    kind: "line",
+    style: "evaluation",
+    anchor: directive.anchor,
+    runs: [{ image: { media: "picto-evaluation", role: "picto-section" } }, ...words],
+  };
+  const box = {
+    kind: "table",
+    style: "item",
+    columnsCm: ITEM_COLUMNS_CM,
+    rows: [[{ style: "evaluation", blocks: [evaluationLine] }, { blocks: pictureRow }]],
+  };
+  return [...blocks.slice(0, last), box, ...blocks.slice(last + 1)];
 }
 
 /*

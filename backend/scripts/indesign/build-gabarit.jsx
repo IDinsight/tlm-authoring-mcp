@@ -224,6 +224,20 @@ try {
   itemCell.verticalJustification = VerticalJustification.CENTER_ALIGN;
   var itemTable = doc.tableStyles.itemByName("item"); if (!itemTable.isValid) itemTable = doc.tableStyles.add({ name: "item" });
   noRules(itemCell, itemTable);
+  // The evaluation box: the last « Tu fais » question, white on the domain colour, as the pilot
+  // prints it. A cell style per domain (the colour changes), carrying the white paragraph style.
+  for (var d4 = 0; d4 < DOMAINS.length; d4++) {
+    var dom4 = DOMAINS[d4];
+    var ecs = doc.cellStyleGroups.itemByName(dom4).cellStyles.itemByName("evaluation");
+    if (!ecs.isValid) ecs = doc.cellStyleGroups.itemByName(dom4).cellStyles.add({ name: "evaluation" });
+    ecs.fillColor = DOMAIN_SWATCH[dom4]; ecs.fillTint = 100;
+    ecs.appliedParagraphStyle = pstyles["evaluation"];
+    ecs.verticalJustification = VerticalJustification.CENTER_ALIGN;
+    ecs.topInset = ecs.bottomInset = ecs.leftInset = ecs.rightInset = 3;
+    var edges4 = ["topEdgeStrokeWeight", "bottomEdgeStrokeWeight", "leftEdgeStrokeWeight", "rightEdgeStrokeWeight"];
+    for (var e4 = 0; e4 < edges4.length; e4++) ecs[edges4[e4]] = 0;
+  }
+  say("cell style evaluation per domain: white text on the domain colour");
   say("table styles: encadre per domain (fill at 25% — approximated, to check), item at the top level; no rules on either");
 
   // 7. The model page: three named frames on the AN master. The server clones this page per lesson.

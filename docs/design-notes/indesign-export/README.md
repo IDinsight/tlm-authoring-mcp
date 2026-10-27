@@ -259,9 +259,10 @@ in writing it. The result sits next to the pilot, under `gabarit/spike-lecon-1/`
 | A closing « » » wrapped onto its own line | **Closed.** A no-break space before « ? ! : ; » » and after « « » | Renderer (it applies to Word too) |
 | The narrow column hyphenated « en-semble », « nom-breux » | **Closed.** Hyphenation off in the body styles | Template |
 | Numbered orange squares (1, 2, 3) instead of ★ ▲ ■ ● ♥ | The InDesign book's formatter names other marker files | Graph data |
-| The *je retiens* box is empty, and *Tu fais* ③ has no picture row | `L01-je-retiens.png` is missing from the bucket, and nothing is attached to ③ (`compose_section` reported both) | The graph's own gaps, not the renderer's |
+| The *je retiens* box is empty | `L01-je-retiens.png` is missing from the bucket (`compose_section` reported it) | The graph's own gap |
+| *Tu fais* ③ had no picture row | **Shown in the spike; fix still to make in the graph.** The picture *is* attached: ③ reuses the *Nous faisons* ② row, `L01-nf-2`, on purpose (its section guide says so). The shared `tu-fais` template only looks for pictures named `-tf-N`, so it misses it. The fix is that template's name pattern (e.g. `-(tf\|nf)-\d+$`). The spike takes the row from what is attached | Graph data (the template's `picture` pattern) |
 | French instead of Wolof | The same `translateInto` the Word renderer uses | Renderer |
-| The pilot prints its last item in a red evaluation box; ours prints *Tu fais* ③ as a plain item — and it is the same question | Decide whether ③ becomes the evaluation box in the InDesign book | To decide |
+| The pilot prints its last item in a red evaluation box; ours printed *Tu fais* ③ as a plain item — and it is the same question | **Closed — decided by the user, 2026-10-27: in the InDesign book the last *Tu fais* question is the evaluation box.** White text on the domain colour, no marker, the evaluation pictogram in the margin, its picture row beside it. A per-domain `evaluation` cell style carries the colour and the white paragraph style. The pictogram is the pilot's own (`evalaution.ai`); the bucket has none yet, so `assets/picto-evaluation.svg` is to add. For real, the InDesign book's `tu-fais` template needs a way to say « the last one » — the layout schema has `when: {rank}` but no `last` | Template + graph data (an asset, and a « last » condition in the layout schema — code) |
 
 **Three things the renderer must do, learnt the hard way:**
 
