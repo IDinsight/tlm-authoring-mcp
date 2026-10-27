@@ -31,6 +31,7 @@ if (!outPath) {
 
 const PT_PER_MM = 72 / 25.4;
 const CORPS_WIDTH_MM = 170;
+const CELL_INSETS_PT = 8; // InDesign's default cell inset, 4 pt each side
 
 // Picture size per role. Where these numbers live for real (object style or the formatter's
 // render bag) is a step-2 finding; here they are the pilot's own measurements.
@@ -91,27 +92,42 @@ function linkedPicture(mediaName) {
   return { path, pixelWidth: bytes.readUInt32BE(16), pixelHeight: bytes.readUInt32BE(20) };
 }
 
-function frameSizePt(role, picture) {
+/** The role's size, shrunk (aspect kept) when it would not fit the column or cell it sits in. */
+function frameSizePt(role, picture, maxWidthPt) {
   const aspect = picture.pixelWidth / picture.pixelHeight;
   const size = ROLE_SIZE_MM[role] ?? { width: 40 };
-  const widthMm = size.width ?? size.height * aspect;
-  const heightMm = size.height ?? size.width / aspect;
-  return { width: widthMm * PT_PER_MM, height: heightMm * PT_PER_MM };
+  let width = (size.width ?? size.height * aspect) * PT_PER_MM;
+  if (width > maxWidthPt) width = maxWidthPt;
+  return { width, height: width / aspect };
 }
 
 /** IDML writes link paths percent-encoded, accents decomposed — the form the template itself uses. */
 const fileUri = (path) => "file:" + encodeURI(path.normalize("NFD"));
 
+/*
+ * A role whose object style carries anchored-object options (the pictograms, hung in the margin)
+ * is placed by that style. Writing an inline setting on the frame would override it.
+ */
+function styleAnchorsOutsideTheColumn(objectStyle) {
+  const start = styles.indexOf(`Self="${objectStyle}"`);
+  if (start < 0) return false;
+  const openingTag = styles.slice(start, styles.indexOf(">", start));
+  const body = styles.slice(start, styles.indexOf("</ObjectStyle>", start));
+  return /EnableAnchoredObjectOptions="true"/.test(openingTag) && /AnchoredPosition="Anchored"/.test(body);
+}
+
 const missingPictures = [];
-function inlinePicture(image) {
+function inlinePicture(image, maxWidthPt) {
   const picture = linkedPicture(image.media);
   if (!picture) { missingPictures.push(image.media); return ""; }
-  const { width, height } = frameSizePt(image.role, picture);
+  const { width, height } = frameSizePt(image.role, picture, maxWidthPt);
+  const objectStyle = objectStyleFor(image.role);
+  const anchorSetting = styleAnchorsOutsideTheColumn(objectStyle) ? "" : `<AnchoredObjectSetting AnchoredPosition="InlinePosition" AnchorYoffset="0"/>`;
   const scale = width / picture.pixelWidth;
   const point = (x, y) => `<PathPointType Anchor="${x} ${y}" LeftDirection="${x} ${y}" RightDirection="${x} ${y}"/>`;
-  return `<Rectangle Self="${newId("r")}" ContentType="GraphicType" AppliedObjectStyle="${objectStyleFor(image.role)}" ItemTransform="1 0 0 1 0 0" StrokeWeight="0" StrokeColor="Swatch/None" FillColor="Swatch/None">
+  return `<Rectangle Self="${newId("r")}" ContentType="GraphicType" AppliedObjectStyle="${objectStyle}" ItemTransform="1 0 0 1 0 0" StrokeWeight="0" StrokeColor="Swatch/None" FillColor="Swatch/None">
 <Properties><PathGeometry><GeometryPathType PathOpen="false"><PathPointArray>${point(0, 0)}${point(0, height)}${point(width, height)}${point(width, 0)}</PathPointArray></GeometryPathType></PathGeometry></Properties>
-<AnchoredObjectSetting AnchoredPosition="InlinePosition" AnchorYoffset="0"/>
+${anchorSetting}
 <Image Self="${newId("i")}" ItemTransform="${scale} 0 0 ${scale} 0 0">
 <Properties><Profile type="string">$ID/None</Profile><GraphicBounds Left="0" Top="0" Right="${picture.pixelWidth}" Bottom="${picture.pixelHeight}"/></Properties>
 <Link Self="${newId("l")}" LinkResourceURI="${attr(fileUri(picture.path))}" LinkResourceFormat="$ID/Portable Network Graphics (PNG)" StoredState="Normal" LinkClassID="35906" LinkClientID="257" ShowInUI="true" CanEmbed="true" CanUnembed="true" CanPackage="true" ImportPolicy="NoAutoImport" ExportPolicy="NoAutoExport"/>
@@ -124,9 +140,16 @@ function inlinePicture(image) {
 const NO_CHARACTER_STYLE = "CharacterStyle/$ID/[No character style]";
 const characterRange = (inner) => `<CharacterStyleRange AppliedCharacterStyle="${NO_CHARACTER_STYLE}">${inner}</CharacterStyleRange>`;
 
-function runXml(run) {
-  if (run.text !== undefined) return characterRange(`<Content>${xmlText(run.text)}</Content>`);
-  return characterRange(inlinePicture(run.image));
+/*
+ * French typography: the space before ? ! : ; » and after « is a no-break space, so a closing
+ * guillemet never starts a line on its own. The tree is typed with ordinary spaces.
+ */
+const NO_BREAK_SPACE = "\u00A0";
+const frenchSpacing = (text) => text.replace(/ ([?!:;»])/g, `${NO_BREAK_SPACE}$1`).replace(/« /g, `«${NO_BREAK_SPACE}`);
+
+function runXml(run, maxWidthPt) {
+  if (run.text !== undefined) return characterRange(`<Content>${xmlText(frenchSpacing(run.text))}</Content>`);
+  return characterRange(inlinePicture(run.image, maxWidthPt));
 }
 
 /** One paragraph; `last` leaves off the closing break, as InDesign writes a story's final line. */
@@ -134,13 +157,13 @@ function paragraphXml(style, inner, last) {
   return `<ParagraphStyleRange AppliedParagraphStyle="${paragraphStyle(style)}">${inner}${last ? "" : characterRange("<Br/>")}</ParagraphStyleRange>\n`;
 }
 
-function blocksXml(blocks) {
-  return blocks.map((block, i) => blockXml(block, i === blocks.length - 1)).join("");
+function blocksXml(blocks, maxWidthPt) {
+  return blocks.map((block, i) => blockXml(block, i === blocks.length - 1, maxWidthPt)).join("");
 }
 
-function blockXml(block, last) {
+function blockXml(block, last, maxWidthPt) {
   switch (block.kind) {
-    case "line": return paragraphXml(block.style, block.runs.map(runXml).join(""), last);
+    case "line": return paragraphXml(block.style, block.runs.map((run) => runXml(run, maxWidthPt)).join(""), last);
     case "table": return paragraphXml(undefined, characterRange(tableXml(block)), last);
     case "spacer": case "clear": return ""; // geometry in the tree; InDesign spaces by style
     default: throw new Error(`block kind « ${block.kind} » has no InDesign form yet`);
@@ -157,7 +180,7 @@ function tableXml(table) {
   const rows = table.rows.map((_, r) => `<Row Self="${self}Row${r}" Name="${r}" AutoGrow="true" MinimumHeight="3"/>`).join("");
   const columns = widthsPt.map((w, c) => `<Column Self="${self}Column${c}" Name="${c}" SingleColumnWidth="${w}"/>`).join("");
   const cells = table.rows.flatMap((row, r) => row.map((cell, c) =>
-    `<Cell Self="${self}i${c}i${r}" Name="${c}:${r}" RowSpan="1" ColumnSpan="${cell.span ?? 1}" AppliedCellStyle="${cellStyle}" AppliedCellStylePriority="0">\n${blocksXml(cell.blocks)}</Cell>`)).join("\n");
+    `<Cell Self="${self}i${c}i${r}" Name="${c}:${r}" RowSpan="1" ColumnSpan="${cell.span ?? 1}" AppliedCellStyle="${cellStyle}" AppliedCellStylePriority="0">\n${blocksXml(cell.blocks, widthsPt[c] - CELL_INSETS_PT)}</Cell>`)).join("\n");
   return `<Table Self="${self}" HeaderRowCount="0" FooterRowCount="0" BodyRowCount="${table.rows.length}" ColumnCount="${columnCount}" AppliedTableStyle="${styleRef("TableStyle", table.style ?? "encadre")}" TableDirection="LeftToRightDirection">${rows}${columns}\n${cells}</Table>`;
 }
 
@@ -167,9 +190,61 @@ function tableXml(table) {
 const [header, ...body] = tree.blocks;
 const headerText = header.runs.map((run) => run.text ?? "").join("");
 const [lessonNumber, ...titleParts] = headerText.split(/\s+·\s+/);
-// The InDesign book is one page per lesson (design note, decision 1): its formatter overrides the
-// « Tu fais » template without the break. The spike applies that override here.
-const corpsBlocks = body.map(({ pageBreak, ...block }) => block);
+/*
+ * What the InDesign book's own formatter would declare as page templates (design note: its
+ * `layout` overrides the shared one by template name). The spike applies them to the shared tree;
+ * the real thing is graph data, not code.
+ *   • no page break before « Tu fais » — one page per lesson (decision 1);
+ *   • the opening questions beside their scene with no box round them, as in the pilot;
+ *   • each directive beside its picture row, in an invisible two-column grid (`item`).
+ */
+const ITEM_COLUMNS_CM = [7, 10];
+const isPictureRow = (block) => block?.kind === "line" && block.runs.length === 1 && block.runs[0].image?.role === "bande";
+function asInDesignBook(blocks) {
+  const out = [];
+  for (let i = 0; i < blocks.length; i++) {
+    const { pageBreak, ...block } = blocks[i];
+    if (block.kind === "table" && block.columnsCm?.length === 2) { out.push({ ...block, style: "item" }); continue; }
+    if (block.kind === "line" && block.style === "directive" && isPictureRow(blocks[i + 1])) {
+      out.push({ kind: "table", style: "item", columnsCm: ITEM_COLUMNS_CM, rows: [[{ blocks: [block] }, { blocks: [blocks[i + 1]] }]] });
+      i++;
+      continue;
+    }
+    out.push(block);
+  }
+  return out;
+}
+
+/*
+ * A pictogram hung in the margin takes no line of its own: it rides the next line of text and is
+ * placed beside it by its object style. Left as its own paragraph, it would leave an empty line.
+ */
+const isMarginPictogram = (run) => run.image && styleAnchorsOutsideTheColumn(objectStyleFor(run.image.role));
+function pictogramsRideTheNextLine(blocks) {
+  const out = [];
+  let carried = [];
+  for (const block of blocks) {
+    if (block.kind === "line" && block.runs.length && block.runs.every(isMarginPictogram)) { carried.push(...block.runs); continue; }
+    let next = block;
+    if (block.kind === "table") next = { ...block, rows: block.rows.map((row) => row.map((cell) => ({ ...cell, blocks: pictogramsRideTheNextLine(cell.blocks) }))) };
+    if (carried.length) next = prepend(next, carried);
+    carried = [];
+    out.push(next);
+  }
+  if (carried.length) out.push({ kind: "line", runs: carried }); // nothing followed: keep it where it was
+  return out;
+}
+function prepend(block, runs) {
+  if (block.kind === "line") return { ...block, runs: [...runs, ...block.runs] };
+  if (block.kind === "table") {
+    const [firstRow, ...rest] = block.rows;
+    const [firstCell, ...cells] = firstRow;
+    return { ...block, rows: [[{ ...firstCell, blocks: [prepend(firstCell.blocks[0], runs), ...firstCell.blocks.slice(1)] }, ...cells], ...rest] };
+  }
+  return block;
+}
+
+const corpsBlocks = pictogramsRideTheNextLine(asInDesignBook(body));
 
 const out = join(dirname(outPath), "idml-build");
 rmSync(out, { recursive: true, force: true });
@@ -194,9 +269,9 @@ function writeStory(frameName, paragraphsXml) {
   const end = template.lastIndexOf("</Story>");
   writeFileSync(join(out, "Stories", `Story_${id}.xml`), template.slice(0, start) + paragraphsXml + template.slice(end));
 }
-writeStory("numero-lecon", paragraphXml("numero-lecon", runXml({ text: lessonNumber }), true));
-writeStory("titre-lecon", paragraphXml("titre-lecon", runXml({ text: titleParts.join(" · ") }), true));
-writeStory("corps", blocksXml(corpsBlocks));
+writeStory("numero-lecon", paragraphXml("numero-lecon", runXml({ text: lessonNumber }, 0), true));
+writeStory("titre-lecon", paragraphXml("titre-lecon", runXml({ text: titleParts.join(" · ") }, 0), true));
+writeStory("corps", blocksXml(corpsBlocks, CORPS_WIDTH_MM * PT_PER_MM));
 
 // Master pages keep their own stories (the footer); everything else from the sample pages goes.
 const masterStories = new Set();

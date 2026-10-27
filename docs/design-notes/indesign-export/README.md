@@ -249,23 +249,27 @@ in writing it. The result sits next to the pilot, under `gabarit/spike-lecon-1/`
 - **One flowing story was enough.** Paragraphs, inline pictures and tables in a single `corps`
   story laid themselves out, and the lesson fits on one page with room to spare.
 
-**What differs from the pilot, and where each fix belongs:**
+**What differed from the pilot on the first run, and how it was closed (second run, same day):**
 
-| Difference | Fix | Where |
+| Difference | Fix | Where it lives |
 |---|---|---|
-| Each directive sits *above* its picture row; the pilot puts it to the *left*, on the same line | A borderless two-column table per item in the InDesign book's `nous-faisons` / `tu-fais` templates | Graph data (the formatter's `layout`) |
-| The section pictograms sit in the text column; the pilot hangs them in the left margin | An anchored, custom-positioned frame. InDesign object styles can carry anchored-object options, so the position goes in the `picto-section` style and the renderer only applies it | Template, plus one renderer rule |
-| The `encadre` boxes have thin black borders | The `encadre` cell style needs no stroke | Template |
-| A closing « » » wraps onto its own line | A no-break space before « ? », « : », « » » in French text | Renderer (it applies to Word too) |
+| Each directive sat *above* its picture row; the pilot puts it to the *left* | **Closed.** A borderless two-column grid, `item` (7 cm + 10 cm), per directive and its row; the opening questions use it too, without a box, as in the pilot. The spike applies it to the shared tree; for real it is the InDesign book's own `nous-faisons` / `tu-fais` / `je-fais` templates | Graph data (the formatter's `layout`) + an `item` table style in the template |
+| The section pictograms sat in the text column; the pilot hangs them in the left margin | **Closed.** The `picto-section` object style carries the anchored position (5 mm from the page edge), so the renderer writes no position. One renderer rule: a picture whose style anchors it outside the column rides the next line instead of taking a line of its own | Template + one renderer rule |
+| The boxes had thin black borders | **Closed.** Every cell and table style is set to no rules; a new style otherwise inherits InDesign's 1 pt black edges | Template |
+| A closing « » » wrapped onto its own line | **Closed.** A no-break space before « ? ! : ; » » and after « « » | Renderer (it applies to Word too) |
+| The narrow column hyphenated « en-semble », « nom-breux » | **Closed.** Hyphenation off in the body styles | Template |
 | Numbered orange squares (1, 2, 3) instead of ★ ▲ ■ ● ♥ | The InDesign book's formatter names other marker files | Graph data |
 | The *je retiens* box is empty, and *Tu fais* ③ has no picture row | `L01-je-retiens.png` is missing from the bucket, and nothing is attached to ③ (`compose_section` reported both) | The graph's own gaps, not the renderer's |
 | French instead of Wolof | The same `translateInto` the Word renderer uses | Renderer |
 | The pilot prints its last item in a red evaluation box; ours prints *Tu fais* ③ as a plain item — and it is the same question | Decide whether ③ becomes the evaluation box in the InDesign book | To decide |
 
-**Two things the renderer must do, learnt the hard way:**
+**Three things the renderer must do, learnt the hard way:**
 
 - **Ship the fonts with the file.** Opened away from the template's `Document fonts/` folder,
   InDesign silently substituted Andika. The package must include the fonts, next to the `.idml`.
+- **Check the margin offset on a right-hand page.** InDesign placed the icon at −5 mm for an
+  offset of +5 mm from the page edge, so the template uses −5. That was measured on a left-hand page
+  only; the first multi-page book must check a right-hand one.
 - **SVG is untested.** The pictograms were rasterised to PNG for the spike. Whether an IDML can link
   an SVG directly is still open; InDesign places SVG when a person does it.
 

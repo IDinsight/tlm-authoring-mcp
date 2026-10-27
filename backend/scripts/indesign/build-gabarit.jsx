@@ -106,6 +106,9 @@ try {
   }
   // The title prints in capitals on every page, though page 2 was typed in lower case.
   pstyles["titre-lecon"].capitalization = Capitalization.ALL_CAPS;
+  // No hyphenation in text a six-year-old reads: in a 7 cm column it split « en-semble ».
+  var unhyphenated = ["titre-lecon", "question-orale", "directive", "evaluation", "etiquette"];
+  for (var h = 0; h < unhyphenated.length; h++) pstyles[unhyphenated[h]].hyphenation = false;
 
   // 4. Apply them, KEEPING each frame's hand formatting: some frames are indented by hand to clear
   //    their ★ ▲ ● marker, and clearing that puts the text under the marker. The pilot pages are
@@ -143,6 +146,23 @@ try {
   var pictureProps = { enableFill: true, fillColor: "None", enableStroke: true, strokeColor: "None", strokeWeight: 0, enableFrameFittingOptions: true };
   var pictureStyles = ["amorce", "bande", "je-retiens", "picto-section"];
   for (var ps = 0; ps < pictureStyles.length; ps++) objectStyle(doc, pictureStyles[ps], pictureProps);
+  // The section pictograms hang in the left margin, as in the pilot (x ≈ 5 mm, the text starts at
+  // 20 mm). The position lives in the style, so the page only has to anchor the picture to its line.
+  var picto = doc.objectStyles.itemByName("picto-section");
+  picto.enableAnchoredObjectOptions = true;
+  var anchor = picto.anchoredObjectSettings;
+  anchor.anchoredPosition = AnchorPosition.ANCHORED;
+  anchor.anchorPoint = AnchorPoint.TOP_LEFT_ANCHOR;
+  anchor.horizontalReferencePoint = AnchoredRelativeTo.PAGE_EDGE;
+  anchor.horizontalAlignment = HorizontalAlignment.LEFT_ALIGN;
+  // −5, not 5: measured in InDesign, a positive offset from the page edge lands the icon at −5 mm on
+  // these pages. Checked on a left-hand page only (lesson 1); right-hand pages are still to check.
+  anchor.anchorXoffset = -5;
+  anchor.verticalReferencePoint = VerticallyRelativeTo.TOP_OF_LEADING;
+  anchor.verticalAlignment = VerticalAlignment.TOP_ALIGN;
+  anchor.anchorYoffset = 0;
+  anchor.pinPosition = false; // free to leave the text column, which is the point
+  say("object style picto-section: anchored in the left margin, 5 mm from the page edge");
   var groups = {};
   for (var dd = 0; dd < DOMAINS.length; dd++) {
     var dom = DOMAINS[dd];
@@ -178,7 +198,16 @@ try {
   }
   say("tagged " + tagged + " coloured frames and markers with their domain's object style");
 
-  // 6. The box (« je retiens »): a table and cell style per domain. Tint is an approximation of the pilot's pink.
+  // 6. Boxes. The pilot draws no rules around anything, so every cell and table style here has none:
+  //    a fresh style otherwise inherits InDesign's 1 pt black edges.
+  function noRules(cellStyle, tableStyle) {
+    var edges = ["topEdgeStrokeWeight", "bottomEdgeStrokeWeight", "leftEdgeStrokeWeight", "rightEdgeStrokeWeight"];
+    for (var e = 0; e < edges.length; e++) cellStyle[edges[e]] = 0;
+    var borders = ["topBorderStrokeWeight", "bottomBorderStrokeWeight", "leftBorderStrokeWeight", "rightBorderStrokeWeight"];
+    for (var bd = 0; bd < borders.length; bd++) tableStyle[borders[bd]] = 0;
+    tableStyle.bodyRegionCellStyle = cellStyle;
+  }
+  // « je retiens »: a coloured box per domain. Tint is an approximation of the pilot's pink.
   for (var d3 = 0; d3 < DOMAINS.length; d3++) {
     var dom3 = DOMAINS[d3];
     var cg = doc.cellStyleGroups.itemByName(dom3); if (!cg.isValid) cg = doc.cellStyleGroups.add({ name: dom3 });
@@ -186,9 +215,16 @@ try {
     var cs = cg.cellStyles.itemByName("encadre"); if (!cs.isValid) cs = cg.cellStyles.add({ name: "encadre" });
     cs.fillColor = DOMAIN_SWATCH[dom3]; cs.fillTint = 25;
     var ts = tg.tableStyles.itemByName("encadre"); if (!ts.isValid) ts = tg.tableStyles.add({ name: "encadre" });
-    ts.bodyRegionCellStyle = cs;
+    noRules(cs, ts);
   }
-  say("table style encadre per domain (fill at 25% — approximated, to check)");
+  // `item`: an invisible two-column grid — the opening questions beside their scene, a directive
+  // beside its picture row. Same in every domain, so it lives once, at the top level.
+  var itemCell = doc.cellStyles.itemByName("item"); if (!itemCell.isValid) itemCell = doc.cellStyles.add({ name: "item" });
+  itemCell.fillColor = "None";
+  itemCell.verticalJustification = VerticalJustification.CENTER_ALIGN;
+  var itemTable = doc.tableStyles.itemByName("item"); if (!itemTable.isValid) itemTable = doc.tableStyles.add({ name: "item" });
+  noRules(itemCell, itemTable);
+  say("table styles: encadre per domain (fill at 25% — approximated, to check), item at the top level; no rules on either");
 
   // 7. The model page: three named frames on the AN master. The server clones this page per lesson.
   var model = doc.pages.add(LocationOptions.AT_END);
