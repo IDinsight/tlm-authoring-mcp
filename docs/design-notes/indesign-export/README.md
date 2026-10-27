@@ -1,8 +1,9 @@
 # InDesign export — the server writes an `.idml` the designer finishes
 
-**Status:** Proposal (2026-10-27). Nothing is built. Step 1 — the designer turns the pilot file into
-a styled template — is described in [`brief-maquettiste.md`](brief-maquettiste.md) (French, for the
-designer). The four decisions the spike needed are settled — see *Decisions*.
+**Status:** Proposal (2026-10-27). Step 1, the styled template, is **built** — by script, since
+there is no designer on this (`backend/scripts/indesign/build-gabarit.jsx`; what it produced and what
+is left to check by eye are in the *Template checklist*). The renderer is not built. The four
+decisions the spike needed are settled — see *Decisions*.
 
 ## The problem
 
@@ -22,12 +23,13 @@ was not saved.
 |---|---|---|
 | Page | 200 × 275 mm, 13 pages: a cover, then about one page per lesson, plus integration pages | One lesson fits one page. Our Word book keeps two, by design; the InDesign book overrides the break (see *Decisions*) |
 | Masters | 7 master pages, one per maths domain: `A-AN`, `B-Géo`, `C-Mesure`, `D-RP`, `E-INT AN`, `F-INT GEO`, plus `A-Gabarit` | The domain picks the master and its colour. In the graph that is the lesson's grouping |
-| Styles | **One** paragraph style (`puces`). Every other piece of text is formatted by hand, in Andika | Nothing can be filled by a program until the styles exist. This is the designer's step 1 |
+| Styles | **One** paragraph style (`puces`). Every other piece of text is formatted by hand, in Andika | Nothing can be filled by a program until the styles exist. That is step 1 |
 | Colours | Only one colour is named (`Activite Numerique`). The other domains use raw CMYK values | The domain colours need names too |
 | Text | Each directive is its own free-floating text frame (about 15 per spread), not linked to the others | There is no flow: moving one item means moving everything under it by hand |
-| Pictures | About 150 pictures, **97 embedded** in the file (that is why it weighs 111 MB) | Pictures must be **linked** files, so we can supply them |
+| Pictures | 409 picture placements, **all linked** to files in `Links/` (9 links are missing in the pilot itself). The file weighs 111 MB from the previews InDesign keeps of each link | Linked is what we need: we supply our pictures the same way |
 | Picture rows | Each cell of a 3-picture row is its own frame. The answer signs (☒ ◯ ⊖) are small vector drawings, repeated under every cell | We hold the row as one assembled picture (`bande`), and that is what we send (see *Decisions*) |
-| *Je retiens* | Composed by hand: an oval plus a dozen small fruit pictures placed one by one | We hold it as one picture. The designer may keep composing it |
+| *Je retiens* | Composed by hand: an oval plus a dozen small fruit pictures placed one by one | We hold it as one picture, and send that |
+| Text formatting | Andika throughout: 12 pt for questions, directives and labels; 14 pt bold for the title; 9 pt for the footer. **Text is black or white in every domain**; only the coloured *frames* (title band, number tab, evaluation box, markers) change with the domain | Paragraph styles are shared; the per-domain set is object and table styles (see *Decisions*, 3) |
 
 The page is the same grid every time, and it is the grid our pupil page template already describes
 (`backend/test/fixtures/senegal-pupil-layout.json`, see [`layout-templates.md`](../layout-templates.md)):
@@ -79,22 +81,24 @@ in the **designer's template file**. The formatter only points at that file. For
 pupil formatter would gain
 `render.indesign.template: "assets/gabarit-eleve.idml"`, a path in the namespace's bucket.
 
-The template file is the contract. It must contain:
+The template file is the contract. It must contain (the template built in step 1 has all of these;
+the *Template checklist* lists them by name):
 
 - **Paragraph and character styles named exactly as the formatter's styles**: `en-tete`,
   `directive`, `question-orale`, …. A block with `style: "directive"` becomes a paragraph with the
   InDesign style `directive`. If the template has no style of that name, the export is **refused**,
   naming the style. An unstyled page that looks finished is the failure the Word renderer already
   refuses.
-  The header is the one exception: the designer sets it as two frames (the tab « Lesoŋ 1 » and the
+  The header is the one exception: the pilot sets it as two frames (the tab « Lesoŋ 1 » and the
   title band), so our single `en-tete` line becomes two styles, `numero-lecon` and `titre-lecon`.
-  The brief also asks for `evaluation`, `etiquette` and `pied-de-page`, which the pilot uses and our
-  Word template does not. The pupil formatter's `layout` gains those names when the template arrives.
-- **Object styles named after the picture roles**: `amorce`, `bande`, `je-retiens`, `picto-section`,
-  `repere`. The size and the text wrap of each picture come from its object style.
-- **A table style `encadre`** for the boxes.
-- **Master pages named per domain**, **named colours** per domain, and the styles that change
-  colour **grouped by domain** (`AN/…`, `GEO/…`; see *Decisions*).
+  The pilot also uses `evaluation`, `etiquette` and `pied-de-page`, which our Word template does not.
+  The InDesign book's formatter `layout` uses those names.
+- **Object styles named after the picture roles**: `amorce`, `bande`, `je-retiens`, `picto-section`.
+  The size and the text wrap of each picture come from its object style.
+- **Object styles for the coloured frames, one set per domain**: `AN/bandeau-titre`,
+  `AN/onglet-numero`, `AN/encadre-evaluation`, `AN/repere`, and the same under `GEO/`, `MESURE/`, `RP/`.
+- **A table style `encadre` per domain** (`AN/encadre`, …) for the *je retiens* box.
+- **Master pages named per domain** and **named colours** per domain.
 - **One model page with named frames**: `numero-lecon`, `titre-lecon` and `corps`. The first two
   are filled per lesson. `corps` is where the rest of the page flows.
 
@@ -122,7 +126,8 @@ That gives the reuse we want without inventing anything:
 
 How the file gets there, in the order an expert meets it:
 
-1. The designer delivers `gabarit-eleve.idml`.
+1. Someone produces `gabarit-eleve.idml` — today, the build script on a Mac with InDesign; later,
+   perhaps a designer.
 2. A curator uploads it to the workspace bucket (`create_media_upload_url`, under `assets/`). Then
    they point the formatter at it with `edit_nodes` — `render.indesign.template`. This is the plugin's
    *composer un document › changer la mise en forme* step, which already covers the `render` bag.
@@ -189,7 +194,7 @@ with a red `+`.
 
 ## Decisions (2026-10-27)
 
-Settled with the user, so the designer's brief now states them rather than asks.
+Settled with the user.
 
 1. **One lesson, one page — in the InDesign book only.** The designer's pilot fits each lesson on
    one page. The Word pupil book (« Outil de l'élève ») stays at two: its formatter says so (« sur
@@ -202,11 +207,13 @@ Settled with the user, so the designer's brief now states them rather than asks.
 2. **A row of pictures arrives as one combined image**, the `bande` the graph already holds with its
    ☒ ◯ ⊖ signs. It needs no new data. The designer moves the row as a whole. Splitting rows into
    separate cells stays possible later if the designer finds they adjust single cells often.
-3. **One style set per domain.** In InDesign a paragraph style has a fixed colour; it cannot take
-   one from the page. So the designer groups the styles by domain — `AN/titre-lecon`,
-   `GEO/titre-lecon`, and so on — and the server picks the group from the lesson's unit. A style
-   whose colour does not change across domains (a directive in black) can live once, outside any
-   group: the server looks in the lesson's group first, then at the top level.
+3. **One style set per domain.** In InDesign a style has a fixed colour; it cannot take one from
+   the page. So the styles that carry the domain colour are grouped by domain and the server picks
+   the group from the lesson's unit, looking in that group first and then at the top level. Reading
+   the pilot settled *which* styles those are: its text is black or white in every domain, so the
+   **paragraph styles are shared**. What changes colour is the frames — title band, number tab,
+   evaluation box, markers, *je retiens* box — so the per-domain set is `AN/bandeau-titre`,
+   `GEO/bandeau-titre`, …, object and table styles.
 4. **The template lives in the workspace's own file storage**, under `assets/`, next to the
    pictograms. A formatter copied into another workspace keeps pointing at the original file until
    someone copies the file too. There is no shared storage across workspaces, and this does not
@@ -216,11 +223,57 @@ Settled with the user, so the designer's brief now states them rather than asks.
 
 | Step | Who | Result |
 |---|---|---|
-| 1. Styled template | Designer, following the brief | `gabarit-eleve.idml` with the named styles, frames and colours, and lesson 1 rebuilt on them |
-| 2. Spike | Server | Lesson 1 written by hand-made code from `compose_section`'s tree into the template. Opened in InDesign and compared with the designer's page 2 |
+| 1. Styled template | **Done** — build script, in InDesign | `gabarit-eleve.idml` with the named styles, colours and the model page; see *Template checklist* |
+| 2. Spike | Server | Lesson 1 written by hand-made code from `compose_section`'s tree into the template. Opened in InDesign and compared with the pilot's page 2. This is also the rebuild of lesson 1 that a designer would otherwise have done |
 | 3. Renderer | Server | `render/idml.ts` beside `render/docx.ts`; `render_document` gains `format: "idml"` and returns the package |
 | 4. Measure | Server + Mac | A script that opens the file in InDesign and reports pages and overflowing text, like `measure:true` |
 | 5. Read back | Server | `propose_from_document` reads the tags from a corrected `.idml` |
 
 Step 2 is the real test. If one lesson does not come out close to the designer's page, the rest of
 the plan changes.
+
+## Template checklist
+
+What step 1 has to produce, and where it stands. Built on 2026-10-27 by
+`backend/scripts/indesign/build-gabarit.jsx` from a copy of the pilot; the pilot itself is not
+modified (checked by checksum). Output in the pilot's folder, under `gabarit/`: `gabarit-eleve.indd`,
+`.indt`, `.idml`, three preview pages and `rapport.txt`.
+
+**Built and checked**
+
+- [x] **7 paragraph styles**, each copied from a real paragraph of the pilot: `numero-lecon` (Andika
+  Bold 12, white), `titre-lecon` (Andika Bold 14, white, capitals), `question-orale`, `directive`,
+  `etiquette` (Andika Regular 12, black), `evaluation` (Andika Regular 12, white), `pied-de-page`
+  (Andika Regular 9, black).
+- [x] **Applied to the pilot's pages**: 121 text frames on the lesson pages and 28 footer frames on
+  the masters. Applied *without* clearing the hand formatting, and each paragraph's look put back
+  after. The first try cleared it and slid directives under their ★ ▲ ● markers, because their
+  indent came from the old `puces` style. Pages 2 and 4 were compared with the pilot and match.
+- [x] **Domain colours named**: `Activite Numerique`, `Geometrie`, `Mesure`,
+  `Resolution de problemes`.
+- [x] **Object styles**: `amorce`, `bande`, `je-retiens`, `picto-section`, and per domain
+  `bandeau-titre`, `onglet-numero`, `encadre-evaluation`, `repere`. Each touches only fill, stroke and
+  paragraph style: a new object style switches every category on, and applying one reset the
+  markers' text wrap. 96 coloured frames and markers on the pilot pages are tagged with them.
+- [x] **Table and cell style `encadre`** per domain.
+- [x] **7 master pages** kept as they are.
+- [x] **Model page** (page 14, master `A-AN`) with three named frames: `numero-lecon`, `titre-lecon`,
+  `corps`.
+- [x] **Pictures are linked**, not embedded, so there is nothing to unembed. An earlier reading of
+  this note said 97 were embedded; that was wrong.
+
+**Left to check or decide**
+
+- [ ] The *je retiens* box fill is set at 25% of the domain colour, by eye. Compare it with the
+  pilot's pink before relying on it.
+- [ ] Title-band tint differs between domains in the pilot (70% for AN and Mesure, 60% for RP, 100%
+  for Géo). The template keeps what each domain's first page uses. Decide whether that is intended
+  or should be one tint.
+- [ ] 9 picture links are missing in the pilot itself (`bouteille d'eau.png`, `devant:derrière.psd`,
+  `garcon:fille 9.png`, `fille2:garcon1.png`). They do not affect the template; they affect only the
+  pilot's own sample pages.
+- [ ] The pictures' size per role (`amorce` about 99 × 49 mm in the pilot, a picture row about
+  100 × 22 mm, a pictogram 13 mm) is not in the object styles yet. Step 2 decides whether size lives
+  in the object style or in the formatter's `render` bag.
+- [ ] The template is 116 MB because it still carries the pilot's 13 pages as samples. The export
+  only needs its styles, masters and model page; step 2 decides whether to strip the samples.
