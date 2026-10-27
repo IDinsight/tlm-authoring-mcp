@@ -31,6 +31,17 @@ describe("Firestore shape — arrays nested in arrays", () => {
     expect(fromFirestoreShape(node)).toEqual(node);
   });
 
+  it("unwraps a nested list whose own content was folded — a page template deep enough to fold", () => {
+    // A table whose rows sit at the depth where a fold begins: the fold lands on
+    // the wrapped list itself, so the stored wrapper holds a folded string, not a list.
+    let deepCell: unknown = { runs: [{ image: { asset: { byRank: ["a.svg", "b.svg"] } } }] };
+    for (let level = 0; level < 4; level += 1) deepCell = { blocks: [deepCell] };
+    const node = { id: "x", properties: { raw: { layout: { templates: [{ blocks: [{ kind: "table", rows: [[deepCell, deepCell]] }] }] } } } };
+    const stored = JSON.parse(JSON.stringify(toFirestoreShape(node)));
+    expect(JSON.stringify(stored)).toContain(FOLDED_JSON_KEY);   // it really was folded
+    expect(fromFirestoreShape(stored)).toEqual(node);
+  });
+
   it("handles three levels and empty inner arrays", () => {
     const deep = { grid: [[[1, 2], []], [[3]]] };
     const stored = toFirestoreShape(deep);

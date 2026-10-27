@@ -91,8 +91,14 @@ export function fromFirestoreShape<T>(value: T): T {
   if (Array.isArray(value)) return value.map(fromFirestoreShape) as unknown as T;
   if (isPlainObject(value)) {
     const keys = Object.keys(value);
-    if (keys.length === 1 && keys[0] === NESTED_ARRAY_KEY && Array.isArray(value[NESTED_ARRAY_KEY])) {
-      return fromFirestoreShape(value[NESTED_ARRAY_KEY]) as T;
+    // Unfold the wrapper's content BEFORE asking whether it is a list: when a deep
+    // document is folded, the fold can land on the wrapped list itself, leaving
+    // `{ $array: { $json: "…" } }`. Checking for a list first left that wrapper
+    // in place — the first page template deep enough to be folded (the InDesign
+    // book's, 2026-10-27) read back with every table row as `{ $array: … }`.
+    if (keys.length === 1 && keys[0] === NESTED_ARRAY_KEY) {
+      const inner = fromFirestoreShape(value[NESTED_ARRAY_KEY]);
+      if (Array.isArray(inner)) return inner as T;
     }
     if (keys.length === 1 && keys[0] === FOLDED_JSON_KEY && typeof value[FOLDED_JSON_KEY] === "string") {
       // The folded subtree was wrapped before it was folded, so it is unwrapped on the way out too.
