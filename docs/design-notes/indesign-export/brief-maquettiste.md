@@ -38,6 +38,13 @@ et avec les tirets :
 S'il existe une autre sorte de texte que nous n'avons pas vue, créez-lui un style et notez-le (voir
 « Questions » plus bas).
 
+**Un groupe de styles par domaine.** Dans InDesign, un style a une couleur fixe : il ne peut pas
+prendre celle de la page. Les styles qui changent de couleur selon le domaine se rangent donc dans un
+**groupe de styles par domaine**, avec les mêmes noms dans chaque groupe : `AN/titre-lecon`,
+`GEO/titre-lecon`, `MESURE/titre-lecon`, `RP/titre-lecon`. Le programme choisit le groupe d'après le
+domaine de la leçon. Un style qui reste identique partout (une consigne en noir, par exemple) se crée
+une seule fois, hors de tout groupe.
+
 Puis **appliquez ces styles aux pages du pilote** et retirez les mises en forme locales. Dans le
 panneau Styles de paragraphe, aucun nom ne doit garder le petit « + » qui signale une retouche à la
 main.
@@ -49,7 +56,7 @@ Une image est dimensionnée et habillée par son style d'objet. Créez :
 | Nom du style d'objet | Ce que c'est |
 |---|---|
 | `amorce` | La grande image du début de leçon |
-| `bande` | Une rangée d'images d'un exercice (les 3 ou 4 cases et leurs signes ☒ ◯ ⊖) |
+| `bande` | Une rangée d'images d'un exercice. Elle arrive **en une seule image**, cases et signes ☒ ◯ ⊖ compris |
 | `je-retiens` | L'image de l'encadré rose « je retiens » |
 | `picto-section` | Les pictogrammes de la marge gauche (tableau, lecture, crayon, ampoule, évaluation) |
 | `repere` | Les formes devant les consignes : ★ ▲ ■ ● ♥ ☾ |
@@ -107,16 +114,20 @@ ses images de la même façon, dans un dossier `Links` à côté du fichier.
 
 Le pilote d'origine reste tel quel : travaillez sur une copie.
 
+## Ce qui est déjà décidé
+
+- **Une leçon tient sur une page**, comme dans votre pilote.
+- **Une rangée d'images arrive en une seule image**, signes ☒ ◯ ⊖ compris. Vous la déplacez d'un
+  bloc. Si vous constatez que vous retouchez souvent une case seule, dites-le : on pourra fournir les
+  cases séparément plus tard.
+- **Un groupe de styles par domaine** pour tout ce qui change de couleur (voir la partie 1).
+
 ## Questions pour vous
 
 Répondez dans un court message, cela nous aide à écrire le programme :
 
-1. **Une leçon tient-elle toujours sur une seule page ?** Ou certaines en demandent-elles deux ?
-2. **La couleur du domaine** : préférez-vous un seul jeu de styles, dont la couleur vient du gabarit
-   de page, ou un jeu de styles par domaine (`AN/directive`, `GEO/directive`…) ?
-3. **Les rangées d'images** : est-ce que vous ajustez souvent une case à la main ? Ou une rangée
-   peut-elle arriver déjà assemblée, en une seule image, avec ses signes ☒ ◯ ⊖ ?
-4. **L'encadré « je retiens »** : le composez-vous toujours à la main, fruit par fruit ? Ou une seule
+1. **L'encadré « je retiens »** : le composez-vous toujours à la main, fruit par fruit ? Ou une seule
    image fournie vous conviendrait-elle ?
-5. **Les polices** : Andika partout pour le texte de l'élève ? À quoi servent Advert-Bold et Minion
+2. **Les polices** : Andika partout pour le texte de l'élève ? À quoi servent Advert-Bold et Minion
    Pro ?
+3. **Une sorte de texte ou d'image que nous aurions oubliée** dans les tableaux ci-dessus ?

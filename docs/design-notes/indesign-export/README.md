@@ -2,7 +2,7 @@
 
 **Status:** Proposal (2026-10-27). Nothing is built. Step 1 — the designer turns the pilot file into
 a styled template — is described in [`brief-maquettiste.md`](brief-maquettiste.md) (French, for the
-designer). The decisions under *Open decisions* need an answer before the spike in step 2.
+designer). The four decisions the spike needed are settled — see *Decisions*.
 
 ## The problem
 
@@ -20,13 +20,13 @@ was not saved.
 
 | | What it is | What that means for us |
 |---|---|---|
-| Page | 200 × 275 mm, 13 pages: a cover, then about one page per lesson, plus integration pages | One lesson fits one page. Our Word template breaks before *Tu fais* and so gives two (see *Open decisions*) |
+| Page | 200 × 275 mm, 13 pages: a cover, then about one page per lesson, plus integration pages | One lesson fits one page. Our Word template breaks before *Tu fais* and so gives two (see *Decisions*) |
 | Masters | 7 master pages, one per maths domain: `A-AN`, `B-Géo`, `C-Mesure`, `D-RP`, `E-INT AN`, `F-INT GEO`, plus `A-Gabarit` | The domain picks the master and its colour. In the graph that is the lesson's grouping |
 | Styles | **One** paragraph style (`puces`). Every other piece of text is formatted by hand, in Andika | Nothing can be filled by a program until the styles exist. This is the designer's step 1 |
 | Colours | Only one colour is named (`Activite Numerique`). The other domains use raw CMYK values | The domain colours need names too |
 | Text | Each directive is its own free-floating text frame (about 15 per spread), not linked to the others | There is no flow: moving one item means moving everything under it by hand |
 | Pictures | About 150 pictures, **97 embedded** in the file (that is why it weighs 111 MB) | Pictures must be **linked** files, so we can supply them |
-| Picture rows | Each cell of a 3-picture row is its own frame. The answer signs (☒ ◯ ⊖) are small vector drawings, repeated under every cell | We hold the row as one assembled picture (`bande`). See *Open decisions* |
+| Picture rows | Each cell of a 3-picture row is its own frame. The answer signs (☒ ◯ ⊖) are small vector drawings, repeated under every cell | We hold the row as one assembled picture (`bande`), and that is what we send (see *Decisions*) |
 | *Je retiens* | Composed by hand: an oval plus a dozen small fruit pictures placed one by one | We hold it as one picture. The designer may keep composing it |
 
 The page is the same grid every time, and it is the grid our pupil page template already describes
@@ -93,7 +93,8 @@ The template file is the contract. It must contain:
 - **Object styles named after the picture roles**: `amorce`, `bande`, `je-retiens`, `picto-section`,
   `repere`. The size and the text wrap of each picture come from its object style.
 - **A table style `encadre`** for the boxes.
-- **Master pages named per domain**, and **named colours** per domain.
+- **Master pages named per domain**, **named colours** per domain, and the styles that change
+  colour **grouped by domain** (`AN/…`, `GEO/…`; see *Decisions*).
 - **One model page with named frames**: `numero-lecon`, `titre-lecon` and `corps`. The first two
   are filled per lesson. `corps` is where the rest of the page flows.
 
@@ -186,22 +187,25 @@ three ways to get that measure:
 Phase 1 uses the first. The designer opens the file anyway, and InDesign marks an overflowing frame
 with a red `+`.
 
-## Open decisions
+## Decisions (2026-10-27)
 
-To settle with the user before the spike:
+Settled with the user, so the designer's brief now states them rather than asks.
 
-1. **One page per lesson, or two?** The pilot fits a lesson on one page. Our Word template breaks
-   before *Tu fais*. If the pilot is right, the template's `pageBreak` moves.
-2. **Picture rows: one assembled picture or separate cells?** Placing the assembled `bande` needs no
-   new data and is what Word does. Separate cells are what the designer does today and are easier to
-   adjust in InDesign, but they need the cells as separate files plus the answer signs as their own
-   pictures. Proposal: one picture first, cells later if the designer asks.
-3. **Domain colour.** One set of styles whose colour comes from the master, or one set of styles per
-   domain (`AN/directive`, `GEO/directive`)? This is the designer's call. Ask in the brief.
-4. **Workspace bucket or shared bucket?** The formatter is shared through the catalog, but the file
-   lives in one workspace's bucket. Proposal: the workspace that owns the formatter holds the file.
-   A formatter copied into another workspace keeps pointing at the original until someone copies the
-   file too. Pictograms work the same way today.
+1. **One lesson, one page.** The designer's pilot is the book that gets printed, and it fits each
+   lesson on one page. Our Word page template breaks before *Tu fais* and so gives two pages. That
+   break is removed from the pupil formatter's `layout` (a graph edit, separate from this note).
+2. **A row of pictures arrives as one combined image**, the `bande` the graph already holds with its
+   ☒ ◯ ⊖ signs. It needs no new data. The designer moves the row as a whole. Splitting rows into
+   separate cells stays possible later if the designer finds they adjust single cells often.
+3. **One style set per domain.** In InDesign a paragraph style has a fixed colour; it cannot take
+   one from the page. So the designer groups the styles by domain — `AN/titre-lecon`,
+   `GEO/titre-lecon`, and so on — and the server picks the group from the lesson's unit. A style
+   whose colour does not change across domains (a directive in black) can live once, outside any
+   group: the server looks in the lesson's group first, then at the top level.
+4. **The template lives in the workspace's own file storage**, under `assets/`, next to the
+   pictograms. A formatter copied into another workspace keeps pointing at the original file until
+   someone copies the file too. There is no shared storage across workspaces, and this does not
+   need one.
 
 ## The plan
 
