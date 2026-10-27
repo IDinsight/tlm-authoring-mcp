@@ -75,7 +75,12 @@ type SectionFacts = {
   grouping: RawNode | undefined;
   pictures: SectionPicture[];
   rank: number;   // 1-based, among siblings the same template matched
+  last: boolean;  // the last of those siblings
 };
+
+/** Whether a block's `when` keeps it for this section. */
+const keptFor = (when: { rank?: number; last?: boolean } | undefined, facts: SectionFacts): boolean =>
+  !when || ((when.rank === undefined || when.rank === facts.rank) && (when.last === undefined || when.last === facts.last));
 
 function childrenOf(raw: RawGraphSnapshot, parentId: string): RawNode[] {
   const ids = raw.relationships.filter((e) => e.type === CONTAINMENT && e.start === parentId).map((e) => e.end);
@@ -256,7 +261,7 @@ async function fillBlocks(blocks: TemplateBlock[], facts: SectionFacts, filler: 
       for (const item of compiled.report.unresolved) filler.problems.push(`« ${titleOf(facts.section)} »: ${item.reason} — « ${item.line} »`);
       continue;
     }
-    if ((block.kind === "line" || block.kind === "table") && block.when && block.when.rank !== facts.rank) continue;
+    if ((block.kind === "line" || block.kind === "table") && !keptFor(block.when, facts)) continue;
     if (block.kind === "spacer") { out.push({ kind: "spacer", sizePt: block.sizePt, leadingPt: block.leadingPt }); continue; }
     if (block.kind === "clear") { out.push({ kind: "clear" }); continue; }
     if (block.kind === "table") {
@@ -294,10 +299,10 @@ async function fillBlocks(blocks: TemplateBlock[], facts: SectionFacts, filler: 
 const matches = (template: LayoutTemplate, section: RawNode): boolean =>
   template.match.section === undefined || new RegExp(template.match.section, "u").test(titleOf(section));
 
-function factsFor(model: CurriculumModel, raw: RawGraphSnapshot, section: RawNode, rank: number): SectionFacts {
+function factsFor(model: CurriculumModel, raw: RawGraphSnapshot, section: RawNode, rank: number, last: boolean): SectionFacts {
   const covered = coveredBy(raw, section.id);
   return {
-    section, covered, rank,
+    section, covered, rank, last,
     grouping: covered ? parentOf(raw, covered.id) : undefined,
     pictures: picturesFor(model, section.id) ?? [],
   };
@@ -328,25 +333,32 @@ export async function composeSection(model: CurriculumModel, sectionId: string, 
   const childTemplates = templates.filter((t) => !t.match.root);
   const rootTemplates = templates.filter((t) => t.match.root);
 
-  // Children first: rank counts, per template, how many earlier siblings it filled.
+  // Children first. Each is matched to its template before any is filled, so a
+  // section knows both its rank among the siblings its template fills and
+  // whether it is the last of them (`when.last`).
+  const children = childrenOf(raw, sectionId)
+    .filter((child) => labelsOf(child).includes(SECTION_LABEL))
+    .map((child) => ({ child, template: childTemplates.find((t) => matches(t, child)) }));
+  const totalPerTemplate = new Map<string, number>();
+  for (const { template } of children) if (template) totalPerTemplate.set(template.name, (totalPerTemplate.get(template.name) ?? 0) + 1);
+
   const filledPerTemplate = new Map<string, number>();
   const childBlocks: Block[] = [];
-  for (const child of childrenOf(raw, sectionId)) {
-    if (!labelsOf(child).includes(SECTION_LABEL)) continue;
-    const template = childTemplates.find((t) => matches(t, child));
+  for (const { child, template } of children) {
     if (!template) {
       result.unfilled.push({ id: child.id, title: titleOf(child), guide: String((props(child).metadata as Record<string, unknown> | undefined)?.assemblyGuide ?? "") });
       continue;
     }
     const rank = (filledPerTemplate.get(template.name) ?? 0) + 1;
     filledPerTemplate.set(template.name, rank);
-    childBlocks.push(...await fillBlocks(template.blocks, factsFor(model, raw, child, rank), filler, []));
+    const last = rank === totalPerTemplate.get(template.name);
+    childBlocks.push(...await fillBlocks(template.blocks, factsFor(model, raw, child, rank, last), filler, []));
     result.used.push({ sectionId: child.id, title: titleOf(child), template: template.name });
   }
 
   const root = rootTemplates.find((t) => matches(t, section));
   if (root) {
-    result.blocks = await fillBlocks(root.blocks, factsFor(model, raw, section, 1), filler, childBlocks);
+    result.blocks = await fillBlocks(root.blocks, factsFor(model, raw, section, 1, true), filler, childBlocks);
     result.used.unshift({ sectionId: section.id, title: titleOf(section), template: root.name });
   } else {
     result.blocks = childBlocks;

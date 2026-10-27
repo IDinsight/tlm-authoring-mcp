@@ -263,21 +263,45 @@ const overflowSchema = z.object({
  * Paths are relative to the namespace's documents/ area, like a media relPath.
  *
  * `styleGroup` says which of the template's per-domain style groups a page uses
- * (`AN/repere` against `GEO/repere`), read off the covered curriculum node: `from`
- * is a property path on it, `map` turns its value into a group name. Declared as
- * data because the domain is already in the graph, and a group passed by hand
- * per call colours a lesson in the wrong domain without a sound.
+ * (`AN/repere` against `GEO/repere`), read off what the page covers, two ways:
+ *   • `from` — a property path on the covered node;
+ *   • `standard.statementType` — the name of the nearest standard of that type
+ *     above the standard the covered node aligns to. On ci/maths the domain is
+ *     not a lesson property: lesson 1 aligns to an objective under the « Domaine »
+ *     standard « Arithmétique ».
+ * `map` turns the value into a group name. Declared as data because the domain is
+ * already in the graph, and a group passed by hand per call colours a lesson in
+ * the wrong domain without a sound.
  */
 const indesignSchema = z.object({
   template: z.string().min(1),
   // Font files packed beside the .idml, so InDesign does not substitute them.
   // Only fonts whose licence allows it: the package is handed to whoever opens it.
   fonts: z.array(z.string().min(1)).optional(),
-  styleGroup: z.object({
-    from: z.string().min(1),
-    map: z.record(z.string(), z.string().min(1)),
-  }).strict().optional(),
+  styleGroup: z.union([
+    z.object({ from: z.string().min(1), map: z.record(z.string(), z.string().min(1)) }).strict(),
+    z.object({ standard: z.object({ statementType: z.string().min(1) }).strict(), map: z.record(z.string(), z.string().min(1)) }).strict(),
+  ]).optional(),
 }).strict();
+
+/*
+ * What a document can be produced as. A formatter marked `metadata.onlyForFormat`
+ * counts only when producing that format (curriculum/documents.ts::formatterStackFor):
+ * the pupil book is two pages a lesson in Word and one in InDesign, from one document.
+ */
+export const RENDER_FORMATS = ["docx", "idml"] as const;
+export type RenderFormat = (typeof RENDER_FORMATS)[number];
+
+/** Errors for a `metadata.onlyForFormat` in a properties bag, however it was written. */
+export function validateFormatScopeInBag(properties: Record<string, unknown> | undefined, tool: string): string[] {
+  if (!properties) return [];
+  const metadata = properties.metadata as Record<string, unknown> | undefined;
+  const value = "metadata.onlyForFormat" in properties ? properties["metadata.onlyForFormat"] : metadata?.onlyForFormat;
+  if (value === undefined) return [];
+  return (RENDER_FORMATS as readonly unknown[]).includes(value)
+    ? []
+    : [`${tool}: 'metadata.onlyForFormat' must be one of ${RENDER_FORMATS.map((f) => `'${f}'`).join(", ")} — a misspelt format would leave the formatter applying to no output at all.`];
+}
 
 /** The whole declarative half. Every group optional; unknown keys refused. */
 export const renderSpecSchema = z.object({

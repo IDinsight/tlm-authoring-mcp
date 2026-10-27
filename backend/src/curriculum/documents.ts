@@ -28,6 +28,7 @@
  * walk" separation, expressed additively — courseSubgraph is left untouched).
  */
 import type { CurriculumModel, RawGraphSnapshot } from "../types.js";
+import { RENDER_FORMATS, type RenderFormat } from "../kg-recipes/index.js";
 import { nodeOut, edgeOut, nodeSkeleton, type NodeOut, type EdgeOut } from "./read-projection.js";
 import { answerSignsOf } from "./lint-page.js";
 import { responseBytes, pageBudgetBytes, imageMimeFor } from "../utils/index.js";
@@ -670,7 +671,25 @@ function documentAncestry(raw: RawGraphSnapshot, sectionId: string): DocumentAnc
  * nearest wins; a set has no order, so resolving a stack out of it would let two
  * specs that disagree resolve differently from one read to the next.
  */
-function ownFormattersInOrder(raw: RawGraphSnapshot, rootId: string): string[] {
+/*
+ * The output format a formatter is limited to, if any. One document can be produced as
+ * a Word file and as an InDesign package with different page structures (the pupil book:
+ * two pages per lesson in Word, one in InDesign). A formatter marked
+ * `metadata.onlyForFormat: "idml"` counts only when producing that format, so the Word
+ * book cannot change by accident when the InDesign one does.
+ */
+export { RENDER_FORMATS, type RenderFormat };
+const formatScopeOf = (node: RawNode): unknown => {
+  const p = props(node);
+  return p.metadata?.onlyForFormat ?? p.raw?.metadata?.onlyForFormat;
+};
+// No format asked for (a read that lists formatters): every one counts.
+const countsFor = (node: RawNode, format: RenderFormat | undefined): boolean => {
+  const scope = formatScopeOf(node);
+  return format === undefined || scope === undefined || scope === format;
+};
+
+function ownFormattersInOrder(raw: RawGraphSnapshot, rootId: string, format?: RenderFormat): string[] {
   const childrenOf = new Map<string, RawNode[]>();
   for (const e of raw.relationships) {
     if (e.type !== DOCUMENT_EDGE) continue;
@@ -687,6 +706,8 @@ function ownFormattersInOrder(raw: RawGraphSnapshot, rootId: string): string[] {
       if (seen.has(node.id)) continue;
       seen.add(node.id);
       if (labelsOf(node).includes(SECTION_LABEL)) continue;   // wall: a sibling section's own subtree
+      // A formatter limited to another format is skipped with its specs.
+      if (!countsFor(node, format)) continue;
       if (labelsOf(node).some((l) => FORMATTER_LABELS.has(l))) found.push(node.id);
       visit(node.id);
     }
@@ -706,13 +727,13 @@ function ownFormattersInOrder(raw: RawGraphSnapshot, rootId: string): string[] {
  * reversed here rather than at every call site.
  */
 function formatterStackIds(
-  raw: RawGraphSnapshot, sectionId: string, ancestrySections: string[], tlmId: string | null,
+  raw: RawGraphSnapshot, sectionId: string, ancestrySections: string[], tlmId: string | null, format?: RenderFormat,
 ): string[] {
   const owners = [...(tlmId ? [tlmId] : []), ...[...ancestrySections].reverse(), sectionId];
   const seen = new Set<string>();
   const stack: string[] = [];
   for (const owner of owners) {
-    for (const id of ownFormattersInOrder(raw, owner)) {
+    for (const id of ownFormattersInOrder(raw, owner, format)) {
       if (seen.has(id)) continue;
       seen.add(id);
       stack.push(id);
@@ -771,8 +792,11 @@ function resolveSectionRoutine(
  * A section's stack runs from the document's own formatters down to its; a TLM
  * has only its doc-wide ones. Both are the same question, and a renderer should
  * not have to ask it two ways.
+ *
+ * `format` is what is being produced: formatters limited to another format are
+ * left out. Omitted (a read that lists them), every formatter is returned.
  */
-export function formatterStackFor(model: CurriculumModel, nodeId: string): RawNode[] | null {
+export function formatterStackFor(model: CurriculumModel, nodeId: string, format?: RenderFormat): RawNode[] | null {
   const raw = model.rawGraph;
   if (!raw) return null;
   const node = raw.nodes.find((n) => n.id === nodeId);
@@ -787,12 +811,35 @@ export function formatterStackFor(model: CurriculumModel, nodeId: string): RawNo
 
   if (labels.includes(SECTION_LABEL)) {
     const ancestry = documentAncestry(raw, nodeId);
-    return pick(formatterStackIds(raw, nodeId, ancestry.sections, ancestry.tlm?.id ?? null));
+    return formatSpecificLast(pick(formatterStackIds(raw, nodeId, ancestry.sections, ancestry.tlm?.id ?? null, format)), format);
   }
   if (labels.includes(TLM_LABEL)) {
-    return pick(ownFormattersInOrder(raw, nodeId));
+    return formatSpecificLast(pick(ownFormattersInOrder(raw, nodeId, format)), format);
   }
   return null;
+}
+
+/*
+ * A formatter written for one format is more specific than one written for every format,
+ * so, in a stack built for that format, it applies AFTER them and wins the merge — on the
+ * pupil book, the InDesign formatter's picture sizes must beat the Word production
+ * formatter's, wherever each sits among the document's children. The order within each
+ * group is kept. A specs-under-formatter pair stays together: a FormatterSpec inherits its
+ * Formatter's scope by sitting under it, and is moved with it.
+ */
+function formatSpecificLast(stack: RawNode[], format: RenderFormat | undefined): RawNode[] {
+  if (format === undefined) return stack;
+  const scopedIds = new Set(stack.filter((node) => formatScopeOf(node) === format).map((node) => node.id));
+  if (scopedIds.size === 0) return stack;
+  // A FormatterSpec follows its Formatter in the stack; it belongs to the group of the
+  // nearest Formatter before it.
+  const groupOf: boolean[] = [];
+  let inScoped = false;
+  for (const node of stack) {
+    if (labelsOf(node).includes("Formatter")) inScoped = scopedIds.has(node.id);
+    groupOf.push(inScoped || scopedIds.has(node.id));
+  }
+  return [...stack.filter((_, i) => !groupOf[i]), ...stack.filter((_, i) => groupOf[i])];
 }
 
 // Everything a per-section generation composes: the section node, the owning

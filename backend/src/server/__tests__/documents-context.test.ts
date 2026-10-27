@@ -292,6 +292,17 @@ describe("create_media_upload_url — an image the render tree references by rel
     expect(result.url).toBeUndefined();
   });
 
+  it("also signs an InDesign template and its fonts — under assets/ only", async () => {
+    const result = await callAs(SENEGAL_CURATOR, "create_media_upload_url", {
+      relPaths: ["assets/indesign/gabarit.idml", "assets/indesign/Andika-R.ttf"],
+      confirm: true,
+    });
+    const files = result.files as Array<Record<string, unknown>>;
+    expect(files.map((f) => f.contentType)).toEqual(["application/vnd.adobe.indesign-idml-package", "font/ttf"]);
+    const outside = await callAs(SENEGAL_CURATOR, "create_media_upload_url", { relPath: "media/gabarit.idml", confirm: true });
+    expect(String((outside.error as { message?: string })?.message ?? outside.error)).toMatch(/accepted only under 'assets\/'/);
+  });
+
   it("is gated to the NAMED namespace, so a role elsewhere cannot sign here", async () => {
     const result = await callAs(SENEGAL_CURATOR, "create_media_upload_url", {
       relPath: "media/a.png",

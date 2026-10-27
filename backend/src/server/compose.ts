@@ -21,7 +21,7 @@ import { getActiveAdapter } from "../adapters/index.js";
 import { activeWorkspace } from "../context/index.js";
 import { kgNamespace } from "../kg-store/index.js";
 import { resolveLayout } from "../kg-recipes/index.js";
-import { composeSection, formatterStackFor, resolveRef, type MediaRef, type FoundNode } from "../curriculum/index.js";
+import { composeSection, formatterStackFor, resolveRef, RENDER_FORMATS, type RenderFormat, type MediaRef, type FoundNode } from "../curriculum/index.js";
 import { imageAspectRatio, resolveRenderSpec } from "../render/index.js";
 import { getStorageAdapter } from "../storage/index.js";
 import { readActiveGraphWithSlot } from "./catalog.js";
@@ -32,6 +32,7 @@ const SECTION_LABELS = ["DocumentSection"];
 
 type ComposeArgs = WithContext & {
   section?: string;   // the section, by name (or id)
+  format?: RenderFormat;
 };
 
 function activeNamespace(): string {
@@ -69,7 +70,7 @@ async function composeResolved(a: ComposeArgs): Promise<Record<string, unknown>>
   const model = draft?.model ?? getActiveAdapter().model();
   const composedFrom = draft ? "draft" : "published";
 
-  const stack = formatterStackFor(model, resolved.id);
+  const stack = formatterStackFor(model, resolved.id, a.format ?? "docx");
   if (!stack) return { error: `'${resolved.id}' has no formatter stack in the ${composedFrom} graph.` };
   const layout = resolveLayout(stack);
   if (!layout.ok) {
@@ -143,6 +144,7 @@ export function registerComposeTools(server: McpServer) {
         "Reads the DRAFT when one is open, PUBLISHED otherwise (`composedFrom`). Curators and approvers only.",
       inputSchema: {
         section: z.string().optional(),
+        format: z.enum(RENDER_FORMATS).optional().describe("What the page is for: 'docx' (default) or 'idml'. A formatter limited to one format (`metadata.onlyForFormat`) counts only when composing for it — so the InDesign book's own page templates apply to its pages and never to the Word book's. Pass the same format to render_document."),
         ...contextField,
       },
     },

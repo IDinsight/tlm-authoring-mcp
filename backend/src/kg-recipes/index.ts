@@ -35,7 +35,7 @@ export {
 } from "./lc.js";
 
 // The formatter's declarative half — its schema, and the authoring-time check.
-export { renderSpecSchema, validateRenderSpec, validateRenderInBag, type RenderSpec } from "./render-spec.js";
+export { renderSpecSchema, validateRenderSpec, validateRenderInBag, validateFormatScopeInBag, RENDER_FORMATS, type RenderFormat, type RenderSpec } from "./render-spec.js";
 // The formatter's structural half — templates the composer fills from the graph.
 export { lintRuleSchema, lintRulesSchema, validateLintRules, validateLintRulesInBag, lintRulesOf, lineBreaks, type LintRule } from "./lint-rules.js";
 export { layoutSpecSchema, templateSchema, guideGrammarSchema, validateLayoutSpec, validateLayoutInBag, layoutBagOf, resolveLayout, type LayoutSpec, type LayoutTemplate, type TemplateBlock, type TemplateCell, type GuideGrammar } from "./layout-spec.js";

@@ -1,0 +1,450 @@
+{
+ "_how": "The add_nodes item that stages the InDesign book's formatter on « Outil de l'élève » (senegal/ci/maths). parentId is resolved by name at staging (find_node « Outil de l'élève », label TeachingLearningMaterial). Needs PR 303 deployed (render.indesign, when.last, metadata.onlyForFormat) and the files below uploaded under assets/. See docs/design-notes/indesign-export/README.md, step 3b.",
+ "uploads": {
+  "assets/indesign/gabarit-eleve-modele.idml": "gabarit/gabarit-eleve-modele.idml (build-gabarit.jsx)",
+  "assets/indesign/Andika-R.ttf": "gabarit/Document fonts/Andika-R.ttf (SIL Open Font License)",
+  "assets/indesign/Andika-Bold.ttf": "gabarit/Document fonts/Andika-Bold.ttf (SIL Open Font License)",
+  "assets/picto-evaluation.png": "the pilot's evalaution.ai, rendered to PNG — replace with an SVG master when there is one"
+ },
+ "item": {
+  "kind": "Formatter",
+  "parentName": "Outil de l'élève",
+  "description": "CI maths V2 — Outil de l'élève, mise en page InDesign",
+  "properties": {
+   "metadata.onlyForFormat": "idml",
+   "metadata.summary": "La mise en page du livre de l'élève dans InDesign : une leçon par page, dans le gabarit du maquettiste. La consigne à gauche de sa bande d'images ; les pictogrammes dans la marge ; la dernière question de TU FAIS imprimée comme l'encadré d'évaluation. Ne compte que pour un rendu InDesign (format idml) : le livre Word n'en est pas touché.",
+   "render": {
+    "indesign": {
+     "template": "assets/indesign/gabarit-eleve-modele.idml",
+     "fonts": [
+      "assets/indesign/Andika-R.ttf",
+      "assets/indesign/Andika-Bold.ttf"
+     ],
+     "styleGroup": {
+      "standard": {
+       "statementType": "Domaine"
+      },
+      "map": {
+       "Arithmétique": "AN",
+       "Géométrie": "GEO",
+       "Mesure": "MESURE",
+       "Résolution de problème": "RP"
+      }
+     }
+    },
+    "images": {
+     "inlineHeightCm": {
+      "amorce": 4.47,
+      "bande": 2.2,
+      "picto-section": 1.3,
+      "repere": 0.7
+     }
+    }
+   },
+   "layout": {
+    "templates": [
+     {
+      "name": "lecon",
+      "match": {
+       "section": "^V2 — Leçon",
+       "root": true
+      },
+      "blocks": [
+       {
+        "kind": "line",
+        "style": "numero-lecon",
+        "runs": [
+         {
+          "text": "{{covered.ordinalName|match:(Leçon \\d+)}}"
+         }
+        ]
+       },
+       {
+        "kind": "line",
+        "style": "titre-lecon",
+        "runs": [
+         {
+          "text": "{{covered.name}}"
+         }
+        ]
+       },
+       {
+        "kind": "children"
+       }
+      ]
+     },
+     {
+      "name": "je-fais",
+      "match": {
+       "section": "^JE FAIS"
+      },
+      "blocks": [
+       {
+        "kind": "table",
+        "style": "item",
+        "columnsCm": [
+         9.4,
+         8.2
+        ],
+        "rows": [
+         [
+          {
+           "blocks": [
+            {
+             "kind": "line",
+             "runs": [
+              {
+               "image": {
+                "role": "picto-section",
+                "asset": {
+                 "relPath": "assets/picto-je-fais.svg"
+                }
+               }
+              }
+             ]
+            },
+            {
+             "kind": "line",
+             "style": "question-orale",
+             "forEach": {
+              "of": "covered.content.lines",
+              "match": "^TEXTE IMPRIMÉ : "
+             },
+             "runs": [
+              {
+               "text": "{{item|match:^TEXTE IMPRIMÉ : (.+)$}}"
+              }
+             ]
+            },
+            {
+             "kind": "line",
+             "style": "question-orale",
+             "forEach": {
+              "of": "covered.content.lines",
+              "match": "^(\\d+\\.|Image [AB]$)"
+             },
+             "runs": [
+              {
+               "text": "{{item}}"
+              }
+             ]
+            }
+           ]
+          },
+          {
+           "blocks": [
+            {
+             "kind": "line",
+             "runs": [
+              {
+               "image": {
+                "role": "amorce",
+                "picture": "-amorce$"
+               }
+              }
+             ]
+            }
+           ]
+          }
+         ]
+        ]
+       }
+      ]
+     },
+     {
+      "name": "nous-faisons",
+      "match": {
+       "section": "^NOUS FAISONS"
+      },
+      "blocks": [
+       {
+        "kind": "line",
+        "when": {
+         "rank": 1
+        },
+        "runs": [
+         {
+          "image": {
+           "role": "picto-section",
+           "asset": {
+            "relPath": "assets/picto-nous-faisons.svg"
+           }
+          }
+         }
+        ]
+       },
+       {
+        "kind": "table",
+        "style": "item",
+        "columnsCm": [
+         7,
+         10
+        ],
+        "rows": [
+         [
+          {
+           "blocks": [
+            {
+             "kind": "line",
+             "style": "directive",
+             "runs": [
+              {
+               "image": {
+                "role": "repere",
+                "asset": {
+                 "byRank": [
+                  "assets/rep-1.svg",
+                  "assets/rep-2.svg",
+                  "assets/rep-3.svg",
+                  "assets/rep-4.svg"
+                 ]
+                }
+               }
+              },
+              {
+               "text": "  {{covered.title}}"
+              }
+             ]
+            },
+            {
+             "kind": "line",
+             "style": "directive",
+             "forEach": {
+              "of": "covered.content.lines",
+              "match": "^OPTION : "
+             },
+             "runs": [
+              {
+               "text": "{{item|match:^OPTION : (.+)$}}"
+              }
+             ]
+            }
+           ]
+          },
+          {
+           "blocks": [
+            {
+             "kind": "line",
+             "runs": [
+              {
+               "image": {
+                "role": "bande",
+                "picture": "-nf-\\d+$"
+               }
+              }
+             ]
+            }
+           ]
+          }
+         ]
+        ]
+       }
+      ]
+     },
+     {
+      "name": "je-retiens",
+      "match": {
+       "section": "^JE RETIENS"
+      },
+      "blocks": [
+       {
+        "kind": "table",
+        "style": "encadre",
+        "rows": [
+         [
+          {
+           "blocks": [
+            {
+             "kind": "line",
+             "runs": [
+              {
+               "image": {
+                "role": "picto-section",
+                "asset": {
+                 "relPath": "assets/picto-je-retiens.svg"
+                }
+               }
+              }
+             ]
+            },
+            {
+             "kind": "line",
+             "runs": [
+              {
+               "image": {
+                "role": "je-retiens",
+                "picture": "-je-retiens$"
+               }
+              }
+             ]
+            }
+           ]
+          }
+         ]
+        ]
+       }
+      ]
+     },
+     {
+      "name": "tu-fais",
+      "match": {
+       "section": "^TU FAIS"
+      },
+      "blocks": [
+       {
+        "kind": "line",
+        "when": {
+         "rank": 1
+        },
+        "runs": [
+         {
+          "image": {
+           "role": "picto-section",
+           "asset": {
+            "relPath": "assets/picto-tu-fais.svg"
+           }
+          }
+         }
+        ]
+       },
+       {
+        "kind": "table",
+        "style": "item",
+        "columnsCm": [
+         7,
+         10
+        ],
+        "when": {
+         "last": false
+        },
+        "rows": [
+         [
+          {
+           "blocks": [
+            {
+             "kind": "line",
+             "style": "directive",
+             "runs": [
+              {
+               "image": {
+                "role": "repere",
+                "asset": {
+                 "byRank": [
+                  "assets/rep-1.svg",
+                  "assets/rep-2.svg",
+                  "assets/rep-3.svg",
+                  "assets/rep-4.svg"
+                 ]
+                }
+               }
+              },
+              {
+               "text": "  {{covered.title}}"
+              }
+             ]
+            },
+            {
+             "kind": "line",
+             "style": "directive",
+             "forEach": {
+              "of": "covered.content.lines",
+              "match": "^OPTION : "
+             },
+             "runs": [
+              {
+               "text": "{{item|match:^OPTION : (.+)$}}"
+              }
+             ]
+            }
+           ]
+          },
+          {
+           "blocks": [
+            {
+             "kind": "line",
+             "runs": [
+              {
+               "image": {
+                "role": "bande",
+                "picture": "-(tf|nf)-\\d+$"
+               }
+              }
+             ]
+            }
+           ]
+          }
+         ]
+        ]
+       },
+       {
+        "kind": "table",
+        "style": "item",
+        "columnsCm": [
+         7,
+         10
+        ],
+        "when": {
+         "last": true
+        },
+        "rows": [
+         [
+          {
+           "style": "evaluation",
+           "blocks": [
+            {
+             "kind": "line",
+             "style": "evaluation",
+             "runs": [
+              {
+               "image": {
+                "role": "picto-section",
+                "asset": {
+                 "relPath": "assets/picto-evaluation.png"
+                }
+               }
+              },
+              {
+               "text": "{{covered.title}}"
+              }
+             ]
+            },
+            {
+             "kind": "line",
+             "style": "evaluation",
+             "forEach": {
+              "of": "covered.content.lines",
+              "match": "^OPTION : "
+             },
+             "runs": [
+              {
+               "text": "{{item|match:^OPTION : (.+)$}}"
+              }
+             ]
+            }
+           ]
+          },
+          {
+           "blocks": [
+            {
+             "kind": "line",
+             "runs": [
+              {
+               "image": {
+                "role": "bande",
+                "picture": "-(tf|nf)-\\d+$"
+               }
+              }
+             ]
+            }
+           ]
+          }
+         ]
+        ]
+       }
+      ]
+     }
+    ]
+   }
+  }
+ }
+}

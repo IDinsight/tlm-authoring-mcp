@@ -18,6 +18,9 @@ import type { GraphMutation } from "../kg-store/index.js";
 import { addNode, type AddNodeArgs } from "./add-node.js";
 import { RecipeCommon, nodeById } from "./shared.js";
 import { isKnownLabel } from "./lc.js";
+import { validateRenderInBag, validateFormatScopeInBag } from "./render-spec.js";
+import { validateLayoutInBag } from "./layout-spec.js";
+import { validateLintRulesInBag } from "./lint-rules.js";
 
 // One node to create — the same fields add_node takes, minus the namespace
 // (shared across the batch). `newNodeId` is minted per item by the tool layer.
@@ -95,6 +98,17 @@ export const addNodes: GraphMutation<AddNodesArgs> = {
       if (item.newNodeId) {
         mintedSoFar.add(item.newNodeId);
       }
+
+      // A formatter's declarative halves are checked at creation, as edit_nodes checks
+      // them at edit: born with a mistyped knob, it would render silently wrong.
+      // (The single-node recipe always did this; the batch, which is what the tool
+      // runs, did not — a misspelt `render` key went straight into the graph.)
+      for (const problem of [
+        ...validateRenderInBag(item.properties, where),
+        ...validateLayoutInBag(item.properties, where),
+        ...validateLintRulesInBag(item.properties, where),
+        ...validateFormatScopeInBag(item.properties, where),
+      ]) errors.push(problem);
 
       if (item.alignTo) {
         const target = nodeById(base, item.alignTo);

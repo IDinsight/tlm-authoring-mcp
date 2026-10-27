@@ -294,9 +294,26 @@ template** instead of laying it out in Word (`render/idml.ts`). The why and the 
 "render": { "indesign": {
   "template": "assets/indesign/gabarit-eleve-modele.idml",
   "fonts": ["assets/indesign/Andika-R.ttf", "assets/indesign/Andika-Bold.ttf"],
-  "styleGroup": { "from": "metadata.domaine", "map": { "Activités numériques": "AN", "Géométrie": "GEO" } }
+  "styleGroup": { "standard": { "statementType": "Domaine" }, "map": { "Arithmétique": "AN", "Géométrie": "GEO" } }
 } }
 ```
+
+`styleGroup` reads the domain two ways: `standard.statementType` takes the name of the nearest
+standard of that type above the standard the covered node aligns to (ci/maths: lesson 1 aligns to an
+objective under the « Domaine » « Arithmétique »); `from` takes a property path on the covered node.
+The ci/maths InDesign formatter, ready to stage, is `backend/scripts/indesign/formatter-livre-indesign.json`.
+
+**One document, two outputs.** The pupil book is two pages a lesson in Word and one in InDesign. A
+formatter marked `metadata.onlyForFormat: "idml"` counts only when the page is composed and rendered
+for InDesign (`compose_section` and `render_document` take `format`); for Word it is not on the stack
+at all, so the Word book cannot change by accident. In an InDesign stack it applies **after** every
+formatter written for all formats, so its values win the merge — its picture sizes beat the Word
+production formatter's wherever each sits among the document's children
+(`curriculum/documents.ts::formatterStackFor`). A misspelt format is refused by `add_nodes` and
+`edit_nodes`.
+
+**Uploading the template and fonts.** `create_media_upload_url` takes `.idml`, `.ttf` and `.otf`
+besides pictures, under `assets/` only.
 
 Paths are under the namespace's `documents/` area. The template is an `.idml` exported from
 InDesign with its styles, colours, master pages and **one model page alone on its spread**, which

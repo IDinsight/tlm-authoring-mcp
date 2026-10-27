@@ -32,7 +32,7 @@ import { activeWorkspace, relPathOfDocumentObjectUri } from "../context/index.js
 import { getKgStore, kgNamespace, toAuditActor, nextAuditSeq } from "../kg-store/index.js";
 import { currentActor } from "../actor.js";
 import { getStorageAdapter } from "../storage/index.js";
-import { formatterStackFor } from "../curriculum/index.js";
+import { formatterStackFor, type RenderFormat } from "../curriculum/index.js";
 import { readIdmlTemplate, renderIdml, packageIdml, IdmlRefusal, type IdmlTemplate } from "../render/index.js";
 import type { RenderSpec } from "../kg-recipes/index.js";
 import type { CurriculumModel } from "../types.js";
@@ -154,7 +154,8 @@ type ResolvedGeometry =
     }
   | { ok: false; refusal: Record<string, unknown> };
 
-async function resolveGeometryFor(nodeId: string): Promise<ResolvedGeometry> {
+// `format` picks the stack: a formatter limited to InDesign never shapes a Word page.
+async function resolveGeometryFor(nodeId: string, format: RenderFormat = "docx"): Promise<ResolvedGeometry> {
   /*
    * Draft when there is one, published otherwise.
    *
@@ -172,7 +173,7 @@ async function resolveGeometryFor(nodeId: string): Promise<ResolvedGeometry> {
   const model = draft?.model ?? getActiveAdapter().model();
   const renderedFrom = draft ? "draft" : "published";
 
-  const stack = formatterStackFor(model, nodeId);
+  const stack = formatterStackFor(model, nodeId, format);
   if (!stack) {
     return { ok: false, refusal: {
       preview: true,
@@ -348,13 +349,34 @@ const valueAt = (source: unknown, path: string): unknown =>
  * does not name, or covered nodes that disagree, is a refusal — a guess colours a lesson in the
  * wrong domain and nothing on the page says so.
  */
+/*
+ * The name of the nearest standard of `statementType` above what `nodeId` aligns to:
+ * hasEducationalAlignment to its standard, then up hasChild — canonical LC both ways.
+ */
+function alignedStandardName(raw: NonNullable<CurriculumModel["rawGraph"]>, nodeId: string, statementType: string): string | undefined {
+  const byId = new Map(raw.nodes.map((n) => [n.id, n]));
+  const parentOf = (id: string) => raw.relationships.find((e) => e.type === "hasChild" && e.end === id)?.start;
+  for (const edge of raw.relationships.filter((e) => e.type === "hasEducationalAlignment" && e.start === nodeId)) {
+    const seen = new Set<string>();
+    for (let id: string | undefined = edge.end; id && !seen.has(id); id = parentOf(id)) {
+      seen.add(id);
+      const properties = byId.get(id)?.properties as Record<string, unknown> | undefined;
+      if (properties?.statementType === statementType) return String(properties.description ?? "").split("\n")[0].trim();
+    }
+  }
+  return undefined;
+}
+
 function styleGroupFor(spec: RenderSpec, raw: CurriculumModel["rawGraph"], nodeId: string): { group?: string } | { refused: string } {
   const rule = spec.indesign?.styleGroup;
-  if (!rule) return {};
-  const covered = (raw?.relationships ?? []).filter((e) => e.type === "covers" && e.start === nodeId).map((e) => e.end);
-  const values = covered.map((id) => valueAt(raw?.nodes.find((n) => n.id === id)?.properties, rule.from)).filter((v): v is string => typeof v === "string");
+  if (!rule || !raw) return {};
+  const covered = raw.relationships.filter((e) => e.type === "covers" && e.start === nodeId).map((e) => e.end);
+  const values = covered
+    .map((id) => ("from" in rule ? valueAt(raw.nodes.find((n) => n.id === id)?.properties, rule.from) : alignedStandardName(raw, id, rule.standard.statementType)))
+    .filter((v): v is string => typeof v === "string" && v.length > 0);
   if (values.length === 0) {
-    return { refused: `'${nodeId}' covers no curriculum node carrying '${rule.from}', so its style group cannot be chosen (render.indesign.styleGroup).` };
+    const source = "from" in rule ? `carrying '${rule.from}'` : `aligned under a « ${rule.standard.statementType} » standard`;
+    return { refused: `'${nodeId}' covers no curriculum node ${source}, so its style group cannot be chosen (render.indesign.styleGroup).` };
   }
   const unmapped = values.filter((value) => rule.map[value] === undefined);
   if (unmapped.length > 0) {
@@ -456,7 +478,8 @@ export async function renderDocument(a: RenderArgs): Promise<Record<string, unkn
   const denied = await denyIfNotDraftReader(ns);
   if (denied) return denied;
 
-  const resolved = await resolveGeometryFor(a.nodeId);
+  const format = a.format ?? "docx";
+  const resolved = await resolveGeometryFor(a.nodeId, format);
   if (!resolved.ok) return resolved.refusal;
   const { draft, model, renderedFrom, spec } = resolved;
 
@@ -663,7 +686,6 @@ export async function renderDocument(a: RenderArgs): Promise<Record<string, unkn
   // One file per language the formatter declares — CI maths composes one source
   // and produces two documents, black lines in both, each colour in its own.
   const variants = splitByVariant(composed, spec.spec);
-  const format = a.format ?? "docx";
   const relPath = a.relPath ?? defaultRelPath(a.nodeId, format);
   const files: Record<string, unknown>[] = [];
 

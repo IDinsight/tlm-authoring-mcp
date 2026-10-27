@@ -14,7 +14,7 @@
 import { createNode, linkNodes, type GraphMutation, type MutationNode } from "../kg-store/index.js";
 import { RecipeCommon, buildCreatedProps, nextPosition, nodeById } from "./shared.js";
 import { ALIGNMENT_EDGE, containmentEdgeFor, deriveTemplate, isKnownLabel } from "./lc.js";
-import { validateRenderInBag } from "./render-spec.js";
+import { validateRenderInBag, validateFormatScopeInBag } from "./render-spec.js";
 import { validateLayoutInBag } from "./layout-spec.js";
 import { validateLintRulesInBag } from "./lint-rules.js";
 
@@ -50,6 +50,7 @@ export const addNode: GraphMutation<AddNodeArgs> = {
     // with a knob a renderer will silently ignore.
     errors.push(...validateRenderInBag(args.properties, "add_nodes"));
     errors.push(...validateLayoutInBag(args.properties, "add_nodes"));
+    errors.push(...validateFormatScopeInBag(args.properties, "add_nodes"));
     errors.push(...validateLintRulesInBag(args.properties, "add_nodes"));
     return { errors, warnings: [] };
   },
