@@ -254,6 +254,31 @@ const overflowSchema = z.object({
   neverShorten: z.array(z.string().min(1)).optional(),
 }).strict();
 
+/*
+ * InDesign: where the look of an .idml lives.
+ *
+ * For Word, the geometry is in this bag. For InDesign it is in a DESIGNER'S
+ * TEMPLATE — styles, colours, master pages and a model page with named frames —
+ * and the bag only points at it (docs/design-notes/indesign-export/README.md).
+ * Paths are relative to the namespace's documents/ area, like a media relPath.
+ *
+ * `styleGroup` says which of the template's per-domain style groups a page uses
+ * (`AN/repere` against `GEO/repere`), read off the covered curriculum node: `from`
+ * is a property path on it, `map` turns its value into a group name. Declared as
+ * data because the domain is already in the graph, and a group passed by hand
+ * per call colours a lesson in the wrong domain without a sound.
+ */
+const indesignSchema = z.object({
+  template: z.string().min(1),
+  // Font files packed beside the .idml, so InDesign does not substitute them.
+  // Only fonts whose licence allows it: the package is handed to whoever opens it.
+  fonts: z.array(z.string().min(1)).optional(),
+  styleGroup: z.object({
+    from: z.string().min(1),
+    map: z.record(z.string(), z.string().min(1)),
+  }).strict().optional(),
+}).strict();
+
 /** The whole declarative half. Every group optional; unknown keys refused. */
 export const renderSpecSchema = z.object({
   page: pageSchema.optional(),
@@ -265,6 +290,7 @@ export const renderSpecSchema = z.object({
   visibility: visibilitySchema.optional(),
   language: languageSchema.optional(),
   overflow: overflowSchema.optional(),
+  indesign: indesignSchema.optional(),
 }).strict();
 
 export type RenderSpec = z.infer<typeof renderSpecSchema>;

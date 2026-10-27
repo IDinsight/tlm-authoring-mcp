@@ -282,6 +282,63 @@ switch, and changing it is what turns measuring on in production.
 natural leading; substituting another changes glyph advances, which changes line counts, which changes
 the page count this exists to report. `fonts-sil-andika` ships it.
 
+## InDesign — `format: "idml"`
+
+`render_document` with `format: "idml"` writes the same block tree into a **designer's InDesign
+template** instead of laying it out in Word (`render/idml.ts`). The why and the decisions are in
+[`indesign-export/`](../design-notes/indesign-export/README.md); this is how it works.
+
+**The template is the geometry.** The formatter names it in its render bag:
+
+```json
+"render": { "indesign": {
+  "template": "assets/indesign/gabarit-eleve-modele.idml",
+  "fonts": ["assets/indesign/Andika-R.ttf", "assets/indesign/Andika-Bold.ttf"],
+  "styleGroup": { "from": "metadata.domaine", "map": { "Activités numériques": "AN", "Géométrie": "GEO" } }
+} }
+```
+
+Paths are under the namespace's `documents/` area. The template is an `.idml` exported from
+InDesign with its styles, colours, master pages and **one model page alone on its spread**, which
+carries a text frame named `corps`. `backend/scripts/indesign/build-gabarit.jsx` produces the ci/maths
+one (`gabarit-eleve-modele.idml`, 176 KB).
+
+**How a page is written.** The template's resources and masters are kept as they are; of its pages,
+only the model page. Then:
+
+- a top-level line whose `style` names a frame on the model page fills that frame — `numero-lecon`,
+  `titre-lecon`;
+- everything else flows, in order, into `corps` as one story: a line is a paragraph in its style, a
+  picture an inline frame, a table an InDesign table (a cell may name its own cell style);
+- a picture whose object style anchors it at a custom position (the pictograms in the margin) takes
+  no line of its own: it rides the next line and its style places it;
+- French text gets its no-break spaces before `? ! : ; »` and after `«`;
+- `pageBreak: "before"` starts the paragraph on the next page; `spacer` and `clear` write nothing
+  (spacing is the styles' job, and nothing floats).
+
+**Styles** are looked up in the page's style group first (`AN/repere`), then at the top level. The
+group comes from what the section covers, through `styleGroup.map`; a value the map does not name, or
+covered nodes in two groups, is a refusal. **A paragraph, table or cell style the template does not
+define is a refusal**, naming every one, and nothing is uploaded. An object style is optional: a
+picture with none still sizes.
+
+**Picture sizes** come from the same knobs as Word — `images.inlineHeightCm[role]`, else
+`images.maxHeightCm[role]`, else 2 cm; then `images.maxWidthCm` — capped by the width of the frame or
+cell the picture sits in, keeping the file's own shape. Vector pictures are rasterized first, as for
+Word.
+
+**What comes back** is a zip per language, in `previews/`: the `.idml`, its pictures in `Links/`
+(linked relative to the file, so it opens wherever it is unzipped), and the fonts in `Document fonts/`
+— without them InDesign substitutes the face silently. Only pack fonts whose licence allows it.
+
+**No page count.** Only InDesign composes an InDesign page; `measure: true` returns
+`available: false` with that reason. Open the package and look for InDesign's red `+` (overflowing
+text).
+
+**Checking locally.** `node backend/scripts/indesign/render-local.mjs <template.idml> <page.json>
+<pictures dir> <out.zip> [fonts dir]` runs the same renderer on files on disk, after `npm run build`,
+so a template or a page can be opened in InDesign before anything is uploaded.
+
 ## `propose_from_document` — the loop closing the other way
 
 An expert opens a sheet, fixes a sentence, sends it back. `relPath` names the corrected `.docx` in the
@@ -380,3 +437,6 @@ pictograms clipped every one of them to 14 pt and measured exactly the same as t
 - **`images.placement` can only be a default.** Whether a given picture floats or sits in the run of
   the line is a per-section choice, not a formatter-wide one.
 - **CI never exercises the golden corpus** (see above).
+- **InDesign: node ids are not written into the `.idml` yet.** A corrected InDesign file cannot be
+  read back by `propose_from_document`; XML tagging is the planned carrier (design note, *Reading
+  corrections back*).

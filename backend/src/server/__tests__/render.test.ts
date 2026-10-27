@@ -29,6 +29,7 @@ import { runEditNodes } from "../recipes.js";
 import { renderDocument, proposeFromDocument, pageGeometry } from "../render.js";
 import { checkStale } from "../documents.js";
 import { unzip, documentSchema } from "../../render/index.js";
+import { inventedTemplate } from "../../__tests__/index.js";
 import { CONFIG } from "../../config.js";
 import type { StorageAdapter, HistoryFile } from "../../types.js";
 
@@ -1148,5 +1149,76 @@ describe("a vector picture is rasterized at layout, or the render refuses", () =
     expect(out.error).toBeUndefined();
     expect(out.rasterizedSvg).toBeUndefined();
     expect(Buffer.compare(unzip(uploaded!).get("word/media/picto.png")!, png)).toBe(0);
+  });
+});
+
+describe("format: 'idml' — the page written into an InDesign template", () => {
+  // The template and font live in the bucket, as a formatter names them; this storage holds them.
+  const TEMPLATE_PATH = "assets/indesign/gabarit.idml";
+  const FONT_PATH = "assets/indesign/Face.ttf";
+  const INDESIGN_BAG = { indesign: { template: TEMPLATE_PATH, fonts: [FONT_PATH] } };
+  const PAGE = {
+    blocks: [
+      { kind: "line", style: "label", runs: [{ text: "Unité 1" }] },
+      { kind: "line", style: "body", runs: [{ text: "Regardez bien ce panier ?" }] },
+    ],
+  };
+
+  beforeEach(() => {
+    const objects = new Map<string, Buffer>([[TEMPLATE_PATH, inventedTemplate()], [FONT_PATH, Buffer.from("font")]]);
+    __setStorageForTest({ ...storage, downloadObject: async (relPath: string) => objects.get(relPath) ?? null });
+  });
+
+  it("uploads one package — the .idml, its fonts — to previews/, as a zip", async () => {
+    const out = await withCtx(CURATOR, async () => {
+      await stageRenderBag(INDESIGN_BAG);
+      return renderDocument({ nodeId: sectionId, document: PAGE, format: "idml" });
+    });
+    expect(out.error).toBeUndefined();
+    expect(out.format).toBe("idml");
+    expect(String(out.objectKey)).toMatch(/previews\/render-.*\.zip$/);
+    const names = [...unzip(uploaded!).keys()];
+    expect(names).toContain(`render-${sectionId}.idml`);
+    expect(names).toContain("Document fonts/Face.ttf");
+    const idml = unzip(unzip(uploaded!).get(`render-${sectionId}.idml`)!);
+    expect(idml.get("Stories/Story_s-label.xml")!.toString("utf8")).toContain("Unité 1");
+    expect(canonicalUploads).toBe(0);
+    expect(historyWrites).toBe(0);
+  });
+
+  it("refuses, uploading nothing, when the page names styles the template does not define", async () => {
+    const out = await withCtx(CURATOR, async () => {
+      await stageRenderBag(INDESIGN_BAG);
+      return renderDocument({ nodeId: sectionId, document: TREE, format: "idml" });
+    });
+    expect(String(out.error)).toMatch(/« sessionBanner »/);
+    expect(uploads).toHaveLength(0);
+  });
+
+  it("refuses when no formatter on the stack names a template", async () => {
+    const out = await withCtx(CURATOR, async () => {
+      await stageRenderBag(RENDER_BAG);
+      return renderDocument({ nodeId: sectionId, document: PAGE, format: "idml" });
+    });
+    expect(String(out.error)).toMatch(/render\.indesign\.template/);
+    expect(uploads).toHaveLength(0);
+  });
+
+  it("refuses when the style group cannot be read off what the section covers", async () => {
+    const out = await withCtx(CURATOR, async () => {
+      await stageRenderBag({ indesign: { template: TEMPLATE_PATH, styleGroup: { from: "metadata.noSuchField", map: { x: "G1" } } } });
+      return renderDocument({ nodeId: sectionId, document: PAGE, format: "idml" });
+    });
+    expect(String(out.error)).toMatch(/covers no curriculum node carrying 'metadata\.noSuchField'/);
+  });
+
+  it("says plainly that it cannot count an .idml's pages, rather than guessing", async () => {
+    const out = await withCtx(CURATOR, async () => {
+      await stageRenderBag(INDESIGN_BAG);
+      return renderDocument({ nodeId: sectionId, document: PAGE, format: "idml", measure: true });
+    });
+    const [file] = out.files as Array<{ measurement: { available: boolean; reason: string } }>;
+    expect(file.measurement.available).toBe(false);
+    expect(file.measurement.reason).toMatch(/red \+/);
   });
 });

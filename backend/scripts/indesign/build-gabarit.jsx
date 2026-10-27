@@ -284,6 +284,13 @@ try {
   app.jpegExportPreferences.pageString = "2,4," + model.name;
   app.jpegExportPreferences.exportResolution = 80;
   doc.exportFile(ExportFormat.JPG, File(OUT_DIR + "apercu.jpg"));
+
+  // 10. The template the server reads: styles, colours, masters and the model page only. The
+  //     pilot's sample pages are what made the file 116 MB; the renderer drops them anyway.
+  //     Exported from the open copy, which is then closed unsaved.
+  for (var sp = doc.pages.length - 1; sp >= 0; sp--) if (doc.pages[sp] !== model && doc.pages[sp].id !== model.id) doc.pages[sp].remove();
+  doc.exportFile(ExportFormat.INDESIGN_MARKUP, File(OUT_DIR + "gabarit-eleve-modele.idml"));
+  say("server template: gabarit-eleve-modele.idml, " + doc.pages.length + " page (the model page)");
 } catch (err) {
   say("STOPPED: " + err + " (line " + err.line + ")");
 } finally {

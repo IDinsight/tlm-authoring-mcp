@@ -1,5 +1,6 @@
 /*
- * Module: render — a block tree plus a formatter's geometry, out comes a .docx.
+ * Module: render — a block tree plus a formatter's geometry, out comes a .docx
+ * (or an .idml, written into a designer's InDesign template).
  *
  * The barrel every other module imports through. Nothing here knows about
  * subjects, curricula or Firestore: it takes the tree an authoring model
@@ -20,3 +21,4 @@ export { readGeometry, type ExtractedGeometry, type UnnamedFill, type UnnamedHei
 export { proposeEdits, editItems, documentText, normalise, type Proposal, type TextSlot } from "./propose.js";
 export { hashContent, sourcesFrom, staleness, type DocumentSource, type Staleness } from "./sources.js";
 export { zip, unzip, type ZipEntry } from "./zip.js";
+export { readIdmlTemplate, renderIdml, packageIdml, IdmlRefusal, type IdmlTemplate, type IdmlOptions, type IdmlOutput, type IdmlLink } from "./idml.js";
