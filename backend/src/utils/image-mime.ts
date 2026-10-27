@@ -24,3 +24,24 @@ export function imageMimeFor(pathOrUri: string): string | null {
 
 /** The extensions `imageMimeFor` accepts, for messages. */
 export const IMAGE_EXTENSIONS = Object.keys(IMAGE_MIME);
+
+/*
+ * The files an InDesign export reads besides pictures: the designer's template and the
+ * fonts packed beside it (render.indesign.template / .fonts). Kept apart from the image
+ * table on purpose — a template is never a picture a page can place — and accepted for
+ * upload only under `assets/`, where a formatter names them.
+ */
+const LAYOUT_ASSET_MIME: Record<string, string> = {
+  idml: "application/vnd.adobe.indesign-idml-package",
+  ttf: "font/ttf",
+  otf: "font/otf",
+};
+export const LAYOUT_ASSET_EXTENSIONS = Object.keys(LAYOUT_ASSET_MIME);
+export const LAYOUT_ASSET_FOLDER = "assets/";
+
+/** The MIME for a template or font path under `assets/`, or null. */
+export function layoutAssetMimeFor(relPath: string): string | null {
+  if (!relPath.startsWith(LAYOUT_ASSET_FOLDER)) return null;
+  const dot = relPath.lastIndexOf(".");
+  return LAYOUT_ASSET_MIME[dot < 0 ? "" : relPath.slice(dot + 1).toLowerCase()] ?? null;
+}

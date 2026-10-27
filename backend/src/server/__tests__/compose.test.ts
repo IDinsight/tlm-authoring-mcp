@@ -287,3 +287,70 @@ describe("compose_section — the tool", () => {
     expect(byName.sectionId).toBe(lessonSectionId);
   });
 });
+
+describe("when.last — the last sibling a template fills", () => {
+  it("keeps a `last: true` block for the last question only, and a `last: false` block for every other", async () => {
+    const marked = LAYOUT.templates.map((t) => t.name === "tu-fais"
+      ? { ...t, blocks: [...t.blocks, { kind: "line" as const, when: { last: true }, runs: [{ text: "LAST" }] }, { kind: "line" as const, when: { last: false }, runs: [{ text: "NOT LAST" }] }] }
+      : t);
+    expect(validateLayoutSpec({ templates: marked }, "test")).toEqual([]);
+    const result = (await withActiveContext(CURATOR, () => composeSection(getActiveAdapter().model(), lessonSectionId, marked, ratioOf)))!;
+    const texts = result.blocks.flatMap((b) => (b.kind === "line" ? b.runs : [])).map((r) => ("text" in r ? r.text : null)).filter((t) => t === "LAST" || t === "NOT LAST");
+    // Four questions: three before the last, then the last.
+    expect(texts).toEqual(["NOT LAST", "NOT LAST", "NOT LAST", "LAST"]);
+  });
+
+  it("refuses a `when` that says nothing", () => {
+    const empty = { templates: [{ name: "x", match: {}, blocks: [{ kind: "line", when: {}, runs: [{ text: "x" }] }] }] };
+    expect(validateLayoutSpec(empty, "edit_nodes").join("\n")).toMatch(/`when` needs `rank`, `last`, or both/);
+  });
+});
+
+describe("a formatter limited to one format — metadata.onlyForFormat", () => {
+  // The pupil book's templates, on a formatter that counts only for InDesign, hung on the document.
+  async function addInDesignOnlyFormatter(onlyForFormat: unknown): Promise<Record<string, unknown>> {
+    const { runAddNodes } = await import("../authoring.js");
+    return withActiveContext(CURATOR, async () => {
+      const raw = getActiveAdapter().model().rawGraph!;
+      const document = raw.nodes.find((n) => (n.labels ?? []).includes("TeachingLearningMaterial") && raw.relationships.some((e) => e.start === n.id && e.end === lessonSectionId))!;
+      const items = [{ kind: "Formatter", parentId: document.id, description: "Mise en page InDesign", properties: { "metadata.onlyForFormat": onlyForFormat, layout: LAYOUT } }];
+      const dry = await runAddNodes({ items });
+      if (!dry.confirmationToken) return dry;
+      return runAddNodes({ items, confirm: true, confirmationToken: dry.confirmationToken as string, mintedNodeIds: dry.mintedNodeIds as string[] });
+    });
+  }
+
+  it("shapes the page composed for InDesign, and leaves the Word page as it was", async () => {
+    const added = await addInDesignOnlyFormatter("idml");
+    expect(added.ok, JSON.stringify(added)).toBe(true);
+    const forInDesign = await withActiveContext(CURATOR, () => runComposeSection({ section: lessonSectionId, format: "idml" }));
+    // Every part composed from the formatter's templates (this storage holds no picture
+    // files, so their shapes are reported as problems — that is the storage, not the stack).
+    expect((forInDesign.used as { template: string }[]).map((u) => u.template)).toEqual(["lecon", "je-fais", "nous-faisons", "nous-faisons", "nous-faisons", "je-retiens", "tu-fais", "tu-fais", "tu-fais", "tu-fais"]);
+    expect(forInDesign.unfilled).toEqual([]);
+    // The same section composed for Word sees no layout at all: the formatter is not on its stack.
+    const forWord = await withActiveContext(CURATOR, () => runComposeSection({ section: lessonSectionId }));
+    expect(String(forWord.note)).toMatch(/No formatter on this section's stack declares/);
+  });
+
+  it("applies after every formatter written for all formats, so its values win the merge", async () => {
+    const added = await addInDesignOnlyFormatter("idml");
+    const newId = (added.mintedNodeIds as string[])[0];
+    const { formatterStackFor } = await import("../../curriculum/index.js");
+    const { resolveDraftModel } = await import("../preview.js");
+    const stacks = await withActiveContext(CURATOR, async () => {
+      // The new formatter is staged, so it is on the DRAFT — what compose and render read.
+      const model = (await resolveDraftModel(ns))!.model;
+      return { idml: formatterStackFor(model, lessonSectionId, "idml")!.map((n) => n.id), docx: formatterStackFor(model, lessonSectionId, "docx")!.map((n) => n.id) };
+    });
+    expect(stacks.idml.at(-1)).toBe(newId);
+    expect(stacks.docx).not.toContain(newId);
+    // Everything else keeps its order: the InDesign stack is the Word stack plus the new formatter.
+    expect(stacks.idml.slice(0, -1)).toEqual(stacks.docx);
+  });
+
+  it("refuses a format it does not know, so a typo cannot leave a formatter applying to nothing", async () => {
+    const refused = await addInDesignOnlyFormatter("pdf");
+    expect(JSON.stringify(refused)).toMatch(/'metadata\.onlyForFormat' must be one of 'docx', 'idml'/);
+  });
+});

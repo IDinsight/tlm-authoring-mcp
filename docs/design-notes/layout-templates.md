@@ -37,6 +37,7 @@ and holds a **block tree in the exact shape `render_document` accepts**, with pl
 | `image.picture: REGEX` | the attached picture whose name matches |
 | `image.asset: {relPath}` or `{byRank: [..]}` | a fixed file, or one per rank |
 | `when: {rank: N}` on a block | the block for that rank only (a group's first pictogram, its page break) |
+| `when: {last: true}` / `{last: false}` | the block for the last section the template fills, or for every other one (the InDesign book prints its last « Tu fais » question as the evaluation box) |
 | `{kind: "children"}` | the composed child sections, in order |
 
 The composer fills a section's template around its children's, in position order, reads each

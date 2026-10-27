@@ -27,7 +27,7 @@
 import { readAtPath, writeAtPath, type GraphMutation, type MutationGraph } from "../kg-store/index.js";
 import { displayName, descriptionBody } from "../utils/index.js";
 import { RecipeCommon, nodeById } from "./shared.js";
-import { validateRenderInBag } from "./render-spec.js";
+import { validateRenderInBag, validateFormatScopeInBag } from "./render-spec.js";
 import { validateLayoutInBag } from "./layout-spec.js";
 import { validateLintRulesInBag } from "./lint-rules.js";
 import { reposition } from "./reposition.js";
@@ -162,6 +162,7 @@ export const editNode: GraphMutation<EditNodeArgs> = {
         // page comes out wrong with nothing to point at.
         errors.push(...validateRenderInBag(args.properties, "edit_nodes"));
         errors.push(...validateLayoutInBag(args.properties, "edit_nodes"));
+        errors.push(...validateFormatScopeInBag(args.properties, "edit_nodes"));
         errors.push(...validateLintRulesInBag(args.properties, "edit_nodes"));
       }
     }

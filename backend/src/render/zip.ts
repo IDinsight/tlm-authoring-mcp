@@ -28,7 +28,11 @@ function crc32(buf: Buffer): number {
   return (c ^ -1) >>> 0;
 }
 
-export type ZipEntry = { name: string; data: Buffer };
+/*
+ * `store` writes the entry uncompressed. An .idml needs it: InDesign reads the
+ * package's type from a `mimetype` entry that must come first and be stored.
+ */
+export type ZipEntry = { name: string; data: Buffer; store?: boolean };
 
 export function zip(entries: ZipEntry[]): Buffer {
   const locals: Buffer[] = [];
@@ -37,13 +41,14 @@ export function zip(entries: ZipEntry[]): Buffer {
 
   for (const entry of entries) {
     const name = Buffer.from(entry.name, "ascii");
-    const compressed = deflateRawSync(entry.data);
+    const method = entry.store ? 0 : 8;            // 0 = stored, 8 = deflate
+    const compressed = entry.store ? entry.data : deflateRawSync(entry.data);
     const crc = crc32(entry.data);
 
     const local = Buffer.alloc(30 + name.length);
     local.writeUInt32LE(0x04034b50, 0);
     local.writeUInt16LE(20, 4);                    // version needed
-    local.writeUInt16LE(8, 8);                     // method: deflate
+    local.writeUInt16LE(method, 8);
     local.writeUInt32LE(crc, 14);
     local.writeUInt32LE(compressed.length, 18);
     local.writeUInt32LE(entry.data.length, 22);
@@ -55,7 +60,7 @@ export function zip(entries: ZipEntry[]): Buffer {
     dir.writeUInt32LE(0x02014b50, 0);
     dir.writeUInt16LE(20, 4);                      // version made by
     dir.writeUInt16LE(20, 6);                      // version needed
-    dir.writeUInt16LE(8, 10);                      // method
+    dir.writeUInt16LE(method, 10);
     dir.writeUInt32LE(crc, 16);
     dir.writeUInt32LE(compressed.length, 20);
     dir.writeUInt32LE(entry.data.length, 24);

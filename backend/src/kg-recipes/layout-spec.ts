@@ -83,11 +83,18 @@ const forEachSchema = z.object({
 // `when.rank` keeps a block for one rank only — the pictogram that opens a
 // group of activities appears on the first, the page break before a group
 // falls before its first, and the template says so without a second template.
-const whenSchema = z.object({ rank: z.number().int().positive() }).strict();
+// `when.last` does the same from the other end: `true` keeps a block for the
+// last sibling the template fills (the question printed as the evaluation box),
+// `false` for every other one. Both may be given; a block then needs both.
+const whenSchema = z.object({
+  rank: z.number().int().positive().optional(),
+  last: z.boolean().optional(),
+}).strict().refine((when) => when.rank !== undefined || when.last !== undefined, { message: "`when` needs `rank`, `last`, or both" });
+type When = { rank?: number; last?: boolean };
 
 export type TemplateBlock =
-  | { kind: "line"; style?: string; variant?: string; pageBreak?: "before"; anchor?: "covered" | "none"; when?: { rank: number }; forEach?: z.infer<typeof forEachSchema>; runs: z.infer<typeof runSchema>[] }
-  | { kind: "table"; style?: string; columnsCm?: number[]; pageBreak?: "before"; when?: { rank: number }; rows: TemplateCell[][] }
+  | { kind: "line"; style?: string; variant?: string; pageBreak?: "before"; anchor?: "covered" | "none"; when?: When; forEach?: z.infer<typeof forEachSchema>; runs: z.infer<typeof runSchema>[] }
+  | { kind: "table"; style?: string; columnsCm?: number[]; pageBreak?: "before"; when?: When; rows: TemplateCell[][] }
   | { kind: "spacer"; sizePt: number; leadingPt: number }
   | { kind: "clear" }
   | { kind: "children" }

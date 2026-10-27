@@ -18,7 +18,7 @@ import { getStorageAdapter, extractDocxText, listEntries, recordContent, reconci
 import { readDocx, sourcesFrom, staleness, type DocumentSource } from "../render/index.js";
 import type { HistoryEntry } from "../types.js";
 import { WORKSPACE_ROLE_NOTE } from "./tool-notes.js";
-import { DETAIL_LEVELS, DEFAULT_DETAIL, takeWithinBudget, trimmedBySizeHint, pageBudgetBytes, toolError, type DetailLevel, imageMimeFor, IMAGE_EXTENSIONS } from "../utils/index.js";
+import { DETAIL_LEVELS, DEFAULT_DETAIL, takeWithinBudget, trimmedBySizeHint, pageBudgetBytes, toolError, type DetailLevel, imageMimeFor, IMAGE_EXTENSIONS, layoutAssetMimeFor, LAYOUT_ASSET_EXTENSIONS, LAYOUT_ASSET_FOLDER } from "../utils/index.js";
 
 // A file is identified by its path, and a node holds as many as it needs. Both
 // write tools say so, because the mental model they replaced was the opposite.
@@ -518,16 +518,17 @@ export function registerDocumentTools(server: McpServer) {
         return asJson(perPath(namespace, paths, await Promise.all(paths.list.map(async (relPath) => ({ relPath, ...(await storage.createUploadUrl(relPath)) })))));
       })));
 
-  server.registerTool("create_media_upload_url", { title: "Create image upload URL", description: "Get a short-lived signed URL to upload an IMAGE (png/jpg/jpeg/webp/gif, or svg) that a render tree will then embed by relPath. An SVG is rasterized to PNG when the page is laid out, so a vector master prints crisp at any size; one that sets text with a font is refused at render (the server has no fonts) — convert the text to outlines first. Upload with an HTTP PUT and the returned Content-Type. relPath is documents-relative, like 'media/lecon-22/photo.png' — the SAME keyspace create_upload_url and render_document's media relPath use, so once uploaded you name it in a render `media` entry as {name, relPath} and the server resolves the bytes (no base64 in the call). " + MANY_PATHS_NOTE + " The file is invisible to list_documents and reconcile, which see only .docx, so an image never looks like a tracked deliverable. A non-image extension is REFUSED. REQUIRES CONFIRMATION: without confirm:true you get a needsConfirmation notice; ask the user to approve, then call again. Requires a ROLE in the active workspace: this writes to live storage. " + NAMESPACE_NOTE + " The role is checked against the namespace this call names, so an upload can never be authorized in one workspace and land in another.", inputSchema: { ...pathsShape, confirm: z.boolean().optional(), ...contextField } },
+  server.registerTool("create_media_upload_url", { title: "Create image upload URL", description: "Get a short-lived signed URL to upload an IMAGE (png/jpg/jpeg/webp/gif, or svg) that a render tree will then embed by relPath. An SVG is rasterized to PNG when the page is laid out, so a vector master prints crisp at any size; one that sets text with a font is refused at render (the server has no fonts) — convert the text to outlines first. Upload with an HTTP PUT and the returned Content-Type. relPath is documents-relative, like 'media/lecon-22/photo.png' — the SAME keyspace create_upload_url and render_document's media relPath use, so once uploaded you name it in a render `media` entry as {name, relPath} and the server resolves the bytes (no base64 in the call). " + MANY_PATHS_NOTE + " The file is invisible to list_documents and reconcile, which see only .docx, so an image never looks like a tracked deliverable. It also takes the two kinds of file an InDesign export reads — the designer's TEMPLATE (.idml) and the FONTS packed beside it (.ttf, .otf) — but only under 'assets/' (e.g. 'assets/indesign/gabarit.idml'), where a formatter's `render.indesign` names them; pack only fonts whose licence allows it. Any other extension, or a template or font outside 'assets/', is REFUSED. REQUIRES CONFIRMATION: without confirm:true you get a needsConfirmation notice; ask the user to approve, then call again. Requires a ROLE in the active workspace: this writes to live storage. " + NAMESPACE_NOTE + " The role is checked against the namespace this call names, so an upload can never be authorized in one workspace and land in another.", inputSchema: { ...pathsShape, confirm: z.boolean().optional(), ...contextField } },
     guarded(async (a: PathsArgs & { confirm?: boolean } & WithContext) =>
       withContextOverrideResult(a.context, async () => {
         const denied = await denyNonMember("writeDocuments"); if (denied) return denied;
         const paths = pathsOf(a); if ("error" in paths) return paths.error;
         // Every path is checked before any is signed: a batch with one .docx in
         // it is refused whole, so a caller never has to work out which half ran.
-        const unsupported = paths.list.filter((relPath) => !imageMimeFor(relPath));
+        const mimeOf = (relPath: string) => imageMimeFor(relPath) ?? layoutAssetMimeFor(relPath);
+        const unsupported = paths.list.filter((relPath) => !mimeOf(relPath));
         if (unsupported.length > 0) {
-          return toolError("VALIDATION_ERROR", `${unsupported.map((p) => `'${p}'`).join(", ")} ${unsupported.length === 1 ? "is not a supported image" : "are not supported images"}. render_document can embed only ${IMAGE_EXTENSIONS.map((e) => "." + e).join(", ")}.`);
+          return toolError("VALIDATION_ERROR", `${unsupported.map((p) => `'${p}'`).join(", ")} ${unsupported.length === 1 ? "is not a supported image or layout asset" : "are not supported images or layout assets"}. render_document can embed only ${IMAGE_EXTENSIONS.map((e) => "." + e).join(", ")}; an InDesign template or font (${LAYOUT_ASSET_EXTENSIONS.map((e) => "." + e).join(", ")}) is accepted only under '${LAYOUT_ASSET_FOLDER}'.`);
         }
         const storage = getStorageAdapter();
         if (!storage.createMediaUpload) {
@@ -536,7 +537,7 @@ export function registerDocumentTools(server: McpServer) {
         const namespace = activeNamespace();
         const needConfirm = requireConfirmation(a.confirm, `issue ${describePaths(paths.list, "an image upload URL", "image upload URLs")} in namespace '${namespace}' — this writes NOW to that live documents bucket (no draft, no undo)`);
         if (needConfirm) return needConfirm;
-        return asJson(perPath(namespace, paths, await Promise.all(paths.list.map(async (relPath) => ({ relPath, ...(await storage.createMediaUpload!(relPath, imageMimeFor(relPath)!)) })))));
+        return asJson(perPath(namespace, paths, await Promise.all(paths.list.map(async (relPath) => ({ relPath, ...(await storage.createMediaUpload!(relPath, mimeOf(relPath)!)) })))));
       })));
 
   server.registerTool("create_download_url", { title: "Create document download URL", description: "Get a short-lived signed URL to download an EXISTING object from the bucket with an HTTP GET (no auth header needed) — a .docx, or an image under media/. relPath is documents-relative, like 'chapitre_05/Manuel - Chapitre 5.docx' — the same path used by create_upload_url and get_document_text. Use this to fetch the original binary file (with its images and formatting intact) so you can edit it and re-upload via create_upload_url. Returns { namespace, url, objectKey, expiresAt, exists }; exists is false when there is no such object — and then a `note` says WHY, distinguishing 'no such file here' from 'wrong namespace'. " + MANY_PATHS_NOTE + " " + NAMESPACE_NOTE + " " + WORKSPACE_ROLE_NOTE + "", inputSchema: { ...pathsShape, ...contextField } },

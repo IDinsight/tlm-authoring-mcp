@@ -32,7 +32,10 @@ import { activeWorkspace, relPathOfDocumentObjectUri } from "../context/index.js
 import { getKgStore, kgNamespace, toAuditActor, nextAuditSeq } from "../kg-store/index.js";
 import { currentActor } from "../actor.js";
 import { getStorageAdapter } from "../storage/index.js";
-import { formatterStackFor } from "../curriculum/index.js";
+import { formatterStackFor, type RenderFormat } from "../curriculum/index.js";
+import { readIdmlTemplate, renderIdml, packageIdml, IdmlRefusal, type IdmlTemplate } from "../render/index.js";
+import type { RenderSpec } from "../kg-recipes/index.js";
+import type { CurriculumModel } from "../types.js";
 import { documentSchema, renderDocx, resolveRenderSpec, missingMediaNames, splitByVariant, deriveVariant, hasVariant, measureDocx, fontAsDeclared, readDocx, proposeEdits, editItems, documentText, normalise, rasterizeSvgMedia, markAnswerCells, type AnswerMark, usableWidthCm, imageSizeCm, floatGutterCm, PAGE_CM, type DocumentTree, type TextSlot, type TranslateLines } from "../render/index.js";
 import { displayName, descriptionBody, imageMimeFor } from "../utils/index.js";
 import { translateBatch } from "../translation/index.js";
@@ -55,6 +58,8 @@ type RenderArgs = {
   measure?: boolean;
   /** With `measure`, also return a PNG of each page — the look the numbers cannot give. */
   pagePictures?: boolean;
+  /** "docx" (default) lays the page out in Word; "idml" writes it into the formatter's InDesign template. */
+  format?: "docx" | "idml";
 };
 
 /*
@@ -64,8 +69,9 @@ type RenderArgs = {
  */
 const MEASURE_BUDGET_MS = 100_000;
 
-/** A default name for the output, so a caller need not invent one. */
-const defaultRelPath = (nodeId: string) => `previews/render-${nodeId}.docx`;
+/** A default name for the output, so a caller need not invent one. An InDesign package is a zip. */
+const defaultRelPath = (nodeId: string, format: "docx" | "idml") =>
+  `previews/render-${nodeId}.${format === "idml" ? "zip" : "docx"}`;
 
 /** Insert a variant's suffix before the extension: "…/x.docx" -> "…/x-WO.docx". */
 /*
@@ -148,7 +154,8 @@ type ResolvedGeometry =
     }
   | { ok: false; refusal: Record<string, unknown> };
 
-async function resolveGeometryFor(nodeId: string): Promise<ResolvedGeometry> {
+// `format` picks the stack: a formatter limited to InDesign never shapes a Word page.
+async function resolveGeometryFor(nodeId: string, format: RenderFormat = "docx"): Promise<ResolvedGeometry> {
   /*
    * Draft when there is one, published otherwise.
    *
@@ -166,7 +173,7 @@ async function resolveGeometryFor(nodeId: string): Promise<ResolvedGeometry> {
   const model = draft?.model ?? getActiveAdapter().model();
   const renderedFrom = draft ? "draft" : "published";
 
-  const stack = formatterStackFor(model, nodeId);
+  const stack = formatterStackFor(model, nodeId, format);
   if (!stack) {
     return { ok: false, refusal: {
       preview: true,
@@ -331,6 +338,139 @@ export async function pageGeometry(a: GeometryArgs): Promise<Record<string, unkn
   };
 }
 
+// ── InDesign ───────────────────────────────────────────────────────────────────────────────────
+
+const valueAt = (source: unknown, path: string): unknown =>
+  path.split(".").reduce<unknown>((value, key) => (value && typeof value === "object" ? (value as Record<string, unknown>)[key] : undefined), source);
+
+/*
+ * Which of the template's per-domain style groups a page uses: read off what the rendered node
+ * covers, through the formatter's map (`render.indesign.styleGroup`). A covered value the map
+ * does not name, or covered nodes that disagree, is a refusal — a guess colours a lesson in the
+ * wrong domain and nothing on the page says so.
+ */
+/*
+ * The name of the nearest standard of `statementType` above what `nodeId` aligns to:
+ * hasEducationalAlignment to its standard, then up hasChild — canonical LC both ways.
+ */
+function alignedStandardName(raw: NonNullable<CurriculumModel["rawGraph"]>, nodeId: string, statementType: string): string | undefined {
+  const byId = new Map(raw.nodes.map((n) => [n.id, n]));
+  const parentOf = (id: string) => raw.relationships.find((e) => e.type === "hasChild" && e.end === id)?.start;
+  for (const edge of raw.relationships.filter((e) => e.type === "hasEducationalAlignment" && e.start === nodeId)) {
+    const seen = new Set<string>();
+    for (let id: string | undefined = edge.end; id && !seen.has(id); id = parentOf(id)) {
+      seen.add(id);
+      const properties = byId.get(id)?.properties as Record<string, unknown> | undefined;
+      if (properties?.statementType === statementType) return String(properties.description ?? "").split("\n")[0].trim();
+    }
+  }
+  return undefined;
+}
+
+function styleGroupFor(spec: RenderSpec, raw: CurriculumModel["rawGraph"], nodeId: string): { group?: string } | { refused: string } {
+  const rule = spec.indesign?.styleGroup;
+  if (!rule || !raw) return {};
+  const covered = raw.relationships.filter((e) => e.type === "covers" && e.start === nodeId).map((e) => e.end);
+  const values = covered
+    .map((id) => ("from" in rule ? valueAt(raw.nodes.find((n) => n.id === id)?.properties, rule.from) : alignedStandardName(raw, id, rule.standard.statementType)))
+    .filter((v): v is string => typeof v === "string" && v.length > 0);
+  if (values.length === 0) {
+    const source = "from" in rule ? `carrying '${rule.from}'` : `aligned under a « ${rule.standard.statementType} » standard`;
+    return { refused: `'${nodeId}' covers no curriculum node ${source}, so its style group cannot be chosen (render.indesign.styleGroup).` };
+  }
+  const unmapped = values.filter((value) => rule.map[value] === undefined);
+  if (unmapped.length > 0) {
+    return { refused: `render.indesign.styleGroup.map names no group for ${[...new Set(unmapped)].map((v) => `« ${v} »`).join(", ")} (it maps ${Object.keys(rule.map).map((k) => `« ${k} »`).join(", ")}).` };
+  }
+  const groups = [...new Set(values.map((value) => rule.map[value]))];
+  if (groups.length > 1) {
+    return { refused: `'${nodeId}' covers curriculum in several style groups (${groups.join(", ")}); render it one section at a time.` };
+  }
+  return { group: groups[0] };
+}
+
+type IdmlDelivery = { files: Record<string, unknown>[] } | { refusal: Record<string, unknown> };
+
+/*
+ * Write each language's page into the formatter's InDesign template, package it with its
+ * pictures and fonts, and upload the package beside the Word previews. Everything that can be
+ * refused — no template, a style the template lacks, a domain the map does not name — is
+ * refused before anything is uploaded.
+ */
+async function deliverIdmlFiles(a: {
+  variants: ReturnType<typeof splitByVariant>;
+  spec: RenderSpec;
+  model: CurriculumModel;
+  nodeId: string;
+  relPath: string;
+  measure: boolean;
+  ns: string;
+}): Promise<IdmlDelivery> {
+  const refuse = (error: string, extra: Record<string, unknown> = {}): IdmlDelivery => ({ refusal: { preview: true, namespace: a.ns, format: "idml", error, ...extra } });
+  const indesign = a.spec.indesign;
+  if (!indesign) {
+    return refuse("The formatter stack names no InDesign template, so there is nothing to write the page into. Set `render.indesign.template` (a path under this namespace's documents/ area) on the formatter with edit_nodes.");
+  }
+  const storage = getStorageAdapter();
+  if (!storage.downloadObject || !storage.createPreviewUpload) {
+    return refuse("The active storage backend cannot read the template or upload a package.");
+  }
+
+  const templateBytes = await storage.downloadObject(indesign.template);
+  if (!templateBytes) return refuse(`No InDesign template at '${indesign.template}' in this namespace's documents/ area. Upload it there, or correct render.indesign.template.`);
+  let template: IdmlTemplate;
+  try {
+    template = readIdmlTemplate(templateBytes);
+  } catch (error) {
+    if (error instanceof IdmlRefusal) return refuse(`The InDesign template '${indesign.template}' cannot be used: ${error.problems.join("; ")}.`);
+    throw error;
+  }
+
+  const fonts: { fileName: string; data: Buffer }[] = [];
+  for (const fontPath of indesign.fonts ?? []) {
+    const data = await storage.downloadObject(fontPath);
+    if (!data) return refuse(`No font file at '${fontPath}' (render.indesign.fonts). Without it InDesign substitutes the face silently.`);
+    fonts.push({ fileName: fontPath.split("/").pop() as string, data });
+  }
+
+  const styleGroup = styleGroupFor(a.spec, a.model.rawGraph, a.nodeId);
+  if ("refused" in styleGroup) return refuse(styleGroup.refused);
+
+  // Every file is written before any is uploaded, so a refusal leaves nothing half-delivered.
+  const packages: { variant: (typeof a.variants)[number]; bytes: Buffer }[] = [];
+  for (const variant of a.variants) {
+    const lang = variant.lang || a.spec.language?.variants?.[0]?.lang;
+    try {
+      const output = renderIdml(variant.tree, template, { spec: a.spec, styleGroup: styleGroup.group, lang });
+      const idmlName = `${(suffixed(a.relPath, variant.fileSuffix).split("/").pop() as string).replace(/\.zip$/i, "")}.idml`;
+      packages.push({ variant, bytes: packageIdml(idmlName, output, fonts) });
+    } catch (error) {
+      if (error instanceof IdmlRefusal) {
+        return refuse(`The page cannot be written into the InDesign template '${indesign.template}': ${error.problems.join("; ")}. Nothing was uploaded.`, { missing: error.problems });
+      }
+      throw error;
+    }
+  }
+
+  const files: Record<string, unknown>[] = [];
+  for (const { variant, bytes } of packages) {
+    const signed = await storage.createPreviewUpload(suffixed(a.relPath, variant.fileSuffix), "application/zip");
+    const put = await fetch(signed.uploadUrl, { method: "PUT", headers: { "Content-Type": signed.contentType }, body: new Uint8Array(bytes) });
+    if (!put.ok) return refuse(`Upload failed (${put.status} ${put.statusText}).`, { objectKey: signed.objectKey });
+    files.push({
+      variant: variant.id || null,
+      lang: variant.lang || null,
+      downloadUrl: signed.downloadUrl,
+      objectKey: signed.objectKey,
+      expiresAt: signed.expiresAt,
+      bytes: bytes.length,
+      styleGroup: styleGroup.group ?? null,
+      ...(a.measure ? { measurement: { available: false, reason: "Only InDesign lays out an .idml, and the server has none. Unzip the package, open the .idml and look for overflowing text — InDesign marks it with a red +." } } : {}),
+    });
+  }
+  return { files };
+}
+
 export async function renderDocument(a: RenderArgs): Promise<Record<string, unknown>> {
   const adapter = getActiveAdapter();
   const ns = kgNamespace(activeWorkspace(), adapter.grade, adapter.subject);
@@ -338,7 +478,8 @@ export async function renderDocument(a: RenderArgs): Promise<Record<string, unkn
   const denied = await denyIfNotDraftReader(ns);
   if (denied) return denied;
 
-  const resolved = await resolveGeometryFor(a.nodeId);
+  const format = a.format ?? "docx";
+  const resolved = await resolveGeometryFor(a.nodeId, format);
   if (!resolved.ok) return resolved.refusal;
   const { draft, model, renderedFrom, spec } = resolved;
 
@@ -545,8 +686,15 @@ export async function renderDocument(a: RenderArgs): Promise<Record<string, unkn
   // One file per language the formatter declares — CI maths composes one source
   // and produces two documents, black lines in both, each colour in its own.
   const variants = splitByVariant(composed, spec.spec);
-  const relPath = a.relPath ?? defaultRelPath(a.nodeId);
+  const relPath = a.relPath ?? defaultRelPath(a.nodeId, format);
   const files: Record<string, unknown>[] = [];
+
+  // An InDesign package has its own path; the Word loop below then has nothing to lay out.
+  if (format === "idml") {
+    const delivered = await deliverIdmlFiles({ variants, spec: spec.spec, model, nodeId: a.nodeId, relPath, measure: a.measure === true, ns });
+    if ("refusal" in delivered) return delivered.refusal;
+    files.push(...delivered.files);
+  }
 
   const maxPages = spec.spec.budget?.maxPages;
 
@@ -563,7 +711,7 @@ export async function renderDocument(a: RenderArgs): Promise<Record<string, unkn
    * lost. A measurement that overruns the budget now comes back as
    * `available:false` with the reason, and the file still ships.
    */
-  const rendered = variants.map((variant) => ({ variant, bytes: renderDocx(variant.tree, spec.spec) }));
+  const rendered = format === "idml" ? [] : variants.map((variant) => ({ variant, bytes: renderDocx(variant.tree, spec.spec) }));
   const measurements = a.measure
     ? await Promise.all(rendered.map(({ bytes }) => measureDocx(bytes, { timeoutMs: MEASURE_BUDGET_MS, pagePictures: a.pagePictures })))
     : rendered.map(() => null);
@@ -673,6 +821,7 @@ export async function renderDocument(a: RenderArgs): Promise<Record<string, unkn
     ...(marked.length > 0 ? { answerMarked: marked } : {}),
     formatters: spec.from,
     translatedInto: a.translateInto ?? null,
+    format,
     // Which graph this was laid out from, so a sheet is never mistaken for one
     // made from edits that are still unpublished.
     renderedFrom,
@@ -686,7 +835,7 @@ export function registerRenderTools(server: McpServer) {
   server.registerTool(
     "render_document",
     {
-      title: "Render a composed page into a .docx",
+      title: "Render a composed page into a .docx or an InDesign package",
       description:
         "Turn a page YOU composed into a Word file. `nodeId` is the DocumentSection (or TeachingLearningMaterial) being rendered; `document` is the block tree — or `treeRef`, the ref a previous compose_section / lint_content / render_document call handed back, so the tree is never retyped: every response carries a fresh `treeRef` for the tree it used. A correction goes as `patch` (a few ops on block paths — replace / insert-before / insert-after / remove, plus media / remove-media) on top of `treeRef`, not as the whole page again. The server merges that node's formatter stack into one render spec, validates the tree against it, lays out the .docx and returns a short-lived `downloadUrl`. " +
         "YOU decide what is on the page — which banner, in what order, where it turns; the FORMATTER decides what it looks like. So the tree carries NO geometry: no colour, no point size, no centimetre. A block names a `style` and a picture names a `role`, both defined by the formatter; a page break says only `pageBreak:'before'` and the formatter's `pagination.pageBreakCarrier` decides how it is written. The tree shape is in get_capabilities section:'document'; call preview_generation first for the section's curriculum, routine and formatter prose. " +
@@ -705,6 +854,7 @@ export function registerRenderTools(server: McpServer) {
         translateInto: z.string().optional(),
         measure: z.boolean().optional(),
         pagePictures: z.boolean().optional(),
+        format: z.enum(["docx", "idml"]).optional().describe("'docx' (default): a Word file laid out from the formatter's geometry. 'idml': an InDesign package — the page written into the designer's template the formatter names in `render.indesign.template` (its styles, colours, master pages and named frames), with its pictures in Links/ and its fonts, as a .zip to unzip and open in InDesign. A line whose style names a frame on the template's model page fills that frame; everything else flows into the frame named `corps`. Every style the page names must exist in the template, or nothing is written and the response names the missing ones. The server has no InDesign, so `measure` cannot count an .idml's pages: open it and look for overflowing text (InDesign marks it with a red +)."),
       },
     },
     guarded(async (a: RenderArgs) => asJson(await renderDocument(a))),

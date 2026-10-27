@@ -333,7 +333,8 @@ async function lintComposedPage(
   }
 
   const model = getActiveAdapter().model();
-  const stack = formatterStackFor(model, args.nodeId);
+  // A composed page is checked against the Word geometry; an InDesign-only formatter is not it.
+  const stack = formatterStackFor(model, args.nodeId, "docx");
   if (stack === null) {
     return { error: `No node '${args.nodeId}' in the active graph, or it is neither a DocumentSection nor a TeachingLearningMaterial — those are what carry a formatter stack. Find the section with find_node or walk_document.` };
   }
