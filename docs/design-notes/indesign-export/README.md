@@ -20,7 +20,7 @@ was not saved.
 
 | | What it is | What that means for us |
 |---|---|---|
-| Page | 200 × 275 mm, 13 pages: a cover, then about one page per lesson, plus integration pages | One lesson fits one page. Our Word template breaks before *Tu fais* and so gives two (see *Decisions*) |
+| Page | 200 × 275 mm, 13 pages: a cover, then about one page per lesson, plus integration pages | One lesson fits one page. Our Word book keeps two, by design; the InDesign book overrides the break (see *Decisions*) |
 | Masters | 7 master pages, one per maths domain: `A-AN`, `B-Géo`, `C-Mesure`, `D-RP`, `E-INT AN`, `F-INT GEO`, plus `A-Gabarit` | The domain picks the master and its colour. In the graph that is the lesson's grouping |
 | Styles | **One** paragraph style (`puces`). Every other piece of text is formatted by hand, in Andika | Nothing can be filled by a program until the styles exist. This is the designer's step 1 |
 | Colours | Only one colour is named (`Activite Numerique`). The other domains use raw CMYK values | The domain colours need names too |
@@ -191,9 +191,14 @@ with a red `+`.
 
 Settled with the user, so the designer's brief now states them rather than asks.
 
-1. **One lesson, one page.** The designer's pilot is the book that gets printed, and it fits each
-   lesson on one page. Our Word page template breaks before *Tu fais* and so gives two pages. That
-   break is removed from the pupil formatter's `layout` (a graph edit, separate from this note).
+1. **One lesson, one page — in the InDesign book only.** The designer's pilot fits each lesson on
+   one page. The Word pupil book (« Outil de l'élève ») stays at two: its formatter says so (« sur
+   deux pages ») and its page template breaks before *Tu fais*. Both books share that template, so
+   the break is **not** removed from it. Instead, the InDesign book's own formatter carries a
+   `tu-fais` template without the break. When two formatters define a template with the same name,
+   the one closest to the document wins (`resolveLayout`), so only the InDesign book changes. That
+   override is written when the InDesign formatter is created, in step 3; nothing changes in the
+   graph before then.
 2. **A row of pictures arrives as one combined image**, the `bande` the graph already holds with its
    ☒ ◯ ⊖ signs. It needs no new data. The designer moves the row as a whole. Splitting rows into
    separate cells stays possible later if the designer finds they adjust single cells often.
