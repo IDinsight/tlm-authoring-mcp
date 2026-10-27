@@ -2,8 +2,9 @@
 
 **Status:** Proposal (2026-10-27). Step 1, the styled template, is **built** — by script, since
 there is no designer on this (`backend/scripts/indesign/build-gabarit.jsx`; what it produced and what
-is left to check by eye are in the *Template checklist*). The renderer is not built. The four
-decisions the spike needed are settled — see *Decisions*.
+is left to check by eye are in the *Template checklist*). Step 2, the one-lesson spike, **worked**:
+InDesign opened a server-written file of lesson 1 on the first try — see *Spike result*. The
+renderer itself is not built.
 
 ## The problem
 
@@ -224,13 +225,49 @@ Settled with the user.
 | Step | Who | Result |
 |---|---|---|
 | 1. Styled template | **Done** — build script, in InDesign | `gabarit-eleve.idml` with the named styles, colours and the model page; see *Template checklist* |
-| 2. Spike | Server | Lesson 1 written by hand-made code from `compose_section`'s tree into the template. Opened in InDesign and compared with the pilot's page 2. This is also the rebuild of lesson 1 that a designer would otherwise have done |
+| 2. Spike | **Done** — `backend/scripts/indesign/spike-idml.mjs` | Lesson 1 from `compose_section`, written into the template, opened in InDesign. One page, nothing overflowing; see *Spike result* |
 | 3. Renderer | Server | `render/idml.ts` beside `render/docx.ts`; `render_document` gains `format: "idml"` and returns the package |
 | 4. Measure | Server + Mac | A script that opens the file in InDesign and reports pages and overflowing text, like `measure:true` |
 | 5. Read back | Server | `propose_from_document` reads the tags from a corrected `.idml` |
 
-Step 2 is the real test. If one lesson does not come out close to the designer's page, the rest of
-the plan changes.
+Step 2 was the real test, and it passed: the plan stands.
+
+## Spike result (2026-10-27)
+
+`spike-idml.mjs` took lesson 1's page exactly as `compose_section` returns it (13 blocks and 12
+pictures, copied unchanged into `lecon-1.tree.json`) and wrote it into the template. It kept the
+styles, colours, masters and model page, and filled the three named frames. No InDesign was involved
+in writing it. The result sits next to the pilot, under `gabarit/spike-lecon-1/`.
+
+**What worked, first time:**
+
+- **InDesign opened the file without complaint.** It produced 1 page, all 14 picture links resolved,
+  and no frame overflowed. The file is 171 KB; the template it came from is 116 MB.
+- **The template carried the look.** The pink margin band and the footer came from the master page,
+  the coloured number tab and title band from the `AN/` object styles, and the text from the
+  paragraph styles. The renderer chose none of these.
+- **One flowing story was enough.** Paragraphs, inline pictures and tables in a single `corps`
+  story laid themselves out, and the lesson fits on one page with room to spare.
+
+**What differs from the pilot, and where each fix belongs:**
+
+| Difference | Fix | Where |
+|---|---|---|
+| Each directive sits *above* its picture row; the pilot puts it to the *left*, on the same line | A borderless two-column table per item in the InDesign book's `nous-faisons` / `tu-fais` templates | Graph data (the formatter's `layout`) |
+| The section pictograms sit in the text column; the pilot hangs them in the left margin | An anchored, custom-positioned frame. InDesign object styles can carry anchored-object options, so the position goes in the `picto-section` style and the renderer only applies it | Template, plus one renderer rule |
+| The `encadre` boxes have thin black borders | The `encadre` cell style needs no stroke | Template |
+| A closing « » » wraps onto its own line | A no-break space before « ? », « : », « » » in French text | Renderer (it applies to Word too) |
+| Numbered orange squares (1, 2, 3) instead of ★ ▲ ■ ● ♥ | The InDesign book's formatter names other marker files | Graph data |
+| The *je retiens* box is empty, and *Tu fais* ③ has no picture row | `L01-je-retiens.png` is missing from the bucket, and nothing is attached to ③ (`compose_section` reported both) | The graph's own gaps, not the renderer's |
+| French instead of Wolof | The same `translateInto` the Word renderer uses | Renderer |
+| The pilot prints its last item in a red evaluation box; ours prints *Tu fais* ③ as a plain item — and it is the same question | Decide whether ③ becomes the evaluation box in the InDesign book | To decide |
+
+**Two things the renderer must do, learnt the hard way:**
+
+- **Ship the fonts with the file.** Opened away from the template's `Document fonts/` folder,
+  InDesign silently substituted Andika. The package must include the fonts, next to the `.idml`.
+- **SVG is untested.** The pictograms were rasterised to PNG for the spike. Whether an IDML can link
+  an SVG directly is still open; InDesign places SVG when a person does it.
 
 ## Template checklist
 
