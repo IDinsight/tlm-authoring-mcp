@@ -102,6 +102,8 @@ Avec le module installé, quelques raccourcis ouvrent directement la bonne proc�
 | `/publier` | Publier le brouillon, vérifications d'abord |
 | `/decisions` | Lister ce qui attend une décision humaine |
 
+Deux anciennes commandes restent disponibles par habitude : `/nouveau-cours` (construire un cours de zéro, qui enchaîne `/construire` puis `/composer`) et `/relire` (relire le brouillon avant de l'envoyer à un approbateur, comme `/evaluer`).
+
 Sans le module, le connecteur propose parfois quelques **démarrages tout prêts** (*Créer un nouveau document*, *Appliquer un style*, *Créer une routine*, *Préparer une relecture*) qui ouvrent la conversation avec les bonnes questions.
 
 ## Et ensuite ?

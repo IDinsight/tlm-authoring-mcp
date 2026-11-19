@@ -50,6 +50,8 @@ Une section peut porter une **consigne d'assemblage** — comment la page se com
 
 La mise en forme décide de l'apparence et des **langues** de sortie. Sans ses **réglages de page**, le document ne peut pas être produit : l'outil refuse plutôt que de sortir un fichier sans style. Voir [Mises en forme](formatters.md).
 
+Un document que l'on met aussi en page dans InDesign porte, en plus, une mise en forme **réservée à InDesign** qui nomme le modèle du maquettiste. Voir [Produire aussi pour InDesign](formatters.md#produire-aussi-pour-indesign).
+
 ## 4. Rattacher ses grilles
 
 > « Rattache la grille d'approbation à ce document. »

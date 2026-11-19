@@ -2,7 +2,9 @@
 
 L'**explorateur** est une page web qui montre le programme sous forme d'arborescence : les standards, le contenu, les documents et leurs liens. On y **regarde** ; on n'y modifie rien. Les modifications se font toujours en discutant avec Claude.
 
-Ouvrez l'adresse que vous donne votre administrateur.
+Ouvrez **[https://senegal-ci-maths.web.app](https://senegal-ci-maths.web.app)**.
+
+L'adresse porte le nom du premier programme qu'elle a servi, mais l'explorateur montre **tous** les programmes de l'outil : on choisit le sien en haut de la page.
 
 ## Faut-il se connecter ?
 
@@ -59,3 +61,11 @@ Cliquez sur une fiche pour lire l'entrée **en entier** : le texte exact que Cla
 L'onglet **Terminologie** affiche le **lexique** de l'espace de travail : pour chaque terme, sa forme dans chacune des langues de l'espace, avec un exemple quand il y en a un. C'est sur ce lexique que s'appuient la traduction des documents et la vérification de la terminologie. Il est commun à toutes les classes et matières de l'espace ; la recherche filtre les termes.
 
 Pour ajouter ou corriger un terme, demandez-le à Claude (« Ajoute au lexique : … »). Comme le catalogue, le lexique se publie aussitôt : il faut être **approbateur**.
+
+## Sans quitter la discussion
+
+Pour regarder une seule partie du programme sans ouvrir l'explorateur, demandez à Claude de la dessiner :
+
+> « Dessine-moi l'arborescence du regroupement “Nombres décimaux”. »
+
+Claude peut afficher la même arborescence que l'explorateur, limitée à cette partie, directement dans la conversation. Elle montre la version **publiée**.

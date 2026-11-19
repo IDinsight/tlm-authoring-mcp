@@ -50,6 +50,8 @@ A section can carry an **assembly guide**, which describes how the page is put t
 
 The formatter decides how the document looks and which **languages** it comes out in. Without its **page settings**, the document cannot be produced: the tool refuses rather than put out an unstyled file. See [Formatters](formatters.md).
 
+A document that is also laid out in InDesign carries, on top of that, an **InDesign-only** formatter naming the designer's template. See [Producing for InDesign too](formatters.md#producing-for-indesign-too).
+
 ## 4. Attach its grids
 
 > "Attach the approval grid to this document."

@@ -102,6 +102,8 @@ Once the plugin is installed, a few shortcuts take you straight to the right pro
 | `/publier` | Publish the draft, with the checks first |
 | `/decisions` | List what is waiting for a human decision |
 
+Two older commands are kept for habit: `/nouveau-cours` (build a course from scratch, which runs `/construire` then `/composer`) and `/relire` (review the draft before sending it to an approver, like `/evaluer`).
+
 Without the plugin, the connector sometimes offers a few **ready-made starts** (*Créer un nouveau document*, *Appliquer un style*, *Créer une routine*, *Préparer une relecture* — create a new document, apply a style, create a routine, prepare a review). Each one opens the conversation with the right questions.
 
 ## What next?
