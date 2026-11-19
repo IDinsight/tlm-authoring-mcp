@@ -2,7 +2,9 @@
 
 The **explorer** is a web page that shows the curriculum as a tree: the standards, the content, the documents and the links between them. It is a place to **look**; nothing gets changed there. Changes are always made by talking with Claude.
 
-Open the address your administrator gives you.
+Open **[https://senegal-ci-maths.web.app](https://senegal-ci-maths.web.app)**.
+
+The address carries the name of the first curriculum it served, but the explorer shows **every** curriculum in the tool: you pick yours at the top of the page.
 
 ## Do you need to sign in?
 
@@ -59,3 +61,11 @@ Click a card to read the entry **in full**: the exact text Claude reads when it 
 The **Terminology** tab shows the workspace's **lexicon**: each term in every one of the workspace's languages, with an example where there is one. Document translation and the terminology check both rely on this lexicon. It is shared by every grade and subject in the workspace, and the search box filters the terms.
 
 To add or correct a term, ask Claude ("Add to the lexicon: …"). Like the catalog, the lexicon is published immediately, so you need to be an **approver**.
+
+## Without leaving the conversation
+
+To look at a single part of the curriculum without opening the explorer, ask Claude to draw it:
+
+> "Draw me the tree of the 'Decimal numbers' grouping."
+
+Claude can show the same tree as the explorer, limited to that part, right in the conversation. It shows the **published** version.

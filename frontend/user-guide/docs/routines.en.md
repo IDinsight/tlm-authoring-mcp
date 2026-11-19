@@ -51,6 +51,10 @@ Otherwise, describe it:
 
 > "Create a 'Mental arithmetic session' routine in the workspace library, with three steps: …"
 
+A routine already written in your curriculum can also be **filed into the library**, so that others can reuse it:
+
+> "File this lesson's routine into the workspace library."
+
 !!! tip "Say 'in the library' in your very first sentence"
     A routine is created straight in the catalog. A write to the catalog **is applied and published in one go**: there is no draft and no undoing the last change, because other people start using a library right away. Read the preview carefully before you confirm.
 

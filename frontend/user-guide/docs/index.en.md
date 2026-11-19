@@ -1,6 +1,6 @@
 # TLM user guide
 
-This tool does two things: it **maintains a curriculum** (the "knowledge graph") and it **produces the documents that teach it** — pupil books, teacher's guides, lesson sheets, workbooks — as Word files ready to print.
+This tool does two things: it **maintains a curriculum** (the "knowledge graph") and it **produces the documents that teach it** — pupil books, teacher's guides, lesson sheets, workbooks — as Word files ready to print, or as InDesign files that a layout designer finishes.
 
 It works the same way for every subject, every grade and every country. What sets two curricula apart is not in the tool. It is in their graph.
 
@@ -26,7 +26,7 @@ So the examples in this guide are just that, **examples**: your curriculum may s
 
 - **The conversation with Claude.** Everything happens here, in everyday language. You say what you want — "add a lesson", "produce lesson 12", "is this document ready?" — and Claude calls the right tools. There are no commands to learn.
 - **The authoring plugin** (the *tlm-autorat* plugin). It teaches Claude the right procedures: in what order to create a document, how to check a page before rendering it, when to stop and ask you. It is optional, but strongly recommended. See [Getting started](getting-started.md).
-- **The explorer.** A **read-only** web page showing the published curriculum, its current draft and the catalog. You look at things there; you change nothing. See [Explore the graph](explorer.md).
+- **The explorer.** A **read-only** web page showing the published curriculum, its current draft and the catalog. You look at things there; you change nothing. It lives at [senegal-ci-maths.web.app](https://senegal-ci-maths.web.app); see [Explore the graph](explorer.md).
 
 ## Who does what
 

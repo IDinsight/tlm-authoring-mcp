@@ -53,6 +53,7 @@ Rien ne s'écrit sans votre confirmation. Mais ce qui se passe ensuite dépend d
 | **Routine pédagogique** | Un déroulé de séance réutilisable. S'applique à un cours, une leçon ou une activité. |
 | **Mise en forme** (formatter) | L'apparence d'un document : consignes, réglages de page, gabarits, langues. S'applique à un document. |
 | **Gabarit de page** | Une structure de page écrite une fois, que le serveur remplit depuis le programme. |
+| **Modèle InDesign** | Le fichier du maquettiste (styles, couleurs, page modèle) dans lequel l'outil écrit les pages d'un document produit pour InDesign. Une mise en forme réservée à InDesign le nomme. |
 | **Grille d'évaluation** | Les critères qui jugent un document produit. S'applique à un document. |
 | **Catalogue** | La bibliothèque des routines, mises en forme et grilles : une étagère par espace, une partagée. |
 | **Lexique** | Les termes de l'espace dans chacune de ses langues ; il guide la traduction. |
@@ -63,7 +64,7 @@ Rien ne s'écrit sans votre confirmation. Mais ce qui se passe ensuite dépend d
 | **Livrable** | Un fichier déposé dans l'espace officiel des documents. |
 | **Périmé** | Se dit d'un fichier produit avant une modification du programme qu'il couvre. |
 | **Module d'autorat** | Le plugin *tlm-autorat* : les procédures que Claude suit, et ses commandes. |
-| **Explorateur** | La page web, en lecture seule, qui montre le programme, son brouillon, le catalogue et le lexique. |
+| **Explorateur** | La page web, en lecture seule, qui montre le programme, son brouillon, le catalogue et le lexique : [senegal-ci-maths.web.app](https://senegal-ci-maths.web.app). |
 
 ## Besoin d'aide ?
 

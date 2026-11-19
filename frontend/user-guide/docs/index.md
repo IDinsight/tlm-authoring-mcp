@@ -1,6 +1,6 @@
 # Guide utilisateur TLM
 
-Cet outil sert à deux choses : **entretenir un programme d'enseignement** (le « graphe de connaissances ») et **produire les documents qui l'enseignent** — livres de l'élève, guides de l'enseignant, fiches, cahiers — en fichiers Word prêts à imprimer.
+Cet outil sert à deux choses : **entretenir un programme d'enseignement** (le « graphe de connaissances ») et **produire les documents qui l'enseignent** — livres de l'élève, guides de l'enseignant, fiches, cahiers — en fichiers Word prêts à imprimer, ou en fichiers InDesign qu'un maquettiste finit de mettre en page.
 
 Il fonctionne de la même façon pour toutes les matières, toutes les classes et tous les pays. Ce qui fait la différence entre deux programmes n'est pas dans l'outil : c'est dans leur graphe.
 
@@ -26,7 +26,7 @@ Les exemples de ce guide sont donc des **exemples** : votre programme dira peut-
 
 - **La discussion avec Claude.** Tout se fait là, en langage courant. Vous dites ce que vous voulez — « ajoute une leçon », « produis la leçon 12 », « est-ce que ce document est prêt ? » — et Claude appelle les bons outils. Aucune commande à apprendre.
 - **Le module d'autorat** (plugin *tlm-autorat*). Il apprend à Claude les bonnes procédures : dans quel ordre créer un document, comment vérifier une page avant de la rendre, quand s'arrêter pour vous demander. Il est facultatif mais fortement conseillé. Voir [Prise en main](getting-started.md).
-- **L'explorateur.** Une page web en **lecture seule** qui montre le programme publié, son brouillon en cours et le catalogue. On y regarde, on n'y modifie rien. Voir [Explorer le graphe](explorer.md).
+- **L'explorateur.** Une page web en **lecture seule** qui montre le programme publié, son brouillon en cours et le catalogue. On y regarde, on n'y modifie rien. Elle est à l'adresse [senegal-ci-maths.web.app](https://senegal-ci-maths.web.app) ; voir [Explorer le graphe](explorer.md).
 
 ## Qui fait quoi
 

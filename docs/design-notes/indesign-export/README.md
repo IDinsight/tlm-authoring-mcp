@@ -1,13 +1,13 @@
 # InDesign export — the server writes an `.idml` the designer finishes
 
-**Status:** Proposal (2026-10-27). Step 1, the styled template, is **built** — by script, since
+**Status:** Current — live since 2026-10-27 (#303, #304) for steps 1–3b; steps 4–5 are open. Step 1, the styled template, is **built** — by script, since
 there is no designer on this (`backend/scripts/indesign/build-gabarit.jsx`; what it produced and what
 is left to check by eye are in the *Template checklist*). Step 2, the one-lesson spike, **worked**:
 InDesign opened a server-written file of lesson 1 on the first try — see *Spike result*. Step 3,
-the renderer, is **built, not deployed**: `backend/src/render/idml.ts` and `render_document`
+the renderer, is **live**: `backend/src/render/idml.ts` and `render_document`
 `format: "idml"`, documented in
 [`technical-reference/rendering.md`](../../technical-reference/rendering.md). Step 3b — the InDesign
-book's own formatter — is built and proven on the test graph; it is not staged live (see *The plan*).
+book's own formatter — is **published** on ci/maths, with its template and fonts uploaded (see *The plan*).
 
 ## The problem
 
@@ -229,8 +229,8 @@ Settled with the user.
 |---|---|---|
 | 1. Styled template | **Done** — build script, in InDesign | `gabarit-eleve.idml` with the named styles, colours and the model page; see *Template checklist* |
 | 2. Spike | **Done** — `backend/scripts/indesign/spike-idml.mjs` | Lesson 1 from `compose_section`, written into the template, opened in InDesign. One page, nothing overflowing; see *Spike result* |
-| 3. Renderer | **Built** (not deployed) | `render/idml.ts` beside `render/docx.ts`; `render_document` gains `format: "idml"` and returns the package. Three choices settled with the user: the style group is read off the graph (`render.indesign.styleGroup`), a frame named like a style takes that style's lines, and the output is a zip package. Verified by running it on lesson 1 locally (`scripts/indesign/render-local.mjs`) and opening the result in InDesign: identical to the spike's page |
-| 3b. The InDesign book's formatter | **Code built and proven on the test graph; not staged live** | Built: `when: {last}` in page templates; formatters scoped to one format (`metadata.onlyForFormat`, applied last); `render.indesign.styleGroup.standard` (the domain is a standard above the lesson's objective, not a lesson property — `metadata.domaine` is empty on all 60 published lessons); `create_media_upload_url` takes `.idml`/`.ttf`/`.otf` under `assets/`; and `add_nodes` now validates `render`/`layout` bags, which it never did. The formatter is `backend/scripts/indesign/formatter-livre-indesign.json`. Proven on the test copy of ci/maths: staged, then `compose_section` + `render_document` (`format: "idml"`) on lesson 1 gave one page in InDesign identical to step 3's, French and Wolof packages, style group AN. **Left:** deploy, upload the four files, stage on live — blocked on the deploy and on the teammate's open draft |
+| 3. Renderer | **Live** (deployed 2026-10-27) | `render/idml.ts` beside `render/docx.ts`; `render_document` gains `format: "idml"` and returns the package. Three choices settled with the user: the style group is read off the graph (`render.indesign.styleGroup`), a frame named like a style takes that style's lines, and the output is a zip package. Verified by running it on lesson 1 locally (`scripts/indesign/render-local.mjs`) and opening the result in InDesign: identical to the spike's page |
+| 3b. The InDesign book's formatter | **Live** — formatter published on ci/maths 2026-10-27; template and fonts uploaded under `assets/indesign/` | Built: `when: {last}` in page templates; formatters scoped to one format (`metadata.onlyForFormat`, applied last); `render.indesign.styleGroup.standard` (the domain is a standard above the lesson's objective, not a lesson property — `metadata.domaine` is empty on all 60 published lessons); `create_media_upload_url` takes `.idml`/`.ttf`/`.otf` under `assets/`; and `add_nodes` now validates `render`/`layout` bags, which it never did. The formatter is `backend/scripts/indesign/formatter-livre-indesign.json`. Proven on the test copy of ci/maths: staged, then `compose_section` + `render_document` (`format: "idml"`) on lesson 1 gave one page in InDesign identical to step 3's, French and Wolof packages, style group AN. Deployed, the four files uploaded and the formatter published on 2026-10-27 |
 | 4. Measure | Server + Mac | A script that opens the file in InDesign and reports pages and overflowing text, like `measure:true` |
 | 5. Read back | Server | `propose_from_document` reads the tags from a corrected `.idml` |
 

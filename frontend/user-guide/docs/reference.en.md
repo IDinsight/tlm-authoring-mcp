@@ -53,6 +53,7 @@ Nothing is written without your confirmation. What happens after that, though, d
 | **Instructional routine** | A reusable plan for how a session unfolds. Applies to a course, a lesson or an activity. |
 | **Formatter** | How a document looks: instructions, page settings, templates, languages. Applies to a document. |
 | **Page template** | A page structure written once, which the server fills in from the curriculum. |
+| **InDesign template** | The designer's file (styles, colours, model page) that the tool writes a document's pages into when producing for InDesign. An InDesign-only formatter names it. |
 | **Evaluation grid** | The criteria used to judge a produced document. Applies to a document. |
 | **Catalog** | The library of routines, formatters and evaluation grids: one shelf per workspace, plus a shared one. |
 | **Lexicon** | The workspace's terms in each of its languages. It guides translation. |
@@ -63,7 +64,7 @@ Nothing is written without your confirmation. What happens after that, though, d
 | **Deliverable** | A file placed in the official documents area. |
 | **Stale** | Describes a file produced before a change to the part of the curriculum it covers. |
 | **Authoring plugin** | The *tlm-autorat* plugin: the procedures Claude follows, and its commands. |
-| **Explorer** | The read-only web page that shows the curriculum, its draft, the catalog and the lexicon. |
+| **Explorer** | The read-only web page that shows the curriculum, its draft, the catalog and the lexicon: [senegal-ci-maths.web.app](https://senegal-ci-maths.web.app). |
 
 ## Need help?
 

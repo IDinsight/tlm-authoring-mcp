@@ -51,6 +51,10 @@ Sinon, décrivez-la :
 
 > « Crée dans la bibliothèque de l'espace une routine “Séance de calcul mental” en trois étapes : … »
 
+Une routine déjà écrite dans votre programme peut aussi être **versée dans la bibliothèque**, pour que d'autres la réutilisent :
+
+> « Verse la routine de cette leçon dans la bibliothèque de l'espace. »
+
 !!! tip "Dites « dans la bibliothèque » dès la première phrase"
     Une routine se crée directement dans le catalogue. Une écriture au catalogue **s'applique et se publie d'un coup** : il n'y a pas de brouillon ni d'annulation de la dernière modification, parce qu'une bibliothèque sert immédiatement à d'autres. Relisez bien l'aperçu avant de confirmer.
 
