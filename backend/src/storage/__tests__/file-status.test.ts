@@ -14,7 +14,7 @@ import { describe, it, expect, beforeEach } from "vitest";
 import { activeNamespaceKey, newSessionState, runInSession } from "../../context/index.js";
 import { kgNamespace } from "../../kg-store/index.js";
 import {
-  __setFileRecordStoreForTest, __setStorageForTest, countByStatus, createMemoryFileRecordStore, getEntry,
+  __setFileRecordStoreForTest, __setStorageForTest, countByStatus, createMemoryFileRecordStore, dropMissingFileRecords, getEntry,
   getFileRecordStore, isCurrent, listEntries, recordContent, recordVerdicts, reconcile, statusOf,
   type FileRecordStore,
 } from "../index.js";
@@ -424,17 +424,67 @@ describe("reading the records", () => {
   });
 });
 
-describe("reconcile", () => {
-  it("drops the record of a file that is gone from the bucket", async () => {
-    __setStorageForTest(bucket({ paths: [PUPIL_FR_NEW] }));
+// Looking and deleting are two calls. reconcile used to do both: it dropped the
+// record of every gone file in the call that reported it, behind the READ
+// permission. These pin that it now only looks.
+
+/** Record the French pupil file and the Wolof one. Which of them the bucket still holds is each test's choice. */
+async function recordFrenchAndWolof(): Promise<void> {
+  await recordContent("pipeline", pupilFrench(PUPIL_FR_NEW));
+  await recordContent("pipeline", { ...pupilFrench(PUPIL_WO), variant: "WO" });
+}
+
+const recordedPaths = async (): Promise<string[]> => (await listEntries()).map((file) => file.relPath).sort();
+
+describe("reconcile — comparing the records with the bucket", () => {
+  it("reports a recorded file that is gone from the bucket, and leaves its record alone", async () => {
+    __setStorageForTest(bucket({ paths: [PUPIL_FR_NEW] }));   // the Wolof file is not in the listing
     const result = await inMaths(async () => {
-      await recordContent("pipeline", pupilFrench(PUPIL_FR_NEW));
-      await recordContent("pipeline", { ...pupilFrench(PUPIL_WO), variant: "WO" });   // recorded, but not in the listing
-      const reconciled = await reconcile();
-      return { reconciled, left: (await listEntries()).map((file) => file.relPath) };
+      await recordFrenchAndWolof();
+      const report = await reconcile();
+      return { report, left: await recordedPaths() };
     });
 
-    expect(result.reconciled.dropped).toEqual([PUPIL_WO]);
+    expect(result.report.gone).toEqual([PUPIL_WO]);
+    expect(result.report.tracked).toEqual([{ nodeId: LESSON, relPath: PUPIL_FR_NEW }]);
+    expect(result.report.dropBlocked).toBeUndefined();
+    expect(result.left).toEqual([PUPIL_FR_NEW, PUPIL_WO].sort());
+  });
+
+  it("deletes nothing however often it runs", async () => {
+    __setStorageForTest(bucket({ paths: [PUPIL_FR_NEW] }));
+    const left = await inMaths(async () => {
+      await recordFrenchAndWolof();
+      await reconcile();
+      await reconcile();
+      return recordedPaths();
+    });
+
+    expect(left).toHaveLength(2);
+  });
+
+  it("says the drop is blocked when the bucket lists no document at all", async () => {
+    __setStorageForTest(bucket({ paths: [] }));
+    const report = await inMaths(async () => {
+      await recordContent("pipeline", pupilFrench(PUPIL_FR_NEW));
+      return reconcile();
+    });
+
+    expect(report.gone).toEqual([PUPIL_FR_NEW]);
+    expect(report.dropBlocked).toContain("lists NO documents");
+  });
+});
+
+describe("dropMissingFileRecords", () => {
+  it("drops the record of a file that is gone from the bucket, and only that one", async () => {
+    __setStorageForTest(bucket({ paths: [PUPIL_FR_NEW] }));
+    const result = await inMaths(async () => {
+      await recordFrenchAndWolof();
+      const outcome = await dropMissingFileRecords();
+      return { outcome, left: await recordedPaths() };
+    });
+
+    expect(result.outcome).toEqual({ dropped: [PUPIL_WO] });
     expect(result.left).toEqual([PUPIL_FR_NEW]);
   });
 
@@ -442,12 +492,24 @@ describe("reconcile", () => {
     __setStorageForTest(bucket({ paths: [] }));
     const result = await inMaths(async () => {
       await recordContent("pipeline", pupilFrench(PUPIL_FR_NEW));
-      const reconciled = await reconcile();
-      return { reconciled, left: await getFileRecordStore().list(activeNamespaceKey()) };
+      const outcome = await dropMissingFileRecords();
+      return { outcome, left: await getFileRecordStore().list(activeNamespaceKey()) };
     });
 
-    expect(result.reconciled.dropped).toEqual([]);
-    expect(result.reconciled.dropSkipped).toContain("Nothing was dropped");
+    expect(result.outcome.dropped).toEqual([]);
+    expect(result.outcome.dropSkipped).toContain("No record is dropped");
     expect(result.left).toHaveLength(1);
+  });
+
+  it("drops nothing, and skips nothing, when every recorded file is still in the bucket", async () => {
+    __setStorageForTest(bucket({ paths: [PUPIL_FR_NEW] }));
+    const result = await inMaths(async () => {
+      await recordContent("pipeline", pupilFrench(PUPIL_FR_NEW));
+      const outcome = await dropMissingFileRecords();
+      return { outcome, left: await recordedPaths() };
+    });
+
+    expect(result.outcome).toEqual({ dropped: [] });
+    expect(result.left).toEqual([PUPIL_FR_NEW]);
   });
 });

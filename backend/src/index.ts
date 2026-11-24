@@ -67,7 +67,9 @@ async function main() {
   if (getActiveContext()) {
     try {
       const r = await reconcile();
-      console.error(`${LOG} reconciled: ${r.tracked.length} tracked, ${r.untracked.length} untracked, ${r.dropped.length} dropped.`);
+      // A report only: the record of a gone file is dropped by a person, through
+      // drop_missing_file_records, never by starting the server.
+      console.error(`${LOG} reconciled: ${r.tracked.length} tracked, ${r.untracked.length} untracked, ${r.gone.length} recorded but gone from the bucket.`);
       if (r.untracked.length) console.error(`${LOG} untracked (need linking): ${r.untracked.map((u) => `${u.relPath} (${u.reason})`).join(", ")}`);
     } catch (e) { console.error(`${LOG} startup reconcile failed:`, (e as Error).message); }
   } else {

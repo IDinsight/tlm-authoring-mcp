@@ -205,6 +205,14 @@ describe("the membership gate is applied to the NAMED namespace", () => {
     expect(String(JSON.stringify(result))).not.toMatch(/No node/);
   });
 
+  it("refuses to drop file records in that workspace too", async () => {
+    const result = await callAs(SENEGAL_CURATOR, "drop_missing_file_records", { confirm: true, context: NIGERIA });
+
+    expect(refused(result)).toBe(true);
+    expect(result.action).toBe("writeDocuments");
+    expect(result.dropped).toBeUndefined();
+  });
+
   it("audits the refusal against the NAMED namespace, not the session's", async () => {
     await callAs(SENEGAL_CURATOR, "create_upload_url", { relPath: "week_01/Sheet.docx", confirm: true, context: NIGERIA });
 

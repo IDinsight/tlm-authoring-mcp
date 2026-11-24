@@ -35,7 +35,8 @@ const READ_ONLY_TOOLS = [
   // page a day for the caller's next call — a scratch copy, not a document.
   "check_document", "compose_section", "lint_content", "page_geometry", "propose_from_document",
   // Produced files, read. create_download_url signs a GET and stores nothing.
-  "list_documents", "get_document_text", "create_download_url", "check_stale", "evaluate_document",
+  // reconcile compares the bucket with the file records and leaves both alone.
+  "list_documents", "get_document_text", "create_download_url", "check_stale", "evaluate_document", "reconcile",
   // Administration, read.
   "list_members", "list_unaffiliated_users", "read_audit",
 ];
@@ -46,7 +47,7 @@ const DELETES_FOR_GOOD_TOOLS = [
   "discard_draft",
   "remove_terms",                   // the lexicon publishes on confirm
   "remove_member", "revoke_invite", "remove_domain_rule",
-  "reconcile",                      // drops the record of a file whose object is gone
+  "drop_missing_file_records",      // the record of a file gone from the bucket
 ];
 
 let tools: Tool[];
@@ -138,14 +139,16 @@ describe("get_capabilities and the hints agree", () => {
     expect(hintedReadOnlyAmong(listedAsReads)).toEqual([...new Set(listedAsReads)].sort());
   });
 
-  it("has exactly one tool behind the documents READ permission that is not a read: reconcile", () => {
-    // Anyone who may read a workspace's documents may call reconcile, yet it
-    // deletes the record of every file whose object is gone. If reconcile ever
-    // stops deleting, this is the test that says its hint can change.
+  it("hints as a read every tool behind the documents READ permission", () => {
+    // reconcile was the one exception: it dropped the record of every file gone
+    // from the bucket while needing only the read permission. The drop is a
+    // tool of its own now (drop_missing_file_records), behind the write one.
     const behindReadPermission = documentsSection(everythingAllowed).readTools;
+    expect(behindReadPermission.length).toBeGreaterThan(3);
+
     const readOnly = hintedReadOnlyAmong(behindReadPermission);
     const notARead = behindReadPermission.filter((name) => !readOnly.includes(name));
 
-    expect(notARead).toEqual(["reconcile"]);
+    expect(notARead).toEqual([]);
   });
 });
