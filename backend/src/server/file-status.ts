@@ -24,6 +24,7 @@ import { NAMESPACE_NOTE, describePaths, pathsOf, pathsShape, type PathsArgs } fr
 import { auditFileEvent, currentFilePerson } from "./file-audit.js";
 import { denyUnlessMember } from "./membership.js";
 import { asJson, guarded, toolError, type ToolResult } from "./shared.js";
+import { WRITES } from "./tool-effects.js";
 import { WORKSPACE_ROLE_NOTE } from "./tool-notes.js";
 
 function activeNamespace(): string {
@@ -191,6 +192,7 @@ export function registerFileStatusTools(server: McpServer) {
     "record_file_verdict",
     {
       title: "Approve a produced file, or send it back",
+      annotations: WRITES,
       description:
         "Record a PERSON's verdict on a produced file: `verdict:'approved'` (this is the file to use — APPROVERS only) or `'changes_requested'` (send it back — any member; `note` is required and says what must change). " +
         "Name the file by `relPath`, or several with `relPaths` under ONE confirmation — the four files of a lesson. " +

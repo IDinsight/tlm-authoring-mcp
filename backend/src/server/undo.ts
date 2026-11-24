@@ -20,6 +20,7 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { asJson, guarded } from "./shared.js";
+import { WRITES } from "./tool-effects.js";
 import { getActiveAdapter } from "../adapters/index.js";
 import { activeWorkspace } from "../context/index.js";
 import { kgNamespace, findUndoTarget, undoApply, type UndoLastArgs } from "../kg-store/index.js";
@@ -89,6 +90,7 @@ export function registerUndoTools(server: McpServer) {
     "undo_last",
     {
       title: "Take back the last staged edit",
+      annotations: WRITES,
       description:
         "Take back the MOST RECENT edit staged on the draft, leaving every other staged edit in place — the per-edit counterpart to discard_draft, which throws away the whole draft. It works by replaying that edit's recorded diff BACKWARDS (adding back what it removed, removing what it added, restoring what it changed), so nothing is lost or guessed. Takes no arguments: the edit is resolved server-side, and the dry-run reports it in `undoing` {auditId, mutation, at, by} so you can name it to the user before they agree. Calling it repeatedly PEELS BACK — undo, then the edit before that — it does not toggle. SCOPE: only edits on the CURRENT draft. A published change is not reachable this way; taking one back is a fresh edit. REFUSES rather than merges when a later edit touched the same node (the response says which node and why) — undo the later edit first, or fix the node directly with edit_nodes. " +
         "REQUIRES CONFIRMATION: the dry-run returns the diff summary + a confirmationToken and changes nothing; confirm by calling again with confirm:true and that token. " +

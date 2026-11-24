@@ -15,6 +15,7 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { asJson, guarded } from "./shared.js";
+import { WRITES, DELETES_FOR_GOOD } from "./tool-effects.js";
 import { getActiveAdapter } from "../adapters/index.js";
 import { activeWorkspace } from "../context/index.js";
 import { kgNamespace, deleteEdges, deleteNodes } from "../kg-store/index.js";
@@ -167,6 +168,7 @@ export function registerStructuralTools(server: McpServer) {
     "create_edges",
     {
       title: "Create edges (one or many) in one batch",
+      annotations: WRITES,
       description:
         "Add ONE edge or MANY in one atomic draft edit — for the edges add_nodes does not set: `usesRoutine` (apply a routine to a Lesson/Course/Activity), `buildsTowards` / `relatesTo` / `hasDependency` (prerequisites), or an extra `hasEducationalAlignment`. Each `edges[i]`: `edgeType`, `fromId`, `toId`, optional `properties`. Both endpoints must already exist in the draft (ids from a prior committed add_nodes count). Edge ids are deterministic (`<type>:<from>-><to>`) and a duplicate triple is rejected — detection spans both the batch and the draft. ALL-OR-NOTHING: one confirmationToken; any item error blocks all of it. Edge-type legality across labels is a reviewer judgement at publish, not enforced here. " + PARKED_PAYLOAD_NOTE +
         RETURN_MODE_NOTE + IDEMPOTENCY_NOTE + " DRAFT edit. " +
@@ -197,6 +199,10 @@ export function registerStructuralTools(server: McpServer) {
     "delete_edges",
     {
       title: "Delete edges (one or many) in one batch",
+      // On the subject graph this only stages a draft edit. With `catalog` it
+      // applies and publishes at once, with no draft to discard and no undo_last —
+      // and a hint is per tool, so the tool carries the worse of the two.
+      annotations: DELETES_FOR_GOOD,
       description:
         "Remove ONE edge or MANY by id in one atomic draft edit. Each `edgeIds[i]` is a deterministic edge id (`<type>:<from>-><to>`), from a create_edges preview, diff_draft, or the graph. Removing an edge cannot orphan a node — it just becomes less connected — so use this to DETACH a subtree you want to keep before delete_nodes. ALL-OR-NOTHING: a missing id, or one listed twice, blocks the batch. " +
         RETURN_MODE_NOTE + IDEMPOTENCY_NOTE + " DRAFT edit — publish_draft to make it live. " +
@@ -218,6 +224,8 @@ export function registerStructuralTools(server: McpServer) {
     "delete_nodes",
     {
       title: "Delete nodes (one or many, each with its dependent subtree) in one batch",
+      // Same reason as delete_edges: the `catalog` path deletes with no undo.
+      annotations: DELETES_FOR_GOOD,
       description:
         "Remove ONE node or MANY by id in one atomic draft edit — each with its dependent subtree (hasChild/hasPart descendants) and every edge touching a removed node. The cascade is computed over ALL the ids at once, so a child shared by two of them also vanishes. The dry-run diff shows the FULL set and WARNS with it; nothing is deleted until you confirm, so seeing the cascade IS the safety (no force flag). ALL-OR-NOTHING: a missing id, or one listed twice, blocks the batch. Referential integrity is re-checked after. " +
         RETURN_MODE_NOTE + IDEMPOTENCY_NOTE + " DRAFT edit — publish_draft to make it live. " +

@@ -28,6 +28,22 @@ The [README](../../README.md#adding-a-new-subject) has the step-by-step recipe w
 
 **Rules the build enforces:** imports point *down* the layers; **service modules (`storage`/`curriculum`/`kg-store`/`kg-recipes`) must not import `adapters`** — pass what they need in as arguments (the tool layer resolves the active adapter/model and threads it in); cross-module imports go through the module's `index.ts`. `npm run check:cycles` fails the build on any import cycle or upward import.
 
+## Adding a tool
+
+Every tool tells the client whether it only reads. It does so with one of three constants from `src/server/tool-effects.ts`, set as `annotations` where the tool is registered:
+
+| constant | what it tells the client | example |
+|---|---|---|
+| `READS_ONLY` | changes nothing a user can see | `find_node`, `set_context` |
+| `WRITES` | changes something | `edit_nodes` (a staged draft edit), `create_upload_url` |
+| `DELETES_FOR_GOOD` | can delete with no draft to discard and no undo | `discard_draft`, `remove_member` |
+
+This matters because some clients act on it. ChatGPT's documentation says a tool that does not declare MCP's `readOnlyHint` is treated as a write, and a write asks the user to confirm — so without the hint every `find_node` would stop for a click.
+
+What counts as a read is what a *user* can see change. An audit line, the session's own context, and a page kept a day for the caller's next call do not make a tool a write. A draft edit, anything put in the bucket (the `previews/` area included), a recorded file and a change to members all do.
+
+`src/server/__tests__/tool-effects.test.ts` fails when a tool states nothing. It also holds the reviewed list of read-only tools, so a new read-only tool is added there as well as in the code. When in doubt, say `WRITES`: a write hinted as a read is run without the user being asked.
+
 ## Testing note
 
 The storage layer sits behind a small `StorageAdapter` interface. The reconcile / history / variety / ingest logic is verified against an in-memory fake (no credentials needed). Unit tests run with `npm test` (Vitest); the store lifecycle and the read/preview paths are covered under `src/kg-store/__tests__/` and `src/server/__tests__/`. `npm run build` runs the import-cycle check (`npm run check:cycles`) before `tsc`, so a broken layer boundary fails the build. The **Firebase implementation is compile-checked but not live-tested here** — validating real bucket calls (list, signed URL, download, history read/write) needs your service-account credentials and network access, so do a first run against your own project.

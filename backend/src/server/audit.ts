@@ -33,6 +33,7 @@ import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { randomUUID } from "node:crypto";
 import { asJson, guarded } from "./shared.js";
+import { READS_ONLY } from "./tool-effects.js";
 import { getActiveAdapter } from "../adapters/index.js";
 import { activeWorkspace } from "../context/index.js";
 import { basePrefix } from "../config.js";
@@ -359,6 +360,7 @@ export function registerAuditTools(server: McpServer) {
     "read_audit",
     {
       title: "Review the audit trail",
+      annotations: READS_ONLY,
       description:
         "Read a page of the append-only audit log for the ACTIVE grade/subject namespace, newest-first. APPROVERS ONLY (same tier as publish); curators and no-role callers are blocked, and the blocked read is itself audited. READ-ONLY — it cannot create, edit, delete, redact or reorder a record. To review another GRAPH's trail, set_context to it first. " +
         "Pass `workspace` instead for that WORKSPACE's own trail — member grants, invites, domain rules, workspace creation. Those events belong to no grade/subject, so this is the only way to see them; needs no active context, requires approver in that workspace. " +

@@ -19,6 +19,7 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { asJson, guarded } from "./shared.js";
+import { WRITES, DELETES_FOR_GOOD } from "./tool-effects.js";
 import { activeWorkspace } from "../context/index.js";
 import { currentActor } from "../actor.js";
 import { authorize } from "../authz.js";
@@ -147,6 +148,7 @@ export function registerGlossaryTools(server: McpServer) {
     "add_terms",
     {
       title: "Add lexicon terms (one or many)",
+      annotations: WRITES,
       description:
         "Add ONE or MANY bilingual lexicon entries to the active WORKSPACE's glossary (shared across its grades/subjects — used for translation grounding and terminology lookup). Each `entries[i]` has `renderings` (a language-keyed map, e.g. { fr: 'compter', wo: 'waññ' } — at least one language), optional `subject`/`grade` to NARROW an entry to one context (omit for workspace-wide), and optional `example`/`tags`/`notes`. Entries may be single terms OR longer preferred phrases. Two-phase: the dry-run returns a diff + confirmationToken + `mintedNodeIds` (in item order); to confirm, call again with confirm:true, the token, the SAME `entries`, and `mintedNodeIds` echoed back. On a successful confirm the glossary is published automatically. Approver only (the confirm auto-publishes the lexicon).",
       inputSchema: {
@@ -173,6 +175,7 @@ export function registerGlossaryTools(server: McpServer) {
     "edit_term",
     {
       title: "Edit a lexicon term",
+      annotations: WRITES,
       description:
         "Edit one glossary entry in place by `id` (get ids from add_terms or the graph). Supply only the fields to change: `renderings` MERGE key-by-key (a blank value drops that language; the edit cannot leave the entry with zero renderings), while `subject`/`grade`/`example`/`tags`/`notes` REPLACE (pass an empty string to clear one). Two-phase: dry-run returns a diff + confirmationToken; confirm with confirm:true, the token, and the same fields. Auto-publishes on confirm. Approver only (the confirm auto-publishes the lexicon).",
       inputSchema: {
@@ -197,6 +200,8 @@ export function registerGlossaryTools(server: McpServer) {
     "remove_terms",
     {
       title: "Remove lexicon terms (one or many)",
+      // The confirm publishes the lexicon at once, so no draft is left to discard.
+      annotations: DELETES_FOR_GOOD,
       description:
         "Remove ONE or MANY glossary entries by `id` in one atomic edit. Two-phase: dry-run returns a diff + confirmationToken listing what will vanish; confirm with confirm:true and the token. Auto-publishes on confirm. Approver only (the confirm auto-publishes the lexicon).",
       inputSchema: {

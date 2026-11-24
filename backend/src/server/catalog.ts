@@ -29,6 +29,7 @@ import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { ResourceTemplate } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { asJson, asMarkdown, guarded } from "./shared.js";
+import { READS_ONLY, WRITES } from "./tool-effects.js";
 import { getActiveAdapter } from "../adapters/index.js";
 import { activeWorkspace } from "../context/index.js";
 import { getKgStore, mintNodeId, runGraphMutation, kgNamespace, publishDraft, discardDraft, type MutationGraph, type MutationEdge, type MutationNode, type StoredEdge, type StoredNode } from "../kg-store/index.js";
@@ -537,6 +538,7 @@ export function registerCatalogTools(server: McpServer) {
     "list_catalog",
     {
       title: "List the catalog",
+      annotations: READS_ONLY,
       description:
         "Browse the reusable-spec catalog — the instructional routines, formatters and evaluation rubrics a curator applies to content. Reads the shared cross-tenant library and the active workspace's own, each entry tagged `scope` (shared | workspace) and `kind` (routine | formatter | rubric). " +
         "`detail` defaults to 'names' — id, name, kind, scope, stepCount, materialCount — which is what CHOOSING an entry needs; 'full' adds each entry's summary, ordered steps (name + timing) and materials, and is large (63 KB for the live library, so filter or page it). " +
@@ -557,6 +559,7 @@ export function registerCatalogTools(server: McpServer) {
     "get_catalog_entry",
     {
       title: "Read a catalog entry",
+      annotations: READS_ONLY,
       description: "Read ONE catalog entry's FULL authored spec, as markdown: a routine's ordered, timed steps with each step's script (a routine keeps its summary and every step's text inline in `description`, not in Materials); a formatter's spec Material; a rubric's scale plus its weighted sections and their named criteria (each with its measurable indicator). This is the detail list_catalog only COUNTS (materialCount) — the same content the `catalog://` browse resource serves, exposed as a TOOL so it works in every client (not only those with a resource browser). Pass the entry `id` from list_catalog; both libraries (shared + workspace) are searched. Each block of authored text is preceded by the NODE ID holding it (`edit_nodes nodeId: ...`), so a spec you find wrong here can be corrected straight away with edit_nodes(items:[{nodeId, content}], catalog) — and several wrong blocks in ONE call — a catalog is not walkable, so this is where content and its id appear together. Read-only.",
       inputSchema: { id: z.string() },
     },
@@ -575,6 +578,7 @@ export function registerCatalogTools(server: McpServer) {
     "use_routine",
     {
       title: "Use a catalog routine",
+      annotations: WRITES,
       description: "Apply a catalog ROUTINE to a lesson by COPYING it. The entry (from the shared OR the workspace library) is cloned with fresh ids into the active subject and linked to `targetId` (a Lesson) via `usesRoutine`. The copy is independent — later edits to the library entry do not reach it. REQUIRES CONFIRMATION: dry-run returns diff + confirmationToken + mintedIdMap. " + PARKED_PAYLOAD_NOTE + " DRAFT edit — publish_draft to make it live.",
       inputSchema: APPLY_INPUT,
     },
@@ -585,6 +589,7 @@ export function registerCatalogTools(server: McpServer) {
     "use_formatter",
     {
       title: "Use a catalog formatter",
+      annotations: WRITES,
       description: "Apply a catalog FORMATTER (a house-style spec) to a DOCUMENT by COPYING it. `targetId` is a TeachingLearningMaterial (the document node), OR a Course — in which case the TLM that `covers` that Course is resolved for you. The entry (from the shared OR the workspace library) is cloned with fresh ids into the active subject, RELABELLED to the document layer (Formatter + FormatterSpec), and hung under the TLM via `hasPart`, so generating that document applies the style. Formatting is a property of the document, not the curriculum — it never rides a Course's usesRoutine edge. (If a Course has no document yet, create one with create_document — it mints the TeachingLearningMaterial AND its `covers` edge in one atomic call, so the document cannot end up covering nothing.) The copy is independent — later edits to the library formatter do not reach it. REQUIRES CONFIRMATION: dry-run returns diff + confirmationToken + mintedIdMap. " + PARKED_PAYLOAD_NOTE + " DRAFT edit — publish_draft to make it live.",
       inputSchema: APPLY_INPUT,
     },
@@ -595,6 +600,7 @@ export function registerCatalogTools(server: McpServer) {
     "use_rubric",
     {
       title: "Use a catalog rubric",
+      annotations: WRITES,
       description: "Apply a catalog RUBRIC (an evaluation grid — Annexe 8's approval checklist, Annexe 7's scored grid) to a DOCUMENT by COPYING it, so `evaluate_document` knows which grid governs it. `targetId` is a TeachingLearningMaterial, or a Course (its covering TLM is resolved for you; if it has none, create_document mints the TLM and its `covers` edge atomically). The entry is cloned with fresh ids into the active subject, RELABELLED to Rubric → RubricSection → RubricCriterion, and hung under the TLM via `hasPart` — a grid judges the DOCUMENT, so it attaches where a formatter does, never to the curriculum. A document may carry SEVERAL rubrics and evaluate_document reports every one. The copy is independent of the library. REQUIRES CONFIRMATION: dry-run returns diff + confirmationToken + mintedIdMap. " + PARKED_PAYLOAD_NOTE + " DRAFT edit — publish_draft to make it live.",
       inputSchema: APPLY_INPUT,
     },
@@ -605,6 +611,7 @@ export function registerCatalogTools(server: McpServer) {
     "add_to_catalog",
     {
       title: "Add a routine or formatter to the catalog",
+      annotations: WRITES,
       description: "File a routine, formatter or rubric you AUTHORED in the active subject INTO a catalog library, so list_catalog / use_routine / use_formatter / use_rubric can reuse it — the write inverse of use_routine. It clones the entry's whole subtree with fresh ids under the destination library's root. " +
         "Use it for an entry that ALREADY exists in a subject graph (authored inline, or applied by use_routine and improved since). For a NEW entry, prefer add_nodes with `catalog:'workspace'`, which writes straight into the library — building it in the subject and cloning here strands a half-built entry if the session is interrupted. To start from an entry already in a library, use duplicate_entry. " +
         "DESTINATION: a curator files into their OWN workspace's library (omit targetWorkspace); a super_admin may pass `targetWorkspace` ('_shared' or a workspace id), or call without it to be offered the list. Because it PUBLISHES it needs an APPROVER there (super_admin for the shared library). TWO-PHASE, and confirming applies AND publishes in one step — catalogs are not enterable, so there is no publish_draft. The dry-run returns the diff + confirmationToken + mintedIdMap. " + PARKED_PAYLOAD_NOTE,
@@ -623,6 +630,7 @@ export function registerCatalogTools(server: McpServer) {
     "duplicate_entry",
     {
       title: "Duplicate a catalog entry",
+      annotations: WRITES,
       description:
         "COPY an existing catalog entry into a library as a NEW entry with fresh ids, editable without touching the original. This is how a house style is adapted: nobody authors a formatter from a blank page — start from the one that is nearly right. " +
         "`entryId` comes from list_catalog (both libraries are searched). ALWAYS give `name` (default: the original + « (copie) »): two identically-named entries cannot be told apart later. DESTINATION works like add_to_catalog — a curator's copy lands in their OWN library (omit targetWorkspace), which is what makes duplicating a SHARED master useful, since a curator cannot edit a shared entry in place; a super_admin may pass `targetWorkspace`, or omit it to be offered the list. Because it PUBLISHES it needs an APPROVER there. " +

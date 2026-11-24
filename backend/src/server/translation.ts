@@ -15,6 +15,7 @@
 import { z } from "zod";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { asJson, guarded } from "./shared.js";
+import { READS_ONLY } from "./tool-effects.js";
 import { contextField, withContextOverrideResult, type WithContext } from "./context-override.js";
 import { denyUnlessMember } from "./membership.js";
 import { getActiveAdapter } from "../adapters/index.js";
@@ -29,6 +30,8 @@ export function registerTranslationTools(server: McpServer) {
     "translate",
     {
       title: "Translate French ↔ Wolof (Gemini)",
+      // It spends the metered translator and writes nothing — a cost, not a change.
+      annotations: READS_ONLY,
       description:
         "Translate text between French and Wolof using Google Gemini, grounded in the active subject's MOHEBS FR/Wolof glossary (relevant terms are passed to the model as a term bank so wording stays consistent with existing materials). Direction defaults to auto-detect; pass 'fr>wo' or 'wo>fr' to pin it. Unlike get_terminology (glossary lookup only), this generates a full translation. " +
         "Pass `texts` (an ARRAY) to translate several passages in one call: results come back in the same order, one per input, so a numbered list cannot slide out of alignment the way it does when you concatenate lines and split the answer. Each passage gets its OWN term bank, scanned from its own text. Pass `text` OR `texts`. " +

@@ -21,6 +21,7 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { asJson, guarded } from "./shared.js";
+import { READS_ONLY } from "./tool-effects.js";
 import { getActiveAdapter } from "../adapters/index.js";
 import { activeWorkspace } from "../context/index.js";
 import { currentActor } from "../actor.js";
@@ -179,6 +180,7 @@ export function registerEvaluationTools(server: McpServer) {
     "evaluate_document",
     {
       title: "Evaluate a document against its rubrics",
+      annotations: READS_ONLY,
       description:
         "Score a GENERATED DOCUMENT against the evaluation RUBRICS attached to it (e.g. Annexe 8's approval checklist) — the document-side counterpart of review_draft, which checks the graph. `nodeId` is the document's TeachingLearningMaterial, OR the Course it covers (its TLM is resolved for you); pass `rubricId` to score against just one when several are attached. Returns each rubric's `scale`, its weighted `sections` and their named `criteria` (each with its measurable indicator and node id), the document's bucket `relPath` + last recorded content, and an `instruction`. YOU (the model) then READ the document — page get_document_text to the end, since criteria like gender balance are only answerable from the whole text — and score every criterion with evidence. This tool assembles the inputs; it does not itself render a verdict, run any model, or store the result. A rubric gets attached with use_rubric. Read-only; reading an open draft is curator/approver-gated.",
       inputSchema: {

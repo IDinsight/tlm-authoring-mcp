@@ -14,6 +14,7 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { asJson } from "./shared.js";
+import { READS_ONLY } from "./tool-effects.js";
 import { activateContext } from "../activate.js";
 import { getActiveContext, listAvailableContexts } from "../context/index.js";
 import { currentActor } from "../actor.js";
@@ -30,7 +31,9 @@ export function accessibleContexts() {
 }
 
 export function registerContextTools(server: McpServer) {
-  server.registerTool("set_context", { title: "Set workspace, grade & subject", description: "Choose the workspace (e.g. 'senegal'), grade (e.g. 'ci') and subject (e.g. 'maths') to work on. This selects which sources load and which Firebase namespace documents and history live under, and MUST be set before any other tool. Anyone signed in may enter any workspace and read its published curriculum; a ROLE in the workspace is what unlocks editing, its documents, and translation (the response says which you have). If you don't know which to use, call get_context (or list_workspaces) to list your options, then ask the user.", inputSchema: { workspace: z.string(), grade: z.string(), subject: z.string() } },
+  // set_context is READS_ONLY: it moves this session's own "where am I" and
+  // changes nothing another person, or another session, can see.
+  server.registerTool("set_context", { title: "Set workspace, grade & subject", annotations: READS_ONLY, description: "Choose the workspace (e.g. 'senegal'), grade (e.g. 'ci') and subject (e.g. 'maths') to work on. This selects which sources load and which Firebase namespace documents and history live under, and MUST be set before any other tool. Anyone signed in may enter any workspace and read its published curriculum; a ROLE in the workspace is what unlocks editing, its documents, and translation (the response says which you have). If you don't know which to use, call get_context (or list_workspaces) to list your options, then ask the user.", inputSchema: { workspace: z.string(), grade: z.string(), subject: z.string() } },
     async (a) => {
       const r = await activateContext(a.workspace, a.grade, a.subject);
       if (!r.ok) return asJson(r);
@@ -46,6 +49,6 @@ export function registerContextTools(server: McpServer) {
       });
     });
 
-  server.registerTool("get_context", { title: "Get active context", description: "Return the currently selected workspace/grade/subject (null if none is set yet) and every workspace/grade/subject option available. Use this to discover what's available, then set_context.", inputSchema: {} },
+  server.registerTool("get_context", { title: "Get active context", annotations: READS_ONLY, description: "Return the currently selected workspace/grade/subject (null if none is set yet) and every workspace/grade/subject option available. Use this to discover what's available, then set_context.", inputSchema: {} },
     async () => asJson({ active: getActiveContext(), available: accessibleContexts() }));
 }

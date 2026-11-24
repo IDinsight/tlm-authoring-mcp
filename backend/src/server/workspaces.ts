@@ -27,6 +27,7 @@ import { randomUUID } from "node:crypto";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { asJson } from "./shared.js";
+import { READS_ONLY, WRITES, DELETES_FOR_GOOD } from "./tool-effects.js";
 import { currentActor } from "../actor.js";
 import type { MembershipRole } from "../actor.js";
 import type { DomainRule, InviteRecord, MembershipRecord } from "../workspaces/index.js";
@@ -416,33 +417,33 @@ function statusOf(user: DirectoryUser, hasInvite: boolean): string {
 }
 
 export function registerWorkspaceTools(server: McpServer) {
-  server.registerTool("list_workspaces", { title: "List workspaces", description: "List the workspaces you can enter (a super admin sees all). Each entry shows your role and its grade/subject graphs. Use this before set_context.", inputSchema: {} },
+  server.registerTool("list_workspaces", { title: "List workspaces", annotations: READS_ONLY, description: "List the workspaces you can enter (a super admin sees all). Each entry shows your role and its grade/subject graphs. Use this before set_context.", inputSchema: {} },
     async () => asJson(await listWorkspacesOp()));
 
-  server.registerTool("create_workspace", { title: "Create a workspace", description: "Create a new tenant workspace (super admin only). The id becomes the top segment of every namespace it owns — use a short slug like 'kenya'. Seeding its curriculum graphs is a separate step.", inputSchema: { id: z.string(), displayName: z.string() } },
+  server.registerTool("create_workspace", { title: "Create a workspace", annotations: WRITES, description: "Create a new tenant workspace (super admin only). The id becomes the top segment of every namespace it owns — use a short slug like 'kenya'. Seeding its curriculum graphs is a separate step.", inputSchema: { id: z.string(), displayName: z.string() } },
     async (a) => asJson(await createWorkspaceOp(a)));
 
-  server.registerTool("add_member", { title: "Add / update a workspace member", description: "Grant a user a role (curator, approver, or admin) in a workspace. Requires admin in that workspace (or super admin). Identify the person by `email` (simplest — if they have never signed in, this becomes a pending invite they claim at first login) or by `userId`, their identity subject (Supabase JWT `sub`). Re-granting updates the role. A workspace admin cannot grant super admin (that tier is env-configured).", inputSchema: { workspace: z.string(), role: ROLE, email: z.string().optional(), userId: z.string().optional() } },
+  server.registerTool("add_member", { title: "Add / update a workspace member", annotations: WRITES, description: "Grant a user a role (curator, approver, or admin) in a workspace. Requires admin in that workspace (or super admin). Identify the person by `email` (simplest — if they have never signed in, this becomes a pending invite they claim at first login) or by `userId`, their identity subject (Supabase JWT `sub`). Re-granting updates the role. A workspace admin cannot grant super admin (that tier is env-configured).", inputSchema: { workspace: z.string(), role: ROLE, email: z.string().optional(), userId: z.string().optional() } },
     async (a) => asJson(await addMemberOp(a)));
 
-  server.registerTool("invite_member", { title: "Invite someone by email", description: "Give someone who has NOT signed in yet a role in a workspace, keyed by their email: whoever signs in with that verified address gets the role on their first login. Requires admin in that workspace (or super admin). No mail is sent — telling them they can log in is up to you. Pending invites show up in list_members; drop one with revoke_invite.", inputSchema: { workspace: z.string(), email: z.string(), role: ROLE } },
+  server.registerTool("invite_member", { title: "Invite someone by email", annotations: WRITES, description: "Give someone who has NOT signed in yet a role in a workspace, keyed by their email: whoever signs in with that verified address gets the role on their first login. Requires admin in that workspace (or super admin). No mail is sent — telling them they can log in is up to you. Pending invites show up in list_members; drop one with revoke_invite.", inputSchema: { workspace: z.string(), email: z.string(), role: ROLE } },
     async (a) => asJson(await inviteMemberOp(a)));
 
-  server.registerTool("revoke_invite", { title: "Revoke a pending invite", description: "Withdraw an unclaimed invite for an email address. Requires admin in that workspace (or super admin). Someone who has already claimed theirs is a member now — use remove_member instead.", inputSchema: { workspace: z.string(), email: z.string() } },
+  server.registerTool("revoke_invite", { title: "Revoke a pending invite", annotations: DELETES_FOR_GOOD, description: "Withdraw an unclaimed invite for an email address. Requires admin in that workspace (or super admin). Someone who has already claimed theirs is a member now — use remove_member instead.", inputSchema: { workspace: z.string(), email: z.string() } },
     async (a) => asJson(await revokeInviteOp(a)));
 
-  server.registerTool("remove_member", { title: "Remove a workspace member", description: "Revoke a user's role in a workspace. Requires admin in that workspace (or super admin). Refuses to remove the workspace's last admin (so a workspace can't be orphaned).", inputSchema: { workspace: z.string(), userId: z.string() } },
+  server.registerTool("remove_member", { title: "Remove a workspace member", annotations: DELETES_FOR_GOOD, description: "Revoke a user's role in a workspace. Requires admin in that workspace (or super admin). Refuses to remove the workspace's last admin (so a workspace can't be orphaned).", inputSchema: { workspace: z.string(), userId: z.string() } },
     async (a) => asJson(await removeMemberOp(a)));
 
-  server.registerTool("set_domain_rule", { title: "Let a whole email domain join", description: "Anyone who signs in with an address at this domain becomes a member of the workspace at the given role — no invite needed. Super admin only. The rule only applies to sign-ins from a provider that vouches for the address (Google today); a password signup at that domain still needs an invite. Use 'curator': this grant gets no per-person review.", inputSchema: { workspace: z.string(), domain: z.string(), role: ROLE } },
+  server.registerTool("set_domain_rule", { title: "Let a whole email domain join", annotations: WRITES, description: "Anyone who signs in with an address at this domain becomes a member of the workspace at the given role — no invite needed. Super admin only. The rule only applies to sign-ins from a provider that vouches for the address (Google today); a password signup at that domain still needs an invite. Use 'curator': this grant gets no per-person review.", inputSchema: { workspace: z.string(), domain: z.string(), role: ROLE } },
     async (a) => asJson(await setDomainRuleOp(a)));
 
-  server.registerTool("remove_domain_rule", { title: "Remove a domain rule", description: "Stop auto-admitting people from an email domain. Super admin only. People who already joined under the rule keep their role — use remove_member for those.", inputSchema: { workspace: z.string(), domain: z.string() } },
+  server.registerTool("remove_domain_rule", { title: "Remove a domain rule", annotations: DELETES_FOR_GOOD, description: "Stop auto-admitting people from an email domain. Super admin only. People who already joined under the rule keep their role — use remove_member for those.", inputSchema: { workspace: z.string(), domain: z.string() } },
     async (a) => asJson(await removeDomainRuleOp(a)));
 
-  server.registerTool("list_unaffiliated_users", { title: "Find accounts with no role", description: "List people who have an account but hold no role in any workspace — the ones who signed in and found they could do nothing. Super admin only. Each entry says why: 'invited' (an invite is waiting; they have not signed in since), 'unconfirmed' (never clicked the confirmation mail, so granting a role would do nothing yet), or 'stranded' (nothing is waiting for them — the actionable list). Requires SUPABASE_SERVICE_ROLE_KEY on the server; without it the read is unavailable.", inputSchema: {} },
+  server.registerTool("list_unaffiliated_users", { title: "Find accounts with no role", annotations: READS_ONLY, description: "List people who have an account but hold no role in any workspace — the ones who signed in and found they could do nothing. Super admin only. Each entry says why: 'invited' (an invite is waiting; they have not signed in since), 'unconfirmed' (never clicked the confirmation mail, so granting a role would do nothing yet), or 'stranded' (nothing is waiting for them — the actionable list). Requires SUPABASE_SERVICE_ROLE_KEY on the server; without it the read is unavailable.", inputSchema: {} },
     async () => asJson(await listUnaffiliatedUsersOp()));
 
-  server.registerTool("list_members", { title: "List workspace members", description: "List everyone with a role in a workspace. Requires admin in that workspace (or super admin).", inputSchema: { workspace: z.string() } },
+  server.registerTool("list_members", { title: "List workspace members", annotations: READS_ONLY, description: "List everyone with a role in a workspace. Requires admin in that workspace (or super admin).", inputSchema: { workspace: z.string() } },
     async (a) => asJson(await listMembersOp(a)));
 }

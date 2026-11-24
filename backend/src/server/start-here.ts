@@ -23,6 +23,7 @@
 
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { asJson } from "./shared.js";
+import { READS_ONLY } from "./tool-effects.js";
 import { accessibleContexts } from "./context.js";
 import { getActiveAdapter } from "../adapters/index.js";
 import { activeWorkspace, getActiveContext } from "../context/index.js";
@@ -198,6 +199,7 @@ export function registerStartHereTools(server: McpServer) {
     "start_here",
     {
       title: "Where am I, and what should I do next?",
+      annotations: READS_ONLY,
       description:
         "Argument-free ORIENTATION for a human author: the active workspace/grade/subject (or the list to choose from when none is set), the role the caller holds and what it lets them do, whether a draft is open, the UNFINISHED work in the graph (documents attached to nothing, sections outside a document, unused routines), and two or three suggested next moves. " +
         "Call it at the start of a session, or whenever the user asks \"what can I do?\" / \"where did I leave off?\" (in any language). Where get_capabilities answers what is POSSIBLE (for a machine), this answers what to do NEXT (for a person) — so relay it in the user's own language, which the subject's guide names. Read-only, no context required, changes nothing.",

@@ -9,6 +9,7 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { asJson, guarded } from "./shared.js";
+import { READS_ONLY } from "./tool-effects.js";
 import { getActiveAdapter } from "../adapters/index.js";
 import { activeWorkspace } from "../context/index.js";
 import { kgNamespace } from "../kg-store/index.js";
@@ -69,6 +70,7 @@ export function registerDocumentReadinessTools(server: McpServer) {
     "check_document",
     {
       title: "Is this document ready to be produced?",
+      annotations: READS_ONLY,
       description:
         "ONE report for a document, by NAME: does it cover curriculum, does it have sections, a formatter, layout settings (`render`) the renderer and the page check need, page templates (`layout`) for compose_section, an evaluation grid, a routine. Each line is ok / missing / info, and a gap names the verb that closes it (create_document, add_section, use_formatter, edit_nodes properties.render or properties.layout, use_rubric, use_routine). " +
         "`ready:true` means the document CAN be produced — it covers something, has sections, a formatter and layout settings; the info lines are optional pieces. It reports and blocks nothing: whether to produce without a grid or without templates is the person's call. Reads the graph's shape only, so it holds for any document in any workspace. " +

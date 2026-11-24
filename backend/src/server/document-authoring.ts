@@ -21,6 +21,7 @@ import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { detectBandCells } from "../render/index.js";
 import { z } from "zod";
 import { asJson, guarded } from "./shared.js";
+import { WRITES } from "./tool-effects.js";
 import { getActiveAdapter } from "../adapters/index.js";
 import { activeWorkspace } from "../context/index.js";
 import { kgNamespace, mintNodeId } from "../kg-store/index.js";
@@ -374,6 +375,7 @@ export function registerDocumentAuthoringTools(server: McpServer) {
     "append_journal",
     {
       title: "Add a dated entry to a document's or a section's decision journal",
+      annotations: WRITES,
       description:
         "Add ONE entry to the decision journal of a document or of a section (`metadata.journal` — the dated history behind its rules: what was decided, on whose feedback, what stays open). Use this instead of edit_nodes on the journal field: an edit rewrites the whole field from the caller's copy, so two sessions on the same document silently overwrite each other. This verb reads the journal as it stands in the draft at the moment of writing and appends after it, and a confirm whose base moved since the dry-run is refused. " +
         "`on` is the document or section BY NAME (the server resolves it; on several matches it returns `needsChoice` + `candidates` with their `path` — ask, then re-call with that candidate's `id`). `entry` is the text; `title` an optional short heading. The server stamps the heading line with today's date and the signed-in author, and opens the journal with its header line when the node had none — the response echoes the `heading` written. Journals live on documents and sections only; a lesson is refused. A journal is read on the node with walk_graph (no generation read returns it). " +
@@ -395,6 +397,7 @@ export function registerDocumentAuthoringTools(server: McpServer) {
     "create_document",
     {
       title: "Create a document and attach it to the curriculum",
+      annotations: WRITES,
       description:
         "Create a DOCUMENT (a manual, a teacher's guide, a revision sheet) AND attach it to the curriculum it renders, in ONE atomic step. Use this instead of add_nodes + create_edges: a TeachingLearningMaterial without its `covers` edge is a valid write and a BROKEN document — generation reads it as empty and nothing errors. " +
         "`name` is what the user calls it. `covers` is the content it must produce, given BY NAME in the user's language — the server resolves it, so never ask for an id. When several nodes share that name (a chapter and the lesson inside it commonly do) it returns `needsChoice` + `candidates` with their `labels` and containment `path`: ask the user which, then re-call passing that candidate's `id` (an id always resolves to itself). Never pick for them. `properties` optionally carries audience / mediumType / 'metadata.assemblyGuide' (the document's own build instructions). " +
@@ -417,6 +420,7 @@ export function registerDocumentAuthoringTools(server: McpServer) {
     "add_section",
     {
       title: "Add a section to a document",
+      annotations: WRITES,
       description:
         "Add a SECTION to a document AND bind it to the curriculum it renders, in ONE atomic step — a section needs two links on two different axes, and wiring them separately lets either go missing silently. " +
         "`document` names WHAT THE SECTION SITS IN: the document, or an existing section of it — sections nest to any depth, so « Partie 1 » can hold « Chapitre 1 »…« Chapitre 5 », each holding its own lesson sheets. Both `document` and `covers` are given BY NAME in the user's own words; the server resolves them and returns `needsChoice` + `candidates` when a name is ambiguous — ask the user which, then re-call with that candidate's `id`. Don't guess. `position` orders the section within its parent (default: append). OMIT `covers` only for FRONT MATTER (cover, contents, an introduction rendering no curriculum) or a section that purely groups the ones beneath it. " +
@@ -441,6 +445,7 @@ export function registerDocumentAuthoringTools(server: McpServer) {
     "attach_image",
     {
       title: "Attach a picture to a lesson or activity",
+      annotations: WRITES,
       description:
         "Record an uploaded IMAGE as a picture of a lesson or activity, in ONE atomic step: a canonical `Material` node under the content it illustrates — its `identifier` the file's own URI, its `content` what the picture SHOWS in words, its `name` what a page places it by, and, for a band with a right answer, `answerCells` — which cell(s) are correct, so the teacher's copy (a media entry with mark:'answer') gets its check drawn by the server rather than by hand. Use it after create_media_upload_url + the upload; it REFUSES when nothing is at `relPath`, so the graph never points at a picture that will not render — UNLESS `commissioned:true`, which ORDERS a picture not drawn yet: the node is created now with the description as its brief, pointing at the path the file must take, and the illustrator delivers by uploading to exactly that path (no graph edit). A commissioned picture placed on a page makes render_document refuse, by name, until the file is there. " +
         "`to` is the lesson or activity, BY NAME in the user's words — the server resolves it and returns `needsChoice` + `candidates` when several match (activities are often called « Activité 1 »): ask the user which, quoting each candidate's `path`, then re-call with that candidate's `id`. `name` is what a page places it by (an image run's `media`; unique among the pictures of that lesson or activity). `description` says what the picture shows — it is the Material's `content`, read beside the activity's own text, which is how a picture that contradicts its words gets caught. " +
