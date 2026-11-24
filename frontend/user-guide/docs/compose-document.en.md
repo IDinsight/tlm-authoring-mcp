@@ -64,11 +64,11 @@ A picture is part of the curriculum just as much as a piece of text. It is **att
 
 > "Attach the picture 'band-1' to the activity 'Compare the collections': it shows three baskets of fruit, and the one in the middle holds the most."
 
-- The file has to be **uploaded** first: Claude gives you the upload address, or does it for you. A picture the graph points to but that does not exist would never print, so the attachment is refused until the file is there.
+- The file has to be **uploaded** first: the assistant gives you the upload address, or does it for you. A picture the graph points to but that does not exist would never print, so the attachment is refused until the file is there.
 - The "what it shows" sentence is not decoration. Read alongside the activity's instruction and answer, it is what lets you catch a picture that contradicts its own words.
 - Attaching a picture changes the **draft**: it is reviewed, undone and published along with everything else. A new version of a picture is a new file, which you attach in turn before removing the old one.
 
-With the authoring plugin, Claude can also **draw** a lesson's pictures ("Prepare the illustrations for lesson 12"). It checks the picture it gets back, not just the request it made, and it **never redraws** an existing picture without your explicit agreement. The drawing style comes from the document's formatter.
+With the authoring plugin, the assistant can also **draw** a lesson's pictures ("Prepare the illustrations for lesson 12"). It checks the picture it gets back, not just the request it made, and it **never redraws** an existing picture without your explicit agreement. The drawing style comes from the document's formatter.
 
 ## 6. Keep the journal
 
@@ -84,11 +84,11 @@ The journal is never printed. It is there for whoever picks up the document six 
 
 > "Is this document ready to be produced?"
 
-Claude answers with **a single report**: does the document cover something, does it have sections, a formatter with its page settings, page templates, a grid, a routine? Every gap comes with what you need to do to fill it. The report blocks nothing: producing without a grid, for instance, is still your call.
+The assistant answers with **a single report**: does the document cover something, does it have sections, a formatter with its page settings, page templates, a grid, a routine? Every gap comes with what you need to do to fill it. The report blocks nothing: producing without a grid, for instance, is still your call.
 
 ## Start from an existing document
 
-- **A document in the graph serves as a model.** "Create a workbook for the next course, built like this one." Claude reads the model's structure and rebuilds it on the new coverage.
-- **An outside file**: a mock-up, an old guide, another country's workbook. Give it to Claude: it proposes the parts, the sections and what each one covers, and you approve them before anything is written.
+- **A document in the graph serves as a model.** "Create a workbook for the next course, built like this one." The assistant reads the model's structure and rebuilds it on the new coverage.
+- **An outside file**: a mock-up, an old guide, another country's workbook. Give it to the assistant: it proposes the parts, the sections and what each one covers, and you approve them before anything is written.
 
 Once it is composed, the document can be produced: see [Produce a document](create-materials.md).

@@ -1,10 +1,10 @@
 # senegal-mohebs-tlm-server
 
-A remote **MCP server** ("Senegal Maths — TLM") that helps curriculum experts author **teaching & learning materials** — pupil manuals, teacher guides, lesson sheets — from a curriculum **knowledge graph**. It exposes MCP tools, not a UI: the server holds the graph, the authoring loop, the reusable pedagogy catalog and the document history; the calling LLM writes the actual `.docx`.
+A remote **MCP server** ("Senegal Maths — TLM") that helps curriculum experts author **teaching & learning materials** — pupil manuals, teacher guides, lesson sheets — from a curriculum **knowledge graph**. It exposes MCP tools, not a UI, to any assistant that speaks MCP — Claude, Codex, ChatGPT, Gemini (see [Connecting an AI tool](#connecting-an-ai-tool)). The server holds the graph, the authoring loop, the reusable pedagogy catalog and the record of every produced file. The calling model composes what goes on a page; the server lays it out into a `.docx`, or writes it into a designer's InDesign template.
 
 Work is always scoped to one **(workspace, grade, subject)** at a time, chosen with `set_context`. A **workspace** is the tenant that owns a set of graphs — it is the first segment of every namespace and every storage key, and **roles are granted per workspace**. Eight subjects across six workspaces are registered today (`senegal/ci/maths`, `senegal/ce1/reading`, `nigeria/primary-1-3/maths`, `rwanda/primary-1-3/maths`, `cbse/class-9-10/science`, `ghana/basic-1-3/english`, `ghana/basic-4-6/maths`, `madhi/class-1-5/maths`).
 
-The knowledge graph lives **only** in a Firestore node/edge store, in raw *Learning Commons* (LC) ontology, behind a draft → review → publish curator loop. Generated `.docx` files and their history live in **Firebase Storage** (so the generating agent, the server, and you never need a shared disk). Auth is a Supabase JWT.
+The knowledge graph lives **only** in a Firestore node/edge store, in raw *Learning Commons* (LC) ontology, behind a draft → review → publish curator loop. Generated `.docx` files live in **Firebase Storage** (so the generating agent, the server, and you never need a shared disk); what is known about each file — what it covers, whether it is the current one, who accepted it — is one Firestore record per file. Sign-in is OAuth against Supabase Auth, discovered by the client from the server's own address.
 
 > **Going deeper:** the operational manual is [`docs/technical-reference/`](docs/technical-reference/); the architecture summary + working conventions are in [`CLAUDE.md`](CLAUDE.md); the production runbook is [`DEPLOY.md`](DEPLOY.md); the *why* behind each subsystem is in [`docs/design-notes/`](docs/design-notes/).
 
@@ -15,7 +15,7 @@ The knowledge graph lives **only** in a Firestore node/edge store, in raw *Learn
 | [`backend/`](backend/) | The MCP server — its own `package.json`, `tsconfig.json`, `Dockerfile`. **Run every `npm` command from here.** |
 | [`frontend/explorer/`](frontend/explorer/) | The read-only KG explorer (Vite + TS), served by Firebase Hosting against the server's `/kg` endpoint. |
 | [`frontend/user-guide/`](frontend/user-guide/) | The expert-facing user guide (MkDocs), published to GitHub Pages by [`user-guide.yml`](.github/workflows/user-guide.yml). |
-| [`plugin/`](plugin/) | The Cowork plugin (French workflow commands, skills and agents) shipped through the repo-root marketplace. |
+| [`plugin/`](plugin/) | The authoring plugin (French workflow commands, skills and agents), shipped through the repo-root marketplace. It installs in Claude (Cowork, Claude Code), Codex and Antigravity — see [`plugin/README.md`](plugin/README.md). |
 | [`docs/`](docs/) | Technical reference, design notes, and the canonical LC ontology reference. |
 
 Paths written as `src/…`, `scripts/…`, `test/…`, `assets/…` below are relative to `backend/`.
@@ -27,7 +27,8 @@ Paths written as `src/…`, `scripts/…`, `test/…`, `assets/…` below are re
 | Knowledge graph (curriculum, catalog, glossary) | **Firestore** node/edge store — the single source of truth (`import-kg` / `export-kg`) |
 | Subject profile + authoring guide | **Firestore**, as a per-slot config cell that rides the same draft/published pointer (`get_profile` / `edit_profile`, `get_graph_guide`) |
 | `GRAPH_GUIDE.md` — the SEED a namespace's guide is created from (never read at runtime; see [`backend/seeds/README.md`](backend/seeds/README.md)) | **Local** `seeds/<workspace>/<grade>/<subject>/` |
-| Generated `.docx` + `history.json` | **Firebase Storage**, under `<workspace>/<grade>/<subject>/…` |
+| Generated `.docx` | **Firebase Storage**, under `<workspace>/<grade>/<subject>/…` |
+| The record of each produced file (what it covers, its status, its verdict) | **Firestore**, one document per file (`file_records`). A namespace's older `history.json` is imported once on first use, then left alone |
 | Converted graphs staged for import | **Local** `imports/<workspace>/<grade>/<subject>/` (see [`backend/imports/README.md`](backend/imports/README.md)) |
 
 Object hashing uses the GCS object **md5** from metadata — the server never hashes a local file, which removes the cross-host mismatch that used to break `log_generation`.
@@ -52,6 +53,21 @@ npm run start:http     # HTTP MCP server (dist/http.js) — remote / Cloud Run
 **Optional:** `TLM_WORKSPACE` / `TLM_GRADE` / `TLM_SUBJECT` (pre-select a context at startup) · `TLM_BUCKET_PREFIX` (namespace all storage under a prefix — match it in the CLI scripts) · `TLM_SEEDS_DIR` · `GEMINI_API_KEY` / `GEMINI_MODEL` (the `translate` tool) · `SUPABASE_SERVICE_ROLE_KEY` (enables `list_unaffiliated_users`) · `KG_EXPLORER_PUBLIC=1` (anonymous **published** explorer reads; it can never reach a draft) · `KG_ALLOWED_ORIGINS` · `TLM_ALLOW_SELF_APPROVE=0` (strict separation of duties) · `PORT` · the response-size caps `TLM_MAX_RESPONSE_BYTES` / `TLM_WALK_MAX_PAGE_BYTES` / `TLM_SUBTREE_MAX_BYTES` / `TLM_DOCUMENT_MAX_BYTES` · `TLM_CONFIRM_TTL_MS` / `TLM_CONFIRM_STORE_BYTES` · `TLM_DEBUG` / `TLM_TIMING`.
 
 Full semantics: [technical reference → deployment](docs/technical-reference/deployment.md).
+
+## Connecting an AI tool
+
+The deployed server is one address, `https://<service-url>/mcp`, and nothing about it is specific to one vendor. A client that is given the address gets a 401 naming where to sign in, registers itself with the sign-in server, and sends the user to the consent page this server hosts. No key or secret is handed out.
+
+| Tool | How it connects | Checked |
+|---|---|---|
+| **Claude** — Cowork, Claude Code, claude.ai | the plugin (connector + procedures), or a custom connector with the address | in daily use |
+| **Codex** | the same plugin, from the same marketplace; or the address added by hand | install and sign-in, 2026-11-24 (codex-cli 0.172); no model has called a tool through it yet |
+| **Antigravity** | the plugin, through its own manifest; or the address added in the app | built from its documentation, not yet installed on a real copy |
+| **Gemini CLI** | the address added by hand | the one check it refused us on is fixed and live ([#306](https://github.com/IDinsight/tlm-authoring-mcp/pull/306)); a full sign-in has not been re-run since |
+| **ChatGPT** | a custom MCP server with the address (web; Business, Enterprise or Edu) | not yet run by us. One known gap: no tool declares itself read-only, so ChatGPT would ask for confirmation on every call |
+| **Gemini app** | a custom app with the address (personal accounts, US only for now) | not yet run by us |
+
+The steps an expert follows, tool by tool, are in the user guide's [Getting started](frontend/user-guide/docs/getting-started.en.md); what each tool gets from the plugin is in [`plugin/README.md`](plugin/README.md); what the server must serve for a client to sign in is in [technical reference → deployment](docs/technical-reference/deployment.md#what-a-client-needs-from-the-server).
 
 ## The Firestore KG store + the curator loop
 
@@ -156,10 +172,11 @@ Fuller walkthrough: [technical reference → architecture & extending](docs/tech
 2. Read what you're generating — `walk_document` for a whole document, `walk_document_section` for a single piece — each returns the subtree plus the instructional **routines** and **formatters** that apply. `get_terminology` supplies the glossary.
 3. Produce the page: `compose_section` fills the formatter's templates and compiles the section guides from the graph (no model — what it cannot fill it reports as `unfilled` or `problems`), `lint_content` checks the tree against the graph and the formatter's rules, `render_document` lays it out into a `.docx`, measures it and can return a picture of each page.
 4. `create_upload_url(relPath)` → `PUT` the file to the signed URL (no large payloads through MCP).
-5. `log_generation(nodeId, relPath, content)` — records what you produced against the **scope node** the document covers (md5 read from storage).
+5. `log_generation(nodeId, relPath, content, documentId, variant)` — records what you produced against the **scope node** the document covers (md5 read from storage). With a document and a language, the file becomes the **current** one for that lesson, document and language, and the older ones are marked `replaced`.
 6. `evaluate_document` scores it against the evaluation rubrics attached to that document.
+7. A person accepts the file or sends it back: `record_file_verdict` (`approved` needs the approver role; `changes_requested` needs a note). `list_documents` shows where every file stands.
 
-The outward-writing tools (`create_upload_url`, `log_generation`, `record_document_content`) are gated by a confirmation step. `preview_generation` closes the *editing* loop instead: it resolves from the **draft** slot and writes to a segregated `previews/` prefix, invisible to `reconcile` / `list_documents` and never touching history. Details: [technical reference → generation & storage](docs/technical-reference/generation-and-storage.md).
+The outward-writing tools (`create_upload_url`, `log_generation`, `record_document_content`, `record_file_verdict`) are gated by a confirmation step. `preview_generation` closes the *editing* loop instead: it resolves from the **draft** slot and writes to a segregated `previews/` prefix, invisible to `reconcile` / `list_documents` and never touching history. Details: [technical reference → generation & storage](docs/technical-reference/generation-and-storage.md).
 
 ## Tools
 
@@ -168,16 +185,16 @@ The live surface is mirrored by `get_capabilities`; this is the map.
 - **Orientation & context:** `ping`, `start_here`, `set_context`, `get_context`, `get_capabilities`, `namespace_stats`.
 - **Graph reads (generic):** `walk_graph` (directional, filtered, paginated BFS — the traversal primitive), `find_node` (a name → node ids, with the path that tells two same-named nodes apart), `get_standards`, `export_graph_view`.
 - **Generation reads:** `walk_document`, `walk_document_section`, `get_terminology`.
-- **Authoring (role-gated):** `add_nodes`, `create_edges`, `edit_nodes`, `move_node`, `delete_nodes`, `delete_edges`, plus the two task verbs `create_document` and `add_section`.
+- **Authoring (role-gated):** `add_nodes`, `create_edges`, `edit_nodes`, `move_node`, `delete_nodes`, `delete_edges`, plus the task verbs `create_document`, `add_section`, `attach_image` (a picture under the lesson or activity it illustrates) and `append_journal` (one dated, signed entry in a document's or section's journal).
 - **Draft lifecycle (role-gated):** `diff_draft`, `check_draft` (mechanical wiring lint), `lint_content` (consistency lint — does an authored statement contradict another), `review_draft` (bundles the guide's expectations for the calling model to judge), `undo_last`, `request_review`, `publish_draft`, `discard_draft`, `read_audit`.
 - **Subject profile & guide:** `get_profile`, `edit_profile`, `get_graph_guide`.
 - **Catalog — reusable routines, formatters & rubrics:** `list_catalog`, `get_catalog_entry`, `add_to_catalog`, `duplicate_entry`, `use_routine`, `use_formatter`, `use_rubric`.
 - **Glossary & translation:** `add_terms`, `edit_term`, `remove_terms`, `translate` (FR↔Wolof via Gemini, glossary-grounded).
-- **Documents & generation output:** `list_documents`, `create_upload_url`, `create_download_url`, `get_document_text`, `record_document_content`, `log_generation`, `reconcile`, `drop_missing_file_records`, `evaluate_document`, `preview_generation`, `create_preview_upload_url`.
-- **Rendering & round-trip:** `render_document` (a composed block tree + the node's formatter stack → a `.docx`, optionally measured), `check_stale` (has the graph moved under a rendered document), `propose_from_document` (take an expert's corrections in a document back into the graph as staged edits).
+- **Documents & generation output:** `list_documents` (every file with its status), `create_upload_url`, `create_media_upload_url` (a picture a page will embed), `create_download_url`, `get_document_text`, `record_document_content`, `log_generation`, `record_file_verdict` (a person approves a file or sends it back), `reconcile` (compares the bucket with the file records, and changes nothing), `drop_missing_file_records` (removes the records of files gone from the bucket), `evaluate_document`, `preview_generation`, `create_preview_upload_url`.
+- **Rendering & round-trip:** `check_document` (is a document ready to be produced — one report, blocks nothing), `page_geometry` (the page's fixed numbers, so a page is composed by arithmetic), `compose_section` (fills the formatter's templates from the graph, no model), `render_document` (a composed block tree + the node's formatter stack → a `.docx` or an InDesign package, optionally measured), `check_stale` (has the graph moved under a rendered document), `propose_from_document` (take an expert's corrections in a document back into the graph as staged edits).
 - **Workspaces (tenant admin):** `list_workspaces`, `create_workspace`, `add_member`, `remove_member`, `list_members`, `invite_member`, `revoke_invite`, `set_domain_rule`, `remove_domain_rule`, `list_unaffiliated_users`.
 
-The connector also publishes four named French workflow **prompts** — *Créer un nouveau document*, *Appliquer un style*, *Créer une routine pédagogique*, *Préparer une relecture*. They are French because a prompt *is* the expert's first turn; every server-authored string is English and relayed in the expert's working language.
+The server also publishes four named French workflow **prompts** — *Créer un nouveau document*, *Appliquer un style*, *Créer une routine pédagogique*, *Préparer une relecture*. They are French because a prompt *is* the expert's first turn; every server-authored string is English and relayed in the expert's working language.
 
 ## Documentation
 

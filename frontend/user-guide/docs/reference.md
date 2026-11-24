@@ -12,7 +12,9 @@ Les rôles sont donnés **par espace de travail** : on peut être curateur dans 
 | Prévisualiser, produire et déposer des documents | — | ✅ | ✅ | ✅ | ✅ |
 | Voir le brouillon dans l'explorateur | — | ✅ | ✅ | ✅ | ✅ |
 | Abandonner un brouillon | — | ✅ | ✅ | ✅ | ✅ |
+| Renvoyer un fichier produit, avec une note | — | ✅ | ✅ | ✅ | ✅ |
 | **Publier** un brouillon | — | — | ✅ | ✅ | ✅ |
+| **Approuver** un fichier produit | — | — | ✅ | ✅ | ✅ |
 | Écrire dans le catalogue et le lexique de l'espace | — | — | ✅ | ✅ | ✅ |
 | Consulter l'historique | — | — | ✅ | ✅ | ✅ |
 | Supprimer une entrée du catalogue | — | — | — | ✅ | ✅ |
@@ -29,7 +31,7 @@ Rien ne s'écrit sans votre confirmation. Mais ce qui se passe ensuite dépend d
 |---|---|---|
 | **Le programme ou un document** (leçons, sections, images, guide de la matière…) | Va dans le **brouillon** | Rien n'est officiel avant la **publication**. La dernière modification s'annule. |
 | **Le catalogue ou le lexique** | **Publié aussitôt** | L'aperçu avant confirmation. Pas d'annulation. |
-| **Un fichier livré, un membre** | **Écrit aussitôt** | La confirmation nomme le fichier ou la personne, et l'espace de travail. Pas d'annulation. |
+| **Un fichier livré, un verdict sur un fichier, un membre** | **Écrit aussitôt** | La confirmation nomme le fichier ou la personne, et l'espace de travail. Pas d'annulation. |
 
 ## Petit glossaire
 
@@ -57,13 +59,16 @@ Rien ne s'écrit sans votre confirmation. Mais ce qui se passe ensuite dépend d
 | **Grille d'évaluation** | Les critères qui jugent un document produit. S'applique à un document. |
 | **Catalogue** | La bibliothèque des routines, mises en forme et grilles : une étagère par espace, une partagée. |
 | **Lexique** | Les termes de l'espace dans chacune de ses langues ; il guide la traduction. |
-| **Guide de la matière** | Les conventions de la matière et ce que le programme doit couvrir, en prose. Claude le lit avant d'écrire. |
+| **Guide de la matière** | Les conventions de la matière et ce que le programme doit couvrir, en prose. L'assistant le lit avant d'écrire. |
 | **Brouillon** | Les modifications en attente, pas encore officielles. Un seul par matière. |
 | **Publier** | Rendre le brouillon officiel. La production l'utilise alors. |
 | **Aperçu** | Un fichier produit à part, pour voir, sans rien livrer. |
 | **Livrable** | Un fichier déposé dans l'espace officiel des documents. |
 | **Périmé** | Se dit d'un fichier produit avant une modification du programme qu'il couvre. |
-| **Module d'autorat** | Le plugin *tlm-autorat* : les procédures que Claude suit, et ses commandes. |
+| **Statut d'un fichier** | Où en est un fichier livré : produit, approuvé, à reprendre, remplacé ou non classé. |
+| **Fichier en usage** | Le seul fichier qui compte pour une leçon, un document et une langue. En livrer un plus récent le remplace. |
+| **Verdict** | La décision d'une personne sur un fichier en usage : approuvé (un approbateur) ou renvoyé avec une note (tout membre). |
+| **Module d'autorat** | Le plugin *tlm-autorat* : les procédures que l'assistant suit, et ses commandes. |
 | **Explorateur** | La page web, en lecture seule, qui montre le programme, son brouillon, le catalogue et le lexique : [senegal-ci-maths.web.app](https://senegal-ci-maths.web.app). |
 
 ## Besoin d'aide ?

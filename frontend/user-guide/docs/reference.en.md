@@ -12,7 +12,9 @@ Roles are granted **per workspace**: you can be a curator in one workspace and h
 | Preview, produce and upload documents | — | ✅ | ✅ | ✅ | ✅ |
 | See the draft in the explorer | — | ✅ | ✅ | ✅ | ✅ |
 | Discard a draft | — | ✅ | ✅ | ✅ | ✅ |
+| Send a produced file back, with a note | — | ✅ | ✅ | ✅ | ✅ |
 | **Publish** a draft | — | — | ✅ | ✅ | ✅ |
+| **Approve** a produced file | — | — | ✅ | ✅ | ✅ |
 | Write to the workspace's catalog and lexicon | — | — | ✅ | ✅ | ✅ |
 | View the history | — | — | ✅ | ✅ | ✅ |
 | Delete a catalog entry | — | — | — | ✅ | ✅ |
@@ -29,7 +31,7 @@ Nothing is written without your confirmation. What happens after that, though, d
 |---|---|---|
 | **The curriculum or a document** (lessons, sections, images, the subject guide…) | Goes into the **draft** | Nothing is official until it is **published**. The last change can be undone. |
 | **The catalog or the lexicon** | **Published immediately** | The preview you see before confirming. No undo. |
-| **A delivered file, a member** | **Written immediately** | The confirmation names the file or the person, and the workspace. No undo. |
+| **A delivered file, a verdict on a file, a member** | **Written immediately** | The confirmation names the file or the person, and the workspace. No undo. |
 
 ## Short glossary
 
@@ -57,13 +59,16 @@ Nothing is written without your confirmation. What happens after that, though, d
 | **Evaluation grid** | The criteria used to judge a produced document. Applies to a document. |
 | **Catalog** | The library of routines, formatters and evaluation grids: one shelf per workspace, plus a shared one. |
 | **Lexicon** | The workspace's terms in each of its languages. It guides translation. |
-| **Subject guide** | The subject's conventions and what the curriculum should cover, written as prose. Claude reads it before writing. |
+| **Subject guide** | The subject's conventions and what the curriculum should cover, written as prose. The assistant reads it before writing. |
 | **Draft** | Changes that are waiting and not yet official. There is one per subject. |
 | **Publish** | To make the draft official. Production then uses it. |
 | **Preview** | A file produced on the side so you can look at it, without delivering anything. |
 | **Deliverable** | A file placed in the official documents area. |
 | **Stale** | Describes a file produced before a change to the part of the curriculum it covers. |
-| **Authoring plugin** | The *tlm-autorat* plugin: the procedures Claude follows, and its commands. |
+| **File status** | Where a delivered file stands: produced, approved, changes requested, replaced or unfiled. |
+| **Current file** | The one file in use for a lesson, a document and a language. Delivering a newer one replaces it. |
+| **Verdict** | A person's decision on a current file: approved (an approver) or sent back with a note (any member). |
+| **Authoring plugin** | The *tlm-autorat* plugin: the procedures the assistant follows, and its commands. |
 | **Explorer** | The read-only web page that shows the curriculum, its draft, the catalog and the lexicon: [senegal-ci-maths.web.app](https://senegal-ci-maths.web.app). |
 
 ## Need help?

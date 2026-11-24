@@ -2,7 +2,7 @@
 
 Cette page couvre deux tâches, pour deux publics différents :
 
-- **Gérer un espace de travail et ses membres** — se fait **en discutant avec Claude**, sans aucune compétence technique. Pour les administrateurs.
+- **Gérer un espace de travail et ses membres** — se fait **en discutant avec l'assistant**, sans aucune compétence technique. Pour les administrateurs.
 - **Ajouter une nouvelle matière** — demande l'accès au dépôt de code et au déploiement. Pour les développeurs.
 
 ---
@@ -41,7 +41,7 @@ Seule la connexion Google compte : c'est Google qui garantit que l'adresse appar
 
 Si la personne a déjà un compte connu, le rôle lui est donné tout de suite ; sinon l'invitation attend. Une invitation se retire : « Retire l'invitation de ana.diallo@exemple.org. »
 
-**Voir qui attend** (super-admin) : « Quels comptes n'ont encore aucun espace de travail ? » Claude liste les personnes connectées sans rôle, les invitations non réclamées et les comptes non confirmés.
+**Voir qui attend** (super-admin) : « Quels comptes n'ont encore aucun espace de travail ? » L'assistant liste les personnes connectées sans rôle, les invitations non réclamées et les comptes non confirmés.
 
 ### Gérer les membres
 

@@ -25,7 +25,7 @@ Say what you want to add, and **where**:
 
 > "Add an objective 'Compare two numbers up to 20' to the Numbers and calculation set."
 
-Claude finds the set by its name, shows you **what it is going to create**, and waits for your agreement. Once you confirm, the objective joins the draft. The new element automatically takes the same shape as its neighbours, so you don't need to say what type it is.
+The assistant finds the set by its name, shows you **what it is going to create**, and waits for your agreement. Once you confirm, the objective joins the draft. The new element automatically takes the same shape as its neighbours, so you don't need to say what type it is.
 
 ## Add components
 
@@ -34,15 +34,15 @@ A component hangs under an objective:
 > "Under this objective, add the components: 'recognise the > symbol', 'compare two collections', 'put three numbers in order'."
 
 !!! tip "Create in batches"
-    Describe a whole set in one go: "Create the Geometry set with three objectives, and two components under each one." Claude prepares everything, shows you the full preview, and writes it all in a single step once you agree.
+    Describe a whole set in one go: "Create the Geometry set with three objectives, and two components under each one." The assistant prepares everything, shows you the full preview, and writes it all in a single step once you agree.
 
 ## Start from a document
 
-If the standards already exist somewhere else — an official curriculum as a PDF, a spreadsheet — give it to Claude:
+If the standards already exist somewhere else — an official curriculum as a PDF, a spreadsheet — give it to the assistant:
 
 > "Here is the official curriculum: suggest the objectives and components that are missing from the graph."
 
-Claude reads the document and sends back a **proposal**, element by element. Nothing is created until you have approved it.
+The assistant reads the document and sends back a **proposal**, element by element. Nothing is created until you have approved it.
 
 ## Alignment: linking a lesson to its objective
 
@@ -53,7 +53,7 @@ To **align** a lesson to an objective is to say: "this lesson teaches this objec
 The link always runs **from the content to the standard**. An assessment can also be aligned to the objectives it **assesses**.
 
 !!! warning "A lesson aligns to an objective, not to a component"
-    Components break an objective down; they are not alignment targets. If you ask Claude to align a lesson to a component, it will suggest that component's objective instead.
+    Components break an objective down; they are not alignment targets. If you ask the assistant to align a lesson to a component, it will suggest that component's objective instead.
 
 ## Check your work
 

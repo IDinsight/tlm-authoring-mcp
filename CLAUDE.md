@@ -48,7 +48,7 @@ a commit message.
 
 ## Repo layout
 
-The server is a self-contained package under **`backend/`** (`backend/src`, `backend/scripts`, `backend/test`, `backend/seeds`, its own `package.json`/`tsconfig.json`/`Dockerfile`). Three other packages sit beside it: `frontend/explorer/` (the read-only KG explorer UI), `frontend/user-guide/` (the expert-facing MkDocs guide, published to GitHub Pages) and `plugin/` (the Cowork plugin — French commands, skills and agents — shipped through the repo-root marketplace). **Run every command below from `backend/`** (`cd backend` first), and read every `src/…`, `scripts/…`, `test/…`, `assets/…` path in this file as relative to `backend/`.
+The server is a self-contained package under **`backend/`** (`backend/src`, `backend/scripts`, `backend/test`, `backend/seeds`, its own `package.json`/`tsconfig.json`/`Dockerfile`). Three other packages sit beside it: `frontend/explorer/` (the read-only KG explorer UI), `frontend/user-guide/` (the expert-facing MkDocs guide, published to GitHub Pages) and `plugin/` (the authoring plugin — French commands, skills and agents — shipped through the repo-root marketplace; it installs in Claude, Codex and Antigravity, and the server itself is open to any MCP client, see `docs/technical-reference/deployment.md`). **Run every command below from `backend/`** (`cd backend` first), and read every `src/…`, `scripts/…`, `test/…`, `assets/…` path in this file as relative to `backend/`.
 
 ## Commands
 

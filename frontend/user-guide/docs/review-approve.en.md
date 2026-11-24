@@ -9,7 +9,7 @@ Every change to the curriculum (a lesson, a document, a section, an attached ima
 
 > "Show me the pending changes."
 
-Claude lists everything that will become official when the draft is published: items added, changed and deleted, plus a change to the subject guide if there is one. To see it in the tree, open the **Draft** view in the [explorer](explorer.md#see-the-draft).
+The assistant lists everything that will become official when the draft is published: items added, changed and deleted, plus a change to the subject guide if there is one. To see it in the tree, open the **Draft** view in the [explorer](explorer.md#see-the-draft).
 
 ## 2. Run the checks
 
@@ -20,7 +20,7 @@ There are three checks, and each one answers a different question:
 | Check | The question | Example finding |
 |---|---|---|
 | **Wiring** | Is anything connected to nothing? | A document that covers nothing (it would come out empty), a section that sits outside any document, a routine nobody uses |
-| **Coverage** | Does what has been written cover what the curriculum expects? | An objective that no lesson teaches. Claude judges this from the expectations written in the **subject guide** |
+| **Coverage** | Does what has been written cover what the curriculum expects? | An objective that no lesson teaches. The assistant judges this from the expectations written in the **subject guide** |
 | **Consistency** | Do two things that are written contradict each other? | A routine whose total duration is not the sum of its steps, a grid whose weights do not add up to 100%, a cited item that does not exist |
 
 These are **findings**, never blocks: the decision is yours. Still, a document "connected to nothing" almost always needs fixing before you publish.
@@ -28,7 +28,7 @@ These are **findings**, never blocks: the decision is yours. Still, a document "
 With the authoring plugin, `/evaluer` runs all of these checks in one pass (along with a document's own checks; see [Evaluate a document](evaluate.md)).
 
 !!! tip "Silence a warning you meant to trigger"
-    If a warning is deliberate, because a rule does not apply to one particular item, ask Claude to **silence it on that item**. It will not come back there, and it still applies everywhere else.
+    If a warning is deliberate, because a rule does not apply to one particular item, ask the assistant to **silence it on that item**. It will not come back there, and it still applies everywhere else.
 
 ## 3. Flag that it is ready
 
@@ -47,7 +47,7 @@ To go back to work: "Actually, I still have corrections to make. Withdraw the re
 
 > "Publish the draft."
 
-1. Claude shows one last summary of what is about to become official, together with the findings from the checks.
+1. The assistant shows one last summary of what is about to become official, together with the findings from the checks.
 2. You **confirm**, and everything is published **in one go**. Document production switches to the new version straight away.
 
 By default, an approver can publish a draft they edited themselves; the history then records it as such. The server can also be set up to forbid this, in which case a second approver has to publish.
@@ -59,12 +59,12 @@ By default, an approver can publish a draft they edited themselves; the history 
 
 > "Undo the last change."
 
-Claude first tells you **which** change it is about to undo: what it was, when, and who made it. You confirm, and only that one leaves the draft; the others stay. Ask again and the one before it goes.
+The assistant first tells you **which** change it is about to undo: what it was, when, and who made it. You confirm, and only that one leaves the draft; the others stay. Ask again and the one before it goes.
 
 There are two limits, both deliberate:
 
 - you can only go back within the **current draft**. Anything already published is corrected with a new change;
-- if a more recent change touched **the same item**, Claude refuses and tells you which item, rather than mixing the two changes together.
+- if a more recent change touched **the same item**, the assistant refuses and tells you which item, rather than mixing the two changes together.
 
 !!! danger "The catalog does not go through the draft"
     A write to the **catalog** (the library's routines, formatters and evaluation grids) is published immediately, with no draft, and cannot be undone this way. Deleting a catalog entry is permanent: it requires the admin role, and the history keeps a full copy of what was deleted.
@@ -77,7 +77,7 @@ All the work in progress is thrown away, and the official version stays as it wa
 
 ## Edit the subject guide
 
-The **subject guide** holds the conventions and expectations Claude reads before it writes anything. You edit it like everything else, in the draft:
+The **subject guide** holds the conventions and expectations the assistant reads before it writes anything. You edit it like everything else, in the draft:
 
 > "In the subject guide, add that instructions are always written in the imperative."
 

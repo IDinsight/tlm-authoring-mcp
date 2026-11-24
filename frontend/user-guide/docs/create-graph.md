@@ -23,7 +23,7 @@ Les documents sont décrits dans [Composer un document](compose-document.md).
 
 ## Les mots de votre programme
 
-L'outil ne fixe aucun vocabulaire. Un programme appelle ses regroupements « chapitres », un autre « unités » ou « semaines » ; l'un nomme ses standards « domaine » et « objectif spécifique », l'autre « thème » et « compétence ». Ces noms sont écrits **dans les éléments du graphe**, et c'est eux que Claude reprend quand il vous parle.
+L'outil ne fixe aucun vocabulaire. Un programme appelle ses regroupements « chapitres », un autre « unités » ou « semaines » ; l'un nomme ses standards « domaine » et « objectif spécifique », l'autre « thème » et « compétence ». Ces noms sont écrits **dans les éléments du graphe**, et c'est eux que l'assistant reprend quand il vous parle.
 
 Le **guide de la matière** complète le tableau : il décrit, en prose, les conventions de la matière et ce que le programme doit couvrir. Il est rédigé par les experts et se modifie comme le reste (voir [Relire et publier](review-approve.md)).
 
@@ -33,9 +33,9 @@ Le **guide de la matière** complète le tableau : il décrit, en prose, les con
 
 **Au départ, un import.** Quand une nouvelle matière arrive, son ossature de départ — au minimum le cadre des standards — est **importée** d'un fichier par un développeur. Cette étape ne se fait pas par la discussion ; elle est décrite dans [Administration](admin-developer.md).
 
-**Ensuite, tout se construit en discutant.** Standards, composantes, cours, regroupements, leçons, activités : vous les créez et les corrigez avec Claude. Un **nouveau cours** peut même partir de zéro par la discussion ; seule la racine des standards dépend de l'import.
+**Ensuite, tout se construit en discutant.** Standards, composantes, cours, regroupements, leçons, activités : vous les créez et les corrigez avec l'assistant. Un **nouveau cours** peut même partir de zéro par la discussion ; seule la racine des standards dépend de l'import.
 
-Vous pouvez aussi partir **d'un document existant** — une planification, un ancien guide, le programme d'un autre pays. Claude le lit et vous propose une structure à créer, que vous validez avant toute écriture.
+Vous pouvez aussi partir **d'un document existant** — une planification, un ancien guide, le programme d'un autre pays. L'assistant le lit et vous propose une structure à créer, que vous validez avant toute écriture.
 
 > « Voici notre planification annuelle en PDF : propose-moi les leçons à créer. »
 
@@ -43,11 +43,11 @@ Vous pouvez aussi partir **d'un document existant** — une planification, un an
 
 > « Fais-moi un état des lieux de cette matière. »
 
-Claude donne un panorama : combien de standards, de cours, de leçons, de documents, et si un brouillon est ouvert.
+L'assistant donne un panorama : combien de standards, de cours, de leçons, de documents, et si un brouillon est ouvert.
 
 > « Montre-moi la structure du cours, sans le détail des textes. »
 
-Claude parcourt le graphe depuis ce point et vous en liste le squelette. Pour une vue d'ensemble visuelle, ouvrez l'[explorateur](explorer.md).
+L'assistant parcourt le graphe depuis ce point et vous en liste le squelette. Pour une vue d'ensemble visuelle, ouvrez l'[explorateur](explorer.md).
 
 !!! note "Rien n'est officiel tant que ce n'est pas publié"
     Tout ce que vous créez part d'abord dans un **brouillon**, invisible pour la production de documents jusqu'à ce qu'un approbateur le publie. Vous construisez donc sans risque. Voir [Relire, publier ou abandonner un brouillon](review-approve.md).

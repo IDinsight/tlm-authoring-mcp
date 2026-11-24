@@ -2,7 +2,8 @@
 
 The server runs as a remote MCP server (Streamable HTTP, `dist/http.js`) on Cloud Run in the
 `senegal-ci-maths` GCP project. Supabase Auth is the OAuth authorization server; this service
-only validates its JWTs. Users connect via Claude custom connectors pointing at `PUBLIC_URL/mcp`.
+only validates its JWTs. Users connect from any MCP client — Claude, Codex, ChatGPT, Gemini —
+pointed at `PUBLIC_URL/mcp`.
 
 ## How deploys run
 
@@ -87,12 +88,16 @@ The server hosts Supabase's delegated login/consent UI at `/oauth/consent` (henc
 `SUPABASE_ANON_KEY`, the public browser key from Project Settings → API). Configure:
 
 - **Authentication → OAuth Server**: enabled, **Dynamic OAuth Apps** on,
-  **Authorization Path** = `/oauth/consent`.
+  **Authorization Path** = `/oauth/consent`. Dynamic OAuth Apps is what lets a client we have
+  never seen (a new version of Codex, ChatGPT, Gemini CLI) register itself; with it off, only
+  a client whose id was created by hand here could sign anyone in.
 - **Authentication → URL Configuration**: **Site URL** = `https://<service-url>`
   (the TLM service — it serves the consent page for both MCP servers), and **Redirect URLs**
   must list every origin that starts a sign-in — there are two:
-  - `https://<service-url>/**` — the `/oauth/consent` page, i.e. signing in from **Claude**
-    while adding the connector.
+  - `https://<service-url>/**` — the `/oauth/consent` page, i.e. signing in from **an AI
+    tool** (Claude, Codex, ChatGPT, Gemini) while connecting it. This entry is about where the
+    *person* lands to sign in, not about the tool: each tool's own return address is
+    registered by the tool itself (Dynamic OAuth Apps), so a new tool needs no new entry.
   - `https://senegal-ci-maths.web.app/**` and `https://senegal-ci-maths.firebaseapp.com/**` —
     signing in from the **explorer**. Add `http://localhost:5173/**` for local explorer dev.
 
@@ -103,22 +108,32 @@ The server hosts Supabase's delegated login/consent UI at `/oauth/consent` (henc
   the allow-list is.
 - **Authentication → Users**: invite designers by email (they set a password via the invite link).
 
-## Claude connector
+## Connecting a client
 
-Point a Claude custom connector at `https://<service-url>/mcp`. The 401 challenge advertises
-`/.well-known/oauth-protected-resource`, which points at the Supabase authorization server —
-the client discovers the login flow from there, registers itself dynamically, and sends the
-user to the consent page above.
+Point any MCP client at `https://<service-url>/mcp` — a Claude custom connector, `codex mcp
+add`, a ChatGPT custom MCP server, `gemini mcp add` — or install the plugin, which carries the address
+([`plugin/README.md`](plugin/README.md)). The 401 challenge advertises
+`/.well-known/oauth-protected-resource/mcp`, which points at the Supabase authorization
+server — the client discovers the login flow from there, registers itself dynamically, and
+sends the user to the consent page above. The four steps, what each needs from this
+deployment, and which clients have been through them:
+[technical reference → deployment](docs/technical-reference/deployment.md#what-a-client-needs-from-the-server).
 
 ## Smoke checks after deploy
 
 ```bash
 curl -s https://<service-url>/health                                   # → ok  (NOT /healthz — see note)
 curl -s https://<service-url>/ | grep -o '<title>.*</title>'           # → landing page, not "Cannot GET /"
-curl -s https://<service-url>/.well-known/oauth-protected-resource     # → AS pointer
+curl -s https://<service-url>/.well-known/oauth-protected-resource/mcp # → AS pointer; "resource" must end in /mcp
 curl -si -X POST https://<service-url>/mcp -H 'content-type: application/json' -d '{}' \
-  | head -3                                                            # → 401 + WWW-Authenticate
+  | grep -i -E '^HTTP|www-authenticate'                                # → 401 + resource_metadata=…/oauth-protected-resource/mcp
+curl -s https://<ref>.supabase.co/.well-known/oauth-authorization-server/auth/v1 \
+  | grep -o '"registration_endpoint":"[^"]*"'                          # → present, or no new client can register
 ```
+
+The third and last checks are the ones a client other than Claude depends on: a `resource`
+that does not match the address it connected to, and Gemini CLI refuses to sign in; no
+`registration_endpoint`, and a client that has never been here cannot register.
 
 > **Note:** use `/health`, not `/healthz`, for external checks. Google's Front End
 > reserves the literal path `/healthz` and returns its own 404 before the request
