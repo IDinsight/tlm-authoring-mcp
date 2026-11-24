@@ -38,7 +38,7 @@ Like a routine or a formatter, the grid is **copied** under the document, so a l
 
 > "Evaluate this document."
 
-The tool gathers the document's grids and the produced file. **Claude does the reading and the scoring**, criterion by criterion, and gives the reason for every score. The tool never passes judgement itself.
+The tool gathers the document's grids and the produced file. **The assistant does the reading and the scoring**, criterion by criterion, and gives the reason for every score. The tool never passes judgement itself.
 
 With the authoring plugin, `/evaluer` carries out the evaluation **in a single review**, in this order:
 
@@ -54,7 +54,7 @@ With the authoring plugin, `/evaluer` carries out the evaluation **in a single r
 
 ## What a grid does not need to check
 
-Anything the tool **already guarantees** does not need ticking off by hand: margins and sizes (the formatter applies them), the page count (the render measures it), an instruction copied out wrong (the page check compares it with the curriculum). Claude sorts the grid before reading it. Whatever is already guaranteed is flagged as such, and the rest is judged against the document.
+Anything the tool **already guarantees** does not need ticking off by hand: margins and sizes (the formatter applies them), the page count (the render measures it), an instruction copied out wrong (the page check compares it with the curriculum). The assistant sorts the grid before reading it. Whatever is already guaranteed is flagged as such, and the rest is judged against the document.
 
 A grid is therefore best kept to the criteria that **require actually reading** the produced document.
 

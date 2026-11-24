@@ -63,6 +63,9 @@ markdown_extensions:
   - md_in_html
   - pymdownx.details
   - pymdownx.superfences
+  # One tab per AI assistant on the Getting started page (Claude, Codex, ChatGPT, Gemini).
+  - pymdownx.tabbed:
+      alternate_style: true
   - toc:
       permalink: true
 

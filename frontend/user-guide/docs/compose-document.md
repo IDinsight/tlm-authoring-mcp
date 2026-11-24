@@ -64,11 +64,11 @@ Une image fait partie du programme au même titre qu'un texte : elle est **ratta
 
 > « Rattache l'image “bande-1” à l'activité “Compare les collections” : elle montre trois paniers de fruits, celui du milieu en contient le plus. »
 
-- Le fichier doit d'abord être **déposé** : Claude vous donne l'adresse de dépôt, ou le fait pour vous. Une image que le graphe pointe sans qu'elle existe ne s'imprimerait jamais, alors le rattachement est refusé tant qu'elle manque.
+- Le fichier doit d'abord être **déposé** : l'assistant vous donne l'adresse de dépôt, ou le fait pour vous. Une image que le graphe pointe sans qu'elle existe ne s'imprimerait jamais, alors le rattachement est refusé tant qu'elle manque.
 - La phrase « ce qu'elle montre » n'est pas décorative. C'est elle, lue à côté de la consigne et de la réponse de l'activité, qui permet de repérer une image qui contredit ses mots.
 - Le rattachement est une modification du **brouillon** : il se relit, s'annule et se publie avec le reste. Une nouvelle version d'une image est un nouveau fichier, qu'on rattache à son tour avant de retirer l'ancien.
 
-Avec le module d'autorat, Claude peut aussi **dessiner** les images d'une leçon (« Prépare les illustrations de la leçon 12 »). Il vérifie l'image produite, pas seulement la demande qu'il a faite, et **ne redessine jamais** une image existante sans votre accord explicite. Le style des dessins vient de la mise en forme du document.
+Avec le module d'autorat, l'assistant peut aussi **dessiner** les images d'une leçon (« Prépare les illustrations de la leçon 12 »). Il vérifie l'image produite, pas seulement la demande qu'il a faite, et **ne redessine jamais** une image existante sans votre accord explicite. Le style des dessins vient de la mise en forme du document.
 
 ## 6. Tenir le journal
 
@@ -84,11 +84,11 @@ Le journal ne s'imprime jamais. Il sert à celui qui reprendra le document dans 
 
 > « Ce document est-il prêt à être produit ? »
 
-Claude répond par un **compte rendu unique** : le document couvre-t-il quelque chose, a-t-il des sections, une mise en forme avec ses réglages de page, des gabarits de page, une grille, une routine ? Chaque manque est accompagné de ce qu'il faut faire pour le combler. Le compte rendu ne bloque rien : produire sans grille, par exemple, reste votre choix.
+L'assistant répond par un **compte rendu unique** : le document couvre-t-il quelque chose, a-t-il des sections, une mise en forme avec ses réglages de page, des gabarits de page, une grille, une routine ? Chaque manque est accompagné de ce qu'il faut faire pour le combler. Le compte rendu ne bloque rien : produire sans grille, par exemple, reste votre choix.
 
 ## Partir d'un document existant
 
-- **Un document du graphe sert de modèle.** « Crée un cahier pour le cours suivant, construit comme celui-ci. » Claude lit la structure du modèle et la refait sur la nouvelle couverture.
-- **Un fichier extérieur** — une maquette, un ancien guide, le cahier d'un autre pays. Donnez-le à Claude : il vous propose les parties, les sections et ce que chacune couvre, que vous validez avant toute écriture.
+- **Un document du graphe sert de modèle.** « Crée un cahier pour le cours suivant, construit comme celui-ci. » L'assistant lit la structure du modèle et la refait sur la nouvelle couverture.
+- **Un fichier extérieur** — une maquette, un ancien guide, le cahier d'un autre pays. Donnez-le à l'assistant : il vous propose les parties, les sections et ce que chacune couvre, que vous validez avant toute écriture.
 
 Une fois composé, le document se produit : voir [Produire un document](create-materials.md).

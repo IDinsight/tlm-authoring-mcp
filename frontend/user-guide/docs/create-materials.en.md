@@ -13,12 +13,12 @@ Producing means turning a document in the graph into a **Word file** (or an InDe
 >
 > "Produce the teacher's guide for the 'Decimal numbers' grouping."
 
-The second request is the most common. A lesson owes **one file for each document that covers it**, multiplied by **the languages** each document's formatter declares. Claude makes them all and **skips the ones that are already up to date** (see below). With the authoring plugin, the `/lecon` command runs this procedure and ends with a **delivery note**: for each file, its pages, the font used, any overlaps and the findings of the checks.
+The second request is the most common. A lesson owes **one file for each document that covers it**, multiplied by **the languages** each document's formatter declares. The assistant makes them all and **skips the ones that are already up to date** (see below). With the authoring plugin, the `/lecon` command runs this procedure and ends with a **delivery note**: for each file, its pages, the font used, any overlaps and the findings of the checks.
 
 ## What happens, step by step
 
-1. **Claude reads the section**: what it covers in the curriculum, the routine that applies, the formatter and its settings, the attached pictures. It also reads the **page's fixed numbers** — usable width, lines per page, the size each picture will take — so that it composes by arithmetic rather than by trial and error.
-2. **The page is composed.** If the formatter carries **templates**, the server fills in what they cover straight from the curriculum. Claude composes the rest, working from the section's assembly guide.
+1. **The assistant reads the section**: what it covers in the curriculum, the routine that applies, the formatter and its settings, the attached pictures. It also reads the **page's fixed numbers** — usable width, lines per page, the size each picture will take — so that it composes by arithmetic rather than by trial and error.
+2. **The page is composed.** If the formatter carries **templates**, the server fills in what they cover straight from the curriculum. The assistant composes the rest, working from the section's assembly guide.
 3. **The page is checked against the graph, before anything is rendered.** For example:
     - a printed instruction that does not repeat the activity's instruction **word for word**;
     - a printed answer that does not match the answer recorded on the activity;
@@ -26,12 +26,12 @@ The second request is the most common. A lesson owes **one file for each documen
     - more pictures than the formatter permits, or a placed picture that is attached to nothing.
 
     Each of these mistakes would give you a file **that is produced without an error and is still wrong**. That is why the check comes first.
-4. **The server builds the file and measures it.** It counts pages on the file as actually laid out, never on an estimate, and flags any picture that overlaps text. It checks that the file really uses **the font the formatter declares**: with a substitute font, every count would be wrong. On request it also returns **a picture of each page**, so you can judge by eye what the numbers cannot tell you. If the page runs over, Claude tightens it and repeats steps 3 and 4.
+4. **The server builds the file and measures it.** It counts pages on the file as actually laid out, never on an estimate, and flags any picture that overlaps text. It checks that the file really uses **the font the formatter declares**: with a substitute font, every count would be wrong. On request it also returns **a picture of each page**, so you can judge by eye what the numbers cannot tell you. If the page runs over, the assistant tightens it and repeats steps 3 and 4.
 5. **One version per language.** If the formatter declares several languages, the server produces the translation using the workspace's **lexicon**. Text an expert has already written in the target language is kept as it is: nothing an author wrote by hand is ever translated again.
 6. **You approve the upload.** See below.
 
-!!! tip "If Claude stops"
-    A missing instruction, an absent picture, a check that cannot be run: Claude **stops and tells you** rather than making something up. The right fix is almost always to complete the graph (the instruction on the activity, the attached picture), not to correct the page.
+!!! tip "If the assistant stops"
+    A missing instruction, an absent picture, a check that cannot be run: the assistant **stops and tells you** rather than making something up. The right fix is almost always to complete the graph (the instruction on the activity, the attached picture), not to correct the page.
 
 ## Upload: preview or deliverable
 
@@ -76,9 +76,43 @@ A lesson can then be produced again by redoing only the stale or unknown files. 
 >
 > "Give me the download link for the lesson 12 sheet."
 
-A Word file placed in the document store **some other way than through the tool** (by hand, or by an older process) is attached to nothing. Claude can list these **untracked** files, read their text and attach each one to the part of the curriculum it covers. That attachment is written at once, like a deliverable.
+A Word file placed in the document store **some other way than through the tool** (by hand, or by an older process) is attached to nothing. The assistant can list these **untracked** files, read their text and attach each one to the part of the curriculum it covers. That attachment is written at once, like a deliverable.
 
 > "Which files in the document store are not attached to anything?"
+
+## Which file is the current one, and who accepted it
+
+Every delivered file has a **status**. The tool works it out from what it knows about the file; the only part a person sets is the verdict.
+
+| Status | What it means |
+|---|---|
+| **Produced** | The file in use for its lesson, its document and its language. Nobody has given a verdict yet. |
+| **Approved** | An approver has accepted this exact file. |
+| **Changes requested** | Someone has sent it back, with a note saying what has to change. |
+| **Replaced** | A newer file has been delivered in its place. This happens on its own. |
+| **Unfiled** | Nothing says which document or which language the file belongs to, so it is the current file of nothing. |
+
+There is **one current file per lesson, document and language**. Take a lesson covered by a pupil book and a teacher's guide, each in two languages: it owes four files. Deliver a new pupil-book file in the first language, and the previous one becomes *replaced*. The other three do not move: a different language or a different document is a different file.
+
+> "Where do the files for lesson 12 stand?"
+>
+> "Show me only the current files for this course."
+
+An **unfiled** file is not the same as an untracked one (above): the tool knows what it covers, but not which document or language it is. It gets a place the day it is recorded again with both.
+
+### Approve a file, or send it back
+
+> "I approve the four files for lesson 12."
+>
+> "Send the lesson 12 teacher's guide back: the answer to exercise 3 is wrong."
+
+- **Approving** needs the **approver** role. It is a person's sign-off: the assistant passes on the verdict you give. It never approves a file because a check came back clean.
+- **Sending back** is open to any member of the workspace, and needs a **note**. Without one, the next person has nothing to act on.
+- The verdict is about **that exact file**. If a new file is delivered under the same name, it starts again as *produced*.
+- Only a current file takes a verdict. A replaced or unfiled one is refused, and the assistant tells you which file to use instead.
+- If the curriculum has changed since the file was produced, the confirmation **warns you**: you would be approving a stale file.
+
+Like a deliverable, a verdict is **written at once**, after your confirmation, with no undo; a later verdict simply replaces it. Several files are confirmed in one go, all or none. Every delivery and every verdict is recorded in the [history](review-approve.md#view-the-history).
 
 ## Measure a file produced elsewhere
 
@@ -94,7 +128,7 @@ An expert opened a file, corrected some wording and sent it back to you. Those c
 
 > "Here is the sheet the inspector corrected: carry her corrections over into the curriculum."
 
-Claude compares the file with the graph and **proposes** the changes; it writes nothing itself. There are three cases:
+The assistant compares the file with the graph and **proposes** the changes; it writes nothing itself. There are three cases:
 
 - **changed wording**: the correction is clear and can be applied;
 - **a passage that has disappeared**: it is flagged, **not deleted**, because in a Word file a deliberate cut and a slip of the hand look the same;

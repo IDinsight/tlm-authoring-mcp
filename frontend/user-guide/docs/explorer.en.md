@@ -1,6 +1,6 @@
 # Explore the graph
 
-The **explorer** is a web page that shows the curriculum as a tree: the standards, the content, the documents and the links between them. It is a place to **look**; nothing gets changed there. Changes are always made by talking with Claude.
+The **explorer** is a web page that shows the curriculum as a tree: the standards, the content, the documents and the links between them. It is a place to **look**; nothing gets changed there. Changes are always made by talking with the assistant.
 
 Open **[https://senegal-ci-maths.web.app](https://senegal-ci-maths.web.app)**.
 
@@ -54,18 +54,18 @@ To find your way around:
 - the **search** filters on title and summary, and ignores accents;
 - the **library selector** narrows the display to the workspace or to the shared library.
 
-Click a card to read the entry **in full**: the exact text Claude reads when it produces a document.
+Click a card to read the entry **in full**: the exact text the assistant reads when it produces a document.
 
 ## Terminology
 
 The **Terminology** tab shows the workspace's **lexicon**: each term in every one of the workspace's languages, with an example where there is one. Document translation and the terminology check both rely on this lexicon. It is shared by every grade and subject in the workspace, and the search box filters the terms.
 
-To add or correct a term, ask Claude ("Add to the lexicon: …"). Like the catalog, the lexicon is published immediately, so you need to be an **approver**.
+To add or correct a term, ask the assistant ("Add to the lexicon: …"). Like the catalog, the lexicon is published immediately, so you need to be an **approver**.
 
 ## Without leaving the conversation
 
-To look at a single part of the curriculum without opening the explorer, ask Claude to draw it:
+To look at a single part of the curriculum without opening the explorer, ask the assistant to draw it:
 
 > "Draw me the tree of the 'Decimal numbers' grouping."
 
-Claude can show the same tree as the explorer, limited to that part, right in the conversation. It shows the **published** version.
+The assistant can show the same tree as the explorer, limited to that part, right in the conversation. It shows the **published** version.

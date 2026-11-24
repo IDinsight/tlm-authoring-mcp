@@ -38,7 +38,7 @@ Comme une routine ou une mise en forme, la grille est **copiée** sous le docume
 
 > « Évalue ce document. »
 
-L'outil rassemble les grilles du document et le fichier produit ; **c'est Claude qui lit et note**, critère par critère, avec la justification de chaque note. L'outil ne juge jamais lui-même.
+L'outil rassemble les grilles du document et le fichier produit ; **c'est l'assistant qui lit et note**, critère par critère, avec la justification de chaque note. L'outil ne juge jamais lui-même.
 
 Avec le module, `/evaluer` fait l'évaluation **en une seule relecture**, dans cet ordre :
 
@@ -54,7 +54,7 @@ Avec le module, `/evaluer` fait l'évaluation **en une seule relecture**, dans c
 
 ## Ce qu'une grille n'a pas à vérifier
 
-Tout ce que l'outil **garantit déjà** n'a pas à être recoché à la main : les marges et les tailles (la mise en forme les applique), le nombre de pages (le rendu le mesure), une consigne recopiée de travers (la vérification de page la compare au programme). Claude trie la grille avant de la lire : ce qui est déjà garanti est signalé comme tel, le reste est jugé sur le document.
+Tout ce que l'outil **garantit déjà** n'a pas à être recoché à la main : les marges et les tailles (la mise en forme les applique), le nombre de pages (le rendu le mesure), une consigne recopiée de travers (la vérification de page la compare au programme). L'assistant trie la grille avant de la lire : ce qui est déjà garanti est signalé comme tel, le reste est jugé sur le document.
 
 Une grille gagne donc à garder les critères qui **exigent de lire** le document produit.
 

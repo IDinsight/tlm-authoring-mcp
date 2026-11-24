@@ -2,7 +2,7 @@
   "$schema": "https://antigravity.google/schemas/v1/plugin.json",
   "name": "tlm-autorat",
   "displayName": "TLM Autorat",
-  "version": "0.6.0",
+  "version": "0.6.1",
   "description": "Procédures d'autorat de matériels pédagogiques avec le serveur MCP TLM : construire le programme, composer et produire des documents, évaluer et publier.",
   "author": {
     "name": "IDinsight",
