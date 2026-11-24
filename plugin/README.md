@@ -106,8 +106,10 @@ repository's root. Untried: what it does with `commands/` and `agents/` is not d
 labels a plugin that declares servers in `.mcp.json` as desktop only.
 
 Either way, ChatGPT's own documentation says a tool that does not declare itself read-only is
-treated as a write and asks for confirmation. The server declares none today, so expect a prompt
-on every call there, and nothing usable on a ChatGPT plan limited to reading.
+treated as a write and asks for confirmation. Every tool of the server now declares whether it
+only reads, so by that documentation a simple read should go through unprompted and only a
+change should ask. A ChatGPT plan limited to reading should then be able to browse the
+curriculum, though still not to edit it. None of this has been seen on a real ChatGPT yet.
 
 **Unverified:** the twelve entries under `commands/` are the older flat-file form of a skill — Claude
 Code reads them as skills and its own docs say to use `skills/` for new plugins. Whether Cowork

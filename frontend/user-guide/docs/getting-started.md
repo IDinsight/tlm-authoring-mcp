@@ -98,7 +98,7 @@ Suivez maintenant les étapes de votre assistant. Les noms de menus sont donnés
     Un administrateur de l'espace ChatGPT a une seconde voie, qui apporte aussi les procédures : dans l'Admin Console, **Plugins**, **Add**, puis **Import marketplace**, avec le dépôt `IDinsight/tlm-authoring-mcp` comme source.
 
     !!! note "Pas encore essayé par nous"
-        Ces étapes sont celles d'OpenAI. Nous n'avons encore suivi aucune des deux voies de bout en bout. Attendez-vous à ce que ChatGPT vous demande de confirmer **chaque** action, même une simple lecture. Si une étape se présente autrement, dites-le à votre administrateur.
+        Ces étapes sont celles d'OpenAI. Nous n'avons encore suivi aucune des deux voies de bout en bout. ChatGPT devrait vous demander de confirmer chaque action qui **modifie** quelque chose, par exemple une modification du programme ou l'envoi d'un fichier, et laisser passer une simple lecture. S'il demande confirmation à chaque action, ou si une étape se présente autrement, dites-le à votre administrateur.
 
 === "Gemini"
 

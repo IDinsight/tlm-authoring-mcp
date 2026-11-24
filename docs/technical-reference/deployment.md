@@ -83,16 +83,23 @@ Which clients have been through it:
 | Codex | plugin install and sign-in checked 2026-11-24 (codex-cli 0.172); no model has called a tool through it yet |
 | Gemini CLI | step 2 fixed and live; a full sign-in has not been re-run since |
 | Antigravity | plugin manifest built from its documentation, not yet installed on a real copy |
-| ChatGPT (custom MCP server, web, Business / Enterprise / Edu) | not yet run by us. What its documentation asks of a server is met on paper: PKCE `S256` advertised, self-registration, refresh tokens. One gap is known — see below |
+| ChatGPT (custom MCP server, web, Business / Enterprise / Edu) | not yet run by us. What its documentation asks of a server is met on paper: PKCE `S256` advertised, self-registration, refresh tokens, and every tool saying whether it only reads — see below |
 | Gemini app (custom app) | not yet run by us. Google's documentation asks for a registration endpoint, which is there |
 
-**The known gap: no tool says it only reads.** MCP lets a tool declare `readOnlyHint`. The
-server declares it on none of its 74 tools. Claude works without it. ChatGPT does not: its
-documentation says a tool without the hint is treated as a write, and writes
-ask for confirmation by default. So in ChatGPT every call — `start_here`, `find_node`, a walk —
-would stop for a click, and a ChatGPT Pro account, which may only *read* through a custom
-server, could call nothing. Declaring the hint on the read tools is a small server change, not
-yet made.
+**Every tool says whether it only reads.** MCP lets a tool declare `readOnlyHint`. Claude
+works without it. ChatGPT does not: its documentation says a tool without the hint is treated
+as a write, and writes ask for confirmation by default. Left unsaid, every call in ChatGPT —
+`start_here`, `find_node`, a walk — would stop for a click, and a ChatGPT Pro account, which
+may only *read* through a custom server, could call nothing.
+
+So each tool states it, and has since 2026-11-24
+([#310](https://github.com/IDinsight/tlm-authoring-mcp/pull/310),
+[#311](https://github.com/IDinsight/tlm-authoring-mcp/pull/311)): of the 75 tools that day, 37
+only read and 38 write, 8 of those flagged as able to delete with no undo. The hint is set where
+each tool is registered, from `backend/src/server/tool-effects.ts`, and a test fails when a tool
+states nothing — see "Adding a tool" in
+[architecture and extending](architecture-and-extending.md). This closes the gap **on paper
+only**: nothing has been run against ChatGPT yet.
 
 **Helper agents are the plugin's, not the server's.** The plugin's skills hand long reads to
 sub-agents, which only Cowork and Claude Code run. A tool that runs none does the same work in
