@@ -5,7 +5,7 @@
 // actionable error when no grid is attached yet.
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
-import { describe, it, expect, beforeAll, beforeEach, afterAll } from "vitest";
+import { describe, it, expect, beforeEach, afterAll } from "vitest";
 
 import { newSessionState, runInSession } from "../../context/index.js";
 import { activateContext } from "../../activate.js";
@@ -34,7 +34,7 @@ const fakeStorage: StorageAdapter = {
   listDocuments: async () => [], getObjectMd5: async () => null, downloadDocx: async () => Buffer.from(""),
   createUploadUrl: async () => ({ url: "", objectKey: "", contentType: "", expiresAt: "" }),
   createDownloadUrl: async () => ({ url: "", objectKey: "", expiresAt: "", exists: false }),
-  readHistory: async () => history, writeHistory: async () => {},
+  readHistory: async () => history,
 };
 
 let store: KgNodeStore;
@@ -102,8 +102,10 @@ async function useStore(withRubric: boolean) {
   __setKgStoreForTest(store);
 }
 
-beforeAll(() => { __setStorageForTest(fakeStorage); });
+// Installed per TEST, not once: it brings a fresh file-record store, and the
+// history a test sets is imported into that store on its first read.
 beforeEach(async () => {
+  __setStorageForTest(fakeStorage);
   history = { version: 4, entries: [] };
   __resetMutationsForTest();
   __setActorForTest(CURATOR);

@@ -74,6 +74,14 @@ export function requireContext(): ActiveContext {
 export const activeWorkspace = (): string => requireContext().workspace;
 
 const scope = () => { const { workspace, grade, subject } = requireContext(); return `${workspace}/${grade}/${subject}/`; };
+
+// The active namespace as one string, e.g. "senegal/ci/maths" — the key the
+// per-file records are filed under. Spelled the same as kg-store's
+// kgNamespace(), which this leaf module cannot import; a test pins the two.
+export const activeNamespaceKey = (): string => {
+  const { workspace, grade, subject } = requireContext();
+  return `${basePrefix()}${workspace}/${grade}/${subject}`;
+};
 export const docsPrefix = () => basePrefix() + scope() + "documents/";
 export const historyKey = () => basePrefix() + scope() + "history.json";
 export const docKey = (relPath: string) => { assertSafeRelPath(relPath); return docsPrefix() + relPath; };

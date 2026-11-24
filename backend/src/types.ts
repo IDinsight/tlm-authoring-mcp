@@ -56,12 +56,50 @@ export type HistoryEntry = {
   // anything produced before this was recorded, and absence means UNKNOWN
   // rather than current (see render/sources.ts).
   sources?: { nodeId: string; hash: string }[];
+
+  // ── Where the file stands (docs/design-notes/file-status.md) ──────────────
+  // Who recorded it. Absent on anything recorded before this was kept.
+  recordedBy?: FilePerson;
+  // Set when a NEWER file took this one's place: same covered node, same
+  // document, same language. Being set is what "replaced" means.
+  replacedBy?: string;        // the newer file's relPath
+  replacedAt?: string;
+  // The latest verdict a person gave. It names the bytes it was given on, so a
+  // file uploaded again under the same path does not inherit it.
+  review?: FileReview;
 };
 
-// Bumped to 3 for the node-keyed schema. A pre-node-keyed (v2) history can't be
-// auto-mapped to node ids without the graph, so it is ignored on load and the
-// bucket docs re-surface as untracked for re-linking (the "fresh reconcile"
-// migration in graph-linked-documents.md).
+/** Who did something to a file. `email` is null, not absent: Firestore refuses `undefined`. */
+export type FilePerson = { id: string; email: string | null };
+
+export type FileVerdict = "approved" | "changes_requested";
+
+export type FileReview = {
+  verdict: FileVerdict;
+  by: FilePerson;
+  at: string;
+  md5: string;                // the bytes the verdict was given on
+  note?: string;
+};
+
+/*
+ * Where a recorded file stands. Never stored: it is read off the entry each
+ * time (storage/file-status.ts), so it cannot disagree with the fields above.
+ *
+ *   unfiled            — no document or no language recorded, so nothing can
+ *                        say which file it would be the current one OF
+ *   replaced           — a newer file covers the same lesson, document, language
+ *   produced           — the current file; no verdict on these bytes yet
+ *   changes_requested  — a person sent it back
+ *   approved           — an approver accepted these exact bytes
+ */
+export type FileStatus = "unfiled" | "replaced" | "produced" | "changes_requested" | "approved";
+
+// The LEGACY history: one JSON object per namespace holding every entry. File
+// records now live one per database document (storage/file-records.ts); this
+// shape is read once, to import what a namespace recorded before the move.
+// (Bumped to 3 for the node-keyed schema; a pre-node-keyed v2 history cannot be
+// mapped to node ids without the graph and is ignored.)
 export type HistoryFile = { version: 4; entries: HistoryEntry[] };
 
 export type StoredObject = {
@@ -106,8 +144,10 @@ export interface StorageAdapter {
   // also drops a PNG of each page there, so a page can be looked at without
   // laying the file out again locally.
   createPreviewUpload?(relPath: string, contentType?: string): Promise<{ uploadUrl: string; downloadUrl: string; objectKey: string; contentType: string; expiresAt: string }>;
+  // The legacy history.json, read ONCE per namespace to import its entries into
+  // the per-file records. There is deliberately no write beside it: after the
+  // import the object is left exactly as it was, as the backup of that moment.
   readHistory(): Promise<HistoryFile | null>;
-  writeHistory(h: HistoryFile): Promise<void>;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

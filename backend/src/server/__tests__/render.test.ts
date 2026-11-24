@@ -19,7 +19,7 @@
  */
 import { describe, it, expect, beforeAll, beforeEach, afterAll, vi } from "vitest";
 import { execFileSync } from "node:child_process";
-import { seedStore, seededContexts, CE1_READING, CURATOR, APPROVER, SIGNED_IN_NO_ROLE } from "../../__tests__/index.js";
+import { seedStore, seededContexts, CE1_READING, CURATOR, APPROVER, SIGNED_IN_NO_ROLE, recordedFiles } from "../../__tests__/index.js";
 import { newSessionState, runInSession, previewKey } from "../../context/index.js";
 import { __setKgStoreForTest, __resetMutationsForTest } from "../../kg-store/index.js";
 import { __setStorageForTest } from "../../storage/index.js";
@@ -55,7 +55,6 @@ vi.mock("../../translation/index.js", () => ({
 
 const emptyHistory: HistoryFile = { version: 4, entries: [] };
 let canonicalUploads = 0;
-let historyWrites = 0;
 // Captures every PUT, keyed by object key, so the test can open each produced
 // file — a per-file document writes more than one.
 let uploaded: Buffer | null = null;
@@ -76,13 +75,14 @@ const storage: StorageAdapter = {
     };
   },
   readHistory: async () => emptyHistory,
-  writeHistory: async () => { historyWrites++; },
 };
 
 const realFetch = globalThis.fetch;
 // Registering the fixture contexts has to happen before one can be activated,
 // so it runs at module load, the way every other suite here does it.
 const ctx = seededContexts([CE1_READING]).find((c) => c.grade === "ce1" && c.subject === "reading")!;
+// Where a rendered file WOULD be recorded if render ever logged one — it must not.
+const renderNamespace = (): string => `${ctx.workspace}/${ctx.grade}/${ctx.subject}`;
 
 // The one FormatterSpec this suite gives a render bag to, and a section whose
 // stack reaches it. Both are read off the fixture rather than invented, so the
@@ -149,7 +149,7 @@ beforeEach(async () => {
   __setKgStoreForTest(await seedStore({ only: [CE1_READING] }));
   __setStorageForTest(storage);
   __resetMutationsForTest();
-  canonicalUploads = 0; historyWrites = 0; uploaded = null; uploads.length = 0;
+  canonicalUploads = 0; uploaded = null; uploads.length = 0;
 
   // Find a section and a formatter spec on its stack, from the fixture itself,
   // so the suite breaks loudly if the document layer changes shape rather than
@@ -206,7 +206,7 @@ describe("render_document produces a document", () => {
     expect(String(out.objectKey)).toContain("previews/");
     expect(String(out.objectKey)).not.toMatch(/^documents\//);
     expect(canonicalUploads).toBe(0);
-    expect(historyWrites).toBe(0);
+    expect(await recordedFiles(renderNamespace())).toEqual([]);
   });
 });
 
@@ -1183,7 +1183,7 @@ describe("format: 'idml' — the page written into an InDesign template", () => 
     const idml = unzip(unzip(uploaded!).get(`render-${sectionId}.idml`)!);
     expect(idml.get("Stories/Story_s-label.xml")!.toString("utf8")).toContain("Unité 1");
     expect(canonicalUploads).toBe(0);
-    expect(historyWrites).toBe(0);
+    expect(await recordedFiles(renderNamespace())).toEqual([]);
   });
 
   it("refuses, uploading nothing, when the page names styles the template does not define", async () => {

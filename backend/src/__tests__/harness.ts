@@ -25,12 +25,12 @@ import { listAvailableContexts, newSessionState, runInSession, type ActiveContex
 import { resolveAdapter, getRegisteredProfile, getRegisteredGuide } from "../adapters/index.js";
 import { serializeModel, __clearModelCache } from "../curriculum/index.js";
 import { createMemoryKgStore, kgNamespace, parseNamespace } from "../kg-store/index.js";
-import { __setStorageForTest } from "../storage/index.js";
+import { __setStorageForTest, getFileRecordStore } from "../storage/index.js";
 import { __setActorForTest, type Actor } from "../actor.js";
 import { activateContext } from "../activate.js";
 import { subjectDir, KG_FIXTURE } from "./fixtures.js";
 import type { KgNodeStore, StoredConfig, StoredMeta, Slot } from "../kg-store/index.js";
-import type { StorageAdapter, HistoryFile } from "../types.js";
+import type { StorageAdapter, HistoryEntry, HistoryFile } from "../types.js";
 
 // ── Storage stub ─────────────────────────────────────────────────────────────
 
@@ -47,12 +47,19 @@ export const fakeStorage: StorageAdapter = {
   createUploadUrl: async () => ({ url: "", objectKey: "", contentType: "", expiresAt: "" }),
   createDownloadUrl: async () => ({ url: "", objectKey: "", expiresAt: "", exists: false }),
   readHistory: async () => emptyHistory,
-  writeHistory: async () => {},
 };
 
-// Install the stub for the current file. Call from `beforeAll`.
+// Install the stub for the current file. Call from `beforeAll`. It comes with an
+// empty in-memory file-record store, so no suite can reach the real database.
 export function installFakeStorage(storage: StorageAdapter = fakeStorage): void {
   __setStorageForTest(storage);
+}
+
+// The file records a namespace holds in the test store — `[]` means no produced
+// file was ever recorded there. What an isolation test asserts on: a preview or
+// a render must leave this empty.
+export function recordedFiles(namespace: string): Promise<HistoryEntry[]> {
+  return getFileRecordStore().list(namespace);
 }
 
 // ── Standard actors ──────────────────────────────────────────────────────────

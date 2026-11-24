@@ -271,7 +271,9 @@ describe("list_documents detail levels", () => {
     const [row] = ok(pageDocuments(THIRTY, ordinals, { limit: 1 })).entries;
 
     expect(row.content).toBeUndefined();
-    expect(Object.keys(row).sort()).toEqual(["nodeId", "relPath", "updated"]);
+    // `status` rides at every level: it is what stops a caller picking a
+    // replaced file because it happened to sort first.
+    expect(Object.keys(row).sort()).toEqual(["nodeId", "relPath", "status", "updated"]);
   });
 
   it("reports content as COUNTS at summary, not as truncated prose", () => {
@@ -285,7 +287,9 @@ describe("list_documents detail levels", () => {
   it("reproduces the whole entry at full, so nothing depending on the old shape breaks", () => {
     const [row] = ok(pageDocuments(THIRTY, ordinals, { detail: "full", limit: 1 })).entries;
 
-    expect(row).toEqual(THIRTY[0]);
+    // The whole record, plus where it stands. These fixtures name no document
+    // or language, so each is the current file of nothing.
+    expect(row).toEqual({ ...THIRTY[0], status: "unfiled" });
   });
 
   it("trims a full page to the byte budget and hands back a cursor, rather than failing", () => {

@@ -55,6 +55,8 @@ const EVENT_TYPES: readonly AuditEventType[] = [
   // request_review writes. All three were missing here, so filtering for one
   // used to be rejected as a typo.
   "membership", "workspace", "review",
+  // What happened to a produced file: recorded, approved, sent back.
+  "file",
 ];
 
 export type ReadAuditArgs = {
@@ -188,6 +190,12 @@ function describeTarget(r: AuditRecord): string {
       // Tenant-admin events (add/remove member, create workspace) — the human
       // descriptor is the reason string the tool wrote.
       return truncate(r.reason ?? r.eventType);
+    case "file": {
+      // "approved lecon_23/Guide-WO.docx — bon pour impression"
+      const replaced = r.replacedFiles?.length ? `replaced ${r.replacedFiles.length} older file(s)` : null;
+      const headline = [r.fileEvent ?? "file", r.filePath].filter(Boolean).join(" ");
+      return truncate([headline, replaced, r.reason].filter(Boolean).join(" — "));
+    }
   }
 }
 
@@ -354,12 +362,12 @@ export function registerAuditTools(server: McpServer) {
       description:
         "Read a page of the append-only audit log for the ACTIVE grade/subject namespace, newest-first. APPROVERS ONLY (same tier as publish); curators and no-role callers are blocked, and the blocked read is itself audited. READ-ONLY — it cannot create, edit, delete, redact or reorder a record. To review another GRAPH's trail, set_context to it first. " +
         "Pass `workspace` instead for that WORKSPACE's own trail — member grants, invites, domain rules, workspace creation. Those events belong to no grade/subject, so this is the only way to see them; needs no active context, requires approver in that workspace. " +
-        "Filters (optional, AND-combined): actor, action (apply|createDraft|publish|discard|blocked|preview|read|membership|workspace|review), outcome (applied|blocked), nodeId (entries whose diff touches it), since/until (ISO-8601). Page with limit (default 25, max 100) + the returned cursor. Modes: 'summary' (default, no before/after) or 'detail' (full diff); `auditId` fetches one record in detail. " +
+        "Filters (optional, AND-combined): actor, action (apply|createDraft|publish|discard|blocked|preview|read|membership|workspace|review|file — `file` is a produced file recorded, approved or sent back), outcome (applied|blocked), nodeId (entries whose diff touches it), since/until (ISO-8601). Page with limit (default 25, max 100) + the returned cursor. Modes: 'summary' (default, no before/after) or 'detail' (full diff); `auditId` fetches one record in detail. " +
         "Each call appends ONE lightweight 'read' event so 'who reviewed history' stays answerable. A reader, not analytics.",
       inputSchema: {
         workspace: z.string().optional(),
         actor: z.string().optional(),
-        action: z.enum(["apply", "createDraft", "publish", "discard", "blocked", "preview", "read", "membership", "workspace", "review"]).optional(),
+        action: z.enum(["apply", "createDraft", "publish", "discard", "blocked", "preview", "read", "membership", "workspace", "review", "file"]).optional(),
         outcome: z.enum(["applied", "blocked"]).optional(),
         nodeId: z.string().optional(),
         since: z.string().optional(),

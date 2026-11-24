@@ -67,7 +67,6 @@ function storageHolding(paths: string[]): StorageAdapter {
     createMediaUpload: async (relPath, contentType) => ({ url: "https://signed/media", objectKey: docKey(relPath), contentType, expiresAt: "" }),
     createDownloadUrl: async (relPath) => ({ url: "https://signed/get", objectKey: docKey(relPath), expiresAt: "", exists: paths.includes(relPath) }),
     readHistory: async () => emptyHistory,
-    writeHistory: async () => {},
   };
 }
 
