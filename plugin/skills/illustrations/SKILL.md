@@ -54,7 +54,9 @@ cropped, unreadable at print scale, or showing something the text contradicts.
 returns a structure — which images exist, which are missing, which failed a check and why, which cell
 each band's answer is — not a description of what it made. **Run it in the background** while the
 page is composed: its audit is what its minutes buy, and nothing in the composition waits on it
-until the review step, where its findings are read before anything is delivered.
+until the review step, where its findings are read before anything is delivered. No `illustrateur`
+in your tool? Build and check the dossier in the main thread as `session-autorat` describes, and
+return the same structure.
 
 There is one class of error no text-based check will ever catch: a **mismatch between text and
 image**, where the words and the picture each make sense and disagree with each other. Two wrong

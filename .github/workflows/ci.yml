@@ -21,3 +21,16 @@ jobs:
       - run: npm ci
       - run: npm run build   # includes scripts/check-cycles.mjs layer/cycle check
       - run: npm test
+  # The plugin has no build: these checks are its tests. The manifest check keeps the
+  # Claude and Antigravity copies in step; the tool check catches a skill naming a tool
+  # the server no longer registers. (check-no-rules.sh needs a human's judgement on each
+  # hit, so it stays a manual check — see plugin/README.md.)
+  plugin-checks:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: plugin
+    steps:
+      - uses: actions/checkout@v4
+      - run: ./check-manifests.sh
+      - run: ./check-tools-exist.sh ../backend

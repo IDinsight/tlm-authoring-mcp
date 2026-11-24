@@ -36,7 +36,8 @@ contre une grille n'est pas encore outillé, et ce n'est pas demandé.
 5. **Le rendu** — un regard, une fois, par `relecteur` sur les images de page du rendu final ;
    `mesureur` seulement pour un fichier que le serveur n'a pas rendu ; `terminologue` si le
    document est traduit, avec les termes lus en un appel (`get_terminology`, `queries`). Les
-   sous-agents travaillent sur des fichiers, jamais sur le graphe.
+   sous-agents travaillent sur des fichiers, jamais sur le graphe. Sans ces assistants dans votre
+   outil, faites ces lectures dans le fil principal (voir `session-autorat`).
 
 ## Une seule relecture, pas cinq résultats d'outil
 

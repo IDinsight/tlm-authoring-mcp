@@ -21,7 +21,8 @@ This applies to every authoring session. The other skills assume it and do not r
    reviewing a render, reading a long external document — before you act. Commit the delegation
    while there is nothing to carry: once momentum builds, the main thread does the work itself and
    only notices afterwards, from the bill. The subagents work on FILES, never on the graph (see
-   below), so what you delegate is file work.
+   below), so what you delegate is file work. If your tool runs no helper agents, say which of
+   these jobs you will do in the main thread instead (see "When your tool has no such helper").
 
 `get_capabilities` answers "what is possible" for a machine; `start_here` answers "what do I do
 next" for a person. Prefer `start_here` when talking to someone. When you do need the machine
@@ -61,6 +62,14 @@ check the terminology of a produced file (`terminologue`), read a long external 
 (`lecteur`). Do NOT dump a graph payload to a file just to hand it over — you had to read it to
 write it, so the context is already spent; read it in the main thread. And a subagent never calls
 `set_context`: it makes no graph reads to scope.
+
+**When your tool has no such helper.** This plugin also installs in tools that do not run its
+agents: Codex, for one, loads the skills and the servers but not `agents/`. Wherever a skill says
+to hand a file to `lecteur`, `mesureur`, `relecteur`, `terminologue` or `illustrateur` and no
+helper by that name exists, do the job in the main thread. Follow that agent's own instructions
+(the plugin's `agents/<name>.md`) and return the same structured result it would have. It is still
+file work, and its result is what the rest of the procedure uses. Step 4 above then announces that
+you will do it yourself, so the cost is chosen rather than discovered.
 
 ## An open draft may be someone else's
 

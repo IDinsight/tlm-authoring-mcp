@@ -56,6 +56,43 @@ In Claude Code it is the two commands above.
 Neither server is a candidate for a `.mcpb` desktop extension: that format packages a LOCAL server,
 and both of these are remote.
 
+### In other tools: Codex and Antigravity
+
+The same folder installs outside Claude. The skills are shared as they are; each tool reads its own
+manifest and server list, and `check-manifests.sh` keeps those copies in step.
+
+| | reads | gets | does not get |
+|---|---|---|---|
+| **Codex** | `.claude-plugin/` (Claude's, accepted as is), `.mcp.json` | the 9 skills, both servers, the 4 commands that take no arguments | the 8 commands with arguments (their skills cover them), the agents |
+| **Antigravity** | `.antigravity-plugin/plugin.json`, `mcp_config.json` | the 9 skills, both servers | `commands/` (its docs say skills replace them) |
+
+**Codex** — verified on 2026-11-24 with codex-cli 0.172, installed from this GitHub repository and
+from a local copy, and signed in to `tlm`. What was not run is a model calling a tool through it:
+that needs the author's own OpenAI or ChatGPT account, which Codex requires to run at all.
+
+```
+codex plugin marketplace add IDinsight/tlm-authoring-mcp
+codex plugin add tlm-autorat@tlm-authoring-mcp
+codex mcp login tlm
+codex mcp login nano-banana
+```
+
+**Antigravity** — built from its documentation, **not yet installed on a real copy.** Install it
+from this repository in the app's plugin manager, or place the `plugin/` folder under
+`~/.gemini/config/plugins/`. It signs in to each server in the browser the first time the server
+connects. The `agents/` folder is the open question: Antigravity reads that folder, but its agents
+name models and tools differently (`flash` and `view_file` where these say `haiku` and `Read`), and
+whether it ignores, loads or refuses these five has not been seen.
+
+Where a tool runs none of the agents, the skills say to do the same file work in the main thread
+(`session-autorat`, "When your tool has no such helper"). That costs tokens the agent would have
+saved, so the session announces it up front.
+
+**Gemini CLI** is not packaged. Google no longer lets a personal account sign in to it, so it only
+serves someone with a Gemini API key or a Google Cloud project, and they can add the server by hand:
+`gemini mcp add --scope user --transport http tlm https://senegal-mohebs-tlm-148764688487.europe-west1.run.app/mcp`,
+then `/mcp auth tlm` inside a session.
+
 **Unverified:** the eight entries under `commands/` are the older flat-file form of a skill — Claude
 Code reads them as skills and its own docs say to use `skills/` for new plugins. Whether Cowork
 surfaces them the same way has not been checked on a real install.
@@ -137,7 +174,11 @@ the same job.** That is tolerable while both are thin, and worth collapsing if e
 ```
 ./check-no-rules.sh        # no pedagogical rule leaked into a procedure file
 ./check-tools-exist.sh     # every tool named here is one the server registers
+./check-manifests.sh       # the Claude and Antigravity manifests and server lists agree
 ```
+
+CI runs the last two on every pull request. `check-no-rules.sh` stays a manual check, because each
+hit needs a person's judgement (it already reports six hits on `main`).
 
 The second one matters more than it looks: a procedure that calls a tool which does not exist fails
 mid-task, in front of an expert. It also prints the **seams** — tools named here that do not exist

@@ -51,6 +51,8 @@ conversion, donc les tableaux ne lui échappent pas.)*
 
 Pour un document sans ancres seulement. Dispatch the `lecteur` subagent: it reads the whole source
 and returns **a structured edit proposal** — a list of `{ what changed, where, from, to }` — not a narrative.
+No `lecteur` in your tool? Do the reading in the main thread as `session-autorat` describes, and
+produce the same proposal.
 
 This is the single largest token saving available: a bulk read that costs ~184,000 tokens inside a
 subagent returns ~2,000 to the main thread. Read the source yourself only when the proposal points

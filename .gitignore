@@ -17,6 +17,10 @@ backend/dist
 !/.claude-plugin/marketplace.json
 !/plugin/.claude-plugin/plugin.json
 !/plugin/.mcp.json
+# Antigravity's copies of the same two (plugin/check-manifests.sh fails in CI if
+# either is missing, which is what an ignored file would look like there).
+!/plugin/.antigravity-plugin/plugin.json
+!/plugin/mcp_config.json
 !tsconfig.json
 !firebase.json
 # Committed test fixtures (golden snapshots) live under __fixtures__ dirs.
