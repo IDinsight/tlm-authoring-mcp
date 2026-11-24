@@ -486,15 +486,23 @@ async function main() {
 
   if (authEnabled) {
     if (!PUBLIC_URL) { console.error(`${LOG} PUBLIC_URL is required when auth is enabled.`); process.exit(1); }
-    const resourceMetadataUrl = `${PUBLIC_URL}/.well-known/oauth-protected-resource`;
     // Protected-resource metadata (RFC 9728): tells MCP clients where to log in.
-    app.get("/.well-known/oauth-protected-resource", (_req, res) => {
-      res.json({
-        resource: PUBLIC_URL,
-        authorization_servers: [`${SUPABASE_URL}/auth/v1`],
-        bearer_methods_supported: ["header"],
-      });
-    });
+    // `resource` must be the exact address the client connects to — `…/mcp`, not
+    // the bare host. Gemini CLI refuses to sign in on a mismatch (RFC 9728 §7.3);
+    // Claude tolerated the bare host, which is how the mismatch went unnoticed.
+    const mcpResource = `${PUBLIC_URL}/mcp`;
+    const resourceMetadataUrl = `${PUBLIC_URL}/.well-known/oauth-protected-resource/mcp`;
+    const resourceMetadata = {
+      resource: mcpResource,
+      authorization_servers: [`${SUPABASE_URL}/auth/v1`],
+      bearer_methods_supported: ["header"],
+    };
+    // Served at the spec's path-suffixed address, and at the bare one too, because
+    // some clients look there first when the 401 does not tell them where to go.
+    app.get(
+      ["/.well-known/oauth-protected-resource/mcp", "/.well-known/oauth-protected-resource"],
+      (_req, res) => { res.json(resourceMetadata); },
+    );
     app.use("/mcp", requireBearerAuth({ verifier: verifier!, resourceMetadataUrl }));
 
     // Supabase's OAuth server delegates the login/consent UI to the application
