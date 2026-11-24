@@ -9,8 +9,11 @@ gs://<FIREBASE_STORAGE_BUCKET>/
       chapitre_05/<Fiches de leçons …>.docx
     previews/                    # throwaway preview .docx (draft-resolved); NOT canonical
       chapitre_05/<Manuel …>.docx
-    history.json
+    history.json                 # LEGACY — imported once into the file records, then left as it was
 ```
+What is known about each produced file — the node it covers, its document and language, what it was
+made from, and where it stands — is **one database record per file** (Firestore `file_records`), not
+an object in the bucket. See *Where a file stands* below.
 `previews/` is a **sibling** of `documents/`, never inside it — reconciliation only scans `documents/`, so a preview object can never enter the tracked history (see *Preview generation* below).
 Document identity is the **graph node the document covers** — its *scope node* (a `Chapitre`/`Semaine`/`Lesson`), keyed by that node's id **within a grade/subject** (see [`../design-notes/graph-linked-documents.md`](../design-notes/graph-linked-documents.md)). The filename is **no longer parsed for identity**: `relPath` stays a human-readable location, and a doc is linked to its node at record time. The which-Course-which-node split *is* the old manual-vs-lessons split (a chapter's pupil manual covers its `Chapitre` under the Student's Book; its lesson sheets cover the chapter's `Lesson`/week node under the Teacher's Guide).
 
@@ -20,7 +23,8 @@ Document identity is the **graph node the document covers** — its *scope node*
 1. Read the curriculum **from the graph** for the node you're generating: `get_graph_guide` for the subject's conventions, then `walk_graph` / `get_standards` from the scope node down (its routine and formatter come with it via `usesRoutine`). There is no per-deliverable prompt tool — generation guidance is assembled from the guide + the node's attached routine/formatter + the graph. (CI maths storybook variety — a fresh object family per chapter — is guide prose now: read recent chapters with `list_documents` / `get_document_text` to see which families are already used. The `suggest_fresh_domain` / `domain_usage` tools were retired.)
 2. Generate the `.docx`.
 3. `create_upload_url(relPath, confirm)` → the server returns a short-lived **signed URL**. (`relPaths` — up to 50 — signs several in one call under one confirmation, returning `files[]`; `create_media_upload_url` and `create_download_url` take it too. A lesson moves seventeen files, and one call each was seventeen round trips of ~800-character URLs through the model.) Upload the file with an HTTP `PUT` (Content-Type `application/vnd.openxmlformats-officedocument.wordprocessingml.document`). No large payloads go through the MCP channel. **Requires confirmation** — see below.
-4. `log_generation(nodeId, relPath, content, confirm)` — the server checks `nodeId` names a real scope node in the active graph, reads the uploaded object's md5 from storage, and records what you produced against that node. History updated; no local file needed. **Requires confirmation** — see below.
+4. `log_generation(nodeId, relPath, content, documentId, variant, confirm)` — the server checks `nodeId` names a real scope node in the active graph, reads the uploaded object's md5 from storage, and records what you produced against that node. Give `documentId` and `variant`: the file then becomes the **current** one for that lesson, document and language, and the older files of the same three are marked `replaced` (the response lists them). No local file needed. **Requires confirmation** — see below.
+5. A person gives a verdict: `record_file_verdict(relPath | relPaths, verdict, note, confirm)` — `approved` (approvers) or `changes_requested` (any member, with a note).
 
 > **Confirmation gate.** The three tools that write outward — `create_upload_url` (gates the upload), `log_generation`, and `record_document_content` — never act without approval. The gate is an **agent-mediated two-step**: the first call performs no side effect and returns the shared confirmation envelope `{ needsConfirmation: true, action, message }` (`action` states the stakes; `message` tells the agent to re-call with `confirm: true`); the agent asks the user, then re-calls with `confirm: true`.
 >
@@ -29,6 +33,39 @@ Document identity is the **graph node the document covers** — its *scope node*
 > Input validation (e.g. a `nodeId` that names no node in the active graph) runs before the gate, so bad calls fail first. All read-only tools are ungated. Note: in a fully headless run (no user to ask) these tools cannot get approval by design — drive them only where a human is reachable.
 >
 > **Two lifecycles share only the envelope shape.** Document tools write **live** to the bucket / history — the confirm is the ONLY gate, and the `action` field says "writes NOW … no draft, no undo". Graph mutations (see below) **stage a draft edit** — the same envelope, but the `action` says "STAGES a draft edit … nothing reaches generation until you separately publish". Uniform mechanics; deliberately different stakes.
+
+## Where a file stands
+
+Every recorded file has a **status**, read off its record each time and never stored
+(`storage/file-status.ts`). Rationale and the full rules: [`../design-notes/file-status.md`](../design-notes/file-status.md).
+
+| status | meaning |
+|---|---|
+| `produced` | the file in use for its lesson, document and language; no verdict yet |
+| `approved` | an approver accepted these exact bytes |
+| `changes_requested` | a person sent it back, with a note |
+| `replaced` | a newer file of the same lesson, document and language was recorded (automatic) |
+| `unfiled` | it records no `documentId` or no `variant`, so it is the current file of nothing |
+
+- **`list_documents`** reports `status` on every entry. `current: true` returns only the files in use,
+  `status` filters to one, and `statusCounts` counts every status across the other filters — so
+  `list_documents(nodeId)` says where a lesson stands in one call.
+- **`record_file_verdict`** is the only way to `approved` or `changes_requested`. The verdict is tied to
+  the file's md5: new bytes under the same path return it to `produced`. A `replaced` or `unfiled`
+  file is refused, and so is one whose bytes in the bucket are no longer those recorded. Several
+  files go under one confirmation, all or nothing.
+- **The audit trail** records each delivery and each verdict as a `file` event
+  (`read_audit` with `action: "file"`).
+
+**Storage.** One Firestore document per file in `file_records`, and one small document per namespace
+in `file_record_namespaces` carrying a `revision` every write moves. A read fetches that small
+document and re-fetches the records only when the revision changed. Both collections are queried by
+one equality on `namespace` and nothing else, so no composite index is needed — keep it that way: the
+in-memory test store cannot catch a missing index.
+
+**The legacy import.** The first call that touches a namespace's records imports its `history.json`
+(entries first, marker last), and the object is never read or written again. Nothing to run at
+deploy. A namespace whose import failed says so in the error and retries on the next call.
 
 ## Preview generation (draft-resolved, isolated from published)
 
@@ -39,7 +76,7 @@ An expert who has staged a draft edit can generate a **preview** of the teaching
 
 **Isolation guarantees** (all covered by `src/server/__tests__/preview.test.ts`):
 - A preview reflects a staged-but-unpublished edit, while published generation still reflects the old wording.
-- After a preview run, the published slot, the pointer, the canonical bucket, `history.json`, and `log_generation` records are **byte-for-byte unaffected**; the only audit added is a distinct **`preview`** event (never an `apply`/`publish`/real-generation record).
+- After a preview run, the published slot, the pointer, the canonical bucket and the file records are **unaffected**; the only audit added is a distinct **`preview`** event (never an `apply`/`publish`/real-generation record).
 - Preview output lives under `previews/` — structurally invisible to the tracked document history.
 
 **No draft?** `preview_generation` returns a clear *"no draft to preview"* notice (and no output) rather than silently previewing published — which would be misleading.
@@ -69,4 +106,4 @@ An id that is none of the three comes back with an error naming all three and po
 
 ## Reconciliation
 
-Run on startup (when a context is active) and via the `reconcile` tool. It is **discover-only** — it lists the bucket's `.docx` objects and diffs them against history **by `relPath`**, with no filename classification: present + md5 matches history → **tracked**; `relPath` in no entry → **untracked (new)**; `relPath` known but md5 differs → **untracked (changed)**; in history but the object is gone from the bucket → **dropped** (the stale entry is removed). The curator/LLM links each untracked doc to its node via `record_document_content`. (A pre-node-keyed `history.json` — the old `(unit, deliverable)` schema — is ignored on load, so its docs re-surface as untracked for a one-time re-link; the bucket objects are untouched.)
+Run on startup (when a context is active) and via the `reconcile` tool. It is **discover-only** — it lists the bucket's `.docx` objects and diffs them against history **by `relPath`**, with no filename classification: present + md5 matches history → **tracked**; `relPath` in no entry → **untracked (new)**; `relPath` known but md5 differs → **untracked (changed)**; recorded but the object is gone from the bucket → **dropped** (the stale record is removed) — unless the bucket lists **no** document at all while records exist, which is reported as `dropSkipped` and drops nothing, since that is far more often a wrong namespace than an emptied bucket. The curator/LLM links each untracked doc to its node via `record_document_content`. (A pre-node-keyed `history.json` — the old `(unit, deliverable)` schema — is ignored on load, so its docs re-surface as untracked for a one-time re-link; the bucket objects are untouched.)

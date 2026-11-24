@@ -3,7 +3,10 @@
  * siblings import each other directly.
  */
 export { getKgStore, __setKgStoreForTest, kgNamespace, parseNamespace } from "./adapter.js";
-export { createFirestoreKgStore } from "./firestore.js";
+export { createFirestoreKgStore, stripUndefined } from "./firestore.js";
+// What Firestore refuses and how a document is made to fit — shared with the
+// other Firestore-backed store (storage's file records) so there is one fix.
+export { toFirestoreShape, fromFirestoreShape } from "./firestore-shape.js";
 export { createMemoryKgStore } from "./memory.js";
 export type { KgNodeStore, Slot, StoredNode, StoredEdge, StoredMeta, StoredConfig, StoredPointer } from "./types.js";
 export { otherSlot, edgeId } from "./types.js";

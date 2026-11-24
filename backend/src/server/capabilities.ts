@@ -49,6 +49,7 @@ const CAPABILITY_ACTIONS = [
   "canReadAudit",     // #16's read_audit — approver-only, same tier as publish
   "canReadDocuments", // the bucket + history reads — members only, though the curriculum is open
   "canWriteDocuments",// create_upload_url / log_generation / record_document_content — live, no undo
+  "canApproveDocuments", // record_file_verdict 'approved' — the sign-off on a produced file, same tier as publish
   "canTranslate",     // the Gemini-backed translator — members only (it is metered)
 ] as const;
 
@@ -64,6 +65,7 @@ const CAPABILITY_TO_AUTHZ: Record<Exclude<typeof CAPABILITY_ACTIONS[number], "ca
   canReadAudit: "readAudit",  // reviewing the append-only trail — approver-only
   canReadDocuments: "readDocuments",
   canWriteDocuments: "writeDocuments",
+  canApproveDocuments: "approveDocuments",
   canTranslate: "translate",
 };
 

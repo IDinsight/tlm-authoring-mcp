@@ -14,9 +14,10 @@ import { contextField, withContextOverrideResult, type WithContext } from "./con
 import { getActiveAdapter } from "../adapters/index.js";
 import { activeWorkspace } from "../context/index.js";
 import { kgNamespace } from "../kg-store/index.js";
-import { getStorageAdapter, extractDocxText, listEntries, recordContent, reconcile } from "../storage/index.js";
+import { getStorageAdapter, extractDocxText, listEntries, recordContent, reconcile, statusOf, isCurrent, countByStatus, FILE_STATUSES, type RecordedFile } from "../storage/index.js";
 import { readDocx, sourcesFrom, staleness, type DocumentSource } from "../render/index.js";
-import type { HistoryEntry } from "../types.js";
+import type { FileStatus, HistoryEntry } from "../types.js";
+import { auditFileEvent, currentFilePerson } from "./file-audit.js";
 import { WORKSPACE_ROLE_NOTE } from "./tool-notes.js";
 import { DETAIL_LEVELS, DEFAULT_DETAIL, takeWithinBudget, trimmedBySizeHint, pageBudgetBytes, toolError, type DetailLevel, imageMimeFor, IMAGE_EXTENSIONS, layoutAssetMimeFor, LAYOUT_ASSET_EXTENSIONS, LAYOUT_ASSET_FOLDER } from "../utils/index.js";
 
@@ -59,7 +60,7 @@ function denyNonMember(action: MemberAction) {
  * to notice it, and nothing invited them to. Naming it as its own field costs a
  * few bytes and turns a silent misroute into an obvious one.
  */
-const NAMESPACE_NOTE =
+export const NAMESPACE_NOTE =
   "Every relPath is relative to the ACTIVE namespace, so the response echoes `namespace`: check it is the one you meant. " +
   "Pass `context` to pin the namespace on the call instead of trusting the session's.";
 
@@ -86,14 +87,14 @@ const NAMESPACE_NOTE =
  */
 const MAX_PATHS = 50;
 const MANY_PATHS_NOTE = `Pass \`relPaths\` (up to ${MAX_PATHS}) instead of \`relPath\` to do several files in ONE call: the response is then { namespace, files: [{relPath, …}] }, one entry per path in the order given, and one confirmation covers them all.`;
-const pathsShape = {
+export const pathsShape = {
   relPath: z.string().optional(),
   relPaths: z.array(z.string().min(1)).min(1).max(MAX_PATHS).optional(),
 };
-type PathsArgs = { relPath?: string; relPaths?: string[] };
+export type PathsArgs = { relPath?: string; relPaths?: string[] };
 type Paths = { list: string[]; many: boolean };
 
-function pathsOf(a: PathsArgs): Paths | { error: ToolResult } {
+export function pathsOf(a: PathsArgs): Paths | { error: ToolResult } {
   if (a.relPath !== undefined && a.relPaths !== undefined) {
     return { error: toolError("VALIDATION_ERROR", "Pass `relPath` (one file) OR `relPaths` (several), not both.") };
   }
@@ -107,7 +108,7 @@ function pathsOf(a: PathsArgs): Paths | { error: ToolResult } {
 }
 
 /** "an upload URL for 'x'" or "7 upload URLs ('a', 'b', 'c', …)" — what the confirmation names. */
-function describePaths(list: string[], one: string, many: string): string {
+export function describePaths(list: string[], one: string, many: string): string {
   if (list.length === 1) return `${one} for '${list[0]}'`;
   const shown = list.slice(0, 3).map((p) => `'${p}'`).join(", ");
   return `${list.length} ${many} (${shown}${list.length > 3 ? ", …" : ""})`;
@@ -182,6 +183,8 @@ export const listDocumentsShape = {
   unit: z.number().int().optional().describe("Filter to one chapter/week ordinal (CI maths: chapter number)."),
   documentId: z.string().optional().describe("Filter to files produced from ONE document (the pupil's tool, the teacher's guide)."),
   variant: z.string().optional().describe("Filter to one rendering — 'FR', 'WO' — as the document's formatter declares them."),
+  status: z.enum(FILE_STATUSES as [FileStatus, ...FileStatus[]]).optional().describe("Filter to files at ONE status: 'produced' (current, no verdict yet), 'approved', 'changes_requested', 'replaced' (a newer file took its place), 'unfiled' (records no document or language)."),
+  current: z.boolean().optional().describe("true = only the file IN USE for each lesson, document and language — leaves out 'replaced' and 'unfiled'. This is the answer to « which file is the real one »."),
   ...contextField,
 };
 
@@ -213,23 +216,50 @@ const contentCounts = (entry: HistoryEntry) => ({
   terminologyUsed: entry.content?.terminologyUsed?.length ?? 0,
 });
 
+// The verdict as a row shows it — only when it is on the bytes now recorded. A
+// verdict left over from an earlier upload would read as "approved" beside a
+// status that says "produced".
+function verdictOf(entry: HistoryEntry): DocumentRow | null {
+  const review = entry.review;
+  if (!review || review.md5 !== entry.md5) {
+    return null;
+  }
+  return {
+    by: review.by.email ?? review.by.id,
+    at: review.at,
+    ...(review.note ? { note: review.note } : {}),
+  };
+}
+
 function projectDocument(entry: HistoryEntry, detail: DetailLevel): DocumentRow {
   // Enough to CHOOSE: which file, what it covers, which document and rendering
-  // it is, and when it was last recorded.
+  // it is, when it was last recorded — and where it stands, so a caller never
+  // picks a replaced file because it happened to sort first.
   const names: DocumentRow = {
     relPath: entry.relPath,
     nodeId: entry.nodeId,
     updated: entry.updated,
     ...(entry.documentId !== undefined ? { documentId: entry.documentId } : {}),
     ...(entry.variant !== undefined ? { variant: entry.variant } : {}),
+    status: statusOf(entry),
+    ...(entry.replacedBy !== undefined ? { replacedBy: entry.replacedBy } : {}),
   };
   if (detail === "names") {
     return names;
   }
   if (detail === "summary") {
-    return { ...names, source: entry.source, md5: entry.md5, recordedAt: entry.recordedAt, content: contentCounts(entry) };
+    const verdict = verdictOf(entry);
+    return {
+      ...names,
+      source: entry.source,
+      md5: entry.md5,
+      recordedAt: entry.recordedAt,
+      ...(entry.recordedBy ? { recordedBy: entry.recordedBy.email ?? entry.recordedBy.id } : {}),
+      ...(verdict ? { verdict } : {}),
+      content: contentCounts(entry),
+    };
   }
-  return entry as unknown as DocumentRow;   // 'full' — today's payload, unchanged
+  return { ...entry, status: statusOf(entry) } as unknown as DocumentRow;   // 'full' — the whole record
 }
 
 // A node with no ordinal (or gone from the graph) sorts after every numbered one.
@@ -275,8 +305,8 @@ const isAfterCursor = (ord: number | null, entry: HistoryEntry, c: DocCursor): b
 export function pageDocuments(
   all: HistoryEntry[],
   ordinalOf: (nodeId: string) => number | null,
-  args: { cursor?: string; limit?: number; nodeId?: string; unit?: number; documentId?: string; variant?: string; detail?: DetailLevel }
-): { entries: DocumentRow[]; detail: DetailLevel; count: number; total: number; totalUnfiltered: number; nextCursor: string | null; truncatedBySize?: true; hint?: string } | { error: string } {
+  args: { cursor?: string; limit?: number; nodeId?: string; unit?: number; documentId?: string; variant?: string; status?: FileStatus; current?: boolean; detail?: DetailLevel }
+): { entries: DocumentRow[]; detail: DetailLevel; count: number; total: number; totalUnfiltered: number; statusCounts: Record<FileStatus, number>; nextCursor: string | null; truncatedBySize?: true; hint?: string } | { error: string } {
   const cursor = args.cursor != null ? decodeCursor(args.cursor) : null;
   if (args.cursor != null && cursor == null) {
     return { error: "Invalid cursor — pass a cursor returned by a prior list_documents page, or omit it to start from the first document." };
@@ -292,11 +322,19 @@ export function pageDocuments(
       || a.e.relPath.localeCompare(b.e.relPath));
   // Filters first (they define the set being paged), then the cursor slice.
   // `nodeId` now returns EVERY file covering that node, which is the point.
-  const filtered = ordered.filter(({ e, ord }) =>
+  const inScope = ordered.filter(({ e, ord }) =>
     (args.nodeId == null || e.nodeId === args.nodeId)
     && (args.unit == null || ord === args.unit)
     && (args.documentId == null || e.documentId === args.documentId)
     && (args.variant == null || e.variant === args.variant));
+
+  // Counted BEFORE the status filters, so one call answers « where does lesson
+  // 23 stand » whatever status was asked for: 4 approved, 1 replaced, 0 waiting.
+  const statusCounts = countByStatus(inScope.map(({ e }) => e));
+
+  const filtered = inScope.filter(({ e }) =>
+    (args.status == null || statusOf(e) === args.status)
+    && (args.current !== true || isCurrent(e)));
   const rows = cursor ? filtered.filter(({ e, ord }) => isAfterCursor(ord, e, cursor)) : filtered;
 
   // Project BEFORE trimming, so the byte budget is measured against what is
@@ -322,9 +360,10 @@ export function pageDocuments(
     count: page.length,
     total: filtered.length,
     totalUnfiltered: all.length,
+    statusCounts,
     nextCursor,
     ...(trimmedBySize
-      ? { truncatedBySize: true as const, hint: trimmedBySizeHint("Use the default detail:'names', narrow with nodeId/documentId/variant/unit, then page with cursor:<nextCursor>.") }
+      ? { truncatedBySize: true as const, hint: trimmedBySizeHint("Use the default detail:'names', narrow with nodeId/documentId/variant/unit/status, then page with cursor:<nextCursor>.") }
       : {}),
   };
 }
@@ -488,13 +527,75 @@ export async function checkStale(filter?: { nodeId?: string }): Promise<Record<s
 }
 
 
+// Where a file stands, said once and shared by the tools that report it.
+const FILE_STATUS_NOTE =
+  "Every entry carries `status`: 'produced' (the file in use, no verdict yet), 'approved', 'changes_requested', 'replaced' (a newer file of the same lesson, document and language took its place — `replacedBy` names it) or 'unfiled' (it records no `documentId` or no `variant`, so it is the current file of nothing). " +
+  "Pass `current:true` for only the files in use, or `status` for one status; `statusCounts` counts every status across the other filters, so one call says where a lesson stands.";
+
+const REPLACES_NOTE =
+  "Give `documentId` AND `variant`: the file then becomes the CURRENT one for that lesson, document and language, and older files of the same three are marked 'replaced' (the response lists them under `replaced`). Without both it is recorded 'unfiled'. New bytes under an existing path lose that path's verdict.";
+
+/** What the caller should know after a file was recorded: where it stands, and what happens next. */
+function nextStepsAfterRecording(recorded: RecordedFile): string[] {
+  if (recorded.status === "unfiled") {
+    return [
+      "Recorded as 'unfiled': it names no document or no language, so it replaced nothing and cannot take a verdict. Record it again with `documentId` and `variant` to make it the current file.",
+    ];
+  }
+
+  const replacedLine = recorded.replaced.length > 0
+    ? [`${recorded.replaced.length} older file(s) of the same lesson, document and language are now 'replaced': ${recorded.replaced.join(", ")}.`]
+    : [];
+  return [
+    ...replacedLine,
+    "This is now the current file, with no verdict yet. An approver accepts it, or any member sends it back, with record_file_verdict.",
+  ];
+}
+
+type RecordArgs = { nodeId: string; relPath: string; content: any; documentId?: string; variant?: string; replace?: boolean };
+
+/**
+ * Record one file and say where it now stands — the body both record tools
+ * share once the caller has confirmed. Writes the audit event of the delivery.
+ */
+async function recordFile(source: "pipeline" | "parsed", namespace: string, args: RecordArgs): Promise<ToolResult> {
+  const recorded = await recordContent(source, {
+    nodeId: args.nodeId,
+    relPath: args.relPath,
+    content: args.content,
+    documentId: args.documentId,
+    variant: args.variant,
+    replace: args.replace,
+    sources: await sourcesOf(args.relPath),
+    recordedBy: currentFilePerson(),
+  });
+  if ("error" in recorded) {
+    return asJson({ namespace, ...recorded });
+  }
+
+  await auditFileEvent(namespace, {
+    fileEvent: "recorded",
+    filePath: recorded.entry.relPath,
+    fileMd5: recorded.entry.md5,
+    replacedFiles: recorded.replaced,
+  });
+
+  return asJson({
+    namespace,
+    ...recorded.entry,
+    status: recorded.status,
+    ...(recorded.replaced.length > 0 ? { replaced: recorded.replaced } : {}),
+    nextSteps: nextStepsAfterRecording(recorded),
+  });
+}
+
 export function registerDocumentTools(server: McpServer) {
-  server.registerTool("reconcile", { title: "Reconcile bucket with history", description: "List the .docx documents in Firebase Storage and diff against history BY relPath: tracked docs (present + unchanged), UNTRACKED docs needing a link ('new' = no history entry, 'changed' = bytes differ from the recorded entry), and entries dropped because their object is gone. It no longer classifies filenames — link each untracked doc to the node it covers with record_document_content(nodeId, relPath, content). Link each untracked doc to the node it covers with record_document_content — several files may cover the same node, so the whole list can be walked. `dropped` lists the relPath of each entry whose object is gone. " + WORKSPACE_ROLE_NOTE + "", inputSchema: { ...contextField } },
+  server.registerTool("reconcile", { title: "Reconcile bucket with history", description: "List the .docx documents in Firebase Storage and diff against history BY relPath: tracked docs (present + unchanged), UNTRACKED docs needing a link ('new' = no history entry, 'changed' = bytes differ from the recorded entry), and entries dropped because their object is gone. It no longer classifies filenames — link each untracked doc to the node it covers with record_document_content(nodeId, relPath, content). Link each untracked doc to the node it covers with record_document_content — several files may cover the same node, so the whole list can be walked. `dropped` lists the relPath of each entry whose object is gone — except when the bucket lists NO document at all while files are recorded: then nothing is dropped and `dropSkipped` says why (check the namespace). " + WORKSPACE_ROLE_NOTE + "", inputSchema: { ...contextField } },
     guarded(async (a: WithContext) => withContextOverrideResult(a.context, async () =>
       (await denyNonMember("readDocuments")) ?? asJson({ namespace: activeNamespace(), ...(await reconcile()) }))));
 
-  server.registerTool("list_documents", { title: "List tracked documents", description: "Current history: one entry per FILE, keyed by its relPath, ordered by unit ordinal then covered node then path. `detail` defaults to 'names' (relPath, nodeId, updated, plus documentId/variant when known) — the content record is what made this tool unusable, at ~8.5 KB an entry; 'summary' adds source and content COUNTS; 'full' returns the whole record and is trimmed to a byte budget with a cursor rather than refused. A node holds several files (a CI-maths lesson has four), so filtering by `nodeId` returns all of them; narrow further with `documentId` (which document produced it) or `variant` ('FR'/'WO'). Paginated: pass limit (default 25, max 100) and an opaque cursor. Optional filters: nodeId (one scope node) and unit (a chapter/week ordinal). Returns { entries, count, total, totalUnfiltered, nextCursor }; nextCursor is null on the last page — pass it back to fetch the next page. " + WORKSPACE_ROLE_NOTE + "", inputSchema: listDocumentsShape },
-    guarded(async (a: { cursor?: string; limit?: number; nodeId?: string; unit?: number } & WithContext) =>
+  server.registerTool("list_documents", { title: "List tracked documents", description: "Current history: one entry per FILE, keyed by its relPath, ordered by unit ordinal then covered node then path. `detail` defaults to 'names' (relPath, nodeId, updated, plus documentId/variant when known) — the content record is what made this tool unusable, at ~8.5 KB an entry; 'summary' adds source and content COUNTS; 'full' returns the whole record and is trimmed to a byte budget with a cursor rather than refused. A node holds several files (a CI-maths lesson has four), so filtering by `nodeId` returns all of them; narrow further with `documentId` (which document produced it) or `variant` ('FR'/'WO'). Paginated: pass limit (default 25, max 100) and an opaque cursor. Optional filters: nodeId (one scope node) and unit (a chapter/week ordinal). " + FILE_STATUS_NOTE + " Returns { entries, count, total, totalUnfiltered, statusCounts, nextCursor }; nextCursor is null on the last page — pass it back to fetch the next page. " + WORKSPACE_ROLE_NOTE + "", inputSchema: listDocumentsShape },
+    guarded(async (a: { cursor?: string; limit?: number; nodeId?: string; unit?: number; documentId?: string; variant?: string; status?: FileStatus; current?: boolean } & WithContext) =>
       withContextOverrideResult(a.context, async () => {
         const denied = await denyNonMember("readDocuments"); if (denied) return denied;
         const byId = getActiveAdapter().model().byId;
@@ -594,24 +695,24 @@ export function registerDocumentTools(server: McpServer) {
       withContextOverrideResult(a.context, async () => asJson({ namespace: activeNamespace(), ...(await checkStale(a)) }))),
   );
 
-  server.registerTool("record_document_content", { title: "Record parsed document content", description: "After reading an UNTRACKED document's text, store the structured content you extracted into history so it is never re-parsed. The object must already be in the bucket. `nodeId` is the scope node the document covers (the Chapitre/Semaine/Lesson — find it with walk_graph / namespace_stats). " + FILE_KEYED_NOTE + " REQUIRES CONFIRMATION — without confirm:true you get a needsConfirmation notice; ask the user to approve, then call again. " + WORKSPACE_ROLE_NOTE + " This writes LIVE to history: no draft, no undo. " + NAMESPACE_NOTE, inputSchema: { nodeId: z.string(), relPath: z.string(), content: z.object(contentSchema), documentId: z.string().optional(), variant: z.string().optional(), replace: z.boolean().optional(), confirm: z.boolean().optional(), ...contextField } },
-    guarded(async (a: { nodeId: string; relPath: string; content: any; documentId?: string; variant?: string; replace?: boolean; confirm?: boolean } & WithContext) =>
+  server.registerTool("record_document_content", { title: "Record parsed document content", description: "After reading an UNTRACKED document's text, store the structured content you extracted into history so it is never re-parsed. The object must already be in the bucket. `nodeId` is the scope node the document covers (the Chapitre/Semaine/Lesson — find it with walk_graph / namespace_stats). " + FILE_KEYED_NOTE + " " + REPLACES_NOTE + " REQUIRES CONFIRMATION — without confirm:true you get a needsConfirmation notice; ask the user to approve, then call again. " + WORKSPACE_ROLE_NOTE + " This writes LIVE to history: no draft, no undo. " + NAMESPACE_NOTE, inputSchema: { nodeId: z.string(), relPath: z.string(), content: z.object(contentSchema), documentId: z.string().optional(), variant: z.string().optional(), replace: z.boolean().optional(), confirm: z.boolean().optional(), ...contextField } },
+    guarded(async (a: RecordArgs & { confirm?: boolean } & WithContext) =>
       withContextOverrideResult(a.context, async () => {
         const denied = await denyNonMember("writeDocuments"); if (denied) return denied;
         const err = scopeNodeError(a.nodeId); if (err) return asJson({ error: err });
         const namespace = activeNamespace();
         const needConfirm = requireConfirmation(a.confirm, `record content into history for node ${a.nodeId} in namespace '${namespace}' — this writes NOW to that live history (no draft, no undo)`);
-        return needConfirm ?? asJson({ namespace, ...(await recordContent("parsed", { nodeId: a.nodeId, relPath: a.relPath, content: a.content, documentId: a.documentId, variant: a.variant, replace: a.replace, sources: await sourcesOf(a.relPath) })) });
+        return needConfirm ?? recordFile("parsed", namespace, a);
       })));
 
-  server.registerTool("log_generation", { title: "Log a generated document", description: "Call after uploading a generated .docx via create_upload_url: it reads the object's hash from storage and records what you produced, so it feeds future consistency + variety. `nodeId` is the scope node the document covers (the Chapitre/Semaine/Lesson). " + FILE_KEYED_NOTE + " REQUIRES CONFIRMATION — without confirm:true you get a needsConfirmation notice; ask the user to approve, then call again. " + WORKSPACE_ROLE_NOTE + " This writes LIVE to history: no draft, no undo. " + NAMESPACE_NOTE, inputSchema: { nodeId: z.string(), relPath: z.string(), content: z.object(contentSchema), documentId: z.string().optional(), variant: z.string().optional(), replace: z.boolean().optional(), confirm: z.boolean().optional(), ...contextField } },
-    guarded(async (a: { nodeId: string; relPath: string; content: any; documentId?: string; variant?: string; replace?: boolean; confirm?: boolean } & WithContext) =>
+  server.registerTool("log_generation", { title: "Log a generated document", description: "Call after uploading a generated .docx via create_upload_url: it reads the object's hash from storage and records what you produced, so it feeds future consistency + variety. `nodeId` is the scope node the document covers (the Chapitre/Semaine/Lesson). " + FILE_KEYED_NOTE + " " + REPLACES_NOTE + " REQUIRES CONFIRMATION — without confirm:true you get a needsConfirmation notice; ask the user to approve, then call again. " + WORKSPACE_ROLE_NOTE + " This writes LIVE to history: no draft, no undo. " + NAMESPACE_NOTE, inputSchema: { nodeId: z.string(), relPath: z.string(), content: z.object(contentSchema), documentId: z.string().optional(), variant: z.string().optional(), replace: z.boolean().optional(), confirm: z.boolean().optional(), ...contextField } },
+    guarded(async (a: RecordArgs & { confirm?: boolean } & WithContext) =>
       withContextOverrideResult(a.context, async () => {
         const denied = await denyNonMember("writeDocuments"); if (denied) return denied;
         const err = scopeNodeError(a.nodeId); if (err) return asJson({ error: err });
         const namespace = activeNamespace();
         const needConfirm = requireConfirmation(a.confirm, `log the generated document for node ${a.nodeId} into history in namespace '${namespace}' — this writes NOW to that live history (no draft, no undo)`);
-        return needConfirm ?? asJson({ namespace, ...(await recordContent("pipeline", { nodeId: a.nodeId, relPath: a.relPath, content: a.content, documentId: a.documentId, variant: a.variant, replace: a.replace, sources: await sourcesOf(a.relPath) })) });
+        return needConfirm ?? recordFile("pipeline", namespace, a);
       })));
 }
 

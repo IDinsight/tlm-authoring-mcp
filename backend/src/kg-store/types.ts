@@ -292,7 +292,7 @@ export type AuditActor = {
   unknown: boolean;
 };
 
-export type AuditEventType = "apply" | "createDraft" | "publish" | "discard" | "blocked" | "preview" | "read" | "membership" | "workspace" | "review";
+export type AuditEventType = "apply" | "createDraft" | "publish" | "discard" | "blocked" | "preview" | "read" | "membership" | "workspace" | "review" | "file";
 
 // One flat shape covers every event type. Fields are populated per event;
 // which ones apply is discriminated by `eventType`. Kept flat (rather than a
@@ -350,6 +350,18 @@ export type AuditRecord = {
    * toggle — the resolver skips both an undo and the edit it names.
    */
   undoOf?: string;
+  /**
+   * file-only: what happened to a produced FILE — it was recorded (a delivery),
+   * or a person approved it or sent it back. A file event never touches the
+   * graph, so it is no part of a draft chain; `reason` carries the person's note.
+   */
+  fileEvent?: "recorded" | "approved" | "changes_requested";
+  /** file-only: the file, by the path that identifies it. */
+  filePath?: string;
+  /** file-only: the exact bytes the event is about. */
+  fileMd5?: string;
+  /** file-only (recorded): the older files this one took the place of. */
+  replacedFiles?: string[];
 };
 
 // Query surface — a minimal internal filter. Not user-facing; #7 does not

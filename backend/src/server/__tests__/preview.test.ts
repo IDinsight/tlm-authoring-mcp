@@ -22,7 +22,7 @@
  *      existing callers.
  */
 import { describe, it, expect, beforeAll, afterAll, beforeEach } from "vitest";
-import { seedStore, seededContexts, CI_MATHS, aContentGrouping } from "../../__tests__/index.js";
+import { seedStore, seededContexts, CI_MATHS, aContentGrouping, recordedFiles } from "../../__tests__/index.js";
 import { newSessionState, runInSession, docKey, previewKey } from "../../context/index.js";
 import { subjectDir, KG_FIXTURE } from "../../__tests__/index.js";
 import { resolveAdapter } from "../../adapters/index.js";
@@ -45,7 +45,6 @@ import type { StorageAdapter, HistoryFile } from "../../types.js";
 // preview upload path so the segregation test can inspect the object key.
 const emptyHistory: HistoryFile = { version: 4, entries: [] };
 let canonicalUploadCalls = 0;
-let historyWrites = 0;
 const fakeStorage: StorageAdapter = {
   listDocuments: async () => [],
   getObjectMd5: async () => null,
@@ -54,7 +53,6 @@ const fakeStorage: StorageAdapter = {
   createDownloadUrl: async () => ({ url: "", objectKey: "", expiresAt: "", exists: false }),
   createPreviewUpload: async (relPath) => ({ uploadUrl: "https://signed/put", downloadUrl: "https://signed/get", objectKey: previewKey(relPath), contentType: "docx", expiresAt: "1970-01-01T00:10:00Z" }),
   readHistory: async () => emptyHistory,
-  writeHistory: async () => { historyWrites++; },
 };
 
 const CURATOR: Actor = { id: "curator-uid", email: "curator@test", role: "curator", unknown: false };
@@ -133,7 +131,6 @@ beforeEach(async () => {
   __setKgStoreForTest(store);
   __resetMutationsForTest();
   canonicalUploadCalls = 0;
-  historyWrites = 0;
 });
 afterAll(() => {
   __setKgStoreForTest(null);
@@ -201,9 +198,9 @@ describe("a preview run leaves everything canonical untouched", () => {
     expect(await rawSlot(store, "a")).toEqual(publishedBefore);
     expect(await store.readPointer(ns)).toEqual(pointerBefore);
 
-    // No canonical bucket write, no history write (nothing logged as a real doc).
+    // No canonical bucket write, and no file recorded (nothing logged as a real doc).
     expect(canonicalUploadCalls).toBe(0);
-    expect(historyWrites).toBe(0);
+    expect(await recordedFiles(ns)).toEqual([]);
 
     // The ONLY new audit is a single PREVIEW event — no apply/publish, and not
     // masquerading as a real generation.

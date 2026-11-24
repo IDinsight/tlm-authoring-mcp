@@ -50,7 +50,6 @@ function storageWithHistory(entries: HistoryEntry[]): StorageAdapter {
     createUploadUrl: async () => ({ url: "", objectKey: "", contentType: "", expiresAt: "" }),
     createDownloadUrl: async () => ({ url: "", objectKey: "", expiresAt: "", exists: false }),
     readHistory: async () => history,
-    writeHistory: async () => {},
   };
 }
 

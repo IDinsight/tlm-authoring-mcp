@@ -41,7 +41,7 @@ import { DEFAULT_WORKSPACE, basePrefix } from "./config.js";
 
 export type AuthAction =
   | "apply" | "discard" | "publish" | "readDraft" | "readAudit"
-  | "readDocuments" | "writeDocuments" | "translate"
+  | "readDocuments" | "writeDocuments" | "translate" | "approveDocuments"
   | "retireCatalogEntry"
   | "manageMembers" | "manageWorkspace";
 
@@ -65,6 +65,11 @@ const REQUIRED: Record<AuthAction, number> = {
   // reusing `apply`) so a workspace that wants, say, publishing-tier uploads
   // can raise one without touching draft edits.
   readDocuments: RANK.curator, writeDocuments: RANK.curator, translate: RANK.curator,
+  // APPROVING a produced file says "this is the one to print". It is held where
+  // publishing the curriculum is, for the same reason: it is the sign-off, not
+  // the work. Sending a file BACK needs no more than membership (writeDocuments)
+  // — anyone working on a lesson may say it is not ready.
+  approveDocuments: RANK.approver,
   // Deleting from a CATALOG library is the one write with no draft and no undo:
   // a catalog write applies AND publishes in one step, so a confirmed delete is
   // immediately live, and other workspaces may be using the entry. Held one tier
@@ -122,6 +127,8 @@ export function authorize(actor: Actor, action: AuthAction, namespace: string): 
       return { ok: false, reason: `role '${role}' cannot publish in '${workspace}' — needs 'approver' or higher` };
     case "readAudit":
       return { ok: false, reason: `role '${role}' cannot read the audit log in '${workspace}' — needs 'approver' or higher` };
+    case "approveDocuments":
+      return { ok: false, reason: `role '${role}' cannot approve a produced file in '${workspace}' — needs 'approver' or higher. Any member may send a file back (verdict 'changes_requested').` };
     case "retireCatalogEntry":
       return { ok: false, reason: `role '${role}' cannot delete from the '${workspace}' catalog library — needs 'admin' or higher. A catalog write publishes immediately (no draft, no undo) and other workspaces may be using the entry, so retiring one is held above ordinary publishing.` };
     case "manageMembers":

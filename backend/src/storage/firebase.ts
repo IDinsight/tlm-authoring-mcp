@@ -2,7 +2,8 @@
  * Module: storage · internal
  *
  * The concrete Firebase/GCS implementation of StorageAdapter: signed upload/
- * download URLs, docx download, and reading/writing the history.json object. The
+ * download URLs, docx download, and READING the legacy history.json object (it
+ * is imported once into the per-file records and never written again). The
  * only file that talks to firebase-admin. Object keys are namespaced per active
  * grade/subject via the docsPrefix/historyKey helpers from context/state.
  */
@@ -121,9 +122,6 @@ export function createFirebaseStorage(): StorageAdapter {
       if (!exists) return null;
       const [buf] = await f.download();
       return JSON.parse(buf.toString("utf8")) as HistoryFile;
-    },
-    async writeHistory(h) {
-      await bucket().file(historyKey()).save(JSON.stringify(h, null, 2), { contentType: "application/json", resumable: false });
     },
   };
 }

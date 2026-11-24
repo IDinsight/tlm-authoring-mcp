@@ -25,6 +25,7 @@ import { STRUCTURAL_RULES } from "../kg-store/index.js";
 import { RECIPES, SHARED_CATALOG_NAMESPACE, catalogNamespace, renderSpecSchema } from "../kg-recipes/index.js";
 import { documentSchema } from "../render/index.js";
 import { lintableRules, CONTENT_RULES, PAGE_RULES } from "../curriculum/index.js";
+import { FILE_STATUSES, FILE_VERDICTS } from "../storage/index.js";
 import { KIND_PROPERTIES } from "./authoring.js";
 import { CATALOG_WRITE_VERBS } from "./catalog-target.js";
 
@@ -264,9 +265,20 @@ export function documentsSection(actions: Actions) {
   return {
     canRead: actions.canReadDocuments,
     canWrite: actions.canWriteDocuments,
+    canApprove: actions.canApproveDocuments,
     canTranslate: actions.canTranslate,
     readTools: ["reconcile", "list_documents", "create_download_url", "get_document_text", "check_stale"],
-    writeTools: ["create_upload_url", "create_media_upload_url", "log_generation", "record_document_content"],
+    writeTools: ["create_upload_url", "create_media_upload_url", "log_generation", "record_document_content", "record_file_verdict"],
+    // Where a produced file stands. The two lists are the storage module's own,
+    // so what is advertised here is what list_documents filters on and what
+    // record_file_verdict accepts.
+    fileStatus: {
+      statuses: FILE_STATUSES,
+      verdicts: FILE_VERDICTS,
+      tool: "record_file_verdict",
+      note:
+        "Every recorded file has a status, read off its record and never set by hand except by a verdict. 'produced' = the file in use for its lesson, document and language, with no verdict yet. 'replaced' = a newer file of the same three was recorded (automatic). 'unfiled' = it records no documentId or no variant, so it is the current file of nothing and takes no verdict. 'approved' / 'changes_requested' = a person's verdict via record_file_verdict: sending back needs any role and a note, approving needs `canApprove` (approver). A verdict is tied to the exact bytes; new bytes under the same path return the file to 'produced'. list_documents reports `status` on every entry, filters with `status` / `current:true`, and counts with `statusCounts`.",
+    },
     note:
       "The published CURRICULUM is open — no membership is needed to set_context into a workspace and read its graph (walk_graph, get_standards, find_node, namespace_stats, walk_document, get_graph_guide), matching the public KG explorer that already serves the same data. Its DOCUMENTS are not: signed URLs to produced .docx, the generation history, and the Gemini-backed `translate` all require a ROLE in this workspace (any role — curator is enough). The write tools additionally write LIVE with no draft and no undo, which is why they are held at membership rather than left open with the reads. A non-member gets a `phase:'unauthorized'` payload naming what they'd need, and the refusal is audited. Each of these tools takes an optional `context` and is gated against the namespace it NAMES, not the session's — so a role in one workspace can never authorize a write into another.",
   };
@@ -328,7 +340,7 @@ export function discoverySection(actions: Actions) {
     // list is stated here rather than derived because the field is a schema
     // opt-in per tool; capabilities.test.ts pins the two against each other.
     perCallContext:
-      "Every namespace-scoped tool takes an optional `context` ({workspace, grade, subject}) applying to THAT CALL ONLY, leaving the session's active context untouched: the graph reads (walk_graph / walk_document / walk_document_section / find_node / namespace_stats / get_standards / compose_section / check_document), the lexicon reads (get_terminology / translate), and every document tool (reconcile / list_documents / create_download_url / get_document_text / check_stale / create_upload_url / create_media_upload_url / log_generation / record_document_content). " +
+      "Every namespace-scoped tool takes an optional `context` ({workspace, grade, subject}) applying to THAT CALL ONLY, leaving the session's active context untouched: the graph reads (walk_graph / walk_document / walk_document_section / find_node / namespace_stats / get_standards / compose_section / check_document), the lexicon reads (get_terminology / translate), and every document tool (reconcile / list_documents / create_download_url / get_document_text / check_stale / create_upload_url / create_media_upload_url / log_generation / record_document_content / record_file_verdict). " +
       "The active context is per-CONNECTION, not per-caller — anything sharing the connection (a subagent, a parallel call) moves it under you. On a READ that surfaces as 'Start node not found' on ids that resolved a moment earlier. On a path-based DOCUMENT tool it is quieter and worse: a relPath is namespace-relative, so drift returns a valid signed URL to the wrong namespace, and an upload plus log_generation would write the file there LIVE with no draft and no undo. " +
       "So every document response echoes `namespace`, a download URL that resolved to nothing explains WHY (no such file here, versus wrong namespace entirely), and a write is authorized against the namespace it NAMES — a workspace you hold no role in is refused rather than misrouted. Pass `context` whenever you fan out or cannot be sure you are alone.",
     canWalkDraft: actions.canReadDraft,

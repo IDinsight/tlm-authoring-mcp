@@ -18,6 +18,7 @@ import { registerRenderTools } from "./render.js";
 import { registerComposeTools } from "./compose.js";
 import { registerDocumentReadinessTools } from "./document-readiness.js";
 import { registerDocumentTools } from "./documents.js";
+import { registerFileStatusTools } from "./file-status.js";
 import { registerLifecycleTools } from "./lifecycle.js";
 import { registerStructuralTools } from "./structural.js";
 import { registerRecipeTools } from "./recipes.js";
@@ -50,6 +51,7 @@ export function buildServer(): McpServer {
   registerComposeTools(server);      // compose_section — the block tree FROM the graph, by the formatter's layout templates (no model)
   registerDocumentReadinessTools(server); // check_document — is a document ready to be produced? one report, blocks nothing
   registerDocumentTools(server);     // reconcile, upload/download, record/log
+  registerFileStatusTools(server);   // record_file_verdict (a person approves a produced file, or sends it back)
   registerLifecycleTools(server);    // diff_draft, publish_draft, discard_draft
   registerUndoTools(server);         // undo_last (take back ONE staged edit — the per-edit counterpart to discard_draft)
   registerReviewTools(server);       // request_review (the curator→approver handoff, derived from the audit trail)

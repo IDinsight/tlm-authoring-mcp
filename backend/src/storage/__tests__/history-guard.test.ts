@@ -37,22 +37,27 @@ const frenchContent: DocumentContent = {
 };
 const wolofContent: DocumentContent = { summary: "Same lesson, Wolof rendering." };
 
-// Storage that actually REMEMBERS, so a second write can be observed. `seed`
-// plants a pre-existing history file, for the migration cases.
+// A bucket where every file exists. `seed` plants a LEGACY history.json, for the
+// import cases: it is what a namespace recorded before records moved to one per
+// file, and it is read once, on the first call.
 function statefulStorage(seed?: unknown): StorageAdapter {
-  let history = seed as HistoryFile | undefined;
+  const legacyHistory = seed as HistoryFile | undefined;
   return {
     listDocuments: async () => [],
     getObjectMd5: async (relPath: string) => `md5-of-${relPath}`,
     downloadDocx: async () => Buffer.from(""),
     createUploadUrl: async () => ({ url: "", objectKey: "", contentType: "", expiresAt: "" }),
     createDownloadUrl: async () => ({ url: "", objectKey: "", expiresAt: "", exists: false }),
-    readHistory: async () => history ?? { version: 4, entries: [] },
-    writeHistory: async (next: HistoryFile) => { history = next; },
+    readHistory: async () => legacyHistory ?? { version: 4, entries: [] },
   };
 }
 
-const inSession = <T>(fn: () => Promise<T>): Promise<T> => runInSession(newSessionState(), fn);
+// File records are filed under the active namespace, so a session needs one.
+function inSession<T>(fn: () => Promise<T>): Promise<T> {
+  const state = newSessionState();
+  state.active = { workspace: "senegal", grade: "ci", subject: "maths" };
+  return runInSession(state, fn);
+}
 
 beforeEach(() => { __setStorageForTest(statefulStorage()); });
 
