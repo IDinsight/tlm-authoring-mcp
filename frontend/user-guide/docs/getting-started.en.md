@@ -98,7 +98,7 @@ Now follow the steps for your assistant.
     A workspace administrator has a second way in, which brings the procedures too: in the Admin Console, **Plugins**, **Add**, then **Import marketplace**, with the repository `IDinsight/tlm-authoring-mcp` as the source.
 
     !!! note "Not yet run by us"
-        These steps are OpenAI's own. We have not yet been through either route from start to finish. Expect ChatGPT to ask you to confirm **every** action, simple reads included. If a step looks different, tell your administrator.
+        These steps are OpenAI's own. We have not yet been through either route from start to finish. ChatGPT should ask you to confirm each action that **changes** something, such as an edit to the curriculum or a file sent, and let a simple read through. If it asks on every action, or a step looks different, tell your administrator.
 
 === "Gemini"
 
