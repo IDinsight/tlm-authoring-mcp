@@ -64,7 +64,7 @@ The deployed server is one address, `https://<service-url>/mcp`, and nothing abo
 | **Codex** | the same plugin, from the same marketplace; or the address added by hand | install and sign-in, 2026-11-24 (codex-cli 0.172); no model has called a tool through it yet |
 | **Antigravity** | the plugin, through its own manifest; or the address added in the app | built from its documentation, not yet installed on a real copy |
 | **Gemini CLI** | the address added by hand | the one check it refused us on is fixed and live ([#306](https://github.com/IDinsight/tlm-authoring-mcp/pull/306)); a full sign-in has not been re-run since |
-| **ChatGPT** | a custom MCP server with the address (web; Business, Enterprise or Edu) | not yet run by us. One known gap: no tool declares itself read-only, so ChatGPT would ask for confirmation on every call |
+| **ChatGPT** | a custom MCP server with the address (web; Business, Enterprise or Edu) | not yet run by us. Every tool declares whether it only reads ([#310](https://github.com/IDinsight/tlm-authoring-mcp/pull/310)), which ChatGPT's documentation asks for so that it does not stop for confirmation on a simple read |
 | **Gemini app** | a custom app with the address (personal accounts, US only for now) | not yet run by us |
 
 The steps an expert follows, tool by tool, are in the user guide's [Getting started](frontend/user-guide/docs/getting-started.en.md); what each tool gets from the plugin is in [`plugin/README.md`](plugin/README.md); what the server must serve for a client to sign in is in [technical reference → deployment](docs/technical-reference/deployment.md#what-a-client-needs-from-the-server).
