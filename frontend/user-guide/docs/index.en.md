@@ -18,14 +18,14 @@ The tool knows nothing in advance about your subjects, your documents or your ha
 | The subject's conventions, what the curriculum must cover | In the **subject guide** |
 | How terms are expected to be translated | In the workspace **lexicon** |
 
-So the examples in this guide are just that, **examples**: your curriculum may say "unit" where this guide says "chapter". To learn the conventions of the subject you are working on, ask Claude:
+So the examples in this guide are just that, **examples**: your curriculum may say "unit" where this guide says "chapter". To learn the conventions of the subject you are working on, ask the assistant:
 
 > "Read me the guide for this subject."
 
 ## Your working tools
 
-- **The conversation with Claude.** Everything happens here, in everyday language. You say what you want — "add a lesson", "produce lesson 12", "is this document ready?" — and Claude calls the right tools. There are no commands to learn.
-- **The authoring plugin** (the *tlm-autorat* plugin). It teaches Claude the right procedures: in what order to create a document, how to check a page before rendering it, when to stop and ask you. It is optional, but strongly recommended. See [Getting started](getting-started.md).
+- **The conversation with your AI assistant.** The tool works with **Claude**, **Codex**, **ChatGPT** and **Gemini**; this guide simply says "the assistant" for whichever one you use. Everything happens here, in everyday language. You say what you want — "add a lesson", "produce lesson 12", "is this document ready?" — and the assistant calls the right tools. There are no commands to learn.
+- **The authoring plugin** (the *tlm-autorat* plugin). It teaches the assistant the right procedures: in what order to create a document, how to check a page before rendering it, when to stop and ask you. It is optional, but strongly recommended wherever it installs: in Claude, Codex and Antigravity. See [Getting started](getting-started.md).
 - **The explorer.** A **read-only** web page showing the published curriculum, its current draft and the catalog. You look at things there; you change nothing. It lives at [senegal-ci-maths.web.app](https://senegal-ci-maths.web.app); see [Explore the graph](explorer.md).
 
 ## Who does what
@@ -44,15 +44,15 @@ Not sure what your role is? Ask: "**What can I do?**"
 
 ## Where to start
 
-1. [**Getting started**](getting-started.md) — get access, install the plugin, choose where you work.
+1. [**Getting started**](getting-started.md) — get access, connect your assistant, choose where you work.
 2. **Build the curriculum** — [understand the graph](create-graph.md), [the standards](build-standards.md), [courses and lessons](courses-lessons.md), [routines](routines.md).
 3. **Compose and produce** — [compose a document](compose-document.md), [its formatter](formatters.md), [produce it](create-materials.md).
 4. **Evaluate and publish** — [evaluate a document](evaluate.md), [review and publish the draft](review-approve.md).
 5. [**Explore the graph**](explorer.md), and the [**Reference**](reference.md) for vocabulary.
 
 !!! note "Three safety rules"
-    **Nothing is written without your agreement.** Before any change, Claude shows you what will change and waits for your "yes".
+    **Nothing is written without your agreement.** Before any change, the assistant shows you what will change and waits for your "yes".
 
     **The curriculum goes through a draft.** Your changes pile up separately. They only reach document production once an approver **publishes** them.
 
-    **You give names, never identifiers.** "Lesson 12", "the teacher's guide": Claude finds the element. If several share the same name, it asks you which one you mean.
+    **You give names, never identifiers.** "Lesson 12", "the teacher's guide": the assistant finds the element. If several share the same name, it asks you which one you mean.

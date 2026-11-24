@@ -29,7 +29,7 @@ Décrivez ce que vous voulez et où :
 >
 > « Dans cette leçon, ajoute trois activités : … »
 
-Vous pouvez tout décrire en une fois. Claude prépare l'ensemble, montre l'**aperçu**, et n'écrit qu'après votre accord. Un élément créé prend la forme de ses semblables dans le graphe : une nouvelle leçon ressemble aux leçons existantes, sans que vous ayez à le préciser.
+Vous pouvez tout décrire en une fois. L'assistant prépare l'ensemble, montre l'**aperçu**, et n'écrit qu'après votre accord. Un élément créé prend la forme de ses semblables dans le graphe : une nouvelle leçon ressemble aux leçons existantes, sans que vous ayez à le préciser.
 
 ## Modifier et réorganiser
 
@@ -43,7 +43,7 @@ Vous pouvez tout décrire en une fois. Claude prépare l'ensemble, montre l'**ap
 
 Déplacer une leçon ne renumérote rien en cascade : l'appartenance à un regroupement est un lien, pas un numéro figé. Pour une suppression, l'aperçu montre tout ce qui partirait avec l'élément.
 
-Pour une série de corrections, dites-les toutes d'un coup : « Dans les leçons 3 à 8, remplace “effectue” par “calcule” dans les consignes. » Claude prépare une seule modification groupée, que vous confirmez en une fois.
+Pour une série de corrections, dites-les toutes d'un coup : « Dans les leçons 3 à 8, remplace “effectue” par “calcule” dans les consignes. » L'assistant prépare une seule modification groupée, que vous confirmez en une fois.
 
 ## Relier une leçon à son objectif
 
@@ -65,7 +65,7 @@ Tout est expliqué dans [Routines pédagogiques](routines.md).
 
 > « Montre-moi les modifications en attente. »
 
-Claude liste ce qui changera à la publication. Pour voir ce que produiraient vos changements dans un document, sans rien publier :
+L'assistant liste ce qui changera à la publication. Pour voir ce que produiraient vos changements dans un document, sans rien publier :
 
 > « Prévisualise la section de la leçon 12 à partir du brouillon. »
 

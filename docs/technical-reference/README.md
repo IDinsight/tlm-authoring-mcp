@@ -27,7 +27,8 @@ current architecture summary; [DEPLOY.md](../../DEPLOY.md) is the production run
   per-language files, measured page counts, `propose_from_document`, `check_stale`,
   and the golden corpus that verifies it.
 - [`deployment.md`](deployment.md) — production deployment, remote (HTTP) mode +
-  per-request actor identity, wiring into a host.
+  per-request actor identity, what a client needs from the server to sign in (Claude,
+  Codex, ChatGPT, Gemini) and which have been through it, wiring into a host.
 - [`architecture-and-extending.md`](architecture-and-extending.md) — architecture,
   adding a new grade/subject, testing, baked-in assumptions.
 - [`tlm-phase4-migration.md`](tlm-phase4-migration.md) — the TLM document-model

@@ -25,7 +25,7 @@ Dites ce que vous voulez ajouter, et **où** :
 
 > « Ajoute un objectif “Comparer deux nombres jusqu'à 20” dans l'ensemble Nombres et calcul. »
 
-Claude retrouve l'ensemble par son nom, vous montre **ce qu'il va créer**, et attend votre accord. Une fois confirmé, l'objectif rejoint le brouillon. Le nouvel élément reprend automatiquement la forme de ses voisins : vous n'avez pas à préciser son type.
+L'assistant retrouve l'ensemble par son nom, vous montre **ce qu'il va créer**, et attend votre accord. Une fois confirmé, l'objectif rejoint le brouillon. Le nouvel élément reprend automatiquement la forme de ses voisins : vous n'avez pas à préciser son type.
 
 ## Ajouter des composantes
 
@@ -34,15 +34,15 @@ Une composante se rattache à un objectif :
 > « Sous cet objectif, ajoute les composantes : “reconnaître le symbole >”, “comparer deux collections”, “ranger trois nombres dans l'ordre”. »
 
 !!! tip "Créer par lots"
-    Décrivez tout un ensemble en une fois : « Crée l'ensemble Géométrie avec trois objectifs, et sous chacun deux composantes. » Claude prépare tout, vous montre l'aperçu complet, et écrit en une seule étape après votre accord.
+    Décrivez tout un ensemble en une fois : « Crée l'ensemble Géométrie avec trois objectifs, et sous chacun deux composantes. » L'assistant prépare tout, vous montre l'aperçu complet, et écrit en une seule étape après votre accord.
 
 ## Partir d'un document
 
-Si les standards existent déjà ailleurs — un programme officiel en PDF, un tableau —, donnez-le à Claude :
+Si les standards existent déjà ailleurs — un programme officiel en PDF, un tableau —, donnez-le à l'assistant :
 
 > « Voici le programme officiel : propose-moi les objectifs et les composantes qui manquent dans le graphe. »
 
-Claude lit le document et vous renvoie une **proposition**, élément par élément. Rien n'est créé avant que vous l'ayez validée.
+L'assistant lit le document et vous renvoie une **proposition**, élément par élément. Rien n'est créé avant que vous l'ayez validée.
 
 ## L'alignement : relier une leçon à son objectif
 
@@ -53,7 +53,7 @@ Claude lit le document et vous renvoie une **proposition**, élément par élém
 Le lien part toujours **du contenu vers le standard**. Une évaluation peut aussi s'aligner sur les objectifs qu'elle **évalue**.
 
 !!! warning "Une leçon s'aligne sur un objectif, pas sur une composante"
-    Les composantes détaillent un objectif ; elles ne sont pas des cibles d'alignement. Si vous demandez d'aligner une leçon sur une composante, Claude vous proposera son objectif.
+    Les composantes détaillent un objectif ; elles ne sont pas des cibles d'alignement. Si vous demandez d'aligner une leçon sur une composante, l'assistant vous proposera son objectif.
 
 ## Vérifier votre travail
 

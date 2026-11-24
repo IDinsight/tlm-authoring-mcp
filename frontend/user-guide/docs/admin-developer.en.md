@@ -2,7 +2,7 @@
 
 This page covers two tasks, for two different audiences:
 
-- **Managing a workspace and its members**: done **by chatting with Claude**, with no technical skills needed. For administrators.
+- **Managing a workspace and its members**: done **by chatting with the assistant**, with no technical skills needed. For administrators.
 - **Adding a new subject**: needs access to the code repository and to deployment. For developers.
 
 ---
@@ -41,7 +41,7 @@ Only Google sign-in counts, because Google is what vouches that the address real
 
 If the person already has a known account, they get the role straight away; otherwise the invitation waits for them. You can also withdraw an invitation: "Withdraw the invitation for ana.diallo@exemple.org."
 
-**See who is waiting** (super-admin): "Which accounts don't have a workspace yet?" Claude lists the people who have signed in but have no role, the invitations nobody has claimed, and the accounts that have not been confirmed.
+**See who is waiting** (super-admin): "Which accounts don't have a workspace yet?" The assistant lists the people who have signed in but have no role, the invitations nobody has claimed, and the accounts that have not been confirmed.
 
 ### Manage members
 

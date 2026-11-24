@@ -1,6 +1,6 @@
 # Explorer le graphe
 
-L'**explorateur** est une page web qui montre le programme sous forme d'arborescence : les standards, le contenu, les documents et leurs liens. On y **regarde** ; on n'y modifie rien. Les modifications se font toujours en discutant avec Claude.
+L'**explorateur** est une page web qui montre le programme sous forme d'arborescence : les standards, le contenu, les documents et leurs liens. On y **regarde** ; on n'y modifie rien. Les modifications se font toujours en discutant avec l'assistant.
 
 Ouvrez **[https://senegal-ci-maths.web.app](https://senegal-ci-maths.web.app)**.
 
@@ -54,18 +54,18 @@ Pour s'y retrouver :
 - la **recherche** filtre sur le titre et le résumé, sans tenir compte des accents ;
 - le **sélecteur de bibliothèque** limite l'affichage à l'espace de travail ou au partagé.
 
-Cliquez sur une fiche pour lire l'entrée **en entier** : le texte exact que Claude lit au moment de produire.
+Cliquez sur une fiche pour lire l'entrée **en entier** : le texte exact que l'assistant lit au moment de produire.
 
 ## La terminologie
 
 L'onglet **Terminologie** affiche le **lexique** de l'espace de travail : pour chaque terme, sa forme dans chacune des langues de l'espace, avec un exemple quand il y en a un. C'est sur ce lexique que s'appuient la traduction des documents et la vérification de la terminologie. Il est commun à toutes les classes et matières de l'espace ; la recherche filtre les termes.
 
-Pour ajouter ou corriger un terme, demandez-le à Claude (« Ajoute au lexique : … »). Comme le catalogue, le lexique se publie aussitôt : il faut être **approbateur**.
+Pour ajouter ou corriger un terme, demandez-le à l'assistant (« Ajoute au lexique : … »). Comme le catalogue, le lexique se publie aussitôt : il faut être **approbateur**.
 
 ## Sans quitter la discussion
 
-Pour regarder une seule partie du programme sans ouvrir l'explorateur, demandez à Claude de la dessiner :
+Pour regarder une seule partie du programme sans ouvrir l'explorateur, demandez à l'assistant de la dessiner :
 
 > « Dessine-moi l'arborescence du regroupement “Nombres décimaux”. »
 
-Claude peut afficher la même arborescence que l'explorateur, limitée à cette partie, directement dans la conversation. Elle montre la version **publiée**.
+L'assistant peut afficher la même arborescence que l'explorateur, limitée à cette partie, directement dans la conversation. Elle montre la version **publiée**.

@@ -44,7 +44,7 @@ travel:
 | chat (web, desktop Chat tab) | yes | greyed out |
 | Claude Code | yes | yes |
 
-The four sub-agents here — `lecteur`, `illustrateur`, `relecteur`, `mesureur` — are not decoration.
+The five sub-agents here — `lecteur`, `illustrateur`, `relecteur`, `mesureur`, `terminologue` — are not decoration.
 `lecteur` exists because a bulk read costing ~184,000 tokens in the main thread returns ~2,000 from
 a sub-agent. An author in plain chat gets the skills and loses that, so **Cowork is the home for
 this plugin**, and Claude Code is the equivalent for anyone working in a terminal.
@@ -56,9 +56,9 @@ In Claude Code it is the two commands above.
 Neither server is a candidate for a `.mcpb` desktop extension: that format packages a LOCAL server,
 and both of these are remote.
 
-### In other tools: Codex and Antigravity
+### In other tools: Codex, Antigravity, and the ones that take the server alone
 
-The same folder installs outside Claude. The skills are shared as they are; each tool reads its own
+The same folder installs outside Claude, in the two tools that have a plugin format. The skills are shared as they are; each tool reads its own
 manifest and server list, and `check-manifests.sh` keeps those copies in step.
 
 | | reads | gets | does not get |
@@ -77,6 +77,8 @@ codex mcp login tlm
 codex mcp login nano-banana
 ```
 
+For the server without the plugin: `codex mcp add tlm --url <address>`, then the same login.
+
 **Antigravity** — built from its documentation, **not yet installed on a real copy.** Install it
 from this repository in the app's plugin manager, or place the `plugin/` folder under
 `~/.gemini/config/plugins/`. It signs in to each server in the browser the first time the server
@@ -93,7 +95,21 @@ serves someone with a Gemini API key or a Google Cloud project, and they can add
 `gemini mcp add --scope user --transport http tlm https://senegal-mohebs-tlm-148764688487.europe-west1.run.app/mcp`,
 then `/mcp auth tlm` inside a session.
 
-**Unverified:** the eight entries under `commands/` are the older flat-file form of a skill — Claude
+**ChatGPT and the Gemini app** are not packaged, and neither has been run by us. The route the
+user guide gives (*Getting started*, one tab per assistant) hands each of them the server address
+and nothing else, so an author there gets the tools and none of these procedures.
+
+ChatGPT has a second route, for a workspace admin: Admin Console → Plugins → Add → Import
+marketplace, with this repository as the source. OpenAI's help page lists
+`.claude-plugin/marketplace.json` among the layouts it accepts, which is the one at this
+repository's root. Untried: what it does with `commands/` and `agents/` is not documented, and it
+labels a plugin that declares servers in `.mcp.json` as desktop only.
+
+Either way, ChatGPT's own documentation says a tool that does not declare itself read-only is
+treated as a write and asks for confirmation. The server declares none today, so expect a prompt
+on every call there, and nothing usable on a ChatGPT plan limited to reading.
+
+**Unverified:** the twelve entries under `commands/` are the older flat-file form of a skill — Claude
 Code reads them as skills and its own docs say to use `skills/` for new plugins. Whether Cowork
 surfaces them the same way has not been checked on a real install.
 
@@ -143,8 +159,8 @@ script, not a tool.
 
 ## Subagents
 
-Four, each returning **a structure, not a narrative** — `lecteur`, `mesureur`, `relecteur`,
-`illustrateur`. This is where the token saving is: reading the 18 project notes cost 184,000 tokens
+Five, each returning **a structure, not a narrative** — `lecteur`, `mesureur`, `relecteur`,
+`illustrateur`, `terminologue`. This is where the token saving is: reading the 18 project notes cost 184,000 tokens
 inside a subagent and returned about 2,000 to the main thread. Route every bulk read this way.
 
 ## Commands

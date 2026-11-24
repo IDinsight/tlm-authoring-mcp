@@ -8,21 +8,21 @@ Producing a page is split into two halves, and the formatter only handles one of
 
 | Who | Decides | Example |
 |---|---|---|
-| **Claude**, working from the curriculum and the section's assembly guide | **What goes on the page**, and in what order | "first the lesson title, then the picture band, then the three exercises" |
+| **The assistant**, working from the curriculum and the section's assembly guide | **What goes on the page**, and in what order | "first the lesson title, then the picture band, then the three exercises" |
 | **The formatter** | **What it looks like** | "a title is 16 pt bold, a picture band spans the full width" |
 
-The server puts the two together and builds the Word file (or the InDesign file, see [below](#producing-for-indesign-too)). So Claude never picks a colour or a size. It names a **style** ("lesson title", "instruction"), and the formatter says what that style means.
+The server puts the two together and builds the Word file (or the InDesign file, see [below](#producing-for-indesign-too)). So the assistant never picks a colour or a size. It names a **style** ("lesson title", "instruction"), and the formatter says what that style means.
 
 ## The three parts of a formatter
 
-1. **Written guidance.** Text Claude reads before composing: the tone, what gets printed for the pupil and for the teacher, the illustration style, what to avoid.
+1. **Written guidance.** Text the assistant reads before composing: the tone, what gets printed for the pupil and for the teacher, the illustration style, what to avoid.
 2. **Page settings.** Exact values the server applies itself: page size and margins, text styles and characters per line, maximum picture size, target page count, and the **languages** to produce. Without these settings a document **cannot be produced**: the tool refuses rather than put out an unstyled file.
-3. **Page templates** (optional). When every page of a document follows the same structure, you can write that structure once as a template: "at the top, the lesson number and title; then the picture for activity 1; then its instruction…". The server then fills each page **straight from the curriculum**, identically every time, with no need for Claude to recompose it. Anything no template covers goes back to Claude, who composes it by hand.
+3. **Page templates** (optional). When every page of a document follows the same structure, you can write that structure once as a template: "at the top, the lesson number and title; then the picture for activity 1; then its instruction…". The server then fills each page **straight from the curriculum**, identically every time, with no need for the assistant to recompose it. Anything no template covers goes back to the assistant, who composes it by hand.
 
     A template can also have the server print the section's **assembly guide**. The formatter then says which lines of the guide get printed and in what voice, what the stock phrases are called and what they say, and how a picture is named. The server prints those lines itself and reports, section by section, what it printed, what it kept as commentary and what it could not resolve.
 
 !!! example "Why templates matter"
-    Without a template, Claude recomposes each page from the guidance, so two productions of the same lesson may come out slightly different. With a template, an instruction or a picture cannot be copied out wrong: it is **copied** from the curriculum, not rewritten.
+    Without a template, the assistant recomposes each page from the guidance, so two productions of the same lesson may come out slightly different. With a template, an instruction or a picture cannot be copied out wrong: it is **copied** from the curriculum, not rewritten.
 
 ## Formatters stack
 
@@ -78,7 +78,7 @@ Some documents are laid out by a designer in **Adobe InDesign** rather than prin
 
 That takes two things.
 
-1. **The InDesign template**, prepared by the designer: named styles (for paragraphs, tables and pictures) and a model page, with a main text frame the content flows into and, if needed, named frames for the number or the title. The template and the fonts that go with it are **uploaded** to the workspace's document store, just like a picture: Claude gives you the upload address. Only include fonts whose licence allows it.
+1. **The InDesign template**, prepared by the designer: named styles (for paragraphs, tables and pictures) and a model page, with a main text frame the content flows into and, if needed, named frames for the number or the title. The template and the fonts that go with it are **uploaded** to the workspace's document store, just like a picture: the assistant gives you the upload address. Only include fonts whose licence allows it.
 2. **An InDesign-only formatter** that names this template and its fonts. Marked "for InDesign only", it counts **only** when you produce for InDesign, and it then applies **last**: its settings win over every other formatter's. So one document can take two pages per lesson in Word and a single page in InDesign, and the Word book does not move when you adjust the InDesign one.
 
 The template can carry **one set of styles per major part of the curriculum** (one colour per domain, for example). The formatter then says how to pick the set from what the section covers.

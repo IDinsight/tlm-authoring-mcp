@@ -29,7 +29,7 @@ Describe what you want and where:
 >
 > "In this lesson, add three activities: …"
 
-You can describe everything at once. Claude prepares the whole set, shows the **preview**, and only writes after you agree. A new element takes the shape of similar elements already in the graph: a new lesson looks like the existing lessons, without you having to say so.
+You can describe everything at once. The assistant prepares the whole set, shows the **preview**, and only writes after you agree. A new element takes the shape of similar elements already in the graph: a new lesson looks like the existing lessons, without you having to say so.
 
 ## Edit and reorganise
 
@@ -43,7 +43,7 @@ You can describe everything at once. Claude prepares the whole set, shows the **
 
 Moving a lesson does not set off a chain of renumbering: belonging to a grouping is a link, not a fixed number. For a deletion, the preview shows everything that would go with the element.
 
-For a series of corrections, give them all at once: "In lessons 3 to 8, replace 'work out' with 'calculate' in the instructions." Claude prepares a single grouped change, which you confirm in one go.
+For a series of corrections, give them all at once: "In lessons 3 to 8, replace 'work out' with 'calculate' in the instructions." The assistant prepares a single grouped change, which you confirm in one go.
 
 ## Link a lesson to its objective
 
@@ -65,7 +65,7 @@ Everything is explained in [Instructional routines](routines.md).
 
 > "Show me the pending changes."
 
-Claude lists what will change when the draft is published. To see what your changes would produce in a document, without publishing anything:
+The assistant lists what will change when the draft is published. To see what your changes would produce in a document, without publishing anything:
 
 > "Preview the section for lesson 12 from the draft."
 

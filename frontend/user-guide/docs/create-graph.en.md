@@ -23,7 +23,7 @@ Documents are described in [Compose a document](compose-document.md).
 
 ## Your curriculum's own words
 
-The tool imposes no vocabulary. One curriculum calls its groupings "chapters", another calls them "units" or "weeks". One names its standards "domain" and "specific objective", another "theme" and "competency". These names are written **in the elements of the graph**, and they are the names Claude uses when it talks to you.
+The tool imposes no vocabulary. One curriculum calls its groupings "chapters", another calls them "units" or "weeks". One names its standards "domain" and "specific objective", another "theme" and "competency". These names are written **in the elements of the graph**, and they are the names the assistant uses when it talks to you.
 
 The **subject guide** fills in the rest of the picture. It describes, in prose, the subject's conventions and what the curriculum must cover. The experts write it, and it is edited like everything else (see [Review and publish](review-approve.md)).
 
@@ -33,9 +33,9 @@ The **subject guide** fills in the rest of the picture. It describes, in prose, 
 
 **It starts with an import.** When a new subject arrives, a developer **imports** its starting backbone — at the very least the standards framework — from a file. This step does not happen through the conversation; it is described in [Administration](admin-developer.md).
 
-**After that, everything is built through conversation.** Standards, components, courses, groupings, lessons, activities: you create and correct them with Claude. A **new course** can even start from nothing in the conversation. Only the root of the standards depends on the import.
+**After that, everything is built through conversation.** Standards, components, courses, groupings, lessons, activities: you create and correct them with the assistant. A **new course** can even start from nothing in the conversation. Only the root of the standards depends on the import.
 
-You can also start **from an existing document** — a teaching plan, an old guide, another country's curriculum. Claude reads it and proposes a structure to create, which you approve before anything is written.
+You can also start **from an existing document** — a teaching plan, an old guide, another country's curriculum. The assistant reads it and proposes a structure to create, which you approve before anything is written.
 
 > "Here is our annual teaching plan as a PDF: suggest the lessons I should create."
 
@@ -43,11 +43,11 @@ You can also start **from an existing document** — a teaching plan, an old gui
 
 > "Give me an overview of this subject."
 
-Claude gives you the big picture: how many standards, courses, lessons and documents there are, and whether a draft is open.
+The assistant gives you the big picture: how many standards, courses, lessons and documents there are, and whether a draft is open.
 
 > "Show me the structure of the course, without the full text."
 
-Claude walks the graph from that point and lists its skeleton for you. For a visual overview, open the [explorer](explorer.md).
+The assistant walks the graph from that point and lists its skeleton for you. For a visual overview, open the [explorer](explorer.md).
 
 !!! note "Nothing is official until it is published"
     Everything you create goes first into a **draft**, which document production cannot see until an approver publishes it. So you can build without risk. See [Review, publish or discard a draft](review-approve.md).

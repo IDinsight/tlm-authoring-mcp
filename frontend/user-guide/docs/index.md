@@ -18,14 +18,14 @@ L'outil ne connaît d'avance ni vos matières, ni vos documents, ni vos habitude
 | Les conventions de la matière, ce que le programme doit couvrir | Dans le **guide de la matière** |
 | La traduction attendue des termes | Dans le **lexique** de l'espace de travail |
 
-Les exemples de ce guide sont donc des **exemples** : votre programme dira peut-être « unité » là où ce guide dit « chapitre ». Pour connaître les conventions de la matière sur laquelle vous travaillez, demandez à Claude :
+Les exemples de ce guide sont donc des **exemples** : votre programme dira peut-être « unité » là où ce guide dit « chapitre ». Pour connaître les conventions de la matière sur laquelle vous travaillez, demandez à l'assistant :
 
 > « Lis-moi le guide de cette matière. »
 
 ## Vos outils de travail
 
-- **La discussion avec Claude.** Tout se fait là, en langage courant. Vous dites ce que vous voulez — « ajoute une leçon », « produis la leçon 12 », « est-ce que ce document est prêt ? » — et Claude appelle les bons outils. Aucune commande à apprendre.
-- **Le module d'autorat** (plugin *tlm-autorat*). Il apprend à Claude les bonnes procédures : dans quel ordre créer un document, comment vérifier une page avant de la rendre, quand s'arrêter pour vous demander. Il est facultatif mais fortement conseillé. Voir [Prise en main](getting-started.md).
+- **La discussion avec votre assistant IA.** L'outil fonctionne avec **Claude**, **Codex**, **ChatGPT** et **Gemini** ; ce guide dit simplement « l'assistant » pour celui que vous utilisez. Tout se fait là, en langage courant. Vous dites ce que vous voulez — « ajoute une leçon », « produis la leçon 12 », « est-ce que ce document est prêt ? » — et l'assistant appelle les bons outils. Aucune commande à apprendre.
+- **Le module d'autorat** (plugin *tlm-autorat*). Il apprend à l'assistant les bonnes procédures : dans quel ordre créer un document, comment vérifier une page avant de la rendre, quand s'arrêter pour vous demander. Il est facultatif mais fortement conseillé partout où il s'installe : dans Claude, Codex et Antigravity. Voir [Prise en main](getting-started.md).
 - **L'explorateur.** Une page web en **lecture seule** qui montre le programme publié, son brouillon en cours et le catalogue. On y regarde, on n'y modifie rien. Elle est à l'adresse [senegal-ci-maths.web.app](https://senegal-ci-maths.web.app) ; voir [Explorer le graphe](explorer.md).
 
 ## Qui fait quoi
@@ -44,15 +44,15 @@ Vous ne savez pas quel est votre rôle ? Demandez : « **Que puis-je faire ?** �
 
 ## Par où commencer
 
-1. [**Prise en main**](getting-started.md) — obtenir un accès, installer le module, choisir où vous travaillez.
+1. [**Prise en main**](getting-started.md) — obtenir un accès, connecter votre assistant, choisir où vous travaillez.
 2. **Construire le programme** — [comprendre le graphe](create-graph.md), [les standards](build-standards.md), [les cours et les leçons](courses-lessons.md), [les routines](routines.md).
 3. **Composer et produire** — [composer un document](compose-document.md), [sa mise en forme](formatters.md), [le produire](create-materials.md).
 4. **Évaluer et publier** — [évaluer un document](evaluate.md), [relire et publier le brouillon](review-approve.md).
 5. [**Explorer le graphe**](explorer.md) et la [**Référence**](reference.md) pour le vocabulaire.
 
 !!! note "Trois règles de sécurité"
-    **Rien ne s'écrit sans votre accord.** Avant toute modification, Claude vous montre ce qui va changer et attend votre « oui ».
+    **Rien ne s'écrit sans votre accord.** Avant toute modification, l'assistant vous montre ce qui va changer et attend votre « oui ».
 
     **Le programme passe par un brouillon.** Vos modifications s'accumulent à part. Elles n'atteignent la production de documents qu'une fois **publiées** par un approbateur.
 
-    **Vous donnez des noms, jamais des identifiants.** « La leçon 12 », « le guide de l'enseignant » : Claude retrouve l'élément. S'il y en a plusieurs du même nom, il vous demande lequel.
+    **Vous donnez des noms, jamais des identifiants.** « La leçon 12 », « le guide de l'enseignant » : l'assistant retrouve l'élément. S'il y en a plusieurs du même nom, il vous demande lequel.
