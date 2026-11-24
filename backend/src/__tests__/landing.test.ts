@@ -35,6 +35,18 @@ describe("landingPage", () => {
     expect(html).toContain("connecteur");
     expect(html).toContain("MCP");
   });
+
+  it("is written for any AI assistant, not for Claude alone", () => {
+    // The page used to say "add it as a connector in Claude" and "retry from
+    // Claude", which sent a Codex, ChatGPT or Gemini user looking for the wrong app.
+    const html = landingPage(EXPLORER);
+    expect(html).toContain("assistant IA");
+    expect(html).toContain("AI assistant");
+    for (const assistant of ["Claude", "Codex", "ChatGPT", "Gemini"]) {
+      expect(html).toContain(assistant);
+    }
+    expect(html).not.toMatch(/(depuis|from|in|dans)\s+Claude/);
+  });
 });
 
 describe("explorerOrigins", () => {

@@ -20,6 +20,7 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { asJson, guarded } from "./shared.js";
+import { READS_ONLY, WRITES, DELETES_FOR_GOOD } from "./tool-effects.js";
 import { countsOf, type ReturnMode } from "./batch.js";
 import { getActiveAdapter } from "../adapters/index.js";
 import { activeWorkspace } from "../context/index.js";
@@ -193,6 +194,7 @@ export function registerLifecycleTools(server: McpServer) {
     "diff_draft",
     {
       title: "Diff draft vs published",
+      annotations: READS_ONLY,
       description:
         "The whole-draft diff for the active grade/subject: every node/edge that has changed on the draft compared to the currently-published version. Read-only, no state change. Distinct from the per-mutation diff you see when you dry-run an edit — this is the cumulative view an approver reads before publish_draft. Only curators and approvers may call this (a draft is pre-publish work-in-progress). " +
         "Each of the six diff arrays is capped at `limit` (default 200, max 1000) so a large draft never overflows; full per-kind totals are always in `counts`, and `truncated` names any array that was cut with its true size. Raise `limit` to see more, or read `counts` for the totals. " +
@@ -235,6 +237,7 @@ export function registerLifecycleTools(server: McpServer) {
     "publish_draft",
     {
       title: "Publish the draft to LIVE",
+      annotations: WRITES,
       description:
         "Promote the current draft on the active grade/subject to published — generation reads published, so this is the step that makes edits VISIBLE. REQUIRES CONFIRMATION: dry-run returns a summary of the change (counts) and a confirmationToken; ask the user to approve, then call again with confirm:true and the token. Approver only. If the draft has moved since dry-run (someone else edited), the confirm is rejected — dry-run again to see the new summary. Self-authored edits are recorded on the publish audit either way; strict separation-of-duties can be enabled via TLM_ALLOW_SELF_APPROVE=0. To check the draft against the subject's coverage expectations before publishing, run review_draft. " +
         "" + RETURN_MODE_NOTE + " The 'full' diff also carries any staged profileDiff. To inspect the full diff before publishing, call diff_draft.",
@@ -256,6 +259,7 @@ export function registerLifecycleTools(server: McpServer) {
     "discard_draft",
     {
       title: "Discard the current draft",
+      annotations: DELETES_FOR_GOOD,
       description:
         "Throw away the current draft on the active grade/subject. Published is untouched; only draft edits are dropped. REQUIRES CONFIRMATION: dry-run summarises what will be discarded (counts) and returns a confirmationToken; ask the user to approve, then call again with confirm:true and the token. Curator or approver may call. If the draft moves between dry-run and confirm, the confirm is rejected. " +
         "" + RETURN_MODE_NOTE + " The 'full' diff also carries any staged profileDiff. To inspect the full diff first, call diff_draft.",

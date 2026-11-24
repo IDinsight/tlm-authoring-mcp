@@ -23,6 +23,7 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { asJson, guarded } from "./shared.js";
+import { READS_ONLY } from "./tool-effects.js";
 import { maxResponseBytes } from "../utils/index.js";
 import { getActiveAdapter } from "../adapters/index.js";
 import { activeWorkspace } from "../context/index.js";
@@ -259,6 +260,7 @@ export function registerCapabilityTools(server: McpServer) {
     "get_capabilities",
     {
       title: "What can I do right now?",
+      annotations: READS_ONLY,
       description:
         "Report — for the authenticated caller and the active grade/subject — who they are, which actions they may perform, whether a draft is open, and the flat list of tools they may call (`verbs`). Read-only, safe for unknown callers (a truthful read-only shape, not an error). Every field derives from the functions that actually ENFORCE the behaviour, so it cannot diverge from what the other tools will let you do. " +
         "Returns a DIGEST by default (~2 KB). The full report is ~26 KB, so the per-area detail is asked for: pass `section` — one of discovery, guidance, editable, checks, lifecycle, profile, preview, audit, catalog, documents, rules, responseCap — to get that area's tools, defaults, limits and rules. `sections` in the digest lists them.",

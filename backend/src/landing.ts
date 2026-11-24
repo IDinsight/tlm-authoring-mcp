@@ -6,12 +6,12 @@
  * "Cannot GET /".
  *
  * That mattered because it is where a broken sign-in lands. Both login flows
- * (the explorer's Google button, and the /oauth/consent page Claude sends you
- * to when adding the connector) hand Supabase a `redirectTo`; when that URL is
- * not on the project's Redirect URLs allow-list, Supabase silently falls back
- * to the project's **Site URL** — this service's root — with the freshly minted
- * token in the fragment. The sign-in worked; only the landing spot was wrong,
- * and the user saw a dead end.
+ * (the explorer's Google button, and the /oauth/consent page an AI assistant
+ * sends you to when adding the connector) hand Supabase a `redirectTo`; when
+ * that URL is not on the project's Redirect URLs allow-list, Supabase silently
+ * falls back to the project's **Site URL** — this service's root — with the
+ * freshly minted token in the fragment. The sign-in worked; only the landing
+ * spot was wrong, and the user saw a dead end.
  *
  * So this page does two jobs: it forwards a stranded token to the explorer
  * (the fragment never reaches the server, so the hand-off has to happen in the
@@ -43,11 +43,13 @@ export function landingPage(explorerUrl: string): string {
   <div id="info">
     <h1>MOHEBS TLM — serveur</h1>
     <p>Cette adresse est le <strong>serveur MCP</strong> : elle s'ajoute comme connecteur dans
-       Claude, elle ne se consulte pas dans un navigateur.</p>
+       un assistant IA (Claude, Codex, ChatGPT, Gemini…), elle ne se consulte pas dans un
+       navigateur.</p>
     <p>Pour parcourir les graphes de connaissances, ouvrez
        <a id="explorer-link" href="${explorerUrl}">l'explorateur</a>.</p>
-    <p><small>This address is the MCP server — add it as a connector in Claude. To browse the
-       knowledge graphs, open the explorer.</small></p>
+    <p><small>This address is the MCP server — add it as a connector in an AI assistant
+       (Claude, Codex, ChatGPT, Gemini…). To browse the knowledge graphs, open the
+       explorer.</small></p>
   </div>
   <div id="forwarding" class="hidden">
     <h1>Connexion réussie</h1>
@@ -58,10 +60,10 @@ export function landingPage(explorerUrl: string): string {
   <div id="failed" class="hidden">
     <h1>Échec de la connexion</h1>
     <p class="err" id="failed-msg"></p>
-    <p>Réessayez depuis <a href="${explorerUrl}">l'explorateur</a>, ou depuis Claude si vous
-       ajoutiez le connecteur.</p>
-    <p><small>Sign-in failed. Retry from the explorer, or from Claude if you were adding the
-       connector.</small></p>
+    <p>Réessayez depuis <a href="${explorerUrl}">l'explorateur</a>, ou depuis votre assistant IA
+       si vous ajoutiez le connecteur.</p>
+    <p><small>Sign-in failed. Retry from the explorer, or from your AI assistant if you were
+       adding the connector.</small></p>
   </div>
 </div>
 <script type="module">

@@ -34,6 +34,7 @@ import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { randomUUID } from "node:crypto";
 import { asJson, guarded } from "./shared.js";
+import { READS_ONLY, WRITES } from "./tool-effects.js";
 import { timed, timedSync } from "../utils/index.js";
 import { getActiveAdapter } from "../adapters/index.js";
 import { activeWorkspace } from "../context/index.js";
@@ -200,6 +201,8 @@ export function registerPreviewTools(server: McpServer) {
     "preview_generation",
     {
       title: "Preview generation from the draft",
+      // Reads the draft and leaves one audit line (who previewed it) — nothing else.
+      annotations: READS_ONLY,
       description:
         "Everything generation needs to produce ONE piece of material, resolved from the UNPUBLISHED DRAFT — so you can see what a staged edit would yield before publishing. This closes the editing loop: the dry-run shows the graph DIFF, preview shows the resulting MATERIAL. `nodeId` may be a DocumentSection (one slot), a TeachingLearningMaterial (a whole document) or a Course (the curriculum subtree); `previewOf` says which matched. Preview the SMALLEST piece you changed — after editing one section, preview that section, not its document. Ids come from find_node, walk_document's `sections`, or namespace_stats. Read-only on the draft; curators and approvers only; a clear notice when no draft exists. " +
         "What comes back is a PREVIEW: generate the .docx from it, then surface it via create_preview_upload_url (segregated, short-lived). NEVER log_generation or create_upload_url a preview — those write the canonical bucket and history, defeating the isolation.",
@@ -223,6 +226,9 @@ export function registerPreviewTools(server: McpServer) {
     "create_preview_upload_url",
     {
       title: "Create preview upload URL",
+      // The URL it signs lets the caller put a file in the bucket. previews/ is
+      // segregated and short-lived, but it is still a write.
+      annotations: WRITES,
       description:
         "Get short-lived signed URLs to upload and read a PREVIEW .docx generated from a draft (via preview_generation). Returns { uploadUrl, downloadUrl, objectKey, expiresAt, label }. Upload the .docx to uploadUrl with an HTTP PUT (Content-Type application/vnd.openxmlformats-officedocument.wordprocessingml.document), then hand the human downloadUrl to open it. relPath is like 'chapitre_05/Manuel - Chapitre 5.docx'. The object lives under a SEGREGATED previews/ prefix: it is NOT in the canonical documents bucket, NEVER appears in list_documents or reconcile, and is NEVER logged via log_generation. It expires quickly. Curators and approvers only. Do NOT call log_generation for a preview.",
       inputSchema: { relPath: z.string() },

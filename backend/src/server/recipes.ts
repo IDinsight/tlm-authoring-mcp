@@ -26,6 +26,7 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { asJson, guarded } from "./shared.js";
+import { WRITES } from "./tool-effects.js";
 import { getActiveAdapter } from "../adapters/index.js";
 import { activeWorkspace } from "../context/index.js";
 import { runGraphMutation, kgNamespace } from "../kg-store/index.js";
@@ -138,6 +139,7 @@ export function registerRecipeTools(server: McpServer) {
     "edit_nodes",
     {
       title: "Edit nodes' fields (one or many) in one batch",
+      annotations: WRITES,
       description:
         "The field-edit tool — edit ONE node in place or MANY in one atomic draft edit. Each `items[i]` names an existing `nodeId` and carries ITS OWN values, so one batch can retitle one node and rewrite another's content. Every field is OPTIONAL and independent (an unsupplied field is left untouched, never cleared), but each item must set AT LEAST ONE of: `content` (load-bearing text, canonical LC Material.content), `position` (ordinal among siblings — membership is the containment edge, so this NEVER cascades; only LessonGrouping/Lesson/Activity/routine steps carry one), `title` (the display NAME — a SINGLE line; the text below it is kept), `body` (everything BELOW that name line, on a routine step or catalog entry that has one; an empty string removes it and the name line is kept), `title_en` (English mirror), `summary` (a routine/formatter blurb → raw.metadata.summary, what list_catalog surfaces), `properties` (a freeform object amending ANY OTHER canonical LC prop → raw.<key>, nested-merge — e.g. {\"metadata.assemblyGuide\":\"…\"} — the same bag add_nodes takes at create time). `properties` REFUSES protected paths: LC identity (normalizedType / normalizedStatementType / metadata.role / identifier) and the mirrored fields that have their own argument (use `position`, `title`/`body`, `content`). BLOCKED: a nonexistent `nodeId`, and naming the SAME node in two items (merge them). To remove content, delete the node. Edit in place — do NOT delete + re-add: that cascades the subtree, drops every incident edge, and mints a new id. ALL-OR-NOTHING: one confirmationToken for the batch; any item error blocks all of it. " + PARKED_PAYLOAD_NOTE +
         RETURN_MODE_NOTE + IDEMPOTENCY_NOTE + " DRAFT edit — publish_draft to make it live. " +
@@ -171,6 +173,7 @@ export function registerRecipeTools(server: McpServer) {
     "move_node",
     {
       title: "Re-parent a node",
+      annotations: WRITES,
       description:
         "Move an EXISTING node under a different parent in ONE atomic draft edit: detach from its current parent(s) on ONE containment axis, attach under `toParentId`, set its ordinal there. Use it whenever something is filed in the wrong place. Move in place — do NOT delete + re-add (that cascades the subtree, drops every incident edge, mints a new id), and prefer it over hand-rolling delete_edges + create_edges (three writes, each leavable half-done). " +
         "ONLY ONE AXIS MOVES, and there are two: `hasPart` (content, and the document layer) and `hasChild` (the standards hierarchy). The axis is read off the graph, so you rarely need `via`; a node hanging from both falls back to the canonical edge for its label. The OTHER axis is deliberately left intact — a CI-maths lesson sits under both a chapter (hasPart) and a week (hasChild), so moving it between chapters leaves its week alone; move that with a second call passing via:'hasChild'. `via` accepts ONLY those two: an alignment or reference edge (hasEducationalAlignment / supports / usesRoutine / relatesTo) is REFUSED, because detaching one would delete relationships rather than move anything — rewire those with delete_edges + create_edges. " +

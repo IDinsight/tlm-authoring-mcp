@@ -27,6 +27,7 @@ import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { randomUUID } from "node:crypto";
 import { asJson, guarded } from "./shared.js";
+import { READS_ONLY, WRITES } from "./tool-effects.js";
 import { getActiveAdapter } from "../adapters/index.js";
 import { activeWorkspace, relPathOfDocumentObjectUri } from "../context/index.js";
 import { getKgStore, kgNamespace, toAuditActor, nextAuditSeq } from "../kg-store/index.js";
@@ -836,6 +837,8 @@ export function registerRenderTools(server: McpServer) {
     "render_document",
     {
       title: "Render a composed page into a .docx or an InDesign package",
+      // Uploads the rendered file into previews/ — a bucket write, even if a short-lived one.
+      annotations: WRITES,
       description:
         "Turn a page YOU composed into a Word file. `nodeId` is the DocumentSection (or TeachingLearningMaterial) being rendered; `document` is the block tree — or `treeRef`, the ref a previous compose_section / lint_content / render_document call handed back, so the tree is never retyped: every response carries a fresh `treeRef` for the tree it used. A correction goes as `patch` (a few ops on block paths — replace / insert-before / insert-after / remove, plus media / remove-media) on top of `treeRef`, not as the whole page again. The server merges that node's formatter stack into one render spec, validates the tree against it, lays out the .docx and returns a short-lived `downloadUrl`. " +
         "YOU decide what is on the page — which banner, in what order, where it turns; the FORMATTER decides what it looks like. So the tree carries NO geometry: no colour, no point size, no centimetre. A block names a `style` and a picture names a `role`, both defined by the formatter; a page break says only `pageBreak:'before'` and the formatter's `pagination.pageBreakCarrier` decides how it is written. The tree shape is in get_capabilities section:'document'; call preview_generation first for the section's curriculum, routine and formatter prose. " +
@@ -864,6 +867,7 @@ export function registerRenderTools(server: McpServer) {
     "page_geometry",
     {
       title: "The fixed numbers of a page, before rendering",
+      annotations: READS_ONLY,
       description:
         "What render_document will lay a page out with, for a DocumentSection or a whole document (TLM): page size and margins, the usable width and height, the line pitch and lines per page (under an exact leading), the block styles and their line budgets, the image ceilings per role, and — for the `pictures` you say you will place ({role, aspectRatio, float?}) — each one's printed width and height, the width left for text beside a floated one, and `linesBeside`: how many body lines it stands beside, which is how long its anchor block must run before the next float, or where a {kind:'clear'} block goes. " +
         "Read it once per document and compose by arithmetic; then render ONCE with measure:true rather than measuring, guessing and re-rendering. Every number comes from the same merged formatter stack the renderer uses, sized by the renderer's own function, so they cannot disagree with the file. Draft when one is open, published otherwise; refused, naming the formatters, when none carries geometry. Curators and approvers.",
@@ -883,6 +887,7 @@ export function registerRenderTools(server: McpServer) {
     "propose_from_document",
     {
       title: "Read a corrected document back into proposed edits",
+      annotations: READS_ONLY,
       description:
         "An expert opened a sheet, fixed some wording and sent it back: this works out what that means for the curriculum. `relPath` is the corrected .docx IN THE BUCKET. It returns `proposals` and, for the ones that can simply be applied, `editItems` in the exact shape `edit_nodes` takes. " +
         "IT PROPOSES AND NEVER WRITES. Applying goes through edit_nodes like any other change, so the diff is seen and confirmed first. " +

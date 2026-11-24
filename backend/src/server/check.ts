@@ -19,6 +19,7 @@ import { resolveTreeInput, parkTree, TREE_PATCH_SCHEMA, type TreePatchOp } from 
 import { z } from "zod";
 import { randomUUID } from "node:crypto";
 import { asJson, guarded } from "./shared.js";
+import { READS_ONLY } from "./tool-effects.js";
 import { getActiveAdapter } from "../adapters/index.js";
 import { activeWorkspace } from "../context/index.js";
 import {
@@ -143,6 +144,7 @@ export function registerCheckTools(server: McpServer) {
     "check_draft",
     {
       title: "Check the draft's wiring",
+      annotations: READS_ONLY,
       description:
         "Structural check of the current DRAFT (or of published, when no draft is open) — the MECHANICAL problems that fail silently today: a document attached to no curriculum (it would generate empty), a document with no formatter, a section outside any document, a routine no lesson uses, a node connected to nothing. Read-only, changes nothing, blocks nothing. " +
         "Each finding carries a `message` (what is wrong), a `fix` (what to do), and `inThisDraft` (whether the current draft caused it or it was already there). Relay them in the USER'S language — the one the subject's guide is written in — not verbatim. " +
@@ -404,6 +406,9 @@ export function registerContentLintTools(server: McpServer) {
     "lint_content",
     {
       title: "Check authored content for contradictions",
+      // Like compose_section, it keeps the page it was sent for a day (treeRef):
+      // the caller's own scratch copy, not a change to any document or draft.
+      annotations: READS_ONLY,
       description:
         "The CONSISTENCY checker — the third beside check_draft (wiring) and review_draft (coverage). It reports statements in the authored data that contradict each other: a routine whose declared duration disagrees with the sum of its steps, a routine that times itself but not its steps, a weighted grid whose sections do not total 100%, an id cited in prose that resolves to nothing, and a formatter whose declared `render` values disagree with its own prose. " +
         "It reads the active subject AND both catalog libraries by default (`scope`: 'subject' | 'catalog' | 'all'), resolving references across both so a cross-library citation is not reported as broken. Narrow with `rules`. " +

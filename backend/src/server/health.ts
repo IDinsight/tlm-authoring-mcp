@@ -14,6 +14,7 @@
  */
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { asJson } from "./shared.js";
+import { READS_ONLY } from "./tool-effects.js";
 import { getActiveContext } from "../context/index.js";
 
 // Process start, captured at module load — uptime is a cheap "did we just cold
@@ -50,6 +51,7 @@ export function registerHealthTools(server: McpServer) {
     "ping",
     {
       title: "Health check (no datastore)",
+      annotations: READS_ONLY,
       description:
         "Liveness probe for the MCP transport. Returns { ok:true, ... } WITHOUT reading Firestore or Cloud Storage, so a green ping next to failing data tools isolates a store/credentials outage from a whole-server outage. Also reports `client` — the connected client's name/version and the capabilities it advertised. These are diagnostic only: confirmations are always agent-mediated (the server issues no elicitation), so no tool changes behavior based on them. Requires no context and never mutates anything.",
       inputSchema: {},

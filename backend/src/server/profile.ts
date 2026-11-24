@@ -20,6 +20,7 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { asJson, asMarkdown, guarded } from "./shared.js";
+import { READS_ONLY, WRITES } from "./tool-effects.js";
 import { getActiveAdapter, validateProfileRecord } from "../adapters/index.js";
 import { activeWorkspace } from "../context/index.js";
 import { currentActor } from "../actor.js";
@@ -282,6 +283,7 @@ export function registerProfileTools(server: McpServer) {
     "get_profile",
     {
       title: "Read the subject profile",
+      annotations: READS_ONLY,
       description:
         "Read the active grade/subject's SUBJECT PROFILE record — { core, guide }: the machine `core` (config that drives parsing) plus the authored `guide` markdown (phase 2c). Read-only. In firestore mode it comes from the store's config cell (the live source of truth, editable via edit_profile); pass slot:'draft' to see a staged, unpublished edit (curator/approver only). In bundle/dev mode it is the in-repo record. Use this before edit_profile to get the exact record you'll edit and pass back. (To read just the guide markdown, use get_graph_guide.)",
       inputSchema: { slot: z.enum(["published", "draft"]).optional() },
@@ -295,6 +297,7 @@ export function registerProfileTools(server: McpServer) {
     "get_graph_guide",
     {
       title: "Read the subject's graph guide",
+      annotations: READS_ONLY,
       description:
         "Read the authored GRAPH GUIDE for the active grade/subject — markdown that explains how this subject's knowledge graph is shaped (its ontology, vocabulary, the intended hierarchy) and the conventions for authoring it. Read this BEFORE you walk or modify the graph so your edits follow the subject's conventions. Read-only. Returns { hasGuide, guide }; guide is null when the subject ships none yet. In firestore mode it comes from the published config cell (slot:'draft' for a staged edit, curator/approver only).",
       inputSchema: { slot: z.enum(["published", "draft"]).optional() },
@@ -313,6 +316,7 @@ export function registerProfileTools(server: McpServer) {
     "edit_profile",
     {
       title: "Edit the subject profile",
+      annotations: WRITES,
       description:
         "Replace the active grade/subject's SUBJECT PROFILE record with a new one — the two-phase, curator-gated way to change the machine `core` (parsing) AND the authored `guide` markdown as DATA, with no redeploy (phase 2b/2c). Pass the WHOLE { core, guide } record (get_profile first, edit, pass it back); this replaces, it does not patch — with ONE exception, so a `core`-only change need not round-trip the guide: OMIT `guide` and the LIVE guide is kept as it is. Absent means 'leave the prose alone'; to blank it deliberately, pass `guide` as an empty string. The core is validated against its schema and the guide length-checked AT THIS STEP — a malformed record is BLOCKED at dry-run (no token). A dry-run returns the before/after diff + any referential warnings (e.g. a rule naming a kind no node has) + a confirmationToken, changing nothing; confirm STAGES it onto the draft (a profile edit and curriculum edits share one draft). " + PARKED_PAYLOAD_NOTE + " Nothing reaches generation until you publish_draft. firestore mode only — in bundle/dev mode the profile is the in-repo record, edited in the repo.",
       inputSchema: {
@@ -331,6 +335,7 @@ export function registerProfileTools(server: McpServer) {
     "review_draft",
     {
       title: "Review the draft against the graph guide",
+      annotations: READS_ONLY,
       description:
         "A read-only pre-publish COVERAGE check: the current draft (or published, when none is open) against the subject guide's expectations. Returns the `guide` (those expectations), a subject-agnostic `structuralFacts` snapshot (node/edge counts; each container's child-type histogram + assessment-child count; content multi-parent nodes), and an `instruction`. An absent axis or `assessmentChildren` means empty. `includeGuide` (default true) inlines the guide; pass FALSE when you already read it this session (~5k tokens of the same markdown get_graph_guide returns). " +
         "YOU reason over the facts against the guide's prose and report the violations (an empty chapter, a missing bilan, an unaligned lesson, non-contiguous chapters) — this tool computes the inputs, it renders no verdict, and coverage lives entirely in that prose. Its mechanical sibling is check_draft. Curator/approver-gated on an open draft. Changes nothing.",

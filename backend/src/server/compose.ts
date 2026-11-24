@@ -17,6 +17,7 @@ import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { parkTree } from "./tree-park.js";
 import { z } from "zod";
 import { asJson, guarded } from "./shared.js";
+import { READS_ONLY } from "./tool-effects.js";
 import { getActiveAdapter } from "../adapters/index.js";
 import { activeWorkspace } from "../context/index.js";
 import { kgNamespace } from "../kg-store/index.js";
@@ -137,6 +138,9 @@ export function registerComposeTools(server: McpServer) {
     "compose_section",
     {
       title: "Compose a section's page from the graph, by its layout templates",
+      // The page it keeps for a day (treeRef) is the caller's own scratch copy —
+      // no document, draft or history changes.
+      annotations: READS_ONLY,
       description:
         "Build the block tree render_document takes for ONE section — from the graph, with no model — using the `layout` templates its formatter stack declares. `section` is the section BY NAME (find_node resolves it; several matches return `needsChoice` + candidates). " +
         "A template is a block tree with placeholders; the composer fills them from what the section covers (its title, name, content lines, ordinal names, its grouping) and from the pictures attached to it (by name pattern) or fixed assets (one per rank, for a marker that follows the section's position). Same graph, same page, every call — and a directive or a picture cannot be transcribed wrong, because they are copied, not composed. " +

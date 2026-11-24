@@ -19,6 +19,7 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { asJson, guarded } from "./shared.js";
+import { WRITES } from "./tool-effects.js";
 import { getActiveAdapter } from "../adapters/index.js";
 import { activeWorkspace } from "../context/index.js";
 import { kgNamespace, mintNodeId } from "../kg-store/index.js";
@@ -189,6 +190,7 @@ export function registerAuthoringTools(server: McpServer) {
     "add_nodes",
     {
       title: "Add nodes (one or many) in one batch",
+      annotations: WRITES,
       description:
         "Create ONE node or MANY in one atomic draft edit — the single node-creation tool. Each `items[i]`: `kind` (the LC label, from the schema's enum), an EXISTING `parentId` (omit for a root Course / TeachingLearningMaterial), `description` (display title), optional `position` / `alignTo` / `via`, and `properties` (the kind-specific canonical LC bag). " +
         PER_KIND_GUIDE + " " +

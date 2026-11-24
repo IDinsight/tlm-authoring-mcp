@@ -23,6 +23,7 @@ import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { randomUUID } from "node:crypto";
 import { asJson, guarded } from "./shared.js";
+import { WRITES } from "./tool-effects.js";
 import { getActiveAdapter } from "../adapters/index.js";
 import { activeWorkspace } from "../context/index.js";
 import { getKgStore, kgNamespace, toAuditActor, readDraftStanding, nextAuditSeq } from "../kg-store/index.js";
@@ -126,6 +127,9 @@ export function registerReviewTools(server: McpServer) {
     "request_review",
     {
       title: "Mark the draft ready for review",
+      // Only an audit line is written, but that line IS the state: start_here
+      // shows the draft as waiting on an approver from it.
+      annotations: WRITES,
       description:
         "Record that the open draft is FINISHED and waiting for someone to read it before publishing — the handoff from a curator to an approver, which otherwise happens outside the system entirely. Pass an optional `note` (up to 1000 characters): the message you would have sent by hand, e.g. what you changed and what is still missing. Pass `withdraw:true` to take the request back if you want to keep editing; the draft itself is untouched either way. " +
         "It does NOT notify anyone — an approver sees it when they call start_here or diff_draft on this subject, so say so out loud if they are not already looking. It is cleared automatically when the draft is published or discarded, so a request can never be left standing on work that already went live. Single call — no confirmation step, because nothing about the curriculum changes. Curators and approvers only, and recorded in the audit trail (who asked, when, and what they said).",
