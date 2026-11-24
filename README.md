@@ -173,7 +173,7 @@ The live surface is mirrored by `get_capabilities`; this is the map.
 - **Subject profile & guide:** `get_profile`, `edit_profile`, `get_graph_guide`.
 - **Catalog — reusable routines, formatters & rubrics:** `list_catalog`, `get_catalog_entry`, `add_to_catalog`, `duplicate_entry`, `use_routine`, `use_formatter`, `use_rubric`.
 - **Glossary & translation:** `add_terms`, `edit_term`, `remove_terms`, `translate` (FR↔Wolof via Gemini, glossary-grounded).
-- **Documents & generation output:** `list_documents`, `create_upload_url`, `create_download_url`, `get_document_text`, `record_document_content`, `log_generation`, `reconcile`, `evaluate_document`, `preview_generation`, `create_preview_upload_url`.
+- **Documents & generation output:** `list_documents`, `create_upload_url`, `create_download_url`, `get_document_text`, `record_document_content`, `log_generation`, `reconcile`, `drop_missing_file_records`, `evaluate_document`, `preview_generation`, `create_preview_upload_url`.
 - **Rendering & round-trip:** `render_document` (a composed block tree + the node's formatter stack → a `.docx`, optionally measured), `check_stale` (has the graph moved under a rendered document), `propose_from_document` (take an expert's corrections in a document back into the graph as staged edits).
 - **Workspaces (tenant admin):** `list_workspaces`, `create_workspace`, `add_member`, `remove_member`, `list_members`, `invite_member`, `revoke_invite`, `set_domain_rule`, `remove_domain_rule`, `list_unaffiliated_users`.
 

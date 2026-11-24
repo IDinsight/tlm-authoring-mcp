@@ -15,12 +15,12 @@ import { contextField, withContextOverrideResult, type WithContext } from "./con
 import { getActiveAdapter } from "../adapters/index.js";
 import { activeWorkspace } from "../context/index.js";
 import { kgNamespace } from "../kg-store/index.js";
-import { getStorageAdapter, extractDocxText, listEntries, recordContent, reconcile, statusOf, isCurrent, countByStatus, FILE_STATUSES, type RecordedFile } from "../storage/index.js";
+import { getStorageAdapter, extractDocxText, listEntries, recordContent, reconcile, dropMissingFileRecords, statusOf, isCurrent, countByStatus, FILE_STATUSES, type RecordedFile } from "../storage/index.js";
 import { readDocx, sourcesFrom, staleness, type DocumentSource } from "../render/index.js";
 import type { FileStatus, HistoryEntry } from "../types.js";
 import { auditFileEvent, currentFilePerson } from "./file-audit.js";
 import { WORKSPACE_ROLE_NOTE } from "./tool-notes.js";
-import { DETAIL_LEVELS, DEFAULT_DETAIL, takeWithinBudget, trimmedBySizeHint, pageBudgetBytes, toolError, type DetailLevel, imageMimeFor, IMAGE_EXTENSIONS, layoutAssetMimeFor, LAYOUT_ASSET_EXTENSIONS, LAYOUT_ASSET_FOLDER } from "../utils/index.js";
+import { buildConfirmEnvelope, DETAIL_LEVELS, DEFAULT_DETAIL, takeWithinBudget, trimmedBySizeHint, pageBudgetBytes, toolError, type DetailLevel, imageMimeFor, IMAGE_EXTENSIONS, layoutAssetMimeFor, LAYOUT_ASSET_EXTENSIONS, LAYOUT_ASSET_FOLDER } from "../utils/index.js";
 
 // A file is identified by its path, and a node holds as many as it needs. Both
 // write tools say so, because the mental model they replaced was the opposite.
@@ -590,13 +590,89 @@ async function recordFile(source: "pipeline" | "parsed", namespace: string, args
   });
 }
 
+/**
+ * reconcile's answer: the comparison, and — when recorded files are gone — a
+ * pointer to the tool that drops their records, since this one leaves them be.
+ */
+async function reconcileReport(namespace: string): Promise<ToolResult> {
+  const report = await reconcile();
+  const recordsCanBeDropped = report.gone.length > 0 && !report.dropBlocked;
+  if (!recordsCanBeDropped) {
+    return asJson({ namespace, ...report });
+  }
+
+  const howToDrop =
+    `${report.gone.length} recorded file(s) are gone from the bucket; their records were left alone. ` +
+    "drop_missing_file_records removes those records — a write, after confirmation.";
+  return asJson({ namespace, ...report, nextSteps: [howToDrop] });
+}
+
+/**
+ * Drop the record of every file that is gone from the bucket, once the caller
+ * has confirmed. Until then it only says which records would go.
+ */
+async function dropMissingRecords(namespace: string, confirm: boolean | undefined): Promise<ToolResult> {
+  if (confirm) {
+    return asJson({ namespace, ...(await dropMissingFileRecords()) });
+  }
+
+  // Answered BEFORE asking for confirmation: a person should never be asked to
+  // approve a drop that the server would refuse, or that would remove nothing.
+  const report = await reconcile();
+  if (report.dropBlocked) {
+    return asJson({ namespace, dropped: [], dropSkipped: report.dropBlocked });
+  }
+  if (report.gone.length === 0) {
+    return asJson({ namespace, dropped: [], message: "Every recorded file is still in the bucket: there is no record to drop." });
+  }
+
+  const recordsNamed = describePaths(report.gone, "the file record", "file records");
+  const action =
+    `drop ${recordsNamed} in namespace '${namespace}' — those files are gone from the bucket, ` +
+    "and this deletes their records NOW from the live history (no draft, no undo: a dropped record does not come back)";
+  return asJson({ namespace, ...buildConfirmEnvelope(action), wouldDrop: report.gone });
+}
+
 export function registerDocumentTools(server: McpServer) {
-  // reconcile is NOT a read, though it sits behind the read gate: it drops the
-  // record of every file whose object is gone, and a dropped record does not
-  // come back (storage/history.ts::reconcile).
-  server.registerTool("reconcile", { title: "Reconcile bucket with history", annotations: DELETES_FOR_GOOD, description: "List the .docx documents in Firebase Storage and diff against history BY relPath: tracked docs (present + unchanged), UNTRACKED docs needing a link ('new' = no history entry, 'changed' = bytes differ from the recorded entry), and entries dropped because their object is gone. It no longer classifies filenames — link each untracked doc to the node it covers with record_document_content(nodeId, relPath, content). Link each untracked doc to the node it covers with record_document_content — several files may cover the same node, so the whole list can be walked. `dropped` lists the relPath of each entry whose object is gone — except when the bucket lists NO document at all while files are recorded: then nothing is dropped and `dropSkipped` says why (check the namespace). " + WORKSPACE_ROLE_NOTE + "", inputSchema: { ...contextField } },
+  server.registerTool(
+    "reconcile",
+    {
+      title: "Compare the bucket with the file records",
+      annotations: READS_ONLY,
+      description:
+        "List the .docx documents in Firebase Storage and compare them with the file records BY relPath. READ-ONLY: it changes nothing. " +
+        "Returns `tracked` (present + unchanged), `untracked` docs needing a link ('new' = no record, 'changed' = bytes differ from the record), and `gone` — recorded files whose object is no longer in the bucket. " +
+        "Link each untracked doc to the node it covers with record_document_content(nodeId, relPath, content) — several files may cover the same node, so the whole list can be walked. Filenames are not classified. " +
+        "The record of a `gone` file stays until drop_missing_file_records removes it (a write, with confirmation). " +
+        "When the bucket lists NO document at all while files are recorded, `dropBlocked` says so and that drop is refused: it is far more often the wrong namespace than an emptied bucket. " +
+        WORKSPACE_ROLE_NOTE,
+      inputSchema: { ...contextField },
+    },
     guarded(async (a: WithContext) => withContextOverrideResult(a.context, async () =>
-      (await denyNonMember("readDocuments")) ?? asJson({ namespace: activeNamespace(), ...(await reconcile()) }))));
+      (await denyNonMember("readDocuments")) ?? reconcileReport(activeNamespace()))));
+
+  server.registerTool(
+    "drop_missing_file_records",
+    {
+      title: "Drop the records of files gone from the bucket",
+      annotations: DELETES_FOR_GOOD,
+      description:
+        "Remove the file record of every document that is GONE from the bucket — the paths reconcile lists under `gone`. " +
+        "A record holds what the file covers, what it was made from and any verdict on it, and a dropped record does NOT come back: no draft, no undo. Run reconcile first and read `gone`. " +
+        "REQUIRES CONFIRMATION: without confirm:true nothing is dropped and you get a needsConfirmation notice with `wouldDrop`, the paths whose record would go — ask the user to approve, then call again with confirm:true, which returns `dropped`. " +
+        "The bucket is listed again on the confirmed call, so `dropped` is what was gone at THAT moment. " +
+        "When the bucket lists NO document at all while files are recorded, nothing is dropped and `dropSkipped` says why (check the namespace). " +
+        "Requires a ROLE in the active workspace (any role). Unlike reconcile, this writes to the live history. " +
+        NAMESPACE_NOTE,
+      inputSchema: { confirm: z.boolean().optional(), ...contextField },
+    },
+    guarded(async (a: { confirm?: boolean } & WithContext) =>
+      withContextOverrideResult(a.context, async () => {
+        // Inside the override, so the role is checked against the namespace
+        // whose records would be dropped — see context-override.ts, AUTHORIZATION.
+        const denied = await denyNonMember("writeDocuments");
+        return denied ?? dropMissingRecords(activeNamespace(), a.confirm);
+      })));
 
   server.registerTool("list_documents", { title: "List tracked documents", annotations: READS_ONLY, description: "Current history: one entry per FILE, keyed by its relPath, ordered by unit ordinal then covered node then path. `detail` defaults to 'names' (relPath, nodeId, updated, plus documentId/variant when known) — the content record is what made this tool unusable, at ~8.5 KB an entry; 'summary' adds source and content COUNTS; 'full' returns the whole record and is trimmed to a byte budget with a cursor rather than refused. A node holds several files (a CI-maths lesson has four), so filtering by `nodeId` returns all of them; narrow further with `documentId` (which document produced it) or `variant` ('FR'/'WO'). Paginated: pass limit (default 25, max 100) and an opaque cursor. Optional filters: nodeId (one scope node) and unit (a chapter/week ordinal). " + FILE_STATUS_NOTE + " Returns { entries, count, total, totalUnfiltered, statusCounts, nextCursor }; nextCursor is null on the last page — pass it back to fetch the next page. " + WORKSPACE_ROLE_NOTE + "", inputSchema: listDocumentsShape },
     guarded(async (a: { cursor?: string; limit?: number; nodeId?: string; unit?: number; documentId?: string; variant?: string; status?: FileStatus; current?: boolean } & WithContext) =>

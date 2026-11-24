@@ -359,59 +359,76 @@ export async function recordVerdicts(input: {
 
 // ── Reconciling against the bucket ───────────────────────────────────────────
 
-// Discover-only reconcile: list the bucket's .docx objects and diff against the
-// records BY relPath. A record is tracked when its object is present + unchanged,
-// dropped when its object is gone, and reported as untracked (changed) when the
-// object's bytes differ. Any bucket object with no record is untracked (new) —
-// the curator links it to a node via record_document_content.
-export async function reconcile() {
+/** What comparing the file records with the bucket's .docx objects found. */
+export type ReconcileReport = {
+  /** Recorded, and the bucket holds the same bytes. */
+  tracked: { nodeId: string; relPath: string }[];
+  /** In the bucket with no record ('new'), or with other bytes than the record's ('changed'). */
+  untracked: { relPath: string; md5: string | null; reason: "new" | "changed" }[];
+  /** Recorded, but no longer in the bucket. */
+  gone: string[];
+  /** Why the records of the gone files may not be dropped right now. Absent when they may. */
+  dropBlocked?: string;
+};
+
+export type DroppedRecords = {
+  dropped: string[];
+  /** Why nothing was dropped although files are gone. */
+  dropSkipped?: string;
+};
+
+// Compare the records with the bucket BY relPath, and change nothing. A file
+// the bucket holds with no record, or with other bytes than its record's, is
+// untracked: the curator links it to a node via record_document_content.
+//
+// A recorded file that is gone from the bucket is only REPORTED. Anyone who may
+// read the documents can run this, as often as they like, so it must not
+// delete; dropping those records is dropMissingFileRecords, a call of its own.
+export async function reconcile(): Promise<ReconcileReport> {
   const entries = await currentEntries();
   const discovered = await discoverDocuments();
-  const byPath = new Map(discovered.map((doc) => [doc.relPath, doc]));
+  const inBucket = new Map(discovered.map((doc) => [doc.relPath, doc]));
 
-  const result = {
-    tracked: [] as { nodeId: string; relPath: string }[],
-    untracked: [] as { relPath: string; md5: string | null; reason: "new" | "changed" }[],
-    dropped: [] as string[],   // relPaths whose object is gone
-    dropSkipped: undefined as string | undefined,
-  };
-
-  const knownPaths = new Set<string>();
-  const gone: string[] = [];
+  const report: ReconcileReport = { tracked: [], untracked: [], gone: [] };
+  const recordedPaths = new Set<string>();
   for (const entry of entries) {
-    const object = byPath.get(entry.relPath);
+    recordedPaths.add(entry.relPath);
+    const object = inBucket.get(entry.relPath);
     if (!object) {
-      gone.push(entry.relPath);
-      continue;
-    }
-    knownPaths.add(entry.relPath);
-    if (object.md5 && object.md5 === entry.md5) {
-      result.tracked.push({ nodeId: entry.nodeId, relPath: entry.relPath });
+      report.gone.push(entry.relPath);
+    } else if (object.md5 && object.md5 === entry.md5) {
+      report.tracked.push({ nodeId: entry.nodeId, relPath: entry.relPath });
     } else {
-      result.untracked.push({ relPath: entry.relPath, md5: object.md5, reason: "changed" });
+      report.untracked.push({ relPath: entry.relPath, md5: object.md5, reason: "changed" });
     }
   }
 
   for (const doc of discovered) {
-    if (!knownPaths.has(doc.relPath)) {
-      result.untracked.push({ relPath: doc.relPath, md5: doc.md5, reason: "new" });
+    if (!recordedPaths.has(doc.relPath)) {
+      report.untracked.push({ relPath: doc.relPath, md5: doc.md5, reason: "new" });
     }
   }
 
   // Every recorded file missing at once is far more likely a listing pointed at
   // the wrong place than a bucket emptied on purpose, and a dropped record does
-  // not come back. So that one case is reported and left alone.
-  const everythingGone = entries.length > 0 && discovered.length === 0;
-  if (everythingGone) {
-    result.dropSkipped =
+  // not come back. So that one case blocks the drop.
+  const bucketListsNothing = entries.length > 0 && discovered.length === 0;
+  if (bucketListsNothing) {
+    report.dropBlocked =
       `The bucket lists NO documents for this namespace while ${entries.length} file(s) are recorded. ` +
-      "Nothing was dropped: check the active namespace first. Records are only dropped when some documents are still there.";
-    return result;
+      "No record is dropped while that holds: check the active namespace first. Records are only dropped when some documents are still there.";
+  }
+  return report;
+}
+
+// Remove the record of every file that is gone from the bucket. A removed
+// record does not come back, which is why this is not part of reconcile().
+export async function dropMissingFileRecords(): Promise<DroppedRecords> {
+  const report = await reconcile();
+  if (report.dropBlocked) {
+    return { dropped: [], dropSkipped: report.dropBlocked };
   }
 
-  if (gone.length > 0) {
-    await getFileRecordStore().removeAll(activeNamespaceKey(), gone);
-    result.dropped = gone;
-  }
-  return result;
+  await getFileRecordStore().removeAll(activeNamespaceKey(), report.gone);
+  return { dropped: report.gone };
 }

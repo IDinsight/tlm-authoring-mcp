@@ -130,12 +130,29 @@ stays in the bucket exactly as it was, as the backup of that moment.
 
 No script and no ordering to respect at deploy: the import runs when the namespace is first used.
 
-### Reconcile drops less
+### Reconcile only reports; dropping is a tool of its own
 
-`reconcile` still drops the record of a file that is gone from the bucket. It no longer does so when
-the bucket lists **no** document at all while records exist: that is far more often a listing pointed
-at the wrong place than a bucket emptied on purpose, and a dropped record does not come back. It
-reports `dropSkipped` and leaves the records alone.
+`reconcile` used to drop the record of every file gone from the bucket, in the same call that
+reported it. It needed only the read permission and asked for no confirmation, and a dropped record
+does not come back. Two things were wrong with that. Looking should not delete. And a tool tells its
+client once, for every call, whether it only reads (`server/tool-effects.ts`): a `reconcile` that can
+delete has to say so, and ChatGPT then asks the user before every plain check, while a read-only
+account cannot run it at all. A `drop: true` argument on the same tool would not have helped, for the
+same reason — one tool, one hint.
+
+So there are two tools (2026-11-24):
+
+- `reconcile` reports and changes nothing. The recorded files that are gone are listed under `gone`.
+- `drop_missing_file_records` removes those records. It needs the write permission and a
+  confirmation, and its unconfirmed call lists what would go (`wouldDrop`).
+
+The stdio server's start-up reconcile only reports as well: starting a server deletes nothing.
+
+One case is refused outright. When the bucket lists **no** document at all while records exist, that
+is far more often a listing pointed at the wrong place than a bucket emptied on purpose. `reconcile`
+reports it as `dropBlocked`; the drop tool removes nothing and answers `dropSkipped`.
+
+The drop leaves no line in the audit trail yet (see "Not done").
 
 ## The audit trail
 
@@ -167,6 +184,8 @@ logged and does not undo the file write.
   records are members-only. Worth adding once approvers use this.
 - **Nothing blocks on a status.** A file can be delivered to print without being approved. Blocking
   is a policy for the team, not a default.
+- **Dropping a record leaves no audit line.** `drop_missing_file_records` is confirmed and gated, but
+  the trail does not yet say who dropped which records. A fourth `file` event would do it.
 
 ## Steps 2 and 3 — the judge
 

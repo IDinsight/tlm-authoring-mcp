@@ -106,4 +106,26 @@ An id that is none of the three comes back with an error naming all three and po
 
 ## Reconciliation
 
-Run on startup (when a context is active) and via the `reconcile` tool. It is **discover-only** — it lists the bucket's `.docx` objects and diffs them against history **by `relPath`**, with no filename classification: present + md5 matches history → **tracked**; `relPath` in no entry → **untracked (new)**; `relPath` known but md5 differs → **untracked (changed)**; recorded but the object is gone from the bucket → **dropped** (the stale record is removed) — unless the bucket lists **no** document at all while records exist, which is reported as `dropSkipped` and drops nothing, since that is far more often a wrong namespace than an emptied bucket. The curator/LLM links each untracked doc to its node via `record_document_content`. (A pre-node-keyed `history.json` — the old `(unit, deliverable)` schema — is ignored on load, so its docs re-surface as untracked for a one-time re-link; the bucket objects are untouched.)
+Run on startup of the stdio server (when a context is active) and via the `reconcile` tool. It **only reports**: it lists the bucket's `.docx` objects, compares them with the file records **by `relPath`** (no filename classification), and changes nothing. So it is hinted read-only, and anyone who may read the workspace's documents can run it as often as they like.
+
+| what it finds | reported as |
+|---|---|
+| present, and the md5 matches the record | **tracked** |
+| in the bucket, in no record | **untracked** (`new`) |
+| in the bucket, but the md5 differs from the record | **untracked** (`changed`) |
+| recorded, but the object is gone from the bucket | **gone** — the record is left alone |
+
+The curator/LLM links each untracked doc to its node via `record_document_content`. (A pre-node-keyed `history.json` — the old `(unit, deliverable)` schema — is ignored on load, so its docs re-surface as untracked for a one-time re-link; the bucket objects are untouched.)
+
+### Dropping the records of gone files
+
+Until 2026-11 `reconcile` removed the record of every gone file as it went: a delete behind the read permission, with no confirmation, in a tool an assistant may call just to look. That is now a tool of its own, **`drop_missing_file_records(confirm)`**:
+
+- it needs the documents **write** permission, and it is hinted as a delete with no undo (`DELETES_FOR_GOOD`);
+- without `confirm: true` it drops nothing and returns the confirmation envelope plus `wouldDrop`, the paths whose record would go;
+- with `confirm: true` it lists the bucket again and returns `dropped` — what was gone at that moment;
+- a dropped record does not come back. The file's content record and any verdict on it go with it.
+
+**The safeguard.** When the bucket lists **no** document at all while records exist, nothing is dropped: that is far more often a wrong namespace than an emptied bucket. `reconcile` says so in `dropBlocked`, and the drop tool answers `dropSkipped` with the same sentence, before asking for any confirmation.
+
+Until someone runs the drop, a gone file stays in `list_documents`; asking for its download URL answers `exists: false`.

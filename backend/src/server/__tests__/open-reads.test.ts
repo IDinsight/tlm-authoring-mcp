@@ -101,6 +101,7 @@ describe("the workspace's live assets are members-only", () => {
     ["create_upload_url", { relPath: "chapitre_01/manuel.docx" }],
     ["log_generation", { nodeId: "n-1", relPath: "chapitre_01/manuel.docx", content: {} }],
     ["record_document_content", { nodeId: "n-1", relPath: "chapitre_01/manuel.docx", content: {} }],
+    ["drop_missing_file_records", { confirm: true }],
   ] as const;
 
   it.each([...READS, ...WRITES])("%s refuses a non-member", async (tool, args) => {
@@ -112,6 +113,8 @@ describe("the workspace's live assets are members-only", () => {
   it("tags reads and writes as the distinct actions they are", async () => {
     expect((await callAs(GUEST, "reconcile")).action).toBe("readDocuments");
     expect((await callAs(GUEST, "create_upload_url", { relPath: "x.docx" })).action).toBe("writeDocuments");
+    // Looking at the bucket is a read; dropping the records of gone files is not.
+    expect((await callAs(GUEST, "drop_missing_file_records")).action).toBe("writeDocuments");
   });
 
   it("translate refuses a non-member — it spends a metered backend", async () => {
