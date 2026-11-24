@@ -72,6 +72,8 @@ La procédure d'écriture est la même pour les trois et vit dans `session-autor
   le sous-agent `lecteur` lit le fichier et renvoie une proposition de **programme** (sa forme est
   dans son contrat) — chaque élément avec sa sorte, son nom, son parent et son alignement **par
   leur nom**. Le fil principal résout les noms et écrit ; le sous-agent ne touche jamais au graphe.
+  Sans `lecteur` dans votre outil, le fil principal fait cette lecture lui-même (voir
+  `session-autorat`) et produit la même proposition.
 
 **Le point de couture.** Importer d'un coup le programme entier d'un autre pays n'est pas un outil
 du serveur : la correspondance entre sa forme et la forme canonique du graphe se décide avec un

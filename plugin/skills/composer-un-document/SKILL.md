@@ -75,6 +75,8 @@ change selon la source.
 - **Depuis un document** — une maquette, un ancien guide, un cahier d'un autre pays : le sous-agent
   `lecteur` renvoie une proposition de **document** (sa forme est dans son contrat) — les parties,
   les sections, ce que chacune couvre **par le nom**, et la consigne de page que le fichier suggère.
+  Sans `lecteur` dans votre outil, le fil principal fait cette lecture lui-même (voir
+  `session-autorat`) et produit la même proposition.
   Depuis des leçons existantes, il n'y a rien à lire : les sections les couvrent par leur nom.
 
 ## Vérifier
